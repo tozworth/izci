@@ -525,6 +525,7 @@ export function createMultiplayerSession({
     cancelPendingPlayback: () => host.cancelPendingPlayback(),
     resumeAudio: () => client.resumeAudio(),
     setReceiveAudio: (enabled) => client.setReceiveAudio(enabled),
+    setUseHostOdaBackground: (enabled) => client.setUseHostOdaBackground(enabled),
     updateHostState: (next) => host.updateHostState(next),
     destroy() {
       core.allowClientReconnect = false;
@@ -554,6 +555,7 @@ function getInitialState(): MultiplayerSessionState {
     remotePlayback: EMPTY_REMOTE_PLAYBACK,
     remoteArtwork: null,
     remoteArtworkResolvedTrackKey: '',
+    remoteOdaBackground: null,
     audioStatus: 'idle',
     sidekickSignaling: null,
     sidekickHostAuth: null,

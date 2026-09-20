@@ -120,6 +120,9 @@ export function isClientMessage(value: unknown): value is ClientMessage {
   if (message.kind === 'freeplay.preference') {
     return typeof message.enabled === 'boolean';
   }
+  if (message.kind === 'oda.background.preference') {
+    return typeof message.enabled === 'boolean';
+  }
   if (message.kind === 'freeplay.queue') {
     return Array.isArray(message.itemIds)
       && message.itemIds.length <= MULTIPLAYER_QUEUE_MAX_ITEMS

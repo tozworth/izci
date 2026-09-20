@@ -96,6 +96,7 @@ export interface MultiplayerSessionState {
   remotePlayback: MultiplayerPlayback;
   remoteArtwork: MultiplayerArtwork | null;
   remoteArtworkResolvedTrackKey: string;
+  remoteOdaBackground: import('./multiplayer-protocol').MultiplayerOdaBackground | null;
   audioStatus: MultiplayerAudioStatus;
   remoteDelivery: MultiplayerDeliveryState;
   connectionRoute: MultiplayerConnectionRoute | null;
@@ -118,6 +119,7 @@ export interface MultiplayerHostState {
   repeatMode: RepeatMode;
   playback: PlaybackSnapshot;
   track: TrackItem | null;
+  odaBackground: import('./multiplayer-protocol').MultiplayerOdaBackground | null;
 }
 
 export const EMPTY_PLAYBACK: PlaybackSnapshot = {
@@ -227,6 +229,7 @@ export interface PeerConnection {
   pairNonce: string | null;
   paired: boolean;
   clientFreeplayEnabled: boolean;
+  clientUseHostOdaBackground: boolean;
   helloReceived: boolean;
   chatLeaveAnnounced: boolean;
   freeplaySettled: boolean;
@@ -301,6 +304,7 @@ export interface MultiplayerSessionController extends Readable<MultiplayerSessio
   cancelPendingPlayback(): boolean;
   resumeAudio(): Promise<boolean>;
   setReceiveAudio(enabled: boolean): void;
+  setUseHostOdaBackground(enabled: boolean): void;
   updateHostState(next: MultiplayerHostState): void;
   destroy(): void;
 }

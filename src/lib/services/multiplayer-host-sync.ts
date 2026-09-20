@@ -50,6 +50,12 @@ export function sendCurrentState(ctx: MultiplayerHostContext, peer: PeerConnecti
     motd: core.multiplayerSettings.multiplayerMotd,
     hostName: getLocalName()
   });
+  if (peer.clientUseHostOdaBackground) {
+    sendToPeer(peer, {
+      kind: 'oda.background',
+      background: core.latestHostState.odaBackground
+    });
+  }
   if (peer.freeplay) {
     sendFreeplayCatalog(ctx, peer);
     sendFreeplayState(peer);
@@ -99,6 +105,29 @@ export function sendCurrentState(ctx: MultiplayerHostContext, peer: PeerConnecti
     ctx.sendClockPing(peer, core.hostPlaybackPreparation.preparation.generationId);
   }
   syncPeerMediaSource(ctx, peer);
+}
+
+export function syncHostOdaBackground(ctx: MultiplayerHostContext): void {
+  const background = ctx.core.latestHostState?.odaBackground ?? null;
+  for (const peer of ctx.core.hostPeers.values()) {
+    if (peer.freeplaySettled
+      && peer.clientUseHostOdaBackground
+      && peer.channel?.readyState === 'open') {
+      sendToPeer(peer, { kind: 'oda.background', background });
+    }
+  }
+}
+
+export function syncHostOdaBackgroundOpacity(ctx: MultiplayerHostContext): void {
+  const opacity = ctx.core.latestHostState?.odaBackground?.opacity;
+  if (opacity === undefined) return;
+  for (const peer of ctx.core.hostPeers.values()) {
+    if (peer.freeplaySettled
+      && peer.clientUseHostOdaBackground
+      && peer.channel?.readyState === 'open') {
+      sendToPeer(peer, { kind: 'oda.background.opacity', opacity });
+    }
+  }
 }
 
 export function syncHostMotd(ctx: MultiplayerHostContext): void {

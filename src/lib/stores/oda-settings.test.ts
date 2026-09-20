@@ -36,6 +36,7 @@ describe('normalizeOdaSettings', () => {
       odaBackground: 'custom',
       odaBackgroundImage: 'data:image/jpeg;base64,/9j/',
       odaBackgroundOpacity: 65,
+      odaUseHostBackground: false,
       odaScreensaverDelayMinutes: 15,
       odaScreensaverMoveIntervalMinutes: 30
     })).toEqual({
@@ -56,6 +57,7 @@ describe('normalizeOdaSettings', () => {
       odaBackground: 'custom',
       odaBackgroundImage: 'data:image/jpeg;base64,/9j/',
       odaBackgroundOpacity: 65,
+      odaUseHostBackground: false,
       odaScreensaverDelayMinutes: 15,
       odaScreensaverMoveIntervalMinutes: 30
     });

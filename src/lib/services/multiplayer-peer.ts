@@ -51,6 +51,7 @@ export function createPeer(
     pairNonce: null,
     paired: false,
     clientFreeplayEnabled: false,
+    clientUseHostOdaBackground: false,
     helloReceived: false,
     chatLeaveAnnounced: false,
     freeplaySettled: false,

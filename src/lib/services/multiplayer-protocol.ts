@@ -25,10 +25,10 @@ export interface MultiplayerChatMessage {
   action?: MultiplayerChatAction;
 }
 
-// Version 27 gives now-playing submissions an explicit intent so track titles are never parsed as slash commands. Version 26 adds transient Play next commands for multiplayer queue tracks. Version 25 adds host-only /clear chat history synchronization. Version 24 adds /np now-playing chat messages. Version 23 adds multiplayer join/leave chat notices. Version 22 adds /me chat actions. Version 21 adds the room MOTD protocol. Version 20 adds the room chat message protocol. Version 18 adds explicit
+// Version 29 shares the host's Oda background with clients. Version 27 gives now-playing submissions an explicit intent so track titles are never parsed as slash commands. Version 26 adds transient Play next commands for multiplayer queue tracks. Version 25 adds host-only /clear chat history synchronization. Version 24 adds /np now-playing chat messages. Version 23 adds multiplayer join/leave chat notices. Version 22 adds /me chat actions. Version 21 adds the room MOTD protocol. Version 20 adds the room chat message protocol. Version 18 adds explicit
 // source revisions to buffered-Opus manifests so a
 // listener never reuses cached bytes from a replaced track.
-export const MULTIPLAYER_PROTOCOL_VERSION = 28;
+export const MULTIPLAYER_PROTOCOL_VERSION = 29;
 const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 export const MULTIPLAYER_CHAT_MAX_MESSAGES = 200;
@@ -92,6 +92,11 @@ export interface MultiplayerArtwork {
   mimeType: string;
   width: number;
   height: number;
+}
+
+export interface MultiplayerOdaBackground {
+  dataUrl: string;
+  opacity: number;
 }
 
 export type MultiplayerDeliveryMode = 'none' | 'stream' | 'source-file' | 'render';
@@ -180,6 +185,8 @@ export type HostMessage =
   | { kind: 'buffer'; bufferMs: number }
   | { kind: 'render.manifest'; manifest: MultiplayerRenderManifest }
   | { kind: 'artwork'; artwork: MultiplayerArtwork | null }
+  | { kind: 'oda.background'; background: MultiplayerOdaBackground | null }
+  | { kind: 'oda.background.opacity'; opacity: number }
   | { kind: 'chat.motd'; motd: string; hostName: string }
   | { kind: 'chat.message'; message: MultiplayerChatMessage }
   | { kind: 'chat.history'; messages: MultiplayerChatMessage[] }
@@ -211,6 +218,7 @@ export type ClientMessage =
       action?: Extract<MultiplayerChatAction, 'now-playing'>;
     }
   | { kind: 'freeplay.preference'; enabled: boolean }
+  | { kind: 'oda.background.preference'; enabled: boolean }
   | {
       kind: 'freeplay.queue';
       itemIds: string[];
@@ -458,6 +466,15 @@ export function isHostMessage(value: unknown): value is HostMessage {
   if (message.kind === 'artwork') {
     return message.artwork === null || isMultiplayerArtwork(message.artwork);
   }
+  if (message.kind === 'oda.background') {
+    return message.background === null || isMultiplayerOdaBackground(message.background);
+  }
+  if (message.kind === 'oda.background.opacity') {
+    return typeof message.opacity === 'number'
+      && Number.isInteger(message.opacity)
+      && message.opacity >= 0
+      && message.opacity <= 100;
+  }
   if (message.kind === 'chat.message') {
     return isMultiplayerChatMessage(message.message);
   }
@@ -595,6 +612,17 @@ function isMultiplayerArtwork(value: unknown): value is MultiplayerArtwork {
     && Number.isInteger(artwork.height)
     && (artwork.height ?? 0) > 0
     && (artwork.height ?? 0) <= 4096;
+}
+
+function isMultiplayerOdaBackground(value: unknown): value is MultiplayerOdaBackground {
+  if (!value || typeof value !== 'object') return false;
+  const background = value as Partial<MultiplayerOdaBackground>;
+  return typeof background.dataUrl === 'string'
+    && background.dataUrl.length <= MULTIPLAYER_ARTWORK_DATA_URL_MAX_LENGTH
+    && /^data:image\/[a-z0-9.+-]+;base64,/i.test(background.dataUrl)
+    && Number.isInteger(background.opacity)
+    && (background.opacity ?? -1) >= 0
+    && (background.opacity ?? 101) <= 100;
 }
 
 export function encodeMultiplayerMessage(message: HostMessage | ClientMessage): string[] {

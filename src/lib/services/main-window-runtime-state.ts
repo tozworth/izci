@@ -216,6 +216,7 @@ export function createMainWindowRuntimeState(): {
       },
       remoteArtwork: null,
       remoteArtworkResolvedTrackKey: '',
+      remoteOdaBackground: null,
       audioStatus: 'idle',
       remoteDelivery: {
         generationId: 'idle',

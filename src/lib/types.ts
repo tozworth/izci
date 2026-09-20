@@ -726,6 +726,8 @@ export interface OdaSettings {
   odaBackgroundImage: string | null;
   /** Custom background opacity in percent. */
   odaBackgroundOpacity: number;
+  /** Multiplayer clients use the host's Oda background when one is available. */
+  odaUseHostBackground: boolean;
   /** Idle time before the Oda screensaver starts. Zero disables it. */
   odaScreensaverDelayMinutes: number;
   /** Interval between burn-in-safe text relocations. Zero keeps text stationary. */
