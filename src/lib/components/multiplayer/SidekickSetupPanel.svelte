@@ -7,7 +7,6 @@
     sidekickServers
   } from '$lib/stores/multiplayer-sidekick-recents';
   import {
-    SIDEKICK_PROVIDER_NOTICE_VERSION,
     SIDEKICK_SETUP_GUIDE_URL,
     sidekickSetup
   } from '$lib/services/multiplayer-sidekick-setup';
@@ -20,8 +19,6 @@
   let copyTimer: number | null = null;
 
   $: setup = $sidekickSetup;
-  $: acknowledged = $multiplayerSettings.multiplayerSidekickNoticeVersion
-    >= SIDEKICK_PROVIDER_NOTICE_VERSION;
   $: myRecents = $sidekickRecents.filter(
     (entry) => !setup.endpoint || entry.endpoint === setup.endpoint
   );
@@ -95,9 +92,6 @@
     await sidekickSetup.joinPending().catch(() => undefined);
   }
 
-  async function continueWithProviders(): Promise<void> {
-    await sidekickSetup.acknowledgeProvidersAndConnect().catch(() => undefined);
-  }
 </script>
 
 <div class="sidekick-setup">
@@ -242,11 +236,8 @@
             {$t('options.multiplayer.sidekick.rememberHost', { default: 'Remember this room on this device' })}
           </label>
           <p class="hint">{$t('options.multiplayer.sidekick.rememberHostHint', { default: '' })}</p>
-          {#if !acknowledged}
-            <p class="hint">{$t('options.multiplayer.sidekick.noticeRequired', { default: '' })}</p>
-          {/if}
           <div class="row">
-            <button type="button" disabled={setup.busy !== null || !acknowledged} on:click={createRoom}>
+            <button type="button" disabled={setup.busy !== null} on:click={createRoom}>
               {$t('options.multiplayer.sidekick.createRoom', { default: 'Create room' })}
             </button>
             <button type="button" class="quiet" disabled={setup.busy !== null} on:click={logout}>
@@ -262,7 +253,7 @@
                   <button
                     type="button"
                     class="quiet"
-                    disabled={setup.busy !== null || !recent.ownerSecret || !acknowledged}
+                    disabled={setup.busy !== null || !recent.ownerSecret}
                     on:click={() => recent.ownerSecret && resumeRoom(recent.roomId, recent.ownerSecret)}
                   >
                     {$t('options.multiplayer.sidekick.resumeRoom', { default: 'Resume' })}
@@ -293,39 +284,18 @@
             </p>
           {/if}
           <p class="hint">{$t('options.multiplayer.sidekick.pendingHint', { default: '' })}</p>
-          {#if setup.guestStatus === 'awaiting-providers' && setup.guestInfo}
-            <p class="field-title">{$t('options.multiplayer.sidekick.providersTitle', { default: 'The server declares these ICE providers' })}</p>
-            <ul class="providers">
-              {#each setup.guestInfo.iceUrls as url (url)}
-                <li class="mono">{url}</li>
-              {/each}
-            </ul>
-            <p class="hint">{$t('options.multiplayer.sidekick.providersHint', { default: '' })}</p>
-            <div class="row">
-              <button type="button" disabled={setup.busy !== null} on:click={continueWithProviders}>
-                {$t('options.multiplayer.sidekick.continue', { default: 'Continue' })}
-              </button>
-              <button type="button" class="quiet" on:click={() => sidekickSetup.cancelCurrent()}>
-                {$t('options.multiplayer.sidekick.cancel', { default: 'Cancel' })}
-              </button>
-            </div>
-          {:else}
-            {#if !acknowledged}
-              <p class="hint">{$t('options.multiplayer.sidekick.noticeRequired', { default: '' })}</p>
-            {/if}
-            <div class="row">
-              <button
-                type="button"
-                disabled={setup.busy !== null || setup.guestStatus === 'connecting' || !acknowledged}
-                on:click={join}
-              >
-                {$t('options.multiplayer.sidekick.join', { default: 'Join' })}
-              </button>
-              <button type="button" class="quiet" on:click={() => sidekickSetup.dismissPending()}>
-                {$t('options.multiplayer.sidekick.cancel', { default: 'Cancel' })}
-              </button>
-            </div>
-          {/if}
+          <div class="row">
+            <button
+              type="button"
+              disabled={setup.busy !== null || setup.guestStatus === 'connecting'}
+              on:click={join}
+            >
+              {$t('options.multiplayer.sidekick.join', { default: 'Join' })}
+            </button>
+            <button type="button" class="quiet" on:click={() => sidekickSetup.dismissPending()}>
+              {$t('options.multiplayer.sidekick.cancel', { default: 'Cancel' })}
+            </button>
+          </div>
           {#if setup.guestError}
             <p class="error" role="alert">{setup.guestError}</p>
           {/if}
@@ -338,13 +308,6 @@
   <section aria-label={$t('options.multiplayer.sidekick.noticeTitle', { default: 'Server and provider notice' })}>
     <h4>{$t('options.multiplayer.sidekick.noticeTitle', { default: 'Server and provider notice' })}</h4>
     <p class="hint">{$t('options.multiplayer.sidekick.noticeText', { default: '' })}</p>
-    {#if acknowledged}
-      <p class="hint">{$t('options.multiplayer.sidekick.acknowledged', { default: 'Acknowledged' })}</p>
-    {:else}
-      <button type="button" on:click={() => sidekickSetup.acknowledgeNotice()}>
-        {$t('options.multiplayer.sidekick.acknowledge', { default: 'Acknowledge' })}
-      </button>
-    {/if}
     <p>
       <a href={SIDEKICK_SETUP_GUIDE_URL} target="_blank" rel="noreferrer">
         {$t('options.multiplayer.sidekick.guideLink', { default: 'Sidekick setup guide' })}
@@ -567,12 +530,6 @@
     flex-direction: column;
     gap: 0.15rem;
     margin: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .providers {
-    margin: 0;
-    padding-left: 1.1rem;
     overflow-wrap: anywhere;
   }
 

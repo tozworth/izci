@@ -264,7 +264,7 @@ describe('sidekick setup controller', () => {
     expect(snapshot.error).toMatch(/expired/i);
   });
 
-  it('fetches server info only after Join and gates new ICE providers', async () => {
+  it('fetches server info after Join and uses Sidekick-owned ICE without another setup step', async () => {
     const network = stubNetwork();
     network.fetchInfo = async () => ({
       signalingVersion: 1,
@@ -279,15 +279,12 @@ describe('sidekick setup controller', () => {
     controller.setSessionConnector(connector);
     controller.captureInvitation(invitation());
     expect(network.calls).toEqual([]);
-    await controller.joinPending();
-    expect(controller.getSnapshot().guestStatus).toBe('awaiting-providers');
-    expect(connector.calls).toEqual([]);
     controller.setPendingRemember(true);
-    await controller.acknowledgeProvidersAndConnect();
+    await controller.joinPending();
+    expect(controller.getSnapshot().guestStatus).toBe('idle');
     expect(connector.calls).toEqual(['join']);
     expect(connector.joined[0]).toMatchObject({ roomId: ROOM, secret: 'invite-secret-9' });
     expect(sidekickRecents.getSnapshot()[0]).toMatchObject({ invitationSecret: 'invite-secret-9' });
-    expect(multiplayerSettings.getSnapshot().multiplayerSidekickIceAck).toContain('stun:stun.example.com');
   });
 
   it('skips the provider prompt when there is nothing new to acknowledge', async () => {

@@ -378,7 +378,12 @@
     multiplayerAudioStatus: multiplayerState.audioStatus,
     multiplayerConnectionRoute: multiplayerState.connectionRoute,
     multiplayerAudioBitrateKbps: multiplayerState.averageAudioBitrateKbps,
-    multiplayerInviteCode: multiplayerState.inviteCode,
+    // Menu presentation historically treated a null RTDB code as
+    // invite-less paired hosting. Sidekick keeps its shareable link in the
+    // setup controller, so expose a short room label whenever that link is
+    // ready and let the existing Copy invite action handle either transport.
+    multiplayerInviteCode: multiplayerState.inviteCode
+      ?? ($sidekickSetup.inviteLink ? $sidekickSetup.hosted?.roomId.slice(0, 8) ?? 'Sidekick' : null),
     multiplayerHostName: multiplayerState.hostName,
     multiplayerHostVersion: multiplayerState.hostVersion,
     multiplayerFreeplayEnabled: $multiplayerSettings.multiplayerFreeplay,
