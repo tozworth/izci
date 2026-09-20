@@ -385,7 +385,7 @@
   }
 
   function handlePointerDown(event: PointerEvent): void {
-    if (disabled || !buffer) return;
+    if (disabled || !buffer || event.button !== 0) return;
     canvas.setPointerCapture(event.pointerId);
     const time = timeAtClientX(event.clientX);
     const secondsPerTenPixels = visibleDuration * 10 / Math.max(canvas.clientWidth, 1);
@@ -467,7 +467,7 @@
   }
 
   function handleOverviewPointerDown(event: PointerEvent): void {
-    if (disabled || !buffer || duration <= 0) return;
+    if (disabled || !buffer || duration <= 0 || event.button !== 0) return;
     overviewCanvas.focus();
     overviewCanvas.setPointerCapture(event.pointerId);
     const rect = overviewCanvas.getBoundingClientRect();
