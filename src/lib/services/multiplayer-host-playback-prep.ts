@@ -18,11 +18,14 @@ import {
   buildPlayback,
   syncHostArtwork,
   syncHostAudio,
+  syncHostOdaBackground,
+  syncHostOdaBackgroundOpacity,
   syncHostSourceFiles
 } from './multiplayer-host-sync';
 
 export function updateHostState(ctx: MultiplayerHostContext, next: MultiplayerHostState): void {
   const { core, pauseHostPlayback } = ctx;
+  const previousOdaBackground = core.latestHostState?.odaBackground ?? null;
   let effectiveNext = next;
   if (core.state.mode !== 'hosting') {
     core.latestHostState = next;
@@ -52,6 +55,12 @@ export function updateHostState(ctx: MultiplayerHostContext, next: MultiplayerHo
   }
 
   core.latestHostState = effectiveNext;
+
+  if (previousOdaBackground?.dataUrl !== effectiveNext.odaBackground?.dataUrl) {
+    syncHostOdaBackground(ctx);
+  } else if (previousOdaBackground?.opacity !== effectiveNext.odaBackground?.opacity) {
+    syncHostOdaBackgroundOpacity(ctx);
+  }
 
   const catalogChanged = !core.lastCatalogSources
     || core.lastCatalogSources.queue !== effectiveNext.queue

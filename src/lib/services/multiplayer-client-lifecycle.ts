@@ -117,6 +117,7 @@ export async function leave(ctx: MultiplayerClientContext): Promise<void> {
     remotePlayback: EMPTY_REMOTE_PLAYBACK,
     remoteArtwork: null,
     remoteArtworkResolvedTrackKey: '',
+    remoteOdaBackground: null,
     audioStatus: 'idle',
     remoteDelivery: { ...EMPTY_DELIVERY },
     connectionRoute: null,

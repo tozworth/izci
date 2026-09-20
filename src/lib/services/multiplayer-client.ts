@@ -52,6 +52,7 @@ export interface MultiplayerClientContext {
   synchronizedStartAt: number;
   renderReadySentGeneration: string | null;
   renderReadySentEpoch: number;
+  useHostOdaBackground: boolean;
   connectClient: (rawInviteCode: string, reconnecting: boolean, silent?: boolean) => Promise<void>;
   resolveDirectoryRoomCode: (hostId: string) => Promise<string | null>;
   sendCommand: (command: MultiplayerCommandInput) => boolean;
@@ -79,6 +80,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore) {
     synchronizedStartAt: 0,
     renderReadySentGeneration: null,
     renderReadySentEpoch: -1,
+    useHostOdaBackground: true,
     connectClient: (rawInviteCode, reconnecting, silent = false): Promise<void> =>
       connectClient(ctx, rawInviteCode, reconnecting, silent),
     resolveDirectoryRoomCode: (hostId): Promise<string | null> => resolveDirectoryRoomCode(ctx, hostId),
@@ -121,6 +123,15 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore) {
     return true;
   }
 
+  function setUseHostOdaBackground(enabled: boolean): void {
+    if (ctx.useHostOdaBackground === enabled) return;
+    ctx.useHostOdaBackground = enabled;
+    if (!enabled) core.publish({ remoteOdaBackground: null });
+    if (core.state.mode === 'client' && core.clientPeer?.channel?.readyState === 'open') {
+      sendToPeer(core.clientPeer, { kind: 'oda.background.preference', enabled });
+    }
+  }
+
   return {
     ctx,
     join: (inviteCode: string, options?: { silent?: boolean }) => join(ctx, inviteCode, options),
@@ -130,6 +141,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore) {
     sendCommand: (command: MultiplayerCommandInput) => sendCommand(command),
     setFreeplayQueue: (itemIds: string[]) => setFreeplayQueue(ctx, itemIds),
     setReceiveAudio: (enabled: boolean) => setReceiveAudio(ctx, enabled),
+    setUseHostOdaBackground,
     resumeAudio: () => resumeAudio(ctx),
     applyClientAudioBuffer: (peer: PeerConnection) => applyClientAudioBuffer(ctx, peer),
     handleClientResume: () => handleClientResume(ctx),

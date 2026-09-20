@@ -1550,6 +1550,10 @@
         "title": "Arka plan opaklığı",
         "hint": "Özel arka plan görselinin ne kadar opak olacağı."
       },
+      "useHostBackground": {
+        "title": "Sunucu arka planını kullan",
+        "hint": "Çok oyunculu istemci olarak bağlanıldığında sunucunun Oda arka plan görselini otomatik olarak indirip kullanır."
+      },
       "screensaver": {
         "off": "Kapalı",
         "minutes": "{minutes} dk",

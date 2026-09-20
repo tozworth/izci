@@ -109,6 +109,37 @@
   let screensaverIdleTimer: ReturnType<typeof setTimeout> | null = null;
   let screensaverMounted = false;
   let observedScreensaverActivityToken = screensaverActivityToken;
+  let loadedBackgroundImage: string | null = null;
+  let loadedBackgroundOpacity = 0;
+  let backgroundLoadToken = 0;
+  let backgroundRequestImage: string | null = null;
+  let backgroundRequestOpacity = 0;
+
+  async function prepareBackgroundImage(imageUrl: string | null, opacity: number): Promise<void> {
+    if (imageUrl === backgroundRequestImage) {
+      backgroundRequestOpacity = opacity;
+      if (loadedBackgroundImage === imageUrl) {
+        loadedBackgroundOpacity = Math.min(Math.max(opacity, 0), 100) / 100;
+      }
+      return;
+    }
+    backgroundRequestImage = imageUrl;
+    backgroundRequestOpacity = opacity;
+    const token = ++backgroundLoadToken;
+    loadedBackgroundImage = null;
+    if (!imageUrl) return;
+
+    const image = new Image();
+    image.src = imageUrl;
+    try {
+      await image.decode();
+    } catch {
+      return;
+    }
+    if (token !== backgroundLoadToken) return;
+    loadedBackgroundImage = imageUrl;
+    loadedBackgroundOpacity = Math.min(Math.max(backgroundRequestOpacity, 0), 100) / 100;
+  }
 
   function clearScreensaverIdleTimer(): void {
     if (screensaverIdleTimer !== null) clearTimeout(screensaverIdleTimer);
@@ -149,6 +180,7 @@
   });
 
   onDestroy(() => {
+    backgroundLoadToken += 1;
     screensaverMounted = false;
     clearScreensaverIdleTimer();
     screensaverActive = false;
@@ -620,8 +652,15 @@
     });
   }
 
-  $: odaBackgroundVisible = settings.odaBackground === 'custom' && settings.odaBackgroundImage;
-  $: odaBackgroundOpacity = Math.min(Math.max(settings.odaBackgroundOpacity, 0), 100) / 100;
+  $: useRemoteBackground = multiplayer?.session.mode === 'client'
+    && settings.odaUseHostBackground;
+  $: requestedBackgroundImage = useRemoteBackground
+    ? multiplayer?.session.remoteOdaBackground?.dataUrl ?? null
+    : settings.odaBackground === 'custom' ? settings.odaBackgroundImage : null;
+  $: requestedBackgroundOpacity = useRemoteBackground
+    ? multiplayer?.session.remoteOdaBackground?.opacity ?? 0
+    : settings.odaBackgroundOpacity;
+  $: void prepareBackgroundImage(requestedBackgroundImage, requestedBackgroundOpacity);
 </script>
 
 <svelte:window
@@ -636,10 +675,10 @@
   style={`--oda-overscan-percent: ${settings.odaOverscanPercent}`}
   data-oda-active="true"
 >
-  {#if odaBackgroundVisible}
+  {#if loadedBackgroundImage}
     <div
       class="oda-background"
-      style={`background-image: url("${settings.odaBackgroundImage}"); opacity: ${odaBackgroundOpacity}`}
+      style={`background-image: url("${loadedBackgroundImage}"); opacity: ${loadedBackgroundOpacity}`}
       aria-hidden="true"
     ></div>
   {/if}

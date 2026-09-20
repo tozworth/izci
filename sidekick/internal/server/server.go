@@ -36,7 +36,7 @@ const (
 	// AppProtocolVersion must match MULTIPLAYER_PROTOCOL_VERSION in
 	// src/lib/services/multiplayer-protocol.ts. It is advertised so guests
 	// can reject mismatched hosts before opening RTC. See TestInfoMatchesAppProtocol.
-	AppProtocolVersion = 28
+	AppProtocolVersion = 29
 )
 
 // Stable error codes. Bodies carry only the code (no UI text, no internals).

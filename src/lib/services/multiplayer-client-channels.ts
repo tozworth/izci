@@ -93,6 +93,10 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
       freeplayEnabled: core.multiplayerSettings.multiplayerFreeplay,
       identity: getLocalSidekickIdentity()
     });
+    sendToPeer(peer, {
+      kind: 'oda.background.preference',
+      enabled: ctx.useHostOdaBackground
+    });
   };
   channel.onmessage = (event) => {
     if (core.clientPeer !== peer || peer.channel !== channel) return;
@@ -181,6 +185,17 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
       core.publish({
         remoteArtwork: message.artwork,
         remoteArtworkResolvedTrackKey: getMultiplayerArtworkTrackKey(core.state.remotePlayback.track)
+      });
+    }
+    if (message.kind === 'oda.background') {
+      core.publish({ remoteOdaBackground: message.background });
+    }
+    if (message.kind === 'oda.background.opacity' && core.state.remoteOdaBackground) {
+      core.publish({
+        remoteOdaBackground: {
+          ...core.state.remoteOdaBackground,
+          opacity: message.opacity
+        }
       });
     }
     if (message.kind === 'chat.motd') {

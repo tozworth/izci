@@ -725,8 +725,15 @@
     shuffleEnabled: localShuffleEnabled,
     repeatMode: localRepeatMode,
     playback: localPlaybackSnapshot,
-    track: localPlayingTrack
+    track: localPlayingTrack,
+    odaBackground: $odaSettings.odaBackground === 'custom' && $odaSettings.odaBackgroundImage
+      ? {
+          dataUrl: $odaSettings.odaBackgroundImage,
+          opacity: $odaSettings.odaBackgroundOpacity
+        }
+      : null
   });
+  $: multiplayerSession.setUseHostOdaBackground($odaSettings.odaUseHostBackground);
   $: if ($multiplayerSettings.multiplayer || multiplayerState.mode === 'idle') {
     multiplayerShutdownRequested = false;
   } else if (!multiplayerShutdownRequested) {

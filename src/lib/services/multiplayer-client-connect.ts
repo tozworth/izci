@@ -226,6 +226,7 @@ export async function connectClient(
     remotePlayback: reconnecting ? core.state.remotePlayback : EMPTY_REMOTE_PLAYBACK,
     remoteArtwork: reconnecting ? core.state.remoteArtwork : null,
     remoteArtworkResolvedTrackKey: reconnecting ? core.state.remoteArtworkResolvedTrackKey : '',
+    remoteOdaBackground: reconnecting ? core.state.remoteOdaBackground : null,
     remoteDelivery: reconnecting ? core.state.remoteDelivery : { ...EMPTY_DELIVERY },
     audioStatus: core.state.receiveAudio ? 'connecting' : 'refused',
     connectionRoute: null,

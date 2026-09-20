@@ -1550,6 +1550,10 @@
         "title": "Background opacity",
         "hint": "How opaque the custom background image is."
       },
+      "useHostBackground": {
+        "title": "Use host background",
+        "hint": "When connected as a multiplayer client, automatically fetches and uses the host's Oda background image."
+      },
       "screensaver": {
         "off": "Off",
         "minutes": "{minutes} min",

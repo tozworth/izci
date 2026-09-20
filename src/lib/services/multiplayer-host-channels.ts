@@ -111,6 +111,16 @@ export function attachHostChannel(
       void syncPeerFreeplayMode(ctx, peer);
       return;
     }
+    if (message.kind === 'oda.background.preference') {
+      peer.clientUseHostOdaBackground = message.enabled;
+      if (message.enabled && peer.freeplaySettled) {
+        sendToPeer(peer, {
+          kind: 'oda.background',
+          background: core.latestHostState?.odaBackground ?? null
+        });
+      }
+      return;
+    }
     if (message.kind === 'freeplay.queue' && peer.freeplay) {
       peer.freeplayQueue = sanitizeFreeplayQueueIds(message.itemIds);
       peer.freeplayCollection = 'queue';

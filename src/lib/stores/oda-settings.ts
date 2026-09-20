@@ -56,6 +56,7 @@ export const DEFAULT_ODA_SETTINGS: OdaSettings = {
   odaBackground: 'none',
   odaBackgroundImage: null,
   odaBackgroundOpacity: 50,
+  odaUseHostBackground: true,
   odaScreensaverDelayMinutes: 0,
   odaScreensaverMoveIntervalMinutes: 10,
   odaArrowRepeatInitialDelayMs: 450,
@@ -167,6 +168,10 @@ export function normalizeOdaSettings(value: unknown): OdaSettings {
     odaBackground: normalizeBackground(source.odaBackground),
     odaBackgroundImage: normalizeBackgroundImage(source.odaBackgroundImage),
     odaBackgroundOpacity: normalizeBackgroundOpacity(source.odaBackgroundOpacity),
+    odaUseHostBackground: normalizeBoolean(
+      source.odaUseHostBackground,
+      DEFAULT_ODA_SETTINGS.odaUseHostBackground
+    ),
     odaScreensaverDelayMinutes: Math.round(normalizeBoundedNumber(
       source.odaScreensaverDelayMinutes,
       DEFAULT_ODA_SETTINGS.odaScreensaverDelayMinutes,

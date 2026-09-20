@@ -68,6 +68,9 @@
       odaBackgroundOpacity: (event.currentTarget as HTMLInputElement).valueAsNumber
     });
   }
+  function handleUseHostBackgroundToggle(event: Event) {
+    odaSettings.update({ odaUseHostBackground: checked(event) });
+  }
   function handleScreensaverDelayChange(event: Event) {
     odaSettings.update({
       odaScreensaverDelayMinutes: (event.currentTarget as HTMLInputElement).valueAsNumber
@@ -236,6 +239,18 @@
           <span class="field-output">{$odaSettings.odaBackgroundOpacity}%</span>
         </SettingsField>
       {/if}
+
+      <SettingsField
+        title={$t('options.oda.useHostBackground.title', { default: 'Use host background' })}
+        hint={$t('options.oda.useHostBackground.hint', { default: "When connected as a multiplayer client, automatically fetches and uses the host's Oda background image." })}
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$odaSettings.odaUseHostBackground}
+          on:change={handleUseHostBackgroundToggle}
+        />
+      </SettingsField>
 
       <SettingsField
         title={$t('options.oda.screensaver.delay.title', { default: 'Screensaver' })}

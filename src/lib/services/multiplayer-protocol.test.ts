@@ -107,6 +107,37 @@ describe('multiplayer protocol', () => {
     })).toBe(false);
   });
 
+  it('accepts bounded Oda backgrounds', () => {
+    expect(isHostMessage({
+      kind: 'oda.background',
+      background: {
+        dataUrl: 'data:image/jpeg;base64,AQID',
+        opacity: 50
+      }
+    })).toBe(true);
+    expect(isHostMessage({ kind: 'oda.background', background: null })).toBe(true);
+    expect(isHostMessage({
+      kind: 'oda.background',
+      background: {
+        dataUrl: 'https://example.test/background.jpg',
+        opacity: 50
+      }
+    })).toBe(false);
+    expect(isHostMessage({
+      kind: 'oda.background',
+      background: {
+        dataUrl: 'data:image/jpeg;base64,AQID',
+        opacity: 101
+      }
+    })).toBe(false);
+    expect(isClientMessage({
+      kind: 'oda.background.preference',
+      enabled: true
+    })).toBe(true);
+    expect(isHostMessage({ kind: 'oda.background.opacity', opacity: 75 })).toBe(true);
+    expect(isHostMessage({ kind: 'oda.background.opacity', opacity: -1 })).toBe(false);
+  });
+
   it('accepts explicit generation-keyed delivery states', () => {
     expect(isHostMessage({
       kind: 'delivery',
