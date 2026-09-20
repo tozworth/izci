@@ -85,14 +85,9 @@ export async function startSidekickHosting(
     Math.max(args.capacity ?? core.multiplayerSettings.multiplayerMaxListeners, 1),
     8
   );
-  const generation = core.transportGeneration + 1;
-  core.transportGeneration = generation;
-  core.disposeSidekickTransport?.();
-  core.disposeSidekickTransport = null;
-  core.sidekickHost?.dispose();
-  core.sidekickHost = null;
-  core.sidekickGuest?.dispose();
-  core.sidekickGuest = null;
+  // Shared teardown must retain the current Sidekick host long enough to
+  // DELETE its room. Clearing it here leaked one server-side room every
+  // time Host was invoked again, eventually exhausting maxRooms.
   await core.resetSession(true);
   // resetSession bumps the generation; re-anchor to the new value.
   const owned = core.transportGeneration;

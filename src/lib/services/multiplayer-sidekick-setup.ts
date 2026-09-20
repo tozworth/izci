@@ -197,15 +197,6 @@ export function readSidekickIceAck(): { endpoint: string; urls: string[] } | nul
   }
 }
 
-function providersNeedAck(endpoint: string, urls: string[]): boolean {
-  if (urls.length === 0) return false;
-  const ack = readSidekickIceAck();
-  return !ack
-    || ack.endpoint !== endpoint
-    || ack.urls.length !== urls.length
-    || ack.urls.some((url, index) => url !== urls[index]);
-}
-
 export function createSidekickSetupController(
   network: SidekickSetupNetwork = DEFAULT_NETWORK
 ) {
@@ -243,11 +234,6 @@ export function createSidekickSetupController(
   function requireConnector(): SidekickSessionConnector {
     if (!connector) throw new Error('Open the main window to host or join a sidekick session.');
     return connector;
-  }
-
-  function noticeAcknowledged(): boolean {
-    return multiplayerSettings.getSnapshot().multiplayerSidekickNoticeVersion
-      >= SIDEKICK_PROVIDER_NOTICE_VERSION;
   }
 
   async function connectServer(): Promise<void> {
@@ -342,7 +328,6 @@ export function createSidekickSetupController(
   async function createRoom(): Promise<void> {
     const session = requireConnector();
     if (!loginState || !state.endpoint) throw new Error('Log in to the server first.');
-    if (!noticeAcknowledged()) throw new Error('Acknowledge the server notice first.');
     const signal = takeSignal('create-room');
     try {
       const capacity = multiplayerSettings.getSnapshot().multiplayerMaxListeners;
@@ -410,9 +395,6 @@ export function createSidekickSetupController(
     const settings = multiplayerSettings.getSnapshot();
     if (!settings.multiplayerSidekickEndpoint) {
       throw new Error('Set up a Sidekick server in Options > Multiplayer first.');
-    }
-    if (!noticeAcknowledged()) {
-      throw new Error('Finish Sidekick setup in Options > Multiplayer first.');
     }
     set({ serverInput: settings.multiplayerSidekickEndpoint, hostRemember: true });
     await connectServer();
@@ -634,7 +616,6 @@ export function createSidekickSetupController(
   async function joinPending(): Promise<void> {
     const invitation = state.pendingInvitation;
     if (!invitation) throw new Error('No invitation to join.');
-    if (!noticeAcknowledged()) throw new Error('Acknowledge the server notice first.');
     const signal = takeSignal('join');
     set({ guestStatus: 'loading-info', guestError: null, guestInfo: null });
     try {
@@ -642,11 +623,9 @@ export function createSidekickSetupController(
       // invitation or restoring state.
       const info = await network.fetchInfo(invitation.endpoint, signal);
       if (signal.aborted) return;
-      const iceUrls = Array.isArray(info.iceUrls) ? info.iceUrls.filter((url) => typeof url === 'string') : [];
-      if (providersNeedAck(invitation.endpoint, iceUrls)) {
-        set({ guestStatus: 'awaiting-providers', guestInfo: { ...info, iceUrls } });
-        return;
-      }
+      // ICE configuration is owned and authenticated by the Sidekick. The
+      // client fetches it again for the admitted room; it is not a separate
+      // user setup step.
       await connectGuestWithSignal(signal);
     } catch (error) {
       if (signal.aborted) return;
@@ -659,15 +638,8 @@ export function createSidekickSetupController(
 
   async function joinInvitation(invitation: SidekickInvitation): Promise<void> {
     captureInvitation(invitation, false);
-    if (!noticeAcknowledged()) {
-      set({
-        dialogOpen: true,
-        guestError: 'Finish Sidekick setup in Options > Multiplayer first.'
-      });
-      return;
-    }
     await joinPending();
-    if (state.guestStatus === 'awaiting-providers' || state.guestStatus === 'error') {
+    if (state.guestStatus === 'error') {
       set({ dialogOpen: true });
     }
   }

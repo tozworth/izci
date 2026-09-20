@@ -155,10 +155,9 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   function isConnectionReady(value: MultiplayerSessionState): boolean {
     if (value.connectionStatus !== 'connected' || value.message !== null) return false;
     if (value.mode === 'hosting') return true;
-    if (value.mode !== 'client'
-      || value.remoteCatalog.revision <= 0
-      || value.remoteDelivery.generationId === 'idle') return false;
+    if (value.mode !== 'client') return false;
     if (!value.receiveAudio || value.remoteDelivery.mode === 'none') return true;
+    if (value.remoteCatalog.revision <= 0 || value.remoteDelivery.generationId === 'idle') return false;
     return value.audioStatus === 'playing'
       || value.audioStatus === 'ready'
       || value.audioStatus === 'refused'
@@ -358,6 +357,10 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
 
   async function host(): Promise<void> {
     if (isSidekickTransport()) {
+      if (deps.getSession().getSnapshot().mode === 'hosting') {
+        await copyInvite();
+        return;
+      }
       beginConnection('hosting');
       try {
         await sidekickSetup.hostConfigured();

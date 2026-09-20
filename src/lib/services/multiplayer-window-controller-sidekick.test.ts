@@ -46,6 +46,7 @@ function deps(overrides: {
   session?: Record<string, ReturnType<typeof vi.fn>>;
 } = {}) {
   const session = {
+    getSnapshot: vi.fn(() => ({ mode: 'idle' })),
     startHosting: vi.fn(async () => 'abcd1234'),
     join: vi.fn(async () => undefined),
     joinPaired: vi.fn(async () => undefined),
@@ -203,6 +204,32 @@ describe('multiplayer window controller sidekick routing', () => {
       open = ui.dialog.open;
     });
     controller.prepareLaunchDialog();
+    expect(open).toBe(false);
+    unsubscribe();
+  });
+
+  it('finishes joining an idle host without waiting for an audio generation', async () => {
+    stubWindow('');
+    const { controller } = deps();
+    let open = false;
+    const unsubscribe = controller.subscribe((ui) => {
+      open = ui.dialog.open;
+    });
+
+    await controller.join('abcd1234');
+    expect(open).toBe(true);
+    controller.syncFromSession({
+      mode: 'client',
+      connectionStatus: 'connected',
+      message: null,
+      reconnecting: false,
+      freeplay: false,
+      receiveAudio: true,
+      audioStatus: 'connecting',
+      remoteCatalog: { queue: [], library: [], favorites: [], revision: 0 },
+      remoteDelivery: { mode: 'none', generationId: 'idle' }
+    } as never);
+
     expect(open).toBe(false);
     unsubscribe();
   });
