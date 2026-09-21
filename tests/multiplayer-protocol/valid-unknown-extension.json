@@ -1,0 +1,20 @@
+{
+  "kind": "catalog",
+  "catalog": {
+    "revision": 4,
+    "queue": [
+      {
+        "id": "t2",
+        "name": "weird.xyz",
+        "extension": "xyz",
+        "kind": "stream",
+        "size": 10,
+        "lastModified": 1
+      }
+    ],
+    "library": [],
+    "favorites": [],
+    "shuffleEnabled": false,
+    "repeatMode": "all"
+  }
+}

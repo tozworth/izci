@@ -1,29 +1,54 @@
 import type { TrackItem, RepeatMode } from '$lib/types';
+import { version as appVersion } from '../../../package.json';
 import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
 import {
-  MULTIPLAYER_PROTOCOL_VERSION,
+  MULTIPLAYER_PROTOCOL_CAPABILITIES,
   MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH,
   MULTIPLAYER_QUEUE_MAX_ITEMS,
   MULTIPLAYER_RENDER_MAX_RANGES,
+  isCompatibleHelloIdentity,
+  isHelloProtocolIdentity,
   isMultiplayerCommand,
+  isMultiplayerCommandEnvelope,
   isMultiplayerChatTrackLink,
+  isProtocolDisplayName,
+  normalizeCapabilities,
   type ClientMessage,
-  type MultiplayerDeliveryMode
+  type MultiplayerDeliveryMode,
+  type MultiplayerImplementation
 } from './multiplayer-protocol';
 
 const RECEIVE_AUDIO_STORAGE_KEY = 'izci.multiplayer.receive-audio';
 
+const MULTIPLAYER_LOCAL_CAPABILITIES: readonly string[] = MULTIPLAYER_PROTOCOL_CAPABILITIES;
+
+export function getLocalImplementation(): MultiplayerImplementation {
+  return { product: 'izci', productVersion: appVersion };
+}
+
+export function getLocalCapabilities(): string[] {
+  return [...MULTIPLAYER_LOCAL_CAPABILITIES];
+}
+
 /**
- * True when a decoded frame is a host hello from an incompatible protocol
- * version. isHostMessage rejects such hellos outright, so this exists for
- * callers that want to surface a friendly error instead of dropping them.
+ * True when a decoded frame is a hello from an incompatible peer.
+ * isHostMessage/isClientMessage reject such hellos outright, so this exists
+ * for callers that want to surface a friendly error instead of dropping them.
+ * Major mismatch (including legacy `version` frames) is incompatible; minor
+ * skew alone is compatible.
  */
 export function isIncompatibleProtocolHello(value: unknown): boolean {
   if (typeof value !== 'object' || value === null) return false;
   const message = value as Record<string, unknown>;
-  return message.kind === 'hello'
-    && typeof message.version === 'number'
-    && message.version !== MULTIPLAYER_PROTOCOL_VERSION;
+  if (message.kind !== 'hello') return false;
+  if (typeof message.protocolMajor === 'number') {
+    return !isCompatibleHelloIdentity({
+      protocolMajor: message.protocolMajor,
+      capabilities: message.capabilities
+    });
+  }
+  // Legacy integer-version hellos predate the major/minor split.
+  return typeof message.version === 'number';
 }
 
 export function isMultiplayerClientTransportHealthy(
@@ -92,9 +117,11 @@ export function isClientMessage(value: unknown): value is ClientMessage {
   if (!value || typeof value !== 'object') return false;
   const message = value as Partial<ClientMessage> & Record<string, unknown>;
   if (message.kind === 'hello') {
-    return message.version === MULTIPLAYER_PROTOCOL_VERSION
-      && typeof message.name === 'string'
+    return isHelloProtocolIdentity(message)
+      && isProtocolDisplayName(message.name)
       && typeof message.platform === 'string'
+      && message.platform.length <= 32
+      && !/[\u0000-\u001f\u007f]/.test(message.platform)
       && typeof message.freeplayEnabled === 'boolean'
       && (message.identity === undefined
         || (typeof message.identity === 'string' && /^[A-Za-z0-9_-]{8,128}$/.test(message.identity)));
@@ -178,7 +205,17 @@ export function isClientMessage(value: unknown): value is ClientMessage {
       && Number.isFinite(message.positionMs)
       && message.positionMs >= 0;
   }
-  return message.kind === 'command' && isMultiplayerCommand(message.command);
+  if (message.kind === 'command') {
+    // Accept any well-formed command envelope so unsupported types can be
+    // nacked explicitly instead of dropped silently.
+    return isMultiplayerCommandEnvelope(message.command);
+  }
+  return false;
+}
+
+/** True when the command envelope carries a known, executable command. */
+export function isSupportedClientCommand(value: unknown): boolean {
+  return isMultiplayerCommand(value as never);
 }
 
 function isRenderNeed(value: unknown): value is import('./multiplayer-protocol').MultiplayerRenderNeed {

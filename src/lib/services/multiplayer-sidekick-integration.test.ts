@@ -157,7 +157,8 @@ describe('sidekick integration through production helpers', () => {
   it('serves info with the app protocol version', async () => {
     const info = await fetchSidekickInfo(endpoint);
     expect(info.signalingVersion).toBe(1);
-    expect(info.appProtocolVersion).toBeGreaterThan(0);
+    expect(info.appProtocolMajor).toBe(1);
+    expect(info.appCapabilities).toContain("source-file");
   });
 
   it('rejects wrong invitations indistinguishably and admits a valid join', async () => {

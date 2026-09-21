@@ -1,0 +1,20 @@
+{
+  "kind": "catalog",
+  "catalog": {
+    "revision": 1,
+    "queue": [
+      {
+        "id": "t",
+        "name": "x",
+        "extension": "mp3",
+        "kind": "tape",
+        "size": 1,
+        "lastModified": 1
+      }
+    ],
+    "library": [],
+    "favorites": [],
+    "shuffleEnabled": false,
+    "repeatMode": "off"
+  }
+}

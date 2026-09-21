@@ -499,10 +499,15 @@ func (s *Server) handleDeleteRoom(w http.ResponseWriter, r *http.Request, roomID
 // --- Join ---
 
 type joinRequest struct {
-	RoomID           string `json:"roomId"`
-	InvitationSecret string `json:"invitationSecret"`
-	AttemptNonce     string `json:"attemptNonce"`
-	AppProtocol      *int   `json:"appProtocol"`
+	RoomID           string   `json:"roomId"`
+	InvitationSecret string   `json:"invitationSecret"`
+	AttemptNonce     string   `json:"attemptNonce"`
+	AppMajor         *int     `json:"appProtocolMajor"`
+	AppMinor         *int     `json:"appProtocolMinor"`
+	AppCapabilities  []string `json:"appCapabilities"`
+	// Legacy exact-version field (pre-Phase-0). Accepted only to report
+	// unsupported-version rather than a generic bad-request.
+	LegacyAppProtocol *int `json:"appProtocol"`
 }
 
 type joinResponse struct {
@@ -532,10 +537,23 @@ func (s *Server) handleJoin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, CodeBadRequest)
 		return
 	}
-	if req.AppProtocol == nil || *req.AppProtocol != AppProtocolVersion {
+	// Application admission compares the major plus required baseline
+	// capabilities, not an exact integer. Minor skew alone admits.
+	if req.AppMajor == nil || *req.AppMajor != AppProtocolMajor {
 		writeError(w, http.StatusBadRequest, CodeUnsupportedVersion)
 		return
 	}
+	if req.AppMinor != nil && (*req.AppMinor < 0 || *req.AppMinor > 9999) {
+		writeError(w, http.StatusBadRequest, CodeBadRequest)
+		return
+	}
+	for _, cap := range req.AppCapabilities {
+		if len(cap) == 0 || len(cap) > 64 {
+			writeError(w, http.StatusBadRequest, CodeBadRequest)
+			return
+		}
+	}
+	// Baseline is currently empty; unknown capabilities are ignored.
 	if !validHexID(req.RoomID) {
 		writeError(w, http.StatusNotFound, CodeRoomUnavailable)
 		return

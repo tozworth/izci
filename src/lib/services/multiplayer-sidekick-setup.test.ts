@@ -34,7 +34,9 @@ function stubNetwork(): SidekickSetupNetwork & { calls: string[] } {
       calls.push(`info:${endpoint}`);
       return {
         signalingVersion: 1,
-        appProtocolVersion: 1,
+        appProtocolMajor: 1,
+        appProtocolMinor: 0,
+        appCapabilities: [],
         description: 'Test server',
         contact: 'op@example.com',
         iceUrls: [],
@@ -268,7 +270,9 @@ describe('sidekick setup controller', () => {
     const network = stubNetwork();
     network.fetchInfo = async () => ({
       signalingVersion: 1,
-      appProtocolVersion: 1,
+      appProtocolMajor: 1,
+      appProtocolMinor: 0,
+      appCapabilities: [],
       description: 'Party box',
       contact: '',
       iceUrls: ['stun:stun.example.com'],

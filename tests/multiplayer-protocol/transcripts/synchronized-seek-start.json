@@ -1,0 +1,101 @@
+{
+  "name": "synchronized-seek-start",
+  "steps": [
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "delivery",
+      "payload": {
+        "delivery": {
+          "generationId": "gen-seek-1",
+          "trackId": "track-1",
+          "mode": "render",
+          "reason": null
+        }
+      }
+    },
+    {
+      "from": "client",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "command",
+      "payload": {
+        "command": {
+          "type": "transport.seek",
+          "commandId": "seek-1",
+          "seconds": 30
+        }
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "ack",
+      "payload": {
+        "commandId": "seek-1",
+        "accepted": true
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "playback.cancel",
+      "payload": {
+        "generationId": "gen-seek-1"
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "delivery",
+      "payload": {
+        "delivery": {
+          "generationId": "gen-seek-2",
+          "trackId": "track-1",
+          "mode": "render",
+          "reason": null
+        }
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "playback.prepare",
+      "payload": {
+        "preparation": {
+          "generationId": "gen-seek-2",
+          "trackId": "track-1",
+          "delivery": "render"
+        }
+      }
+    },
+    {
+      "from": "client",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "playback.ready",
+      "payload": {
+        "generationId": "gen-seek-2"
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "playback.start",
+      "payload": {
+        "start": {
+          "generationId": "gen-seek-2",
+          "trackId": "track-1",
+          "positionSeconds": 30,
+          "startAt": 4000
+        }
+      }
+    }
+  ]
+}

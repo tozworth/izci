@@ -1,0 +1,8 @@
+{
+  "kind": "command",
+  "command": {
+    "type": "transport.seek",
+    "commandId": "cmd-2",
+    "seconds": 12.5
+  }
+}

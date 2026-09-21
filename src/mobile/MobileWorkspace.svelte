@@ -60,6 +60,8 @@
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
   export let multiplayerHostVersion: string | null = null;
+  export let multiplayerHostImplementation: import("$lib/services/multiplayer-protocol").MultiplayerImplementation | null = null;
+  export let multiplayerHostProtocol: { major: number; minor: number } | null = null;
   export let multiplayerFreeplay = false;
   export let multiplayerReceiveAudio = true;
   export let multiplayerConnectionStats: MultiplayerConnectionStats | null = null;
@@ -286,7 +288,7 @@
                   title={multiplayerFreeplay
                     ? $t('main.multiplayer.freeplay.label', { default: 'Freeplay' })
                     : $t('main.multiplayer.label', { default: 'Multiplayer' })}
-                  aria-label={$t('main.multiplayer.stats.hostVersion', { default: 'Host izci' })}
+                  aria-label={$t('main.multiplayer.stats.hostVersion', { default: 'Host' })}
                   on:click={() => (multiplayerStatsOpen = true)}
                 >
                   <span class="material-symbols-outlined" aria-hidden="true">{multiplayerFreeplay ? 'queue_music' : 'cast_connected'}</span>
@@ -397,6 +399,8 @@
   <MobileMultiplayerStats
     hostName={multiplayerHostName}
     hostVersion={multiplayerHostVersion}
+    hostImplementation={multiplayerHostImplementation}
+    hostProtocol={multiplayerHostProtocol}
     connectionStatus={multiplayerConnectionStatus}
     connectionRoute={multiplayerConnectionRoute}
     audioBitrateKbps={multiplayerAudioBitrateKbps}

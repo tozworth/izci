@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
-  import { MULTIPLAYER_PROTOCOL_VERSION } from '$lib/services/multiplayer-protocol';
+  import { MULTIPLAYER_PROTOCOL_MAJOR, MULTIPLAYER_PROTOCOL_MINOR, formatHostImplementation, type MultiplayerImplementation } from '$lib/services/multiplayer-protocol';
   import {
     formatAudioStat,
     formatBytes,
@@ -17,6 +17,8 @@
 
   export let hostName: string | null = null;
   export let hostVersion: string | null = null;
+  export let hostImplementation: MultiplayerImplementation | null = null;
+  export let hostProtocol: { major: number; minor: number } | null = null;
   export let connectionStatus: MultiplayerConnectionStatus = 'idle';
   export let connectionRoute: MultiplayerConnectionRoute | null = null;
   export let audioBitrateKbps: number | null = null;
@@ -117,8 +119,8 @@
 
   <dl class="mobile-stats-rows">
     <div class="mobile-stats-row">
-      <dt><span class="material-symbols-outlined" aria-hidden="true">info</span><span>{$t('main.multiplayer.stats.hostVersion', { default: 'Host izci' })}</span></dt>
-      <dd>{hostVersion ? `v${hostVersion} · ${$t('main.multiplayer.stats.protocol', { default: 'Protocol' })} ${MULTIPLAYER_PROTOCOL_VERSION}` : '—'}</dd>
+      <dt><span class="material-symbols-outlined" aria-hidden="true">info</span><span>{$t('main.multiplayer.stats.hostVersion', { default: 'Host' })}</span></dt>
+      <dd>{(hostImplementation ?? hostVersion) ? `${formatHostImplementation(hostImplementation ?? (hostVersion ? { product: 'izci', productVersion: hostVersion } : null))} · ${$t('main.multiplayer.stats.protocol', { default: 'Protocol' })} ${hostProtocol ? `${hostProtocol.major}.${hostProtocol.minor}` : `${MULTIPLAYER_PROTOCOL_MAJOR}.${MULTIPLAYER_PROTOCOL_MINOR}`}` : '—'}</dd>
     </div>
     <div class="mobile-stats-row">
       <dt><span class="material-symbols-outlined" aria-hidden="true">route</span><span>{$t('main.multiplayer.stats.connection', { default: 'Connection' })}</span></dt>

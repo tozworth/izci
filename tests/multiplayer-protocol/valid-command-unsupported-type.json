@@ -1,0 +1,8 @@
+{
+  "kind": "command",
+  "command": {
+    "type": "transport.volume",
+    "commandId": "cmd-9",
+    "volume": 0.5
+  }
+}

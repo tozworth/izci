@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MULTIPLAYER_PROTOCOL_VERSION } from './multiplayer-protocol';
+import { MULTIPLAYER_PROTOCOL_MAJOR } from './multiplayer-protocol';
 import {
   isMultiplayerClientTransportHealthy,
   isIncompatibleProtocolHello,
@@ -64,31 +64,41 @@ describe('multiplayer render delivery selection', () => {
 });
 
 describe('isIncompatibleProtocolHello', () => {
-  it('rejects a hello at the current protocol version', () => {
+  it('accepts a hello at the current major regardless of minor', () => {
     expect(isIncompatibleProtocolHello({
       kind: 'hello',
-      version: MULTIPLAYER_PROTOCOL_VERSION
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+      protocolMinor: 0,
+      capabilities: []
+    })).toBe(false);
+    expect(isIncompatibleProtocolHello({
+      kind: 'hello',
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+      protocolMinor: 99,
+      capabilities: ['future-cap']
     })).toBe(false);
   });
 
-  it('detects a hello from an older protocol version', () => {
+  it('detects a hello from a different major', () => {
     expect(isIncompatibleProtocolHello({
       kind: 'hello',
-      version: MULTIPLAYER_PROTOCOL_VERSION - 1
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR + 1,
+      protocolMinor: 0,
+      capabilities: []
     })).toBe(true);
   });
 
-  it('detects a hello from a newer protocol version', () => {
+  it('detects legacy integer-version hellos as incompatible', () => {
     expect(isIncompatibleProtocolHello({
       kind: 'hello',
-      version: MULTIPLAYER_PROTOCOL_VERSION + 1
+      version: 29
     })).toBe(true);
   });
 
   it('rejects non-hello messages even with a version', () => {
     expect(isIncompatibleProtocolHello({
       kind: 'state',
-      version: MULTIPLAYER_PROTOCOL_VERSION - 1
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR - 1
     })).toBe(false);
   });
 

@@ -1,0 +1,11 @@
+{
+  "kind": "catalog",
+  "catalog": {
+    "revision": 1,
+    "queue": [],
+    "library": [],
+    "favorites": [],
+    "shuffleEnabled": false,
+    "repeatMode": "shuffle"
+  }
+}

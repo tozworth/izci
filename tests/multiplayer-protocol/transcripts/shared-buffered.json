@@ -1,0 +1,111 @@
+{
+  "name": "shared-buffered",
+  "steps": [
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "delivery",
+      "payload": {
+        "delivery": {
+          "generationId": "gen-render-1",
+          "trackId": "track-1",
+          "mode": "render",
+          "reason": null
+        }
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "render.manifest",
+      "payload": {
+        "manifest": {
+          "generationId": "gen-render-1",
+          "renderId": "render-1",
+          "trackId": "track-1",
+          "sourceRevision": "1:1:1:0",
+          "codec": "opus",
+          "container": "webm",
+          "durationMs": 5000,
+          "bitrateKbps": 128,
+          "clusterDurationMs": 1000,
+          "clusters": [
+            {
+              "index": 0,
+              "timeMs": 0,
+              "sizeBytes": 10
+            }
+          ],
+          "initSizeBytes": 5,
+          "totalBytes": 15
+        }
+      }
+    },
+    {
+      "from": "client",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "render.need",
+      "payload": {
+        "need": {
+          "generationId": "gen-render-1",
+          "renderId": "render-1",
+          "epoch": 0,
+          "targetTimeMs": 0,
+          "aheadMs": 3000,
+          "ranges": []
+        }
+      }
+    },
+    {
+      "from": "client",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "render.ready",
+      "payload": {
+        "generationId": "gen-render-1",
+        "renderId": "render-1",
+        "epoch": 0,
+        "positionMs": 0
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "playback.prepare",
+      "payload": {
+        "preparation": {
+          "generationId": "gen-render-1",
+          "trackId": "track-1",
+          "delivery": "render"
+        }
+      }
+    },
+    {
+      "from": "client",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "playback.ready",
+      "payload": {
+        "generationId": "gen-render-1"
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "playback.start",
+      "payload": {
+        "start": {
+          "generationId": "gen-render-1",
+          "trackId": "track-1",
+          "positionSeconds": 0,
+          "startAt": 3000
+        }
+      }
+    }
+  ]
+}

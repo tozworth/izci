@@ -118,7 +118,9 @@ func TestInfo(t *testing.T) {
 	}
 	var v struct {
 		SignalingVersion int      `json:"signalingVersion"`
-		AppProtocol      int      `json:"appProtocolVersion"`
+		AppMajor         int      `json:"appProtocolMajor"`
+		AppMinor         int      `json:"appProtocolMinor"`
+		AppCapabilities  []string `json:"appCapabilities"`
 		Description      string   `json:"description"`
 		Contact          string   `json:"contact"`
 		IceURLs          []string `json:"iceUrls"`
@@ -135,8 +137,14 @@ func TestInfo(t *testing.T) {
 	if v.SignalingVersion != SignalingVersion {
 		t.Errorf("signalingVersion = %d", v.SignalingVersion)
 	}
-	if v.AppProtocol != AppProtocolVersion {
-		t.Errorf("appProtocolVersion = %d", v.AppProtocol)
+	if v.AppMajor != AppProtocolMajor {
+		t.Errorf("appProtocolMajor = %d", v.AppMajor)
+	}
+	if v.AppMinor != AppProtocolMinor {
+		t.Errorf("appProtocolMinor = %d", v.AppMinor)
+	}
+	if len(v.AppCapabilities) == 0 {
+		t.Errorf("appCapabilities empty")
 	}
 	if v.Description != "Test operator" || v.Contact != "ops@example.test" {
 		t.Errorf("operator = %q / %q", v.Description, v.Contact)
@@ -150,22 +158,31 @@ func TestInfo(t *testing.T) {
 }
 
 // TestInfoMatchesAppProtocol keeps the advertised app protocol in sync with
-// the frontend's MULTIPLAYER_PROTOCOL_VERSION.
+// the frontend's MULTIPLAYER_PROTOCOL_MAJOR/MINOR.
 func TestInfoMatchesAppProtocol(t *testing.T) {
 	data, err := os.ReadFile("../../../src/lib/services/multiplayer-protocol.ts")
 	if err != nil {
 		t.Skipf("frontend protocol source not present: %v", err)
 	}
-	m := regexp.MustCompile(`MULTIPLAYER_PROTOCOL_VERSION\s*=\s*(\d+)`).FindSubmatch(data)
-	if m == nil {
-		t.Fatalf("protocol version not found in frontend source")
+	majorRe := regexp.MustCompile(`MULTIPLAYER_PROTOCOL_MAJOR\s*=\s*(\d+)`)
+	minorRe := regexp.MustCompile(`MULTIPLAYER_PROTOCOL_MINOR\s*=\s*(\d+)`)
+	majorMatch := majorRe.FindSubmatch(data)
+	minorMatch := minorRe.FindSubmatch(data)
+	if majorMatch == nil || minorMatch == nil {
+		t.Fatalf("protocol major/minor not found in frontend source")
 	}
-	var want int
-	if err := json.Unmarshal(m[1], &want); err != nil {
+	var wantMajor, wantMinor int
+	if err := json.Unmarshal(majorMatch[1], &wantMajor); err != nil {
 		t.Fatal(err)
 	}
-	if AppProtocolVersion != want {
-		t.Errorf("AppProtocolVersion = %d, frontend = %d", AppProtocolVersion, want)
+	if err := json.Unmarshal(minorMatch[1], &wantMinor); err != nil {
+		t.Fatal(err)
+	}
+	if AppProtocolMajor != wantMajor {
+		t.Errorf("AppProtocolMajor = %d, frontend = %d", AppProtocolMajor, wantMajor)
+	}
+	if AppProtocolMinor != wantMinor {
+		t.Errorf("AppProtocolMinor = %d, frontend = %d", AppProtocolMinor, wantMinor)
 	}
 }
 

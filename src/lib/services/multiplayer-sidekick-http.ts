@@ -4,7 +4,9 @@
  * redirects. Secrets travel in bodies or bearer headers, never URLs.
  */
 import {
-  SIDEKICK_APP_PROTOCOL_VERSION,
+  SIDEKICK_APP_PROTOCOL_CAPABILITIES,
+  SIDEKICK_APP_PROTOCOL_MAJOR,
+  SIDEKICK_APP_PROTOCOL_MINOR,
   type SidekickErrorCode
 } from './multiplayer-sidekick-protocol';
 
@@ -50,7 +52,11 @@ export interface SidekickTicket {
 
 export interface SidekickServerInfo {
   signalingVersion: number;
-  appProtocolVersion: number;
+  appProtocolMajor: number;
+  appProtocolMinor: number;
+  appCapabilities: string[];
+  /** Legacy integer; present only on pre-Phase-0 servers. */
+  appProtocolVersion?: number;
   description: string;
   contact: string;
   iceUrls: string[];
@@ -59,6 +65,18 @@ export interface SidekickServerInfo {
     maxPeersPerRoom: number;
     maxPendingAttemptsPerRoom: number;
   };
+}
+
+export function isCompatibleSidekickServer(info: Pick<
+  SidekickServerInfo,
+  'appProtocolMajor' | 'appCapabilities'
+> & { appProtocolVersion?: number }): boolean {
+  const major = info.appProtocolMajor
+    ?? (typeof info.appProtocolVersion === 'number' ? info.appProtocolVersion : NaN);
+  // Legacy servers expose only the old integer; treat it as incompatible with
+  // the major/minor split (scorched-earth pre-alpha break).
+  if (typeof info.appProtocolMajor !== 'number') return false;
+  return major === SIDEKICK_APP_PROTOCOL_MAJOR;
 }
 
 /** Normalize an endpoint once: trim, drop trailing slashes, keep prefix path. */
@@ -256,7 +274,9 @@ export async function joinSidekickRoom(
       roomId,
       invitationSecret,
       attemptNonce,
-      appProtocol: SIDEKICK_APP_PROTOCOL_VERSION
+      appProtocolMajor: SIDEKICK_APP_PROTOCOL_MAJOR,
+      appProtocolMinor: SIDEKICK_APP_PROTOCOL_MINOR,
+      appCapabilities: [...SIDEKICK_APP_PROTOCOL_CAPABILITIES]
     }
   });
 }

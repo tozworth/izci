@@ -1,0 +1,112 @@
+{
+  "name": "freeplay",
+  "steps": [
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "delivery",
+      "payload": {
+        "delivery": {
+          "generationId": "gen-shared-1",
+          "trackId": "shared-track",
+          "mode": "source-file",
+          "reason": null
+        }
+      }
+    },
+    {
+      "from": "client",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "freeplay.preference",
+      "payload": {
+        "enabled": true
+      }
+    },
+    {
+      "from": "host",
+      "to": "freeplay-peer",
+      "channel": "izci-control",
+      "kind": "pairing",
+      "payload": {
+        "paired": true,
+        "freeplayActive": true,
+        "hostId": "host-1",
+        "name": "Host"
+      }
+    },
+    {
+      "from": "client",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "freeplay.queue",
+      "payload": {
+        "itemIds": [
+          "fp-track-1",
+          "fp-track-2"
+        ]
+      }
+    },
+    {
+      "from": "host",
+      "to": "freeplay-peer",
+      "channel": "izci-control",
+      "kind": "delivery",
+      "payload": {
+        "delivery": {
+          "generationId": "gen-free-1",
+          "trackId": "fp-track-1",
+          "mode": "source-file",
+          "reason": null
+        }
+      }
+    },
+    {
+      "from": "host",
+      "to": "freeplay-peer",
+      "channel": "izci-control",
+      "kind": "playback.prepare",
+      "payload": {
+        "preparation": {
+          "generationId": "gen-free-1",
+          "trackId": "fp-track-1",
+          "delivery": "source-file"
+        }
+      }
+    },
+    {
+      "from": "freeplay-peer",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "playback.ready",
+      "payload": {
+        "generationId": "gen-free-1"
+      }
+    },
+    {
+      "from": "host",
+      "to": "freeplay-peer",
+      "channel": "izci-control",
+      "kind": "playback.start",
+      "payload": {
+        "start": {
+          "generationId": "gen-free-1",
+          "trackId": "fp-track-1",
+          "positionSeconds": 0,
+          "startAt": 5000
+        }
+      }
+    },
+    {
+      "from": "freeplay-peer",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "playback.ended",
+      "payload": {
+        "generationId": "gen-free-1",
+        "trackId": "fp-track-1"
+      }
+    }
+  ]
+}

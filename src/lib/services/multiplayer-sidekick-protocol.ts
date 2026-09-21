@@ -7,12 +7,18 @@
  * fixtures that this module must accept/reject in parity with the Go server.
  * Signaling version 1 is separate from the app (RTC/data-channel) protocol.
  */
-import { MULTIPLAYER_PROTOCOL_VERSION } from './multiplayer-protocol';
+import {
+  MULTIPLAYER_PROTOCOL_CAPABILITIES,
+  MULTIPLAYER_PROTOCOL_MAJOR,
+  MULTIPLAYER_PROTOCOL_MINOR
+} from './multiplayer-protocol';
 
 export const SIDEKICK_SIGNALING_VERSION = 1;
 
-/** Must match AppProtocolVersion in sidekick/internal/server/server.go. */
-export const SIDEKICK_APP_PROTOCOL_VERSION = MULTIPLAYER_PROTOCOL_VERSION;
+/** Must match AppProtocolMajor/Minor in sidekick/internal/server/server.go. */
+export const SIDEKICK_APP_PROTOCOL_MAJOR = MULTIPLAYER_PROTOCOL_MAJOR;
+export const SIDEKICK_APP_PROTOCOL_MINOR = MULTIPLAYER_PROTOCOL_MINOR;
+export const SIDEKICK_APP_PROTOCOL_CAPABILITIES: readonly string[] = MULTIPLAYER_PROTOCOL_CAPABILITIES;
 
 export const SIDEKICK_MAX_SDP_BYTES = 50 * 1024;
 export const SIDEKICK_MAX_CANDIDATE_BYTES = 4 * 1024;

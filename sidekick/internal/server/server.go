@@ -25,19 +25,26 @@ import (
 	"time"
 
 	"github.com/dunsparce9/izci/sidekick/internal/config"
+	appProtocol "github.com/dunsparce9/izci/sidekick/internal/protocol"
 	"github.com/dunsparce9/izci/sidekick/internal/version"
 )
 
 const (
 	// SignalingVersion is the sidekick socket protocol version, separate from
-	// the izci app (RTC/data-channel) protocol version below.
+	// the izci app (RTC/data-channel) protocol below.
 	SignalingVersion = 1
 
-	// AppProtocolVersion must match MULTIPLAYER_PROTOCOL_VERSION in
-	// src/lib/services/multiplayer-protocol.ts. It is advertised so guests
-	// can reject mismatched hosts before opening RTC. See TestInfoMatchesAppProtocol.
-	AppProtocolVersion = 29
+	// AppProtocolMajor/Minor must match MULTIPLAYER_PROTOCOL_MAJOR/MINOR in
+	// src/lib/services/multiplayer-protocol.ts. Major mismatch is
+	// incompatible; minor mismatch alone is not an admission failure. See
+	// TestInfoMatchesAppProtocol.
+	AppProtocolMajor = appProtocol.Major
+	AppProtocolMinor = appProtocol.Minor
 )
+
+// AppProtocolCapabilities advertises the facilities this server's admission
+// understands. Absence means unavailable; unknown entries are ignored.
+var AppProtocolCapabilities = append([]string(nil), appProtocol.Capabilities...)
 
 // Stable error codes. Bodies carry only the code (no UI text, no internals).
 // The "error" object may also carry "retryAfter" (seconds) for rate-limited.
@@ -457,7 +464,9 @@ type infoLimits struct {
 
 type infoResponse struct {
 	SignalingVersion int        `json:"signalingVersion"`
-	AppProtocol      int        `json:"appProtocolVersion"`
+	AppMajor         int        `json:"appProtocolMajor"`
+	AppMinor         int        `json:"appProtocolMinor"`
+	AppCapabilities  []string   `json:"appCapabilities"`
 	Description      string     `json:"description"`
 	Contact          string     `json:"contact"`
 	IceURLs          []string   `json:"iceUrls"`
@@ -476,7 +485,9 @@ func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, infoResponse{
 		SignalingVersion: SignalingVersion,
-		AppProtocol:      AppProtocolVersion,
+		AppMajor:         AppProtocolMajor,
+		AppMinor:         AppProtocolMinor,
+		AppCapabilities:  append([]string(nil), AppProtocolCapabilities...),
 		Description:      s.cfg.Description,
 		Contact:          s.cfg.Contact,
 		IceURLs:          ice,

@@ -55,6 +55,8 @@
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
   export let multiplayerHostVersion: string | null = null;
+  export let multiplayerHostImplementation: import("$lib/services/multiplayer-protocol").MultiplayerImplementation | null = null;
+  export let multiplayerHostProtocol: { major: number; minor: number } | null = null;
   export let multiplayerFreeplayEnabled = false;
   export let multiplayerFreeplay = false;
   export let multiplayerReceiveAudio = true;
@@ -142,6 +144,8 @@
     multiplayerFreeplay,
     multiplayerReceiveAudio,
     multiplayerHostVersion,
+    multiplayerHostImplementation,
+    multiplayerHostProtocol,
     multiplayerConnectionStats,
     multiplayerEnabled,
     playingTrack,

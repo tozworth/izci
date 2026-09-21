@@ -387,6 +387,8 @@
       ?? ($sidekickSetup.inviteLink ? $sidekickSetup.hosted?.roomId.slice(0, 8) ?? 'Sidekick' : null),
     multiplayerHostName: multiplayerState.hostName,
     multiplayerHostVersion: multiplayerState.hostVersion,
+    multiplayerHostImplementation: multiplayerState.hostImplementation,
+    multiplayerHostProtocol: multiplayerState.hostProtocol ? { major: multiplayerState.hostProtocol.major, minor: multiplayerState.hostProtocol.minor } : null,
     multiplayerFreeplayEnabled: $multiplayerSettings.multiplayerFreeplay,
     multiplayerFreeplay: multiplayerState.freeplay,
     multiplayerReceiveAudio: multiplayerState.receiveAudio,

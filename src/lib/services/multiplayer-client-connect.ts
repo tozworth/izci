@@ -16,7 +16,11 @@ import {
   stageRemoteCandidates,
   startPeerConnectionTimer
 } from './multiplayer-peer';
-import { MULTIPLAYER_PROTOCOL_VERSION } from './multiplayer-protocol';
+import {
+  MULTIPLAYER_PROTOCOL_MAJOR,
+  MULTIPLAYER_PROTOCOL_MINOR,
+  isCompatibleHelloIdentity
+} from './multiplayer-protocol';
 import { setMultiplayerReceiverBuffer } from './multiplayer-receiver';
 import {
   createDirectIceSettings,
@@ -122,10 +126,15 @@ export async function joinPaired(ctx: MultiplayerClientContext, hostId: string):
   )).val() as {
     currentRoom?: string;
     hostName?: string;
-    protocolVersion?: number;
+    protocolMajor?: number;
+    protocolMinor?: number;
+    capabilities?: string[];
   } | null;
   if (!directory
-    || directory.protocolVersion !== MULTIPLAYER_PROTOCOL_VERSION
+    || !isCompatibleHelloIdentity({
+      protocolMajor: directory.protocolMajor,
+      capabilities: directory.capabilities ?? []
+    })
     || !normalizeInviteCode(directory.currentRoom ?? '')) {
     throw new Error('That paired host is not currently hosting.');
   }
@@ -152,8 +161,12 @@ export async function resolveDirectoryRoomCode(
       firebase.get(firebase.ref(firebase.database, `multiplayer/hosts/${hostId}/directory`)),
       SIGNALING_TIMEOUT_MS,
       'The paired-host directory lookup timed out.'
-    )).val() as { currentRoom?: string; protocolVersion?: number } | null;
-    return directory?.protocolVersion === MULTIPLAYER_PROTOCOL_VERSION
+    )).val() as { currentRoom?: string; protocolMajor?: number; capabilities?: string[] } | null;
+    return directory
+      && isCompatibleHelloIdentity({
+        protocolMajor: directory.protocolMajor,
+        capabilities: directory.capabilities ?? []
+      })
       ? normalizeInviteCode(directory.currentRoom ?? '')
       : null;
   } catch (error) {
@@ -220,6 +233,8 @@ export async function connectClient(
     inviteCode,
     hostName: null,
     hostVersion: null,
+    hostImplementation: null,
+    hostProtocol: null,
     freeplay: reconnecting ? core.state.freeplay : false,
     freeplayQueue: reconnecting ? core.state.freeplayQueue : [],
     remoteCatalog: reconnecting ? core.state.remoteCatalog : EMPTY_CATALOG,
@@ -240,7 +255,8 @@ export async function connectClient(
     'multiplayer',
     reconnecting ? 'Reconnect attempt started' : 'Client connection started',
     {
-      protocol: MULTIPLAYER_PROTOCOL_VERSION,
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+      protocolMinor: MULTIPLAYER_PROTOCOL_MINOR,
       receiveAudio: core.state.receiveAudio
     }
   );
@@ -259,11 +275,17 @@ export async function connectClient(
       SIGNALING_TIMEOUT_MS,
       'The multiplayer room lookup timed out.'
     )).val() as {
-      protocolVersion?: number;
+      protocolMajor?: number;
+      protocolMinor?: number;
+      capabilities?: string[];
       hostName?: string;
       turnRelay?: boolean;
     } | null;
-    if (!meta || meta.protocolVersion !== MULTIPLAYER_PROTOCOL_VERSION) {
+    if (!meta
+      || !isCompatibleHelloIdentity({
+        protocolMajor: meta.protocolMajor,
+        capabilities: meta.capabilities ?? []
+      })) {
       throw new Error('That multiplayer session is unavailable or incompatible.');
     }
     core.publish({ hostName: sanitizeClientName(meta.hostName ?? 'Host') });
@@ -449,6 +471,8 @@ export async function connectClient(
         connectionStatus: 'error',
         hostName: null,
         hostVersion: null,
+        hostImplementation: null,
+        hostProtocol: null,
         freeplay: false,
         audioStatus: 'unavailable',
         connectionDetail: errorMessage(error, 'Could not join that multiplayer session.'),

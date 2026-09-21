@@ -1,0 +1,21 @@
+{
+  "kind": "hello",
+  "protocolMajor": 1,
+  "protocolMinor": 0,
+  "capabilities": [
+    "source-file",
+    "buffered-opus",
+    "synchronized-start",
+    "pairing-proof",
+    "freeplay",
+    "chat",
+    "experimental-thing"
+  ],
+  "impl": {
+    "product": "izci",
+    "productVersion": "0.3.2"
+  },
+  "name": "Phone",
+  "platform": "Android",
+  "freeplayEnabled": false
+}

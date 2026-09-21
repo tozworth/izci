@@ -1,0 +1,12 @@
+{
+  "kind": "command",
+  "command": {
+    "type": "queue.play-next",
+    "commandId": "cmd-3",
+    "collection": "queue",
+    "itemIds": [
+      "one",
+      "two"
+    ]
+  }
+}

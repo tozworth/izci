@@ -1,0 +1,7 @@
+{
+  "kind": "command",
+  "command": {
+    "type": "transport.toggle",
+    "commandId": "cmd-1"
+  }
+}

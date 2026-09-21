@@ -25,10 +25,40 @@ export interface MultiplayerChatMessage {
   action?: MultiplayerChatAction;
 }
 
-// Version 29 shares the host's Oda background with clients. Version 27 gives now-playing submissions an explicit intent so track titles are never parsed as slash commands. Version 26 adds transient Play next commands for multiplayer queue tracks. Version 25 adds host-only /clear chat history synchronization. Version 24 adds /np now-playing chat messages. Version 23 adds multiplayer join/leave chat notices. Version 22 adds /me chat actions. Version 21 adds the room MOTD protocol. Version 20 adds the room chat message protocol. Version 18 adds explicit
-// source revisions to buffered-Opus manifests so a
-// listener never reuses cached bytes from a replaced track.
-export const MULTIPLAYER_PROTOCOL_VERSION = 29;
+// Protocol identity: major breaks compatibility, minor is additive.
+// A different major is incompatible. A minor mismatch alone is not an
+// admission failure. Capabilities advertise independently meaningful
+// facilities; absence means unavailable, unknown entries are ignored.
+export const MULTIPLAYER_PROTOCOL_MAJOR = 1;
+export const MULTIPLAYER_PROTOCOL_MINOR = 0;
+
+export const MULTIPLAYER_PROTOCOL_CAPABILITIES = [
+  'source-file',
+  'buffered-opus',
+  'synchronized-start',
+  'pairing-proof',
+  'freeplay',
+  'chat'
+] as const;
+
+export type MultiplayerCapability = (typeof MULTIPLAYER_PROTOCOL_CAPABILITIES)[number];
+
+/** Baseline capabilities required for admission. Empty: any major match admits. */
+export const MULTIPLAYER_REQUIRED_BASELINE_CAPABILITIES: readonly string[] = [];
+
+export interface MultiplayerImplementation {
+  /** e.g. 'izci' for the browser app, 'izci-server' for the dedicated host. */
+  product: string;
+  productVersion: string;
+  build?: string;
+}
+
+export interface MultiplayerProtocolIdentity {
+  protocolMajor: number;
+  protocolMinor: number;
+  capabilities: string[];
+  impl: MultiplayerImplementation;
+}
 const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 export const MULTIPLAYER_CHAT_MAX_MESSAGES = 200;
@@ -157,9 +187,11 @@ export interface MultiplayerSynchronizedStart {
 export type HostMessage =
   | {
       kind: 'hello';
-      version: number;
+      protocolMajor: number;
+      protocolMinor: number;
+      capabilities: string[];
+      impl: MultiplayerImplementation;
       name: string;
-      appVersion: string;
       /** Browser-local sidekick identity; absent on the legacy path. */
       identity?: string;
       /** Fresh per-connection nonce for sidekick pair proofs. */
@@ -197,7 +229,10 @@ export type HostMessage =
 export type ClientMessage =
   | {
       kind: 'hello';
-      version: number;
+      protocolMajor: number;
+      protocolMinor: number;
+      capabilities: string[];
+      impl: MultiplayerImplementation;
       name: string;
       platform: string;
       freeplayEnabled: boolean;
@@ -321,6 +356,7 @@ function isRemoteTrackItem(value: unknown): value is TrackItem {
 
 const SIDEKICK_IDENTITY_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
 const SIDEKICK_NONCE_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
+const CAPABILITY_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 function isSidekickIdentity(value: unknown): value is string {
   return typeof value === 'string' && SIDEKICK_IDENTITY_PATTERN.test(value);
@@ -330,13 +366,138 @@ function isOptionalSidekickField(value: unknown, pattern: RegExp): boolean {
   return value === undefined || (typeof value === 'string' && pattern.test(value));
 }
 
+export function normalizeCapabilities(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (typeof entry !== 'string') continue;
+    if (entry.length < 1 || entry.length > 64) continue;
+    if (!CAPABILITY_PATTERN.test(entry)) continue;
+    if (!seen.has(entry)) seen.add(entry);
+  }
+  return [...seen];
+}
+
+export function hasCapability(capabilities: unknown, capability: string): boolean {
+  return normalizeCapabilities(capabilities).includes(capability);
+}
+
+function isProtocolMinor(value: unknown): value is number {
+  return typeof value === 'number'
+    && Number.isInteger(value)
+    && value >= 0
+    && value <= 9999;
+}
+
+export function isCompatibleProtocolMajor(major: unknown): boolean {
+  return major === MULTIPLAYER_PROTOCOL_MAJOR;
+}
+
+/** Admission rule: same major plus every required baseline capability. Minor is ignored. */
+export function isCompatibleHelloIdentity(identity: {
+  protocolMajor?: unknown;
+  capabilities?: unknown;
+}): boolean {
+  if (!isCompatibleProtocolMajor(identity.protocolMajor)) return false;
+  const caps = new Set(normalizeCapabilities(identity.capabilities));
+  for (const required of MULTIPLAYER_REQUIRED_BASELINE_CAPABILITIES) {
+    if (!caps.has(required)) return false;
+  }
+  return true;
+}
+
+export function getMissingBaselineCapabilities(capabilities: unknown): string[] {
+  const caps = new Set(normalizeCapabilities(capabilities));
+  return MULTIPLAYER_REQUIRED_BASELINE_CAPABILITIES.filter((required) => !caps.has(required));
+}
+
+export function isValidImplementation(value: unknown): value is MultiplayerImplementation {
+  if (!value || typeof value !== 'object') return false;
+  const impl = value as Partial<MultiplayerImplementation>;
+  return typeof impl.product === 'string'
+    && impl.product.length >= 1
+    && impl.product.length <= 64
+    && !/[\u0000-\u001f\u007f]/.test(impl.product)
+    && typeof impl.productVersion === 'string'
+    && impl.productVersion.length >= 1
+    && impl.productVersion.length <= 32
+    && !/[\u0000-\u001f\u007f]/.test(impl.productVersion)
+    && (impl.build === undefined
+      || (typeof impl.build === 'string'
+        && impl.build.length <= 128
+        && !/[\u0000-\u001f\u007f]/.test(impl.build)));
+}
+
+/** Human presentation without assuming every host is browser izci. */
+export function formatHostImplementation(impl: MultiplayerImplementation | null | undefined): string {
+  if (!impl) return '—';
+  if (impl.product === 'izci-server') return `izci dedicated server ${impl.productVersion}`;
+  return `${impl.product} ${impl.productVersion}`;
+}
+
+/**
+ * Envelope shape for any command frame, including unsupported command types.
+ * Validators accept this envelope; execution then nacks unknown types instead
+ * of dropping them silently.
+ */
+export function isMultiplayerCommandEnvelope(value: unknown): value is { type: string; commandId: string } {
+  if (!value || typeof value !== 'object') return false;
+  const command = value as Partial<MultiplayerCommand>;
+  return typeof command.type === 'string'
+    && command.type.length >= 1
+    && command.type.length <= 80
+    && typeof command.commandId === 'string'
+    && command.commandId.length >= 1
+    && command.commandId.length <= 80;
+}
+
+/**
+ * Unknown-message policy: unknown optional kinds are ignored safely.
+ * A frame carrying `critical: true` declares it must not be silently skipped;
+ * senders must only emit such frames after negotiating the corresponding
+ * capability, and receivers log/drop them rather than failing the connection.
+ */
+export function isUnknownCriticalMessage(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.kind === 'string' && record.critical === true;
+}
+
+export function isHelloProtocolIdentity(value: {
+  protocolMajor?: unknown;
+  protocolMinor?: unknown;
+  capabilities?: unknown;
+  impl?: unknown;
+}): boolean {
+  if (!isCompatibleProtocolMajor(value.protocolMajor)) return false;
+  if (!isProtocolMinor(value.protocolMinor)) return false;
+  if (!Array.isArray(value.capabilities)) return false;
+  // Unknown optional capabilities are ignored, but every advertised name must
+  // use the bounded wire format so malformed frames cannot smuggle state.
+  for (const entry of value.capabilities) {
+    if (typeof entry !== 'string' || !CAPABILITY_PATTERN.test(entry)) return false;
+  }
+  return isValidImplementation(value.impl);
+}
+
+export function isProtocolDisplayName(value: unknown): value is string {
+  return typeof value === 'string'
+    && value.length >= 1
+    && value.length <= 48
+    && !/[\u0000-\u001f\u007f]/.test(value);
+}
+
 export function isHostMessage(value: unknown): value is HostMessage {
   if (!value || typeof value !== 'object') return false;
   const message = value as Partial<HostMessage> & Record<string, unknown>;
   if (message.kind === 'hello') {
-    return message.version === MULTIPLAYER_PROTOCOL_VERSION
-      && typeof message.name === 'string'
-      && typeof message.appVersion === 'string'
+    return isHelloProtocolIdentity(message as {
+        protocolMajor?: unknown;
+        protocolMinor?: unknown;
+        capabilities?: unknown;
+        impl?: unknown;
+      })
+      && isProtocolDisplayName(message.name)
       && isOptionalSidekickField(message.identity, SIDEKICK_IDENTITY_PATTERN)
       && isOptionalSidekickField(message.pairNonce, SIDEKICK_NONCE_PATTERN);
   }

@@ -1,0 +1,90 @@
+{
+  "name": "pairing",
+  "steps": [
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "hello",
+      "payload": {
+        "protocolMajor": 1,
+        "protocolMinor": 0,
+        "capabilities": [
+          "source-file",
+          "buffered-opus",
+          "synchronized-start",
+          "pairing-proof",
+          "freeplay",
+          "chat"
+        ],
+        "impl": {
+          "product": "izci",
+          "productVersion": "0.3.2"
+        },
+        "name": "Host",
+        "identity": "host-identity-01",
+        "pairNonce": "host-nonce-001"
+      }
+    },
+    {
+      "from": "client",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "hello",
+      "payload": {
+        "protocolMajor": 1,
+        "protocolMinor": 0,
+        "capabilities": [
+          "source-file",
+          "buffered-opus",
+          "synchronized-start",
+          "pairing-proof",
+          "freeplay",
+          "chat"
+        ],
+        "impl": {
+          "product": "izci",
+          "productVersion": "0.3.2"
+        },
+        "name": "Phone",
+        "platform": "Android",
+        "freeplayEnabled": true,
+        "identity": "client-identity-02"
+      }
+    },
+    {
+      "from": "client",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "pair.proof",
+      "payload": {
+        "clientIdentity": "client-identity-02",
+        "hostNonce": "host-nonce-001",
+        "guestNonce": "guest-nonce-002",
+        "proof": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "pair.secret",
+      "payload": {
+        "hostIdentity": "host-identity-01",
+        "secret": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "pairing",
+      "payload": {
+        "paired": true,
+        "freeplayActive": false,
+        "hostId": "host-1",
+        "name": "Host"
+      }
+    }
+  ]
+}

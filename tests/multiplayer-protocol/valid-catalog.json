@@ -1,0 +1,21 @@
+{
+  "kind": "catalog",
+  "catalog": {
+    "revision": 3,
+    "queue": [
+      {
+        "id": "track-1",
+        "name": "song.mp3",
+        "extension": "mp3",
+        "kind": "stream",
+        "size": 123,
+        "lastModified": 1,
+        "path": "Music/song.mp3"
+      }
+    ],
+    "library": [],
+    "favorites": [],
+    "shuffleEnabled": false,
+    "repeatMode": "off"
+  }
+}

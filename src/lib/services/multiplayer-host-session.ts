@@ -4,7 +4,10 @@ import {
   rememberMultiplayerLastSession
 } from '$lib/stores/multiplayer-last-session';
 import { enableOpusStereo } from './multiplayer-opus';
-import { MULTIPLAYER_PROTOCOL_VERSION } from './multiplayer-protocol';
+import {
+  MULTIPLAYER_PROTOCOL_MAJOR,
+  MULTIPLAYER_PROTOCOL_MINOR
+} from './multiplayer-protocol';
 import { multiplayerChat } from './multiplayer-chat';
 import {
   applyAudioBitrate,
@@ -93,7 +96,8 @@ export async function startHosting(
     await firebase.set(nextRoomRef, {
       meta: {
         hostUid: firebase.uid,
-        protocolVersion: MULTIPLAYER_PROTOCOL_VERSION,
+        protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+        protocolMinor: MULTIPLAYER_PROTOCOL_MINOR,
         hostName: getLocalName(),
         turnRelay: hasMultiplayerTurnIssuer(core.multiplayerSettings),
         createdAt: Date.now()
@@ -104,7 +108,8 @@ export async function startHosting(
     await firebase.set(nextHostDirectoryRef, {
       currentRoom: inviteCode,
       hostName: getLocalName(),
-      protocolVersion: MULTIPLAYER_PROTOCOL_VERSION,
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+      protocolMinor: MULTIPLAYER_PROTOCOL_MINOR,
       updatedAt: Date.now()
     });
     const directoryDisconnect = firebase.onDisconnect(nextHostDirectoryRef);
@@ -162,7 +167,8 @@ export async function startHosting(
       connectionDetail: null
     });
     logInfo('multiplayer', 'Hosting started', {
-      protocol: MULTIPLAYER_PROTOCOL_VERSION,
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+      protocolMinor: MULTIPLAYER_PROTOCOL_MINOR,
       turnRelay: hasMultiplayerTurnIssuer(core.multiplayerSettings)
     });
     rememberMultiplayerLastSession('hosting', { hostName: getLocalName() });
@@ -178,6 +184,8 @@ export async function startHosting(
       hostName: null,
       hostMotd: '',
       hostVersion: null,
+      hostImplementation: null,
+      hostProtocol: null,
       freeplay: false,
       connectionDetail: message,
       message
@@ -455,6 +463,8 @@ export async function stopHosting(ctx: MultiplayerHostContext): Promise<void> {
     hostName: null,
     hostMotd: '',
     hostVersion: null,
+    hostImplementation: null,
+    hostProtocol: null,
     freeplay: false,
     clients: [],
     audioStatus: 'idle',

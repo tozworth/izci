@@ -8,7 +8,10 @@
 import { logError, logInfo, logWarning } from '$lib/services/logging';
 import { rememberMultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { enableOpusStereo } from './multiplayer-opus';
-import { MULTIPLAYER_PROTOCOL_VERSION } from './multiplayer-protocol';
+import {
+  MULTIPLAYER_PROTOCOL_MAJOR,
+  MULTIPLAYER_PROTOCOL_MINOR
+} from './multiplayer-protocol';
 import { multiplayerChat } from './multiplayer-chat';
 import {
   applyAudioBitrate,
@@ -222,7 +225,8 @@ export async function startSidekickHosting(
       sidekickHostAuth: 'valid'
     });
     logInfo('multiplayer', 'Sidekick hosting started', {
-      protocol: MULTIPLAYER_PROTOCOL_VERSION
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+      protocolMinor: MULTIPLAYER_PROTOCOL_MINOR
     });
     rememberMultiplayerLastSession('hosting', {
       hostName: getLocalName(),
@@ -248,6 +252,8 @@ export async function startSidekickHosting(
         hostName: null,
         hostMotd: '',
         hostVersion: null,
+        hostImplementation: null,
+        hostProtocol: null,
         freeplay: false,
         connectionDetail: message,
         message,
@@ -439,6 +445,8 @@ export async function joinSidekick(
     inviteCode: null,
     hostName: null,
     hostVersion: null,
+    hostImplementation: null,
+    hostProtocol: null,
     freeplay: false,
     audioStatus: core.state.receiveAudio ? 'connecting' : 'refused',
     connectionDetail: 'Joining the sidekick room...',
@@ -580,6 +588,8 @@ export async function joinSidekick(
         connectionStatus: 'error',
         hostName: null,
         hostVersion: null,
+        hostImplementation: null,
+        hostProtocol: null,
         freeplay: false,
         audioStatus: 'unavailable',
         connectionDetail: errorMessage(error, 'Could not join that sidekick session.'),
