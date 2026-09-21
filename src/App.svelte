@@ -8,8 +8,8 @@
   import SharedBackdropVisualizer from '$lib/components/SharedBackdropVisualizer.svelte';
   import StatusToast from '$lib/components/StatusToast.svelte';
   import MultiplayerConnectionDialog from '$lib/components/multiplayer/MultiplayerConnectionDialog.svelte';
-  import SidekickSetupDialog from '$lib/components/multiplayer/SidekickSetupDialog.svelte';
-  import { sidekickSetup } from '$lib/services/multiplayer-sidekick-setup';
+  import ServerSetupDialog from '$lib/components/multiplayer/ServerSetupDialog.svelte';
+  import { serverSetup } from '$lib/services/multiplayer-server-setup';
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
   import AppWorkspace from '$lib/components/workspace/AppWorkspace.svelte';
   import MobileWorkspace from './mobile/MobileWorkspace.svelte';
@@ -380,11 +380,11 @@
     multiplayerConnectionRoute: multiplayerState.connectionRoute,
     multiplayerAudioBitrateKbps: multiplayerState.averageAudioBitrateKbps,
     // Menu presentation historically treated a null RTDB code as
-    // invite-less paired hosting. Sidekick keeps its shareable link in the
+    // invite-less paired hosting. Server keeps its shareable link in the
     // setup controller, so expose a short room label whenever that link is
     // ready and let the existing Copy invite action handle either transport.
     multiplayerInviteCode: multiplayerState.inviteCode
-      ?? ($sidekickSetup.inviteLink ? $sidekickSetup.hosted?.roomId.slice(0, 8) ?? 'Sidekick' : null),
+      ?? ($serverSetup.inviteLink ? $serverSetup.hosted?.roomId.slice(0, 8) ?? 'Server' : null),
     multiplayerHostName: multiplayerState.hostName,
     multiplayerHostVersion: multiplayerState.hostVersion,
     multiplayerHostImplementation: multiplayerState.hostImplementation,
@@ -1278,8 +1278,8 @@
     />
   {/if}
 
-  {#if $sidekickSetup.dialogOpen}
-    <SidekickSetupDialog />
+  {#if $serverSetup.dialogOpen}
+    <ServerSetupDialog />
   {/if}
 
   {#if multiplayerConnectionDialogOpen}

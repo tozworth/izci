@@ -86,10 +86,10 @@
       "session": "Session",
       "unpairClient": "Unpair {name}",
       "pairClientMobile": "Pair {name}",
-      "sidekick": {
-        "setupTitle": "Sidekick setup",
-        "inviteTitle": "Sidekick invitation",
-        "enterInvite": "Paste the Sidekick invitation link or invite code",
+      "server": {
+        "setupTitle": "izci-server setup",
+        "inviteTitle": "izci-server invitation",
+        "enterInvite": "Paste the izci-server invitation link or invite code",
         "dismiss": "Dismiss",
         "inviteInvalid": "That party invitation link could not be read."
       }
@@ -858,18 +858,18 @@
       },
       "transport": {
         "title": "Signaling transport",
-        "hint": "Firebase is the legacy invite-code path. Sidekick uses a self-hosted server; hosting needs its operator key and guests need a sidekick invitation.",
+        "hint": "Firebase is the legacy invite-code path. izci-server uses a self-hosted server; hosting needs its operator key and guests need an izci-server invitation.",
         "rtdb": "Firebase (legacy invites)",
-        "sidekick": "Sidekick server"
+        "server": "izci-server"
       },
-      "sidekickEndpoint": {
-        "title": "Sidekick server",
-        "hint": "HTTPS base URL of the self-hosted sidekick, including any path prefix. Empty means no server is configured and no multiplayer requests are made."
+      "serverEndpoint": {
+        "title": "izci-server",
+        "hint": "HTTPS base URL of the self-hosted server, including any path prefix. Empty means no server is configured and no multiplayer requests are made."
       },
-      "sidekick": {
-        "setupTitle": "Sidekick setup",
+      "server": {
+        "setupTitle": "izci-server setup",
         "serverLabel": "Server address",
-        "serverHint": "HTTPS address of the sidekick server, with its path prefix when it serves one. Nothing is contacted until Connect is pressed.",
+        "serverHint": "HTTPS address of the izci-server server, with its path prefix when it serves one. Nothing is contacted until Connect is pressed.",
         "connect": "Connect",
         "useSameOrigin": "Use this izci's address",
         "useServer": "Use",
@@ -915,24 +915,24 @@
         "continue": "Continue",
         "cancel": "Cancel",
         "noticeTitle": "Server and provider notice",
-        "noticeText": "The Sidekick sees connection metadata and relays SDP and ICE while connecting. Audio, files, and artwork use the peer connection; any TURN relay is configured and supplied by the Sidekick operator.",
+        "noticeText": "izci-server sees connection metadata and relays SDP and ICE while connecting. Audio, files, and artwork use the peer connection; any TURN relay is configured and supplied by the izci-server operator.",
         "acknowledge": "Acknowledge",
         "acknowledged": "Acknowledged",
         "noticeRequired": "Acknowledge the server notice below before hosting or joining.",
         "labelTitle": "Server label",
         "labelHint": "A private name for this server on your devices.",
-        "autoReconnect": "Recover dropped Sidekick connections",
+        "autoReconnect": "Recover dropped izci-server connections",
         "autoReconnectHint": "Retries only the signaling connection; uninterrupted peer audio keeps playing.",
         "forceRelay": "Prefer relayed routes",
         "forceRelayHint": "Used when the server advertises a relay. Direct routes are still tried first unless the operator requires otherwise.",
-        "iceManaged": "STUN and TURN are supplied by the Sidekick operator. This client does not configure relay credentials.",
+        "iceManaged": "STUN and TURN are supplied by the izci-server operator. This client does not configure relay credentials.",
         "serversTitle": "Remembered servers",
         "serversEmpty": "No remembered servers yet.",
         "recentsTitle": "Saved rooms",
         "recentsEmpty": "No saved host rooms or guest invitations.",
         "forgetServer": "Forget server",
         "forgetInvite": "Forget invitation",
-        "guideLink": "Sidekick setup guide",
+        "guideLink": "izci-server setup guide",
         "needsMainWindow": "Hosting and joining run from the main window.",
         "loginExpired": "That login expired. Enter the operator key again."
       }

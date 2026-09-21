@@ -373,13 +373,13 @@ export interface TrackSettings {
 export interface MultiplayerSettings {
   multiplayer: boolean;
   izciName: string;
-  multiplayerTransport: 'rtdb' | 'sidekick';
-  multiplayerSidekickEndpoint: string;
-  multiplayerSidekickLabel: string;
-  multiplayerSidekickNoticeVersion: number;
-  multiplayerSidekickAutoReconnect: boolean;
-  multiplayerSidekickForceRelay: boolean;
-  multiplayerSidekickIceAck: string;
+  multiplayerTransport: 'rtdb' | 'server';
+  multiplayerServerEndpoint: string;
+  multiplayerServerLabel: string;
+  multiplayerServerNoticeVersion: number;
+  multiplayerServerAutoReconnect: boolean;
+  multiplayerServerForceRelay: boolean;
+  multiplayerServerIceAck: string;
   multiplayerMotd: string;
   multiplayerChatHistoryLines: number;
   multiplayerWaitForClients: boolean;

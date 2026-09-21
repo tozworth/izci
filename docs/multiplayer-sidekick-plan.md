@@ -1,10 +1,10 @@
-# Multiplayer sidekick plan
+# Multiplayer server plan
 
-> This plan describes the signaling-only Sidekick work. The follow-on
+> This plan describes the signaling-only Server work. The follow-on
 > dedicated-host architecture, protocol rewrite, and rename to `izci-server`
 > are specified in `docs/izci-server-plan.md`.
 
-Replace Firebase Multiplayer signaling with a small self-hosted Go service. Official izci ships with no server configured; a host enters their server, logs in, and shares an invitation. Guests open that invitation in official izci. The sidekick handles rooms and WebRTC signaling; existing Multiplayer handles everything after connection.
+Replace Firebase Multiplayer signaling with a small self-hosted Go service. Official izci ships with no server configured; a host enters their server, logs in, and shares an invitation. Guests open that invitation in official izci. The server handles rooms and WebRTC signaling; existing Multiplayer handles everything after connection.
 
 Keep RTDB working during implementation, with an explicit transport choice and no automatic fallback. Reuse existing playback, media transfer, buffering, caches, DSP, and Freeplay renderers.
 
@@ -12,13 +12,13 @@ Work through the phases in order. One agent finishes a phase's code, integration
 
 ## Phase 1 — Make the Go server runnable
 
-1. Create an independent Go module in `sidekick/`, with `cmd/izci-sidekick/main.go`. Target Go 1.27 and verify/pin its patch release when implementing. Use `net/http`, the standard crypto/JSON packages, and a pinned `github.com/coder/websocket`. Keep the frontend build usable without Go.
+1. Create an independent Go module in `izci-server/`, with `cmd/izci-server/main.go`. Target Go 1.27 and verify/pin its patch release when implementing. Use `net/http`, the standard crypto/JSON packages, and a pinned `github.com/coder/websocket`. Keep the frontend build usable without Go.
 2. Add `serve`, `keygen`, `check-config`, and `version` commands. Keygen produces 32 cryptographically random bytes; only this command prints the key. Serve reads it from a secret file.
 3. Load strict JSON configuration: listen address, public HTTPS base URL, exact allowed browser origins, host key file, optional trusted proxy networks, and the limits below. Reject unknown fields and invalid values. Support a deployment path prefix consistently.
 4. Default to `127.0.0.1:8787`; the container example uses `0.0.0.0:8787`. Trust forwarded addresses only from configured proxies. Keep rooms, sessions, tickets, and signaling in memory; no server database.
 5. Add `GET /healthz` for liveness and `GET /v1/info` for protocol version, operator description/contact, configured ICE providers, and room limits. Put API routes beneath the configured prefix. Use no-store responses, exact-origin CORS, request timeouts, and errors with stable codes rather than UI text.
-6. Add a multi-stage Dockerfile, Compose/Caddy example, and systemd unit under `sidekick/deploy/`. Build a non-root container and CGO-disabled Linux binaries for amd64/arm64. Caddy handles TLS and may serve izci alongside the API.
-7. Write one short `sidekick/README.md`: generate key, edit config, validate, start, proxy TLS, check health. Add Go formatting, vet, tests/race tests, and binary builds to CI. Add focused packages as needed; do not pre-create an elaborate empty directory tree.
+6. Add a multi-stage Dockerfile, Compose/Caddy example, and systemd unit under `izci-server/deploy/`. Build a non-root container and CGO-disabled Linux binaries for amd64/arm64. Caddy handles TLS and may serve izci alongside the API.
+7. Write one short `izci-server/README.md`: generate key, edit config, validate, start, proxy TLS, check health. Add Go formatting, vet, tests/race tests, and binary builds to CI. Add focused packages as needed; do not pre-create an elaborate empty directory tree.
 
 Use these defaults where the later phases need them:
 
@@ -35,7 +35,7 @@ Use these defaults where the later phases need them:
 | Heartbeat interval / reply timeout | 20 seconds / 10 seconds |
 | Cleanup interval / shutdown grace | 5 seconds / 10 seconds |
 
-Check invalid config, missing secrets, prefixed routes, forbidden origins, oversized bodies, and clean shutdown with Go tests. Confirm logs do not print secrets or request bodies. Run `go vet ./...`, `go test -race ./...`, and the binary build from `sidekick/`.
+Check invalid config, missing secrets, prefixed routes, forbidden origins, oversized bodies, and clean shutdown with Go tests. Confirm logs do not print secrets or request bodies. Run `go vet ./...`, `go test -race ./...`, and the binary build from `izci-server/`.
 
 ## Phase 2 — Connect a host and guest through the server
 
@@ -43,7 +43,7 @@ Check invalid config, missing secrets, prefixed routes, forbidden origins, overs
 2. Implement the routes below. A host logs in with the operator key and receives an expiring bearer session. Logout revokes it and closes its rooms. Creating a room returns owner and invitation secrets. Resuming an existing room requires both a host session and its owner secret; another logged-in tab cannot overwrite it.
 3. Join accepts room ID, invitation secret, attempt nonce, and app protocol version. Check a live host and reserve a slot atomically before returning a connection token and socket ticket. Wrong/missing invitations both return `room-unavailable`; a valid invite may return `room-full`. Connection tokens authorize only their own connection.
 4. Authenticate sockets with a one-use ticket in the first frame, within five seconds. Check origin and socket limits before upgrading. Never put credentials in URLs or WebSocket subprotocols. Bind role, room, connection, and socket generation on the server; do not trust client-supplied routing destinations.
-5. Use JSON messages with `version`, `type`, `requestId`, optional `attemptId`, and `payload`. Give signaling its own version, separate from the existing app protocol. Decode fields strictly and reject oversized, unknown, or wrong-role messages. Put representative valid/invalid JSON in `tests/multiplayer-sidekick-contract/`; Phase 3 uses the same fixtures. Keep payload definitions in code rather than writing a separate specification.
+5. Use JSON messages with `version`, `type`, `requestId`, optional `attemptId`, and `payload`. Give signaling its own version, separate from the existing app protocol. Decode fields strictly and reject oversized, unknown, or wrong-role messages. Put representative valid/invalid JSON in `tests/multiplayer-server-contract/`; Phase 3 uses the same fixtures. Keep payload definitions in code rather than writing a separate specification.
 6. Implement this exchange: authenticate → ready; server sends host `peer.requested`; host accepts/rejects; accepted guest sends offer; host sends answer; both send candidates/end-of-candidates. Install the host handler before prompting the guest to offer.
 7. Number candidates per sender and attempt. Ignore identical duplicates, reject conflicting duplicates, and discard stale attempts. After both peers report connected, discard SDP/candidates and retain only the connection reservation. Keep sockets for new admissions and reconnect status.
 8. Release slots once on rejection, timeout, or explicit release. Replacing a socket increments its generation; late cleanup from the old socket must not close the replacement. Pause admissions during host reconnect grace. Lease expiry, logout, room closure, and shutdown remove room authority. Direct RTC may keep playing after signaling is lost.
@@ -68,10 +68,10 @@ Test the real router with a Go host and guests using ephemeral listeners and an 
 
 1. Read `multiplayer-signaling.ts`, `multiplayer-peer.ts`, `multiplayer-host-session.ts`, `multiplayer-client-connect.ts`, and `multiplayer-session.ts`. Find their Firebase calls and keep existing RTC creation/channel attachment intact.
 2. Move Firebase reference types out of shared peer state in `multiplayer-types.ts`. Replace direct Firebase ICE writes with an injected candidate sender. Give the session a small transport cleanup handle. Keep RTDB behavior working through these changes; do not rebuild the session controller.
-3. Add focused `multiplayer-sidekick-*` services for HTTP, sockets, decoding, host room acquisition, and guest connection. Implement the Phase 2 messages and use its JSON fixtures. Use attempt-local peer IDs until the existing RTC hello supplies identity/presentation.
+3. Add focused `multiplayer-server-*` services for HTTP, sockets, decoding, host room acquisition, and guest connection. Implement the Phase 2 messages and use its JSON fixtures. Use attempt-local peer IDs until the existing RTC hello supplies identity/presentation.
 4. Use AbortSignal for requests and connection attempts. Queue candidates arriving before remote SDP through existing helpers. On cancellation/server switch, dispose old subscriptions, timers, sockets, and pending RTC work before attaching new results. Check attempt ownership after awaits so late callbacks cannot mutate the current session.
 5. Reconnect signaling without stopping healthy RTC playback. Retry transient failures with jittered backoff, bounded by the server's reconnect/attempt deadlines. Authentication, version, and invalid-invitation errors require user action. A new negotiation gets a fresh attempt ID.
-6. Add explicit RTDB/sidekick selection to the existing settings UI and last-session record. Store sidekick state separately from RTDB UIDs. Route selection must choose the real implementation; keep the legacy invite parser during overlap.
+6. Add explicit RTDB/server selection to the existing settings UI and last-session record. Store server state separately from RTDB UIDs. Route selection must choose the real implementation; keep the legacy invite parser during overlap.
 7. Add a TypeScript integration test using the real Go router and production browser transport helpers; mock RTC only. Exercise login, join, offer/answer/candidates, release, cancellation, and server switch.
 
 Run shared fixture tests, focused Multiplayer tests, relevant Svelte checks, and the required build. Check the diff keeps media transfer/rendering owners intact and the RTDB tests still pass.
@@ -94,13 +94,13 @@ Test parser failures, prefixed endpoints, cancellation, fresh/disabled network s
 
 1. Read the existing pairing stores and host/client hello handlers. Replace Firebase UID-based pairing with browser-local identities and a random per-pair secret exchanged over RTC when the host chooses Pair.
 2. On reconnect, prove possession with HMAC over a versioned context containing room ID, both identities, and fresh nonces from both peers. Reject replay/wrong-peer proofs. Until hello and proof finish, keep paired privileges disabled. Feed verified identity into the existing permissions and Freeplay activation; reuse its renderers and navigation.
-3. Store pair records in a sidekick-specific local settings namespace. Keep host labels and per-pair Freeplay preferences. Pairing restores app privileges after invitation admission; it does not grant server administration or bypass admission.
+3. Store pair records in a server-specific local settings namespace. Keep host labels and per-pair Freeplay preferences. Pairing restores app privileges after invitation admission; it does not grant server administration or bypass admission.
 4. Let a newly logged-in host resume its remembered room. If the server restarted and the room is absent, recreate the saved ID/invitation atomically using host authentication. Reject collisions with existing rooms unless the owner secret matches. Explain this restart behavior in the README.
 5. Rotate invitations for future joins and send replacements over currently authorized paired channels. Offline guests need a new invite. Unpair removes paired privileges; kick closes the host's RTC peer and releases its reservation. Neither prevents reuse of a shared invite unless it is rotated.
 6. Keep media health, signaling reconnect, and expired host login distinct in session state. Test restart/reconnect without tearing down an otherwise healthy RTC connection.
 7. Default server ICE configuration to empty. Advertise configured STUN/TURN URLs in info. Add `POST /v1/ice` for authenticated hosts/admitted connections and pass results into existing `multiplayer-ice.ts` helpers. Keep legacy TURN exchange isolated.
 8. For optional coturn, read a relay secret file and issue standard REST shared-secret credentials with 10-minute expiry and opaque usernames. Limit issuance per connection, return expiry, and refresh before negotiation when needed. Use existing stats for direct/relayed status; relay-only without a relay gets a useful error.
-9. Add an optional coturn deployment example and README notes explaining STUN, relay setup, HTTPS for LAN use, and browser network permissions. Briefly explain that the sidekick sees connection metadata, processes SDP/ICE transiently, and is trusted for signaling; TURN is a separate relay. Keep privacy notes factual, without a separate legal-document project.
+9. Add an optional coturn deployment example and README notes explaining STUN, relay setup, HTTPS for LAN use, and browser network permissions. Briefly explain that the server sees connection metadata, processes SDP/ICE transiently, and is trusted for signaling; TURN is a separate relay. Keep privacy notes factual, without a separate legal-document project.
 10. Check changed catalog/hello payloads do not introduce local filesystem-path exposure. Reuse existing cache deletion controls; do not turn this migration into a cache or metadata rewrite.
 
 Test proof replay, unpair/kick/rotation, Freeplay permission restoration, room restart/collision, credential expiry, and missing relay. Run Go and focused browser tests plus build.
@@ -121,8 +121,8 @@ Start this phase when the user is ready to retire the old service; the implement
 
 1. Inspect `package.json`, `firebase.json`, and related scripts. Separate Firebase Hosting deployment from Auth/RTDB deployment so routine hosting deploys cannot restore the old service.
 2. Remove browser Firebase transport/config/dependencies, the overlap selector, obsolete rules/scripts/tests, and unused RTDB state. Keep Firebase Hosting and its CLI where still used. Do not add legacy adapters or migrations.
-3. Keep old invitation detection only to show the retirement message. Remove only explicitly owned RTDB local keys; preserve sidekick state and queue/library data.
+3. Keep old invitation detection only to show the retirement message. Remove only explicitly owned RTDB local keys; preserve server state and queue/library data.
 4. Identify the exact Multiplayer database paths and anonymous accounts before provider cleanup. Disable their access and delete only attributable data/accounts when authorized; preserve shared project consumers. Verify old builds cannot write new Multiplayer records.
-5. Update the README and AGENTS.md to describe sidekick signaling. Run focused tests, checks, and build; verify hosting deployment no longer includes RTDB/Auth.
+5. Update the README and AGENTS.md to describe server signaling. Run focused tests, checks, and build; verify hosting deployment no longer includes RTDB/Auth.
 
 Finish with a short summary of code removed and any provider action still pending.

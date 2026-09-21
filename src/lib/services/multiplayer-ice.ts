@@ -10,25 +10,25 @@ export interface MultiplayerIceSettings {
   multiplayerForceTurn: boolean;
 }
 
-export interface SidekickIceServer {
+export interface ServerIceServer {
   urls: string | string[];
   username?: string;
   credential?: string;
 }
 
-export interface SidekickIceResponse {
-  iceServers: SidekickIceServer[];
+export interface ServerIceResponse {
+  iceServers: ServerIceServer[];
   /** TURN credential expiry; absent for STUN-only and empty configs. */
   expiresAt?: string | null;
 }
 
 /**
- * RTC configuration from an authenticated sidekick ICE response. The
+ * RTC configuration from an authenticated server ICE response. The
  * default configuration is empty (no servers); relay-only mode without a
  * relayed entry throws a useful error instead of failing silently.
  */
-export function createSidekickRtcConfiguration(
-  servers: SidekickIceServer[],
+export function createServerRtcConfiguration(
+  servers: ServerIceServer[],
   options: { forceRelay?: boolean } = {}
 ): RTCConfiguration {
   const entries = Array.isArray(servers) ? servers.slice(0, 16) : [];

@@ -192,9 +192,9 @@ export type HostMessage =
       capabilities: string[];
       impl: MultiplayerImplementation;
       name: string;
-      /** Browser-local sidekick identity; absent on the legacy path. */
+      /** Browser-local server identity; absent on the legacy path. */
       identity?: string;
-      /** Fresh per-connection nonce for sidekick pair proofs. */
+      /** Fresh per-connection nonce for server pair proofs. */
       pairNonce?: string;
     }
   | { kind: 'pair.secret'; hostIdentity: string; secret: string }
@@ -236,7 +236,7 @@ export type ClientMessage =
       name: string;
       platform: string;
       freeplayEnabled: boolean;
-      /** Browser-local sidekick identity; absent on the legacy path. */
+      /** Browser-local server identity; absent on the legacy path. */
       identity?: string;
     }
   | {
@@ -354,15 +354,15 @@ function isRemoteTrackItem(value: unknown): value is TrackItem {
     && typeof item.lastModified === 'number';
 }
 
-const SIDEKICK_IDENTITY_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
-const SIDEKICK_NONCE_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
+const SERVER_IDENTITY_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
+const SERVER_NONCE_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
 const CAPABILITY_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
-function isSidekickIdentity(value: unknown): value is string {
-  return typeof value === 'string' && SIDEKICK_IDENTITY_PATTERN.test(value);
+function isServerIdentity(value: unknown): value is string {
+  return typeof value === 'string' && SERVER_IDENTITY_PATTERN.test(value);
 }
 
-function isOptionalSidekickField(value: unknown, pattern: RegExp): boolean {
+function isOptionalServerField(value: unknown, pattern: RegExp): boolean {
   return value === undefined || (typeof value === 'string' && pattern.test(value));
 }
 
@@ -498,11 +498,11 @@ export function isHostMessage(value: unknown): value is HostMessage {
         impl?: unknown;
       })
       && isProtocolDisplayName(message.name)
-      && isOptionalSidekickField(message.identity, SIDEKICK_IDENTITY_PATTERN)
-      && isOptionalSidekickField(message.pairNonce, SIDEKICK_NONCE_PATTERN);
+      && isOptionalServerField(message.identity, SERVER_IDENTITY_PATTERN)
+      && isOptionalServerField(message.pairNonce, SERVER_NONCE_PATTERN);
   }
   if (message.kind === 'pair.secret') {
-    return isSidekickIdentity(message.hostIdentity)
+    return isServerIdentity(message.hostIdentity)
       && typeof message.secret === 'string'
       && /^[0-9a-f]{64}$/.test(message.secret);
   }

@@ -1,0 +1,14 @@
+{
+  "listen": "127.0.0.1:8787",
+  "publicBaseUrl": "https://izci-server.example.com",
+  "pathPrefix": "",
+  "allowedOrigins": ["https://izci.example.com"],
+  "hostKeyFile": "/etc/izci-server/host-key",
+  "trustedProxies": [],
+  "description": "Example server operator",
+  "contact": "admin@example.com",
+  "iceUrls": [],
+  "relaySecretFile": "",
+  "relayCredentialTtl": "10m",
+  "maxIcePerConnection": 16
+}

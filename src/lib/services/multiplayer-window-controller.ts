@@ -10,11 +10,11 @@ import { logError } from '$lib/services/logging';
 import type { MultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { consumeInviteLinkHash, buildInviteLink } from '$lib/services/multiplayer-invite-link';
 import {
-  consumeSidekickInvite,
-  parseSidekickInviteText,
-  SidekickInviteError
-} from '$lib/services/multiplayer-sidekick-invite';
-import { sidekickSetup } from '$lib/services/multiplayer-sidekick-setup';
+  consumeServerInvite,
+  parseServerInviteText,
+  ServerInviteError
+} from '$lib/services/multiplayer-server-invite';
+import { serverSetup } from '$lib/services/multiplayer-server-setup';
 import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
 import type {
   MultiplayerSettings,
@@ -336,10 +336,10 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   function prepareLaunchDialog(): void {
     const settings = deps.getMultiplayerSettings();
     if (!settings.multiplayer) return;
-    // Sidekick never auto-connects: hosting needs a fresh operator login
+    // Server never auto-connects: hosting needs a fresh operator login
     // and guests confirm each invitation. The setup dialog opens only for
     // an explicit deep link, menu action, or remembered-room resume.
-    if (settings.multiplayerTransport === 'sidekick') return;
+    if (settings.multiplayerTransport === 'server') return;
     const last = settings.multiplayerRestoreLastSession
       ? deps.getLastSession()
       : null;
@@ -351,21 +351,21 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
     beginConnection('hosting');
   }
 
-  function isSidekickTransport(): boolean {
-    return deps.getMultiplayerSettings().multiplayerTransport === 'sidekick';
+  function isServerTransport(): boolean {
+    return deps.getMultiplayerSettings().multiplayerTransport === 'server';
   }
 
   async function host(): Promise<void> {
-    if (isSidekickTransport()) {
+    if (isServerTransport()) {
       if (deps.getSession().getSnapshot().mode === 'hosting') {
         await copyInvite();
         return;
       }
       beginConnection('hosting');
       try {
-        await sidekickSetup.hostConfigured();
+        await serverSetup.hostConfigured();
       } catch (error) {
-        failConnection(error, 'Could not start Sidekick hosting.');
+        failConnection(error, 'Could not start Server hosting.');
       }
       return;
     }
@@ -388,27 +388,27 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   }
 
   async function joinWithPrompt(): Promise<void> {
-    if (isSidekickTransport()) {
+    if (isServerTransport()) {
       const invite = window.prompt(
-        deps.translate('main.multiplayer.sidekick.enterInvite', {
-          default: 'Paste the Sidekick invitation link or invite code'
+        deps.translate('main.multiplayer.server.enterInvite', {
+          default: 'Paste the Server invitation link or invite code'
         })
       );
       if (!invite) return;
       let invitation;
       try {
-        invitation = parseSidekickInviteText(
+        invitation = parseServerInviteText(
           invite,
-          deps.getMultiplayerSettings().multiplayerSidekickEndpoint
+          deps.getMultiplayerSettings().multiplayerServerEndpoint
         );
       } catch (error) {
-        failConnection(error, 'That Sidekick invitation could not be read.');
+        failConnection(error, 'That Server invitation could not be read.');
         return;
       }
       beginConnection('joining', invitation.title);
       deps.pausePlayer();
-      await sidekickSetup.joinInvitation(invitation);
-      if (sidekickSetup.getSnapshot().dialogOpen) {
+      await serverSetup.joinInvitation(invitation);
+      if (serverSetup.getSnapshot().dialogOpen) {
         dialog.open = false;
         publish();
       }
@@ -436,7 +436,7 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
     const inviteCode = state?.inviteCode ?? null;
     const inviteLink = inviteCode
       ? buildInviteLink(inviteCode)
-      : sidekickSetup.getSnapshot().inviteLink;
+      : serverSetup.getSnapshot().inviteLink;
     if (!inviteLink) return;
     try {
       await navigator.clipboard.writeText(inviteLink);
@@ -457,18 +457,18 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   }
 
   /**
-   * Capture a sidekick invitation without any network traffic: parse
+   * Capture a server invitation without any network traffic: parse
    * locally, stash it as pending, and let the confirmation dialog drive
    * the explicit Join. Returns true when a party fragment was consumed.
    */
-  function handleSidekickDeepLink(): boolean {
-    let invitation: ReturnType<typeof consumeSidekickInvite> = null;
+  function handleServerDeepLink(): boolean {
+    let invitation: ReturnType<typeof consumeServerInvite> = null;
     try {
-      invitation = consumeSidekickInvite();
+      invitation = consumeServerInvite();
     } catch (error) {
-      logError('multiplayer', 'Sidekick invitation link could not be parsed', error);
-      if (error instanceof SidekickInviteError) {
-        showToast(deps.translate('main.multiplayer.sidekick.inviteInvalid', {
+      logError('multiplayer', 'Server invitation link could not be parsed', error);
+      if (error instanceof ServerInviteError) {
+        showToast(deps.translate('main.multiplayer.server.inviteInvalid', {
           default: 'That party invitation link could not be read.'
         }));
       }
@@ -476,12 +476,12 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
     }
     if (!invitation) return false;
     // Deep links always confirm, even for remembered servers.
-    sidekickSetup.captureInvitation(invitation);
+    serverSetup.captureInvitation(invitation);
     return true;
   }
 
   function handleDeepLinkJoin(): void {
-    if (handleSidekickDeepLink()) return;
+    if (handleServerDeepLink()) return;
     const code = consumeInviteLinkHash();
     if (code) void join(code);
   }
@@ -489,7 +489,7 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   async function startLaunch(): Promise<void> {
     const settings = deps.getMultiplayerSettings();
     if (!settings.multiplayer) return;
-    if (handleSidekickDeepLink()) {
+    if (handleServerDeepLink()) {
       ensureInviteLinkListener();
       return;
     }
@@ -511,9 +511,9 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
       if (restored === 'hosting') return;
     }
     if (!settings.multiplayerAutoHost) return;
-    // Sidekick auto-host stays silent: remembered keys are scoped to the
-    // explicit setup flow, and no sidekick request may fire unprompted.
-    if (settings.multiplayerTransport === 'sidekick') return;
+    // Server auto-host stays silent: remembered keys are scoped to the
+    // explicit setup flow, and no server request may fire unprompted.
+    if (settings.multiplayerTransport === 'server') return;
     try {
       await deps.getSession().startHosting({ silent: true });
     } catch (error) {

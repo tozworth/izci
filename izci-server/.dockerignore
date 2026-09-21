@@ -1,0 +1,4 @@
+/izci-server-*
+*.log
+config.json
+host-key

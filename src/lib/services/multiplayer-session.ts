@@ -32,7 +32,7 @@ import type {
   MultiplayerChatTrackLink,
   MultiplayerCollection
 } from './multiplayer-protocol';
-import { closeSidekickHostRoom } from './multiplayer-sidekick-host';
+import { closeServerHostRoom } from './multiplayer-server-host';
 
 export function createMultiplayerSession({
   handleHostCommand,
@@ -82,10 +82,10 @@ export function createMultiplayerSession({
     rejectedPeerIds: new Set(),
     acceptingPeerIds: new Set(),
     answeredTurnCredentialRequestIds: new Set(),
-    sidekickHost: null,
-    sidekickGuest: null,
+    serverHost: null,
+    serverGuest: null,
     transportGeneration: 0,
-    disposeSidekickTransport: null,
+    disposeServerTransport: null,
     resetSession: () => Promise.resolve()
   };
 
@@ -238,25 +238,25 @@ export function createMultiplayerSession({
       removeRemote,
       peers: core.hostPeers.size
     });
-    // Bump the transport generation first so late sidekick callbacks from a
+    // Bump the transport generation first so late server callbacks from a
     // previous attempt cannot mutate the session being torn down.
     core.transportGeneration += 1;
-    // Tell the sidekick server to release our slot before the socket goes
+    // Tell the server server to release our slot before the socket goes
     // away; the reader generation guard already invalidated late frames.
-    if (core.sidekickGuest) {
+    if (core.serverGuest) {
       try {
-        core.sidekickGuest.sendRelease();
+        core.serverGuest.sendRelease();
       } catch {
         // Best effort: expiry reaps the slot server-side.
       }
     }
-    const sidekickHost = core.sidekickHost;
-    core.disposeSidekickTransport?.();
-    core.disposeSidekickTransport = null;
-    core.sidekickHost?.dispose();
-    core.sidekickHost = null;
-    core.sidekickGuest?.dispose();
-    core.sidekickGuest = null;
+    const serverHost = core.serverHost;
+    core.disposeServerTransport?.();
+    core.disposeServerTransport = null;
+    core.serverHost?.dispose();
+    core.serverHost = null;
+    core.serverGuest?.dispose();
+    core.serverGuest = null;
     client.clearReceiverMonitor();
     client.resetTransitions();
     core.stopPeersListener?.();
@@ -314,12 +314,12 @@ export function createMultiplayerSession({
     core.hostDirectoryRef = null;
     core.ownPeerRef = null;
     core.firebaseRuntime = null;
-    if (removeRemote && sidekickHost) {
+    if (removeRemote && serverHost) {
       // Close the hosted room and revoke the login bearer server-side.
       // Established RTC keeps playing until renegotiated; new admissions
       // stop immediately. Never throws: teardown must complete locally.
       try {
-        await closeSidekickHostRoom(sidekickHost.room);
+        await closeServerHostRoom(serverHost.room);
       } catch {
         // The lease lapses server-side; local state is already cleared.
       }
@@ -336,10 +336,10 @@ export function createMultiplayerSession({
     core.answeredTurnCredentialRequestIds.clear();
     core.renderFallbackTrackIds.clear();
     core.latestDelivery = { ...EMPTY_DELIVERY };
-    // Sidekick transport health resets with the session; media health
+    // Server transport health resets with the session; media health
     // lives in audioStatus/connectionRoute and host-login expiry is set
     // by the failure that observed the 401.
-    core.publish({ sidekickSignaling: null, sidekickHostAuth: null });
+    core.publish({ serverSignaling: null, serverHostAuth: null });
   }
   core.resetSession = resetSession;
 
@@ -439,25 +439,25 @@ export function createMultiplayerSession({
     if (core.state.mode !== 'idle') return core.state.mode;
     const last = multiplayerLastSession.getSnapshot();
     if (!last) return null;
-    // Explicit transport routing: sidekick records never fall back to RTDB.
+    // Explicit transport routing: server records never fall back to RTDB.
     // Hosting stops at login after reload. A remembered operator key avoids
-    // re-entry there; sidekick guests without a remembered invitation still
+    // re-entry there; server guests without a remembered invitation still
     // require user action.
-    if (last.transport === 'sidekick') {
+    if (last.transport === 'server') {
       if (last.mode === 'hosting') {
         core.publish({
           mode: 'idle',
           connectionStatus: 'idle',
-          connectionDetail: 'Open Sidekick setup to log in and resume hosting.',
-          message: 'Open Sidekick setup to log in and resume hosting.'
+          connectionDetail: 'Open Server setup to log in and resume hosting.',
+          message: 'Open Server setup to log in and resume hosting.'
         });
         return 'idle' as const;
       }
       core.publish({
         mode: 'idle',
         connectionStatus: 'idle',
-        connectionDetail: 'That sidekick invitation needs to be opened again.',
-        message: 'That sidekick invitation needs to be opened again.'
+        connectionDetail: 'That server invitation needs to be opened again.',
+        message: 'That server invitation needs to be opened again.'
       });
       return 'idle' as const;
     }
@@ -469,8 +469,8 @@ export function createMultiplayerSession({
     return 'client' as const;
   }
 
-  // Dynamic imports keep the RTDB bundle untouched when sidekick is idle.
-  async function startSidekickHosting(
+  // Dynamic imports keep the RTDB bundle untouched when server is idle.
+  async function startServerHosting(
     endpoint: string,
     hostKey: string,
     options?: {
@@ -481,9 +481,9 @@ export function createMultiplayerSession({
       signal?: AbortSignal;
     }
   ) {
-    const mod = await import('./multiplayer-sidekick-session');
+    const mod = await import('./multiplayer-server-session');
     void options?.silent;
-    return mod.startSidekickHosting(host.ctx, {
+    return mod.startServerHosting(host.ctx, {
       endpoint,
       hostKey,
       sessionToken: options?.sessionToken,
@@ -493,25 +493,25 @@ export function createMultiplayerSession({
     });
   }
 
-  async function joinSidekick(endpoint: string, roomId: string, secret: string, signal?: AbortSignal) {
-    const mod = await import('./multiplayer-sidekick-session');
-    return mod.joinSidekick(client.ctx, { endpoint, roomId, secret, signal });
+  async function joinServer(endpoint: string, roomId: string, secret: string, signal?: AbortSignal) {
+    const mod = await import('./multiplayer-server-session');
+    return mod.joinServer(client.ctx, { endpoint, roomId, secret, signal });
   }
 
-  async function rotateSidekickInvitation(): Promise<string> {
-    const mod = await import('./multiplayer-sidekick-session');
-    return mod.rotateSidekickInvitation(host.ctx);
+  async function rotateServerInvitation(): Promise<string> {
+    const mod = await import('./multiplayer-server-session');
+    return mod.rotateServerInvitation(host.ctx);
   }
 
   return {
     subscribe: store.subscribe,
     getSnapshot: () => core.state,
     startHosting: (options) => host.startHosting(options),
-    startSidekickHosting,
-    rotateSidekickInvitation,
+    startServerHosting,
+    rotateServerInvitation,
     stopHosting: () => host.stopHosting(),
     join: (inviteCode) => client.join(inviteCode),
-    joinSidekick,
+    joinServer,
     joinPaired: (hostId) => client.joinPaired(hostId),
     restoreLastSession,
     leave: () => client.leave(),
@@ -559,8 +559,8 @@ function getInitialState(): MultiplayerSessionState {
     remoteArtworkResolvedTrackKey: '',
     remoteOdaBackground: null,
     audioStatus: 'idle',
-    sidekickSignaling: null,
-    sidekickHostAuth: null,
+    serverSignaling: null,
+    serverHostAuth: null,
     remoteDelivery: { ...EMPTY_DELIVERY },
     connectionRoute: null,
     averageAudioBitrateKbps: null,

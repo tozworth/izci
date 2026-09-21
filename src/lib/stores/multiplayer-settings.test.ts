@@ -82,38 +82,38 @@ describe('multiplayer settings', () => {
       .toBe('');
   });
 
-  it('defaults sidekick setup state to unconfigured and explicit opt-ins off', () => {
+  it('defaults server setup state to unconfigured and explicit opt-ins off', () => {
     expect(normalizeMultiplayerSettings({})).toMatchObject({
       multiplayerTransport: 'rtdb',
-      multiplayerSidekickEndpoint: '',
-      multiplayerSidekickLabel: '',
-      multiplayerSidekickNoticeVersion: 0,
-      multiplayerSidekickAutoReconnect: false,
-      multiplayerSidekickForceRelay: false,
-      multiplayerSidekickIceAck: ''
+      multiplayerServerEndpoint: '',
+      multiplayerServerLabel: '',
+      multiplayerServerNoticeVersion: 0,
+      multiplayerServerAutoReconnect: false,
+      multiplayerServerForceRelay: false,
+      multiplayerServerIceAck: ''
     });
   });
 
-  it('normalizes sidekick setup fields across windows', () => {
+  it('normalizes server setup fields across windows', () => {
     expect(normalizeMultiplayerSettings({
-      multiplayerSidekickLabel: `  ${'y'.repeat(200)}  `,
-      multiplayerSidekickNoticeVersion: 2.7,
-      multiplayerSidekickAutoReconnect: true,
-      multiplayerSidekickForceRelay: true,
-      multiplayerSidekickIceAck: 'x'.repeat(3_000)
+      multiplayerServerLabel: `  ${'y'.repeat(200)}  `,
+      multiplayerServerNoticeVersion: 2.7,
+      multiplayerServerAutoReconnect: true,
+      multiplayerServerForceRelay: true,
+      multiplayerServerIceAck: 'x'.repeat(3_000)
     })).toMatchObject({
-      multiplayerSidekickLabel: 'y'.repeat(120),
-      multiplayerSidekickNoticeVersion: 2,
-      multiplayerSidekickAutoReconnect: true,
-      multiplayerSidekickForceRelay: true,
-      multiplayerSidekickIceAck: 'x'.repeat(2_048)
+      multiplayerServerLabel: 'y'.repeat(120),
+      multiplayerServerNoticeVersion: 2,
+      multiplayerServerAutoReconnect: true,
+      multiplayerServerForceRelay: true,
+      multiplayerServerIceAck: 'x'.repeat(2_048)
     });
     expect(normalizeMultiplayerSettings({
-      multiplayerSidekickNoticeVersion: Number.NaN,
-      multiplayerSidekickAutoReconnect: 'yes'
+      multiplayerServerNoticeVersion: Number.NaN,
+      multiplayerServerAutoReconnect: 'yes'
     })).toMatchObject({
-      multiplayerSidekickNoticeVersion: 0,
-      multiplayerSidekickAutoReconnect: false
+      multiplayerServerNoticeVersion: 0,
+      multiplayerServerAutoReconnect: false
     });
   });
 

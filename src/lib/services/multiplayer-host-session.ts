@@ -374,15 +374,15 @@ async function acceptClientOffer(
 export async function togglePairing(ctx: MultiplayerHostContext, clientId: string): Promise<void> {
   const { core } = ctx;
   if (core.state.mode !== 'hosting') return;
-  if (core.sidekickHost) {
+  if (core.serverHost) {
     const peer = core.hostPeers.get(clientId);
     if (!peer || !peer.helloReceived) return;
-    const pairing = await import('./multiplayer-sidekick-host-pairing');
+    const pairing = await import('./multiplayer-server-host-pairing');
     try {
       if (core.state.clients.find((candidate) => candidate.id === clientId)?.paired) {
-        await pairing.unpairSidekickPeer(ctx, peer);
+        await pairing.unpairServerPeer(ctx, peer);
       } else {
-        await pairing.pairSidekickPeer(ctx, peer);
+        await pairing.pairServerPeer(ctx, peer);
       }
     } catch (error) {
       core.publish({
@@ -429,12 +429,12 @@ export async function kick(ctx: MultiplayerHostContext, clientId: string): Promi
     removePeerFromHostPlaybackPreparation(ctx, clientId);
   }
   core.publish({ clients: core.state.clients.filter((client) => client.id !== clientId) });
-  // Sidekick kicks also release the server reservation so the slot frees
+  // Server kicks also release the server reservation so the slot frees
   // immediately; the shared invitation stays reusable until rotated.
-  const sidekickAttempt = (peer as { sidekickAttemptId?: string } | undefined)?.sidekickAttemptId;
-  if (core.sidekickHost && sidekickAttempt) {
+  const serverAttempt = (peer as { serverAttemptId?: string } | undefined)?.serverAttemptId;
+  if (core.serverHost && serverAttempt) {
     try {
-      core.sidekickHost.release(sidekickAttempt);
+      core.serverHost.release(serverAttempt);
     } catch {
       // Expiry reaps the slot server-side.
     }

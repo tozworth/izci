@@ -2,7 +2,7 @@
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
   import MultiplayerMark from '$lib/components/multiplayer/MultiplayerMark.svelte';
-  import SidekickSetupPanel from '$lib/components/multiplayer/SidekickSetupPanel.svelte';
+  import ServerSetupPanel from '$lib/components/multiplayer/ServerSetupPanel.svelte';
   import {
     MULTIPLAYER_AUDIO_BUFFER_MAX_MS,
     MULTIPLAYER_AUDIO_BUFFER_MIN_MS,
@@ -42,7 +42,7 @@
   function handleTransportChange(event: Event) {
     const value = (event.currentTarget as HTMLSelectElement).value;
     multiplayerSettings.update({
-      multiplayerTransport: value === 'sidekick' ? 'sidekick' : 'rtdb'
+      multiplayerTransport: value === 'server' ? 'server' : 'rtdb'
     });
   }
 
@@ -228,16 +228,16 @@
     <div class="field-grid">
       <SettingsField
         title={$t('options.multiplayer.transport.title', { default: 'Signaling transport' })}
-        hint={$t('options.multiplayer.transport.hint', { default: 'Firebase is the legacy invite-code path. Sidekick uses a self-hosted server.' })}
+        hint={$t('options.multiplayer.transport.hint', { default: 'Firebase is the legacy invite-code path. Server uses a self-hosted server.' })}
       >
         <select value={$multiplayerSettings.multiplayerTransport} on:change={handleTransportChange}>
           <option value="rtdb">{$t('options.multiplayer.transport.rtdb', { default: 'Firebase (legacy invites)' })}</option>
-          <option value="sidekick">{$t('options.multiplayer.transport.sidekick', { default: 'Sidekick server' })}</option>
+          <option value="server">{$t('options.multiplayer.transport.server', { default: 'Server server' })}</option>
         </select>
       </SettingsField>
-      {#if $multiplayerSettings.multiplayerTransport === 'sidekick'}
-        <div class="sidekick-config">
-          <SidekickSetupPanel mode="config" />
+      {#if $multiplayerSettings.multiplayerTransport === 'server'}
+        <div class="server-config">
+          <ServerSetupPanel mode="config" />
         </div>
       {/if}
       <SettingsField
@@ -459,9 +459,9 @@
         {$t('options.multiplayer.diagnostics.heading', { default: 'Connection diagnostics' })}
       </h3>
     </div>
-    {#if $multiplayerSettings.multiplayerTransport === 'sidekick'}
+    {#if $multiplayerSettings.multiplayerTransport === 'server'}
       <p>
-        {$t('options.multiplayer.sidekick.noticeText', { default: 'The sidekick sees connection metadata and relays SDP and ICE while connecting; it is trusted for signaling.' })}
+        {$t('options.multiplayer.server.noticeText', { default: 'The server sees connection metadata and relays SDP and ICE while connecting; it is trusted for signaling.' })}
       </p>
     {:else}
       <p>
@@ -469,8 +469,8 @@
       </p>
     {/if}
     <p>
-      {#if $multiplayerSettings.multiplayerTransport === 'sidekick'}
-        {$t('options.multiplayer.sidekick.iceManaged', { default: 'STUN and TURN are supplied by the Sidekick operator. This client does not configure relay credentials.' })}
+      {#if $multiplayerSettings.multiplayerTransport === 'server'}
+        {$t('options.multiplayer.server.iceManaged', { default: 'STUN and TURN are supplied by the Server operator. This client does not configure relay credentials.' })}
       {:else}
         {$t('options.multiplayer.diagnostics.direct', { default: 'izci asks Cloudflare and Google STUN servers for public ICE candidates, then tries direct routes. When configured above, TURN adds a relay path for restrictive NAT or firewall combinations.' })}
       {/if}
@@ -497,7 +497,7 @@
     font-size: 0.74rem;
   }
 
-  .sidekick-config {
+  .server-config {
     grid-column: 1 / -1;
     padding: 0.6rem 0.7rem;
     border: 1px solid var(--border-faint);

@@ -76,7 +76,7 @@ import {
   toLoadedMultiplayerArtwork
 } from '$lib/services/multiplayer-artwork';
 import { createMultiplayerWindowController } from '$lib/services/multiplayer-window-controller';
-import { sidekickSetup } from '$lib/services/multiplayer-sidekick-setup';
+import { serverSetup } from '$lib/services/multiplayer-server-setup';
 import { createFreeplayUiActions } from '$lib/services/freeplay-ui-actions';
 import { createMultiplayerSession } from '$lib/services/multiplayer-session';
 import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
@@ -329,10 +329,10 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     pauseHostPlayback: () => playbackCommands.pause(),
     resumeHostPlayback: () => { void playbackCommands.play(); }
   });
-  sidekickSetup.setSessionConnector({
-    startHosting: (args) => multiplayerSession.startSidekickHosting(args.endpoint, args.hostKey, args),
-    joinSidekick: (args) => multiplayerSession.joinSidekick(args.endpoint, args.roomId, args.secret, args.signal),
-    rotateInvitation: () => multiplayerSession.rotateSidekickInvitation(),
+  serverSetup.setSessionConnector({
+    startHosting: (args) => multiplayerSession.startServerHosting(args.endpoint, args.hostKey, args),
+    joinServer: (args) => multiplayerSession.joinServer(args.endpoint, args.roomId, args.secret, args.signal),
+    rotateInvitation: () => multiplayerSession.rotateServerInvitation(),
     stopHosting: () => multiplayerSession.stopHosting(),
     leave: () => multiplayerSession.leave()
   });

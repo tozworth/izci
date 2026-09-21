@@ -9,13 +9,13 @@ import {
   rememberMultiplayerPairing
 } from '$lib/stores/multiplayer-pairings';
 import {
-  findSidekickPairing,
-  forgetSidekickPairing,
-  rememberSidekickPairing,
-  setSidekickPairingInvitationByRoom
-} from '$lib/stores/multiplayer-sidekick-pairings';
-import { getLocalSidekickIdentity, isValidSidekickIdentity } from './multiplayer-sidekick-identity';
-import { computePairProof, createPairNonce } from './multiplayer-sidekick-pairing';
+  findServerPairing,
+  forgetServerPairing,
+  rememberServerPairing,
+  setServerPairingInvitationByRoom
+} from '$lib/stores/multiplayer-server-pairings';
+import { getLocalServerIdentity, isValidServerIdentity } from './multiplayer-server-identity';
+import { computePairProof, createPairNonce } from './multiplayer-server-pairing';
 import { rememberMultiplayerHost } from '$lib/stores/multiplayer-recents';
 import { getMultiplayerArtworkTrackKey } from './multiplayer-artwork';
 import { multiplayerAudioService } from './multiplayer-audio';
@@ -98,7 +98,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
       name: peer.name,
       platform: getClientPlatform(),
       freeplayEnabled: core.multiplayerSettings.multiplayerFreeplay,
-      identity: getLocalSidekickIdentity()
+      identity: getLocalServerIdentity()
     });
     sendToPeer(peer, {
       kind: 'oda.background.preference',
@@ -229,13 +229,13 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
     if (message.kind === 'pair.secret') {
       // The host chose Pair: store the secret under the host's
       // browser-local identity, namespaced away from legacy UID pairs.
-      if (core.sidekickGuest) {
-        rememberSidekickPairing({
+      if (core.serverGuest) {
+        rememberServerPairing({
           peerIdentity: message.hostIdentity,
           label: sanitizeClientName(core.state.hostName ?? message.hostIdentity),
           secret: message.secret,
-          endpoint: core.sidekickGuest.endpoint,
-          roomId: core.sidekickGuest.roomId,
+          endpoint: core.serverGuest.endpoint,
+          roomId: core.serverGuest.roomId,
           invitationSecret: null
         });
       }
@@ -244,9 +244,9 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
     if (message.kind === 'invitation') {
       // Rotated invitations reach currently paired guests over their
       // authorized channel; offline guests need a fresh invite link.
-      if (core.sidekickGuest) {
-        setSidekickPairingInvitationByRoom(
-          core.sidekickGuest.endpoint,
+      if (core.serverGuest) {
+        setServerPairingInvitationByRoom(
+          core.serverGuest.endpoint,
           message.roomId,
           message.secret
         );
@@ -254,9 +254,9 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
       return;
     }
     if (message.kind === 'pairing') {
-      if (core.sidekickGuest) {
+      if (core.serverGuest) {
         if (!message.paired) {
-          forgetSidekickPairing(message.hostId);
+          forgetServerPairing(message.hostId);
         }
       } else if (message.paired) {
         rememberMultiplayerPairing(message.hostId, message.name);
@@ -390,7 +390,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
         hostId: core.clientHostId,
         hostName
       });
-      if (core.sidekickGuest) void sendSidekickPairProof(ctx, peer, message.identity, message.pairNonce);
+      if (core.serverGuest) void sendServerPairProof(ctx, peer, message.identity, message.pairNonce);
     }
   };
   channel.onclose = () => {
@@ -476,25 +476,25 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
 }
 
 /**
- * Answer a sidekick host hello with an HMAC pair proof when this browser
+ * Answer a server host hello with an HMAC pair proof when this browser
  * holds a pair record for the host identity. Guests without a record stay
  * silent and remain unpaired; a failed proof simply leaves privileges off.
  */
-async function sendSidekickPairProof(
+async function sendServerPairProof(
   ctx: MultiplayerClientContext,
   peer: PeerConnection,
   hostIdentity: string | undefined,
   hostNonce: string | undefined
 ): Promise<void> {
   const { core } = ctx;
-  const guest = core.sidekickGuest;
+  const guest = core.serverGuest;
   if (!guest || core.clientPeer !== peer) return;
-  if (!isValidSidekickIdentity(hostIdentity)
+  if (!isValidServerIdentity(hostIdentity)
     || typeof hostNonce !== 'string'
     || !/^[A-Za-z0-9_-]{8,128}$/.test(hostNonce)) return;
-  const record = findSidekickPairing(hostIdentity);
+  const record = findServerPairing(hostIdentity);
   if (!record) return;
-  const clientIdentity = getLocalSidekickIdentity();
+  const clientIdentity = getLocalServerIdentity();
   if (clientIdentity === hostIdentity) return;
   const guestNonce = createPairNonce();
   try {
