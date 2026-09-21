@@ -2,7 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 
 const protocolPath = new URL('../src/lib/services/multiplayer-protocol.ts', import.meta.url);
 const rulesPath = new URL('../database.rules.json', import.meta.url);
-const sidekickProtocolPath = new URL('../sidekick/internal/protocol/protocol.go', import.meta.url);
+const serverProtocolPath = new URL('../izci-server/internal/protocol/protocol.go', import.meta.url);
 const checkOnly = process.argv.includes('--check');
 
 const protocolSource = await readFile(protocolPath, 'utf8');
@@ -39,41 +39,41 @@ if (replacements < 3) {
   throw new Error(`Expected to find at least 3 multiplayer protocol major checks; found ${replacements}.`);
 }
 
-const sidekickProtocolSource = await readFile(sidekickProtocolPath, 'utf8');
-let sidekickReplacements = 0;
-let synchronizedSidekickProtocol = sidekickProtocolSource.replace(
+const serverProtocolSource = await readFile(serverProtocolPath, 'utf8');
+let serverReplacements = 0;
+let synchronizedServerProtocol = serverProtocolSource.replace(
   /(\bMajor\s*=\s*)\d+/g,
   (_, prefix) => {
-    sidekickReplacements += 1;
+    serverReplacements += 1;
     return `${prefix}${major}`;
   }
 );
-synchronizedSidekickProtocol = synchronizedSidekickProtocol.replace(
+synchronizedServerProtocol = synchronizedServerProtocol.replace(
   /(\bMinor\s*=\s*)\d+/g,
   (_, prefix) => {
-    sidekickReplacements += 1;
+    serverReplacements += 1;
     return `${prefix}${minor}`;
   }
 );
 
-if (sidekickReplacements !== 2) {
-  throw new Error(`Expected to find Go protocol Major and Minor; found ${sidekickReplacements}.`);
+if (serverReplacements !== 2) {
+  throw new Error(`Expected to find Go protocol Major and Minor; found ${serverReplacements}.`);
 }
 
 const rulesChanged = synchronizedRules !== rulesSource;
-const sidekickProtocolChanged = synchronizedSidekickProtocol !== sidekickProtocolSource;
+const serverProtocolChanged = synchronizedServerProtocol !== serverProtocolSource;
 
-if (!rulesChanged && !sidekickProtocolChanged) process.exit(0);
+if (!rulesChanged && !serverProtocolChanged) process.exit(0);
 
 if (checkOnly) {
   const mismatches = [];
   if (rulesChanged) mismatches.push('database.rules.json');
-  if (sidekickProtocolChanged) mismatches.push('sidekick/internal/protocol/protocol.go');
+  if (serverProtocolChanged) mismatches.push('izci-server/internal/protocol/protocol.go');
   throw new Error(`${mismatches.join(' and ')} do not use multiplayer protocol ${major}.${minor}.`);
 }
 
 await Promise.all([
   rulesChanged ? writeFile(rulesPath, synchronizedRules) : undefined,
-  sidekickProtocolChanged ? writeFile(sidekickProtocolPath, synchronizedSidekickProtocol) : undefined
+  serverProtocolChanged ? writeFile(serverProtocolPath, synchronizedServerProtocol) : undefined
 ]);
 console.log(`Synchronized multiplayer protocol consumers to ${major}.${minor}.`);

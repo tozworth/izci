@@ -1,0 +1,30 @@
+# systemd unit for the server. Install the binary to /usr/local/bin and the
+# config plus host key to /etc/izci-server (key file chmod 600, owned by
+# the service user via DynamicUser state or root with read access).
+#
+#   sudo cp izci-server /usr/local/bin/
+#   sudo mkdir -p /etc/izci-server
+#   sudo cp config.json /etc/izci-server/
+#   sudo cp host-key /etc/izci-server/ && sudo chmod 600 /etc/izci-server/host-key
+#   sudo cp izci-server.service /etc/systemd/system/
+#   sudo systemctl enable --now izci-server
+
+[Unit]
+Description=izci multiplayer server (WebRTC signaling)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadOnlyPaths=/etc/izci-server
+ExecStart=/usr/local/bin/izci-server serve --config /etc/izci-server/config.json
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

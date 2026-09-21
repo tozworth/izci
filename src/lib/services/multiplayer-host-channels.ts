@@ -1,7 +1,7 @@
 import { clearPeerConnectionTimer, sendToPeer } from './multiplayer-peer';
-import { getLocalSidekickIdentity, isValidSidekickIdentity } from './multiplayer-sidekick-identity';
-import { createPairNonce } from './multiplayer-sidekick-pairing';
-import { verifySidekickPairProof } from './multiplayer-sidekick-host-pairing';
+import { getLocalServerIdentity, isValidServerIdentity } from './multiplayer-server-identity';
+import { createPairNonce } from './multiplayer-server-pairing';
+import { verifyServerPairProof } from './multiplayer-server-host-pairing';
 import {
   MULTIPLAYER_PROTOCOL_MAJOR,
   MULTIPLAYER_PROTOCOL_MINOR,
@@ -50,14 +50,14 @@ export function announceHostPeerLeave(
   ctx.handleChatPresence(peer.name, 'leave');
 }
 
-/** Sidekick hello extras: browser-local identity plus a fresh pair nonce. */
-function sidekickHelloExtra(
+/** Server hello extras: browser-local identity plus a fresh pair nonce. */
+function serverHelloExtra(
   ctx: MultiplayerHostContext,
   peer: PeerConnection
 ): { identity?: string; pairNonce?: string } {
-  if (!ctx.core.sidekickHost) return {};
+  if (!ctx.core.serverHost) return {};
   if (!peer.pairNonce) peer.pairNonce = createPairNonce();
-  return { identity: getLocalSidekickIdentity(), pairNonce: peer.pairNonce };
+  return { identity: getLocalServerIdentity(), pairNonce: peer.pairNonce };
 }
 
 export function attachHostChannel(
@@ -75,7 +75,7 @@ export function attachHostChannel(
       capabilities: getLocalCapabilities(),
       impl: getLocalImplementation(),
       name: getLocalName(),
-      ...sidekickHelloExtra(ctx, peer)
+      ...serverHelloExtra(ctx, peer)
     });
   };
   channel.onopen = () => {
@@ -124,8 +124,8 @@ export function attachHostChannel(
       peer.name = sanitizeClientName(message.name);
       peer.clientFreeplayEnabled = message.freeplayEnabled;
       // Browser-local identity rides the hello; paired privileges still
-      // wait for the HMAC proof (sidekick) or the stored UID pairing.
-      if (core.sidekickHost && isValidSidekickIdentity(message.identity)) {
+      // wait for the HMAC proof (server) or the stored UID pairing.
+      if (core.serverHost && isValidServerIdentity(message.identity)) {
         peer.clientIdentity = message.identity;
       }
       peer.helloReceived = true;
@@ -141,7 +141,7 @@ export function attachHostChannel(
       return;
     }
     if (message.kind === 'pair.proof') {
-      if (core.sidekickHost) void verifySidekickPairProof(ctx, peer, message);
+      if (core.serverHost) void verifyServerPairProof(ctx, peer, message);
       return;
     }
     if (message.kind === 'chat.send') {

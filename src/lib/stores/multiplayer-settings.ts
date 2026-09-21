@@ -58,12 +58,12 @@ export const DEFAULT_MULTIPLAYER_SETTINGS: MultiplayerSettings = {
   multiplayer: false,
   izciName: defaultIzciName,
   multiplayerTransport: 'rtdb',
-  multiplayerSidekickEndpoint: '',
-  multiplayerSidekickLabel: '',
-  multiplayerSidekickNoticeVersion: 0,
-  multiplayerSidekickAutoReconnect: false,
-  multiplayerSidekickForceRelay: false,
-  multiplayerSidekickIceAck: '',
+  multiplayerServerEndpoint: '',
+  multiplayerServerLabel: '',
+  multiplayerServerNoticeVersion: 0,
+  multiplayerServerAutoReconnect: false,
+  multiplayerServerForceRelay: false,
+  multiplayerServerIceAck: '',
   multiplayerMotd: '',
   multiplayerChatHistoryLines: 0,
   multiplayerWaitForClients: false,
@@ -134,25 +134,25 @@ export function normalizeMultiplayerSettings(value: unknown): MultiplayerSetting
   return {
     multiplayer: normalizeBoolean(source.multiplayer, DEFAULT_MULTIPLAYER_SETTINGS.multiplayer),
     izciName: normalizeIzciName(source.izciName, defaultIzciName),
-    multiplayerTransport: source.multiplayerTransport === 'sidekick' ? 'sidekick' : 'rtdb',
-    multiplayerSidekickEndpoint: typeof source.multiplayerSidekickEndpoint === 'string'
-      ? source.multiplayerSidekickEndpoint.trim().slice(0, 512)
+    multiplayerTransport: source.multiplayerTransport === 'server' ? 'server' : 'rtdb',
+    multiplayerServerEndpoint: typeof source.multiplayerServerEndpoint === 'string'
+      ? source.multiplayerServerEndpoint.trim().slice(0, 512)
       : '',
-    multiplayerSidekickLabel: normalizeSingleLine(source.multiplayerSidekickLabel, 120),
-    multiplayerSidekickNoticeVersion: typeof source.multiplayerSidekickNoticeVersion === 'number'
-      && Number.isFinite(source.multiplayerSidekickNoticeVersion)
-      ? Math.max(0, Math.floor(source.multiplayerSidekickNoticeVersion))
-      : DEFAULT_MULTIPLAYER_SETTINGS.multiplayerSidekickNoticeVersion,
-    multiplayerSidekickAutoReconnect: normalizeBoolean(
-      source.multiplayerSidekickAutoReconnect,
-      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerSidekickAutoReconnect
+    multiplayerServerLabel: normalizeSingleLine(source.multiplayerServerLabel, 120),
+    multiplayerServerNoticeVersion: typeof source.multiplayerServerNoticeVersion === 'number'
+      && Number.isFinite(source.multiplayerServerNoticeVersion)
+      ? Math.max(0, Math.floor(source.multiplayerServerNoticeVersion))
+      : DEFAULT_MULTIPLAYER_SETTINGS.multiplayerServerNoticeVersion,
+    multiplayerServerAutoReconnect: normalizeBoolean(
+      source.multiplayerServerAutoReconnect,
+      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerServerAutoReconnect
     ),
-    multiplayerSidekickForceRelay: normalizeBoolean(
-      source.multiplayerSidekickForceRelay,
-      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerSidekickForceRelay
+    multiplayerServerForceRelay: normalizeBoolean(
+      source.multiplayerServerForceRelay,
+      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerServerForceRelay
     ),
-    multiplayerSidekickIceAck: typeof source.multiplayerSidekickIceAck === 'string'
-      ? source.multiplayerSidekickIceAck.slice(0, 2048)
+    multiplayerServerIceAck: typeof source.multiplayerServerIceAck === 'string'
+      ? source.multiplayerServerIceAck.slice(0, 2048)
       : '',
     multiplayerMotd: normalizeSingleLine(source.multiplayerMotd, MULTIPLAYER_MOTD_MAX_LENGTH),
     multiplayerChatHistoryLines: normalizeChatHistoryLines(source.multiplayerChatHistoryLines),

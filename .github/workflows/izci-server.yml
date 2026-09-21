@@ -1,0 +1,52 @@
+name: izci-server
+
+on:
+  push:
+    paths:
+      - "izci-server/**"
+      - ".github/workflows/izci-server.yml"
+  pull_request:
+    paths:
+      - "izci-server/**"
+      - ".github/workflows/izci-server.yml"
+
+defaults:
+  run:
+    working-directory: izci-server
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.1"
+          cache-dependency-path: izci-server/go.sum
+      - name: Formatting
+        run: test -z "$(gofmt -l .)"
+      - name: Vet
+        run: go vet ./...
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.1"
+          cache-dependency-path: izci-server/go.sum
+      - name: Race tests
+        run: go test -race ./...
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.1"
+          cache-dependency-path: izci-server/go.sum
+      - name: Static binary (${{ matrix.arch }})
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.arch }} go build -trimpath -o izci-server-${{ matrix.arch }} ./cmd/izci-server

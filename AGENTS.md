@@ -137,17 +137,17 @@
 
 - One izci hosts its catalog and playback state, while joined izci clients provide a remote view, transport/track controls and streamed audio. The host remains authoritative.
 - Multiplayer settings live in synchronized `multiplayer-settings.ts` and default to singleplayer.
-- Multiplayer uses either legacy Firebase Realtime Database or the self-hosted Sidekick for short-lived signaling, then WebRTC data channels for peer traffic. Keep session lifecycle, protocol/versioning, and persisted recent hosts in dedicated `multiplayer-*` modules, separate from queue/library data.
+- Multiplayer uses either legacy Firebase Realtime Database or the self-hosted izci-server for short-lived signaling, then WebRTC data channels for peer traffic. Keep session lifecycle, protocol/versioning, and persisted recent hosts in dedicated `multiplayer-*` modules, separate from queue/library data.
 - Streamed Multiplayer audio is host renderer output after transport envelopes but before ReplayGain, Raf, analysis, or master volume; listeners own any later processing.
 - Freeplay is a persisted per-pair Multiplayer mode. Each active Freeplay client browses the host library but owns an independent host-side renderer and timeline; never route Freeplay through the host queue or shared player controller.
 
-## Sidekick
+## izci-server
 
-- `sidekick/` is an independent Go module and self-hosted, in-memory signaling service; it owns rooms, admission, WebRTC negotiation, ICE issuance, and deployment examples, but never izci playback or catalog state. Official builds ship without a configured server.
-- Browser-side HTTP, socket, invitation, setup, identity, pairing, and reconnect-proof behavior stays in focused `multiplayer-sidekick-*` services/stores. Login bearers are transient; remembered operator keys, invitations, identities, and per-pair secrets stay in their existing sidekick-specific local settings boundaries.
-- Keep the Sidekick signaling protocol version separate from the Multiplayer app protocol. Protocol shapes live in code, representative shared fixtures live under `tests/multiplayer-sidekick-contract/`, and app-protocol changes must keep `scripts/sync-multiplayer-protocol.mjs` in sync.
+- `izci-server/` is an independent Go module: `internal/signaling` owns rooms, admission, WebRTC negotiation, ICE issuance, and deployment examples; `internal/host` owns dedicated hosting (peers, sessions, Pion answerer) with `serve` (both), `signal` (signaling only), and `host` (remote signal) modes. Official builds ship without a configured server.
+- Browser-side HTTP, socket, invitation, setup, identity, pairing, and reconnect-proof behavior stays in focused `multiplayer-server-*` services/stores. Login bearers are transient; remembered operator keys, invitations, identities, and per-pair secrets stay in their existing server-specific local settings boundaries.
+- Keep the izci-server signaling protocol version separate from the Multiplayer app protocol. Protocol shapes live in code, representative shared fixtures live under `tests/multiplayer-server-contract/`, and app-protocol changes must keep `scripts/sync-multiplayer-protocol.mjs` in sync.
 - Treat keys, tokens, invitation and owner secrets, SDP, ICE candidates, and request bodies as sensitive: never put socket tickets in URLs, log these values, or persist transient signaling. Preserve strict JSON decoding, origin/path checks, rate limits, bounded messages, and clean shutdown.
-- After Sidekick source changes, run formatting, `go vet ./...`, `go test -race ./...`, and a CGO-disabled build from `sidekick/`; frontend work must remain buildable without Go installed.
+- After izci-server source changes, run formatting, `go vet ./...`, `go test -race ./...`, and a CGO-disabled build from `izci-server/`; frontend work must remain buildable without Go installed.
 
 ## Change checklist
 

@@ -204,7 +204,7 @@ describe('multiplayer protocol', () => {
     })).toBe(false);
   });
 
-  it('accepts sidekick hello identity extras and pair messages', () => {
+  it('accepts server hello identity extras and pair messages', () => {
     expect(isHostMessage({
       kind: 'hello',
       protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,

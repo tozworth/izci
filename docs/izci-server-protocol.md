@@ -4,7 +4,7 @@ Normative, language-neutral wire specification for the izci Multiplayer
 data-channel protocol. This document is sufficient to implement an independent
 host without reading browser service internals. Implementation shapes live in
 code (`src/lib/services/multiplayer-protocol.ts`,
-`src/lib/services/multiplayer-utils.ts`, `sidekick/internal/protocol/`);
+`src/lib/services/multiplayer-utils.ts`, `izci-server/internal/protocol/`);
 representative fixtures live under `tests/multiplayer-protocol/` and are
 consumed by both TypeScript and Go. The signaling socket protocol is specified
 separately and keeps its own version.
@@ -86,7 +86,7 @@ integer:
   be `1`) and `protocolMinor` (any number). Clients check
   `isCompatibleHelloIdentity({protocolMajor, capabilities: []})` before RTC.
   Rules enforce `protocolMajor === 1`.
-- Sidekick HTTP: `GET /v1/info` returns `{signalingVersion:1,
+- Server HTTP: `GET /v1/info` returns `{signalingVersion:1,
   appProtocolMajor:1, appProtocolMinor:0, appCapabilities:[...]}`.
   `POST /v1/join` requires `{appProtocolMajor:1, appProtocolMinor?:n,
   appCapabilities?:[...]}` and returns `unsupported-version` on major
@@ -122,7 +122,7 @@ All control messages are JSON over `izci-control`. `H→C` = host to client,
 ### 4.1 Hello and admission
 
 - `H→C hello {protocolMajor, protocolMinor, capabilities, impl, name,
-  identity?, pairNonce?}`. `identity`/`pairNonce` are sidekick extras
+  identity?, pairNonce?}`. `identity`/`pairNonce` are server extras
   (`[A-Za-z0-9_-]{8,128}`); absent on the legacy path.
 - `C→H hello {protocolMajor, protocolMinor, capabilities, impl, name,
   platform, freeplayEnabled, identity?}`.
@@ -266,7 +266,7 @@ trackId/itemId `1..200`; sourceRevision `1..120`; names `1..48`, platform
 Transport timeouts: ICE `15_000 ms`; Firebase step `8_000 ms`; reconnect
 `[2000,5000,10000,20000,30000]` with explicit `1000/2000/4000/15000` cases;
 kick dispose `80 ms`; host-full reap `5 s`; receiver clamp `0..4000 ms`;
-render monitor `500 ms`, stall `2500 ms`; sidekick backoff
+render monitor `500 ms`, stall `2500 ms`; server backoff
 `[500,1000,2000,5000,10000]+rand500`, socket ready `8000 ms`, reconnect
 `90 s` host / `45 s` guest. Server limits: rooms `4`, peers/room `8`,
 pending/room `8`, sockets `128`, JSON `64 KiB`, SDP `50 KiB`, candidate

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import MultiplayerMark from '$lib/components/multiplayer/MultiplayerMark.svelte';
-  import SidekickSetupPanel from '$lib/components/multiplayer/SidekickSetupPanel.svelte';
-  import { describeSidekickEndpoint } from '$lib/services/multiplayer-sidekick-invite';
-  import { sidekickSetup } from '$lib/services/multiplayer-sidekick-setup';
+  import ServerSetupPanel from '$lib/components/multiplayer/ServerSetupPanel.svelte';
+  import { describeServerEndpoint } from '$lib/services/multiplayer-server-invite';
+  import { serverSetup } from '$lib/services/multiplayer-server-setup';
   import OdaModal from './OdaModal.svelte';
 
   export let connectionOpen = false;
@@ -18,45 +18,45 @@
   export let onConnectionAction: () => void = () => {};
   export let onDismissToast: () => void = () => {};
 
-  $: setup = $sidekickSetup;
+  $: setup = $serverSetup;
   $: pending = setup.pendingInvitation;
-  $: sidekickOpen = setup.dialogOpen;
-  $: sidekickBusy = setup.busy !== null
+  $: serverOpen = setup.dialogOpen;
+  $: serverBusy = setup.busy !== null
     || setup.guestStatus === 'loading-info'
     || setup.guestStatus === 'connecting';
 
-  function closeSidekick(): void {
-    sidekickSetup.closeSetup();
+  function closeServer(): void {
+    serverSetup.closeSetup();
   }
 
   function cancelInvitation(): void {
-    sidekickSetup.dismissPending();
-    sidekickSetup.closeSetup();
+    serverSetup.dismissPending();
+    serverSetup.closeSetup();
   }
 
   function joinInvitation(): void {
-    void sidekickSetup.joinPending().catch(() => undefined);
+    void serverSetup.joinPending().catch(() => undefined);
   }
 
   function endpointLabel(endpoint: string): string {
     try {
-      return describeSidekickEndpoint(endpoint).authorityWithPrefix;
+      return describeServerEndpoint(endpoint).authorityWithPrefix;
     } catch {
       return endpoint;
     }
   }
 </script>
 
-{#if sidekickOpen}
+{#if serverOpen}
   <OdaModal
     title={pending
-      ? $t('main.multiplayer.sidekick.inviteTitle', { default: 'Sidekick invitation' })
-      : $t('main.multiplayer.sidekick.setupTitle', { default: 'Sidekick setup' })}
+      ? $t('main.multiplayer.server.inviteTitle', { default: 'Server invitation' })
+      : $t('main.multiplayer.server.setupTitle', { default: 'Server setup' })}
     subtitle={pending?.title
       || (pending
-        ? $t('options.multiplayer.sidekick.guestTitle', { default: 'Join with an invitation' })
+        ? $t('options.multiplayer.server.guestTitle', { default: 'Join with an invitation' })
         : $t('main.multiplayer.label', { default: 'Multiplayer' }))}
-    onDismiss={pending ? cancelInvitation : closeSidekick}
+    onDismiss={pending ? cancelInvitation : closeServer}
     wide={!pending}
   >
     <MultiplayerMark
@@ -68,44 +68,44 @@
     {#if pending}
       <div class="invitation-details">
         <div>
-          <span class="detail-label">{$t('options.multiplayer.sidekick.destination', { default: 'Server' })}</span>
+          <span class="detail-label">{$t('options.multiplayer.server.destination', { default: 'Server' })}</span>
           <strong class="mono">{endpointLabel(pending.endpoint)}</strong>
         </div>
         {#if pending.title}
           <div>
-            <span class="detail-label">{$t('options.multiplayer.sidekick.unverifiedTitle', { default: 'Unverified party title' })}</span>
+            <span class="detail-label">{$t('options.multiplayer.server.unverifiedTitle', { default: 'Unverified party title' })}</span>
             <strong>{pending.title}</strong>
           </div>
         {/if}
       </div>
-      <p class="hint">{$t('options.multiplayer.sidekick.pendingHint', { default: 'Confirm the destination, then Join. Server details load only after Join.' })}</p>
+      <p class="hint">{$t('options.multiplayer.server.pendingHint', { default: 'Confirm the destination, then Join. Server details load only after Join.' })}</p>
       {#if setup.guestError}
         <p class="error" role="alert">{setup.guestError}</p>
       {/if}
 
     {:else}
-      <SidekickSetupPanel mode="full" />
+      <ServerSetupPanel mode="full" />
     {/if}
 
     <svelte:fragment slot="actions">
       {#if pending}
         <button type="button" on:click={cancelInvitation}>
-          {$t('options.multiplayer.sidekick.cancel', { default: 'Cancel' })}
+          {$t('options.multiplayer.server.cancel', { default: 'Cancel' })}
         </button>
         <button
           type="button"
           class="primary"
           data-oda-default
-          disabled={sidekickBusy}
+          disabled={serverBusy}
           on:click={joinInvitation}
         >
-          {sidekickBusy
+          {serverBusy
             ? $t('main.multiplayer.connecting', { default: 'Connecting...' })
-            : $t('options.multiplayer.sidekick.join', { default: 'Join' })}
+            : $t('options.multiplayer.server.join', { default: 'Join' })}
         </button>
       {:else}
-        <button type="button" data-oda-default on:click={closeSidekick}>
-          {$t('main.multiplayer.sidekick.dismiss', { default: 'Dismiss' })}
+        <button type="button" data-oda-default on:click={closeServer}>
+          {$t('main.multiplayer.server.dismiss', { default: 'Dismiss' })}
         </button>
       {/if}
     </svelte:fragment>

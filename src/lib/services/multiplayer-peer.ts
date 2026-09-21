@@ -139,7 +139,7 @@ export async function applyAudioBitrate(peer: PeerConnection, bitrateKbps: numbe
 
 /**
  * ICE publisher with an injected candidate sender. The sender numbers
- * candidates per peer (Firebase path suffix or sidekick per-attempt index)
+ * candidates per peer (Firebase path suffix or server per-attempt index)
  * and performs the actual transport write; this module owns gathering,
  * queuing until the answer/offer is published, and failure reporting.
  */
@@ -211,12 +211,12 @@ export function stageRemoteCandidates(peer: PeerConnection, candidates: SignalCa
 }
 
 /**
- * Stage one sidekick remote candidate. The signaling sequence index is used
+ * Stage one server remote candidate. The signaling sequence index is used
  * only for deduplication; the browser-facing SDP media coordinates travel
  * separately. Candidates arriving before remote SDP wait in the existing
  * pending map until flushRemoteCandidates can apply them.
  */
-export function stageSidekickRemoteCandidate(
+export function stageServerRemoteCandidate(
   peer: PeerConnection,
   candidate: string,
   index: number,

@@ -28,8 +28,8 @@ import {
 import type { MultiplayerReceiverAudioStatus } from './multiplayer-audio';
 import type { MultiplayerConnectionRoute } from './multiplayer-ice';
 import type { FreeplayStepResolver, MultiplayerFreeplayPlayer } from './multiplayer-freeplay';
-import type { SidekickHostLink } from './multiplayer-sidekick-host';
-import type { SidekickGuestConnection } from './multiplayer-sidekick-client';
+import type { ServerHostLink } from './multiplayer-server-host';
+import type { ServerGuestConnection } from './multiplayer-server-client';
 
 export type MultiplayerMode = 'idle' | 'hosting' | 'client';
 export type MultiplayerConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -108,10 +108,10 @@ export interface MultiplayerSessionState {
   audioStatus: MultiplayerAudioStatus;
   remoteDelivery: MultiplayerDeliveryState;
   connectionRoute: MultiplayerConnectionRoute | null;
-  /** Sidekick signaling health; media health stays in audioStatus/connectionRoute. */
-  sidekickSignaling: 'live' | 'reconnecting' | 'dropped' | null;
-  /** Sidekick host-login state; expired logins need user action, not retry. */
-  sidekickHostAuth: 'valid' | 'expired' | null;
+  /** Server signaling health; media health stays in audioStatus/connectionRoute. */
+  serverSignaling: 'live' | 'reconnecting' | 'dropped' | null;
+  /** Server host-login state; expired logins need user action, not retry. */
+  serverHostAuth: 'valid' | 'expired' | null;
   averageAudioBitrateKbps: number | null;
   receiveAudio: boolean;
   connectionStats: MultiplayerConnectionStats | null;
@@ -231,7 +231,7 @@ export interface PeerConnection {
   candidateErrors: string[];
   connectionTimer: number | null;
   signalingCreatedAt: number;
-  /** Browser-local sidekick identity presented in the client hello. */
+  /** Browser-local server identity presented in the client hello. */
   clientIdentity: string | null;
   /** Fresh per-connection nonce sent in the host hello for pair proofs. */
   pairNonce: string | null;
@@ -284,7 +284,7 @@ export type MultiplayerChatPresenceHandler = (
 export interface MultiplayerSessionController extends Readable<MultiplayerSessionState> {
   getSnapshot(): MultiplayerSessionState;
   startHosting(options?: { silent?: boolean }): Promise<string>;
-  startSidekickHosting(
+  startServerHosting(
     endpoint: string,
     hostKey: string,
     options?: {
@@ -295,10 +295,10 @@ export interface MultiplayerSessionController extends Readable<MultiplayerSessio
       signal?: AbortSignal;
     }
   ): Promise<{ endpoint: string; roomId: string; secret: string; ownerSecret: string | null }>;
-  rotateSidekickInvitation(): Promise<string>;
+  rotateServerInvitation(): Promise<string>;
   stopHosting(): Promise<void>;
   join(inviteCode: string): Promise<void>;
-  joinSidekick(endpoint: string, roomId: string, secret: string, signal?: AbortSignal): Promise<void>;
+  joinServer(endpoint: string, roomId: string, secret: string, signal?: AbortSignal): Promise<void>;
   joinPaired(hostId: string): Promise<void>;
   restoreLastSession(): Promise<MultiplayerMode | null>;
   leave(): Promise<void>;
@@ -372,12 +372,12 @@ export interface MultiplayerSessionCore {
   rejectedPeerIds: Set<string>;
   acceptingPeerIds: Set<string>;
   answeredTurnCredentialRequestIds: Set<string>;
-  /** Active sidekick transport (host link or guest connection), if any. */
-  sidekickHost: SidekickHostLink | null;
-  sidekickGuest: SidekickGuestConnection | null;
-  /** Generation guard: late sidekick callbacks check ownership before mutating. */
+  /** Active server transport (host link or guest connection), if any. */
+  serverHost: ServerHostLink | null;
+  serverGuest: ServerGuestConnection | null;
+  /** Generation guard: late server callbacks check ownership before mutating. */
   transportGeneration: number;
   /** Small transport cleanup handle for the non-RTDB path. */
-  disposeSidekickTransport: (() => void) | null;
+  disposeServerTransport: (() => void) | null;
   resetSession(removeRemote: boolean): Promise<void>;
 }

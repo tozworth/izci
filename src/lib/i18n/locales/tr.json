@@ -86,10 +86,10 @@
       "session": "Oturum",
       "unpairClient": "{name} eşleştirmesini kaldır",
       "pairClientMobile": "{name} ile eşleştir",
-      "sidekick": {
-        "setupTitle": "Sidekick kurulumu",
-        "inviteTitle": "Sidekick daveti",
-        "enterInvite": "Sidekick davet bağlantısını veya davet kodunu yapıştırın",
+      "server": {
+        "setupTitle": "izci-server kurulumu",
+        "inviteTitle": "izci-server daveti",
+        "enterInvite": "izci-server davet bağlantısını veya davet kodunu yapıştırın",
         "dismiss": "Kapat",
         "inviteInvalid": "Bu parti davet bağlantısı okunamadı."
       }
@@ -858,18 +858,18 @@
       },
       "transport": {
         "title": "Sinyalleşme taşıyıcısı",
-        "hint": "Firebase eski davet kodu yoludur. Sidekick kendi sunucunu kullanır; sunuculuk için operatör anahtarı, katılım için sidekick daveti gerekir.",
+        "hint": "Firebase eski davet kodu yoludur. izci-server kendi sunucunu kullanır; sunuculuk için operatör anahtarı, katılım için izci-server daveti gerekir.",
         "rtdb": "Firebase (eski davetler)",
-        "sidekick": "Sidekick sunucusu"
+        "server": "izci-server"
       },
-      "sidekickEndpoint": {
-        "title": "Sidekick sunucusu",
-        "hint": "Kendi sidekick sunucunun HTTPS adresi, varsa yol öneki dahil. Boşsa sunucu yok sayılır ve çok oyunculu isteği yapılmaz."
+      "serverEndpoint": {
+        "title": "izci-server",
+        "hint": "Kendi server sunucunun HTTPS adresi, varsa yol öneki dahil. Boşsa sunucu yok sayılır ve çok oyunculu isteği yapılmaz."
       },
-      "sidekick": {
-        "setupTitle": "Sidekick kurulumu",
+      "server": {
+        "setupTitle": "izci-server kurulumu",
         "serverLabel": "Sunucu adresi",
-        "serverHint": "Sidekick sunucusunun HTTPS adresi; alt yoldan sunuluyorsa yol önekiyle. Bağlan'a basmadan hiçbir istek yapılmaz.",
+        "serverHint": "izci-server sunucusunun HTTPS adresi; alt yoldan sunuluyorsa yol önekiyle. Bağlan'a basmadan hiçbir istek yapılmaz.",
         "connect": "Bağlan",
         "useSameOrigin": "Bu izci'nin adresini kullan",
         "useServer": "Kullan",
@@ -915,24 +915,24 @@
         "continue": "Devam et",
         "cancel": "Vazgeç",
         "noticeTitle": "Sunucu ve sağlayıcı bildirimi",
-        "noticeText": "Sidekick bağlantı üstverisini görür ve bağlanırken SDP ile ICE'yi iletir. Ses, dosyalar ve görseller eş bağlantısını kullanır; TURN aktarıcısı Sidekick işletmecisi tarafından yapılandırılıp sağlanır.",
+        "noticeText": "izci-server bağlantı üstverisini görür ve bağlanırken SDP ile ICE'yi iletir. Ses, dosyalar ve görseller eş bağlantısını kullanır; TURN aktarıcısı izci-server işletmecisi tarafından yapılandırılıp sağlanır.",
         "acknowledge": "Onayla",
         "acknowledged": "Onaylandı",
         "noticeRequired": "Sunuculuk yapmadan ya da katılmadan önce aşağıdaki sunucu bildirimini onaylayın.",
         "labelTitle": "Sunucu etiketi",
         "labelHint": "Bu sunucu için aygıtlarındaki özel ad.",
-        "autoReconnect": "Kopan Sidekick bağlantılarını kurtar",
+        "autoReconnect": "Kopan izci-server bağlantılarını kurtar",
         "autoReconnectHint": "Yalnızca sinyalleşme bağlantısını yeniden dener; kesintisiz eş sesi çalmayı sürdürür.",
         "forceRelay": "Aktarmalı yolları tercih et",
         "forceRelayHint": "Sunucu aktarıcı bildirdiğinde kullanılır. Operatör aksini istemedikçe önce doğrudan yollar denenir.",
-        "iceManaged": "STUN ve TURN, Sidekick işletmecisi tarafından sağlanır. Bu istemci aktarıcı kimlik bilgilerini yapılandırmaz.",
+        "iceManaged": "STUN ve TURN, izci-server işletmecisi tarafından sağlanır. Bu istemci aktarıcı kimlik bilgilerini yapılandırmaz.",
         "serversTitle": "Hatırlanan sunucular",
         "serversEmpty": "Henüz hatırlanan sunucu yok.",
         "recentsTitle": "Kaydedilen odalar",
         "recentsEmpty": "Kaydedilmiş sunucu odası veya konuk daveti yok.",
         "forgetServer": "Sunucuyu unut",
         "forgetInvite": "Daveti unut",
-        "guideLink": "Sidekick kurulum kılavuzu",
+        "guideLink": "izci-server kurulum kılavuzu",
         "needsMainWindow": "Sunuculuk ve katılım ana pencereden yapılır.",
         "loginExpired": "Bu girişin süresi doldu. Operatör anahtarını yeniden gir."
       }

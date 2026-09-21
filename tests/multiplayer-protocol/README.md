@@ -3,7 +3,7 @@
 Canonical valid/invalid JSON plus binary source/render frames for the izci
 Multiplayer data-channel protocol. The normative specification lives in
 `docs/izci-server-protocol.md`; wire definitions live in code
-(`src/lib/services/multiplayer-protocol.ts`, `sidekick/internal/protocol/`).
+(`src/lib/services/multiplayer-protocol.ts`, `izci-server/internal/protocol/`).
 Both stacks consume these files.
 
 - `valid-*.json` must be accepted (or safely ignored for unknown optional kinds).
