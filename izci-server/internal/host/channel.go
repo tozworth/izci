@@ -14,10 +14,14 @@ const (
 
 // DataChannel is the minimal send/close surface the host needs. Pion and
 // fake test channels both implement it, so session ownership stays
-// testable without a browser.
+// testable without a browser. Media transfer needs binary frames plus
+// backpressure visibility (bufferedAmount), mirroring the browser's
+// SOURCE_FILE_QUEUE_LIMIT / RENDER_QUEUE_HIGH_WATER expectations.
 type DataChannel interface {
 	Label() string
 	SendText(text string) error
+	SendBinary(data []byte) error
+	BufferedAmount() uint64
 	Close() error
 }
 
@@ -30,10 +34,15 @@ type PeerChannels struct {
 
 // FakeChannel is an in-memory DataChannel for deterministic tests.
 type FakeChannel struct {
-	label  string
-	mu     sync.Mutex
-	sent   []string
-	closed bool
+	label    string
+	mu       sync.Mutex
+	sent     []string
+	binaries [][]byte
+	// bufferedAmount is manually controlled for backpressure tests;
+	// SendBinary/SendText do not auto-inflate it (the sender's queue
+	// accounting lives in the transfer loop, like the browser peer).
+	bufferedAmount uint64
+	closed         bool
 }
 
 // NewFakeChannel builds a fake channel.
@@ -55,6 +64,33 @@ func (c *FakeChannel) SendText(text string) error {
 	return nil
 }
 
+// SendBinary implements DataChannel: binary source/render fragments are
+// stored separately so tests can assert framing without parsing text.
+func (c *FakeChannel) SendBinary(data []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return errChannelClosed
+	}
+	cpy := append([]byte(nil), data...)
+	c.binaries = append(c.binaries, cpy)
+	return nil
+}
+
+// BufferedAmount implements DataChannel.
+func (c *FakeChannel) BufferedAmount() uint64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.bufferedAmount
+}
+
+// SetBufferedAmount controls backpressure visibility in tests.
+func (c *FakeChannel) SetBufferedAmount(n uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.bufferedAmount = n
+}
+
 // Close implements DataChannel.
 func (c *FakeChannel) Close() error {
 	c.mu.Lock()
@@ -68,6 +104,28 @@ func (c *FakeChannel) Sent() []string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return append([]string(nil), c.sent...)
+}
+
+// SentBinary returns a copy of binary frames.
+func (c *FakeChannel) SentBinary() [][]byte {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := make([][]byte, len(c.binaries))
+	for i, b := range c.binaries {
+		out[i] = append([]byte(nil), b...)
+	}
+	return out
+}
+
+// BinaryBytes returns total binary payload bytes.
+func (c *FakeChannel) BinaryBytes() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	n := 0
+	for _, b := range c.binaries {
+		n += len(b)
+	}
+	return n
 }
 
 // Messages decodes sent frames as JSON maps.
@@ -128,13 +186,30 @@ func AckMessage(commandID string, accepted bool, message string) string {
 // CatalogMessage builds a stub catalog (Phase 1: empty collections with
 // revision and shuffle/repeat state; real library lands in Phase 2).
 func CatalogMessage(revision int, shuffle bool, repeat RepeatMode) string {
+	return CatalogMessageWithItems(revision, []map[string]any{}, []map[string]any{}, []map[string]any{}, shuffle, repeat)
+}
+
+// CatalogMessageWithItems builds a real catalog with queue/library/favorites
+// TrackItems, revision, and shuffle/repeat state. Virtual paths only;
+// filesystem paths never reach the wire. Item limits are applied by the
+// caller (Catalog.Snapshot) before encoding.
+func CatalogMessageWithItems(revision int, queue, lib, favs []map[string]any, shuffle bool, repeat RepeatMode) string {
+	if queue == nil {
+		queue = []map[string]any{}
+	}
+	if lib == nil {
+		lib = []map[string]any{}
+	}
+	if favs == nil {
+		favs = []map[string]any{}
+	}
 	return marshal(map[string]any{
 		"kind": "catalog",
 		"catalog": map[string]any{
 			"revision":       revision,
-			"queue":          []any{},
-			"library":        []any{},
-			"favorites":      []any{},
+			"queue":          queue,
+			"library":        lib,
+			"favorites":      favs,
 			"shuffleEnabled": shuffle,
 			"repeatMode":     string(repeat),
 		},
@@ -173,6 +248,27 @@ func PlaybackMessage(clock Clock, trackID *string, sentAt int64) string {
 	if trackID != nil {
 		track = map[string]any{"id": *trackID, "name": *trackID, "extension": "mp3", "kind": "stream", "size": 0, "lastModified": 0}
 	}
+	return PlaybackMessageWithTrack(clock, trackAsMap(track), sentAt)
+}
+
+func trackAsMap(v any) map[string]any {
+	if v == nil {
+		return nil
+	}
+	if m, ok := v.(map[string]any); ok {
+		return m
+	}
+	return nil
+}
+
+// PlaybackMessageWithTrack builds a playback snapshot with a real TrackItem
+// (or null when no track). The generationId ties the snapshot to its
+// delivery generation.
+func PlaybackMessageWithTrack(clock Clock, track map[string]any, sentAt int64) string {
+	var trackAny any
+	if track != nil {
+		trackAny = track
+	}
 	return marshal(map[string]any{
 		"kind": "playback",
 		"playback": map[string]any{
@@ -181,7 +277,7 @@ func PlaybackMessage(clock Clock, trackID *string, sentAt int64) string {
 				"state": string(clock.State), "currentTime": clock.PositionSeconds,
 				"duration": clock.DurationSeconds, "volume": 1.0, "muted": false, "backend": nil,
 			},
-			"track":  track,
+			"track":  trackAny,
 			"sentAt": sentAt,
 		},
 	})

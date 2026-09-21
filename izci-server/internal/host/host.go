@@ -9,10 +9,17 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/dunsparce9/izci/izci-server/internal/library"
+	"github.com/dunsparce9/izci/izci-server/internal/media"
+	"github.com/dunsparce9/izci/izci-server/internal/persistence"
 	appProtocol "github.com/dunsparce9/izci/izci-server/internal/protocol"
 )
 
-var phase1Capabilities = []string{"synchronized-start", "freeplay"}
+// phase2Capabilities advertises the facilities this host implements:
+// source-file transfer plus the session engine. Buffered Opus,
+// pairing-proof, and chat land in later phases and are omitted so clients
+// degrade through capabilities instead of product-name checks.
+var phase2Capabilities = []string{"source-file", "synchronized-start", "freeplay"}
 
 // HostConfig configures the dedicated host.
 type HostConfig struct {
@@ -26,6 +33,20 @@ type HostConfig struct {
 	Backend        DeliveryBackend
 	Permissions    Permissions
 	RTC            RTCConfig
+	// Catalog is the persistent library view. When nil, an empty catalog
+	// with default bounds is used (tests and signaling-only paths).
+	Catalog *Catalog
+	// Policy selects source-file vs none per track.
+	Policy media.Policy
+	// Store persists identity, library, queue, and pairings. Nil keeps
+	// everything in memory (tests); a file-backed store preserves
+	// identity and catalog stability across restarts.
+	Store *persistence.Store
+	// ServerID is the persistent host identity for pairing proofs.
+	// Empty falls back to "izci-server-host" (per-process, Phase 1 shape).
+	ServerID string
+	// Deps reports renderer availability for startup diagnostics.
+	Deps media.Dependencies
 }
 
 // Host is the dedicated host: peers, sessions, RTC answerer, and signaling.
@@ -43,10 +64,22 @@ type Host struct {
 
 	transport HostSignalingTransport
 
+	catalog  *Catalog
+	policy   media.Policy
+	store    *persistence.Store
+	serverID string
+
 	catalogRevision atomic.Int64
 	// attemptID -> peerID for signaling routing.
 	attempts   map[string]string
 	attemptsMu sync.Mutex
+
+	// transferCancels tracks per-peer source-transfer cancellation so a new
+	// generation, retry-supersede, or disconnect aborts stale workers
+	// instead of mixing bytes. Guarded by transfersMu, never persisted.
+	transfersMu     sync.Mutex
+	transferCancels map[string]context.CancelFunc
+	transferTokens  map[string]int
 }
 
 // NewHost builds a host with one shared session and no peers.
@@ -58,7 +91,7 @@ func NewHost(cfg HostConfig) *Host {
 		cfg.Name = "izci-server"
 	}
 	if len(cfg.Capabilities) == 0 {
-		cfg.Capabilities = append([]string(nil), phase1Capabilities...)
+		cfg.Capabilities = append([]string(nil), phase2Capabilities...)
 	}
 	logger := cfg.Logger
 	if logger == nil {
@@ -68,9 +101,17 @@ func NewHost(cfg HostConfig) *Host {
 	if nowMs == nil {
 		nowMs = func() int64 { return time.Now().UnixMilli() }
 	}
+	catalog := cfg.Catalog
+	if catalog == nil {
+		catalog = NewCatalog(50000, 100000)
+	}
+	policy := cfg.Policy
+	if policy.Mode == "" {
+		policy = media.Policy{Mode: media.ModeAlways, MaxBytes: 32 * 1024 * 1024}
+	}
 	backend := cfg.Backend
 	if backend == nil {
-		backend = FakeDelivery{}
+		backend = PolicyDelivery{Catalog: catalog, Policy: policy}
 	}
 	shared := NewSession(SessionConfig{ID: "shared", Kind: SessionShared, Controller: "shared", NowMs: nowMs, StartLeadMs: cfg.StartLeadMs, Backend: backend})
 	perms := cfg.Permissions
@@ -81,15 +122,119 @@ func NewHost(cfg HostConfig) *Host {
 	newFreeplay := func(peerID string) *Session {
 		return NewSession(SessionConfig{ID: "freeplay-" + peerID, Kind: SessionFreeplay, Controller: peerID, NowMs: nowMs, StartLeadMs: cfg.StartLeadMs, Backend: backendCopy})
 	}
-	return &Host{
-		cfg:      cfg,
-		log:      logger,
-		nowMs:    nowMs,
-		sessions: NewRoomSessions(shared, perms, newFreeplay),
-		peers:    make(map[string]*Peer),
-		rtc:      NewRTCHost(cfg.RTC),
-		attempts: make(map[string]string),
+	serverID := cfg.ServerID
+	if serverID == "" {
+		serverID = "izci-server-host"
 	}
+	h := &Host{
+		cfg:             cfg,
+		log:             logger,
+		nowMs:           nowMs,
+		sessions:        NewRoomSessions(shared, perms, newFreeplay),
+		peers:           make(map[string]*Peer),
+		rtc:             NewRTCHost(cfg.RTC),
+		catalog:         catalog,
+		policy:          policy,
+		store:           cfg.Store,
+		serverID:        serverID,
+		attempts:        make(map[string]string),
+		transferCancels: make(map[string]context.CancelFunc),
+		transferTokens:  make(map[string]int),
+	}
+	// Restore persisted shared queue/state into the session engine when a
+	// store is present; transient clocks and barriers stay fresh.
+	h.restoreSharedState()
+	return h
+}
+
+// CatalogView exposes the library catalog for tests and status endpoints.
+func (h *Host) CatalogView() *Catalog { return h.catalog }
+
+// ServerIdentity returns the persistent host identity.
+func (h *Host) ServerIdentity() string { return h.serverID }
+
+// restoreSharedState loads persisted queue/shuffle/repeat/current into the
+// shared session and catalog. Failures fall back to library order.
+func (h *Host) restoreSharedState() {
+	if h.store == nil {
+		return
+	}
+	st, err := h.store.GetSharedState()
+	if err != nil {
+		return
+	}
+	if len(st.Queue) > 0 {
+		filtered := make([]string, 0, len(st.Queue))
+		for _, id := range st.Queue {
+			if h.catalog.HasTrack(id) {
+				filtered = append(filtered, id)
+			}
+		}
+		if len(filtered) > 0 {
+			h.catalog.SetQueue(filtered)
+			h.sessions.Shared().SetQueue(filtered)
+		}
+	}
+	// Shuffle/repeat restore through session toggles to keep the single
+	// mutation owner (sessions) authoritative.
+	if st.Shuffle != h.sessions.Shared().ShuffleEnabled() {
+		h.sessions.Shared().ToggleShuffle()
+	}
+	// Repeat: cycle until it matches (off->all->one->off).
+	for i := 0; i < 3 && string(h.sessions.Shared().RepeatMode()) != normalizeRepeat(st.Repeat); i++ {
+		h.sessions.Shared().CycleRepeat()
+	}
+	if st.CurrentID != "" && h.catalog.HasTrack(st.CurrentID) {
+		// Do not auto-play on restore; current is informational until the
+		// next activation. Sessions start idle; clocks stay transient.
+	}
+}
+
+func normalizeRepeat(s string) string {
+	switch s {
+	case "one", "all", "off":
+		return s
+	default:
+		return "off"
+	}
+}
+
+// persistSharedState saves queue/shuffle/repeat/current without clocks,
+// peers, barriers, or transfer buffers.
+func (h *Host) persistSharedState() {
+	if h.store == nil {
+		return
+	}
+	shared := h.sessions.Shared()
+	cur := ""
+	if id := shared.CurrentTrackID(); id != nil {
+		cur = *id
+	}
+	_ = h.store.SetSharedState(persistence.SharedState{
+		Queue:     h.catalog.QueueIDs(),
+		Shuffle:   shared.ShuffleEnabled(),
+		Repeat:    string(shared.RepeatMode()),
+		CurrentID: cur,
+	})
+}
+
+// SetLibraryTracks swaps the in-memory catalog from freshly scanned or
+// store-loaded tracks, reconciles the shared queue, and bumps the revision.
+// Callers persist tracks via persistence.Store.Reconcile first; this keeps
+// the session engine's queue stable across rescans.
+func (h *Host) SetLibraryTracks(tracks []*library.Track, revision int64) {
+	persistedQueue := h.catalog.QueueIDs()
+	if h.store != nil {
+		if st, err := h.store.GetSharedState(); err == nil && len(st.Queue) > 0 {
+			persistedQueue = st.Queue
+		}
+	}
+	h.catalog.Load(tracks, persistedQueue, revision)
+	h.catalogRevision.Store(revision)
+	// Keep the shared session queue aligned with the persisted catalog
+	// queue so next/previous walk the same timeline clients browse.
+	h.sessions.Shared().SetQueue(h.catalog.QueueIDs())
+	h.persistSharedState()
 }
 
 // Sessions exposes the room sessions for tests.
@@ -318,6 +463,14 @@ func (h *Host) removePeer(peerID, attemptID, reason string) {
 	if !ok {
 		return
 	}
+	// Cancel any in-flight transfer first so the worker exits instead of
+	// writing to a closed channel; reconnects resume via a fresh
+	// generation or retry, never by appending to stale bytes.
+	h.cancelPeerTransfer(peerID)
+	peer.mu.Lock()
+	peer.MediaToken++
+	peer.SourceTrackKey = ""
+	peer.mu.Unlock()
 	h.unsubscribeShared(peerID)
 	h.sessions.RemoveFreeplay(peerID)
 	peer.mu.Lock()
@@ -364,8 +517,10 @@ func (h *Host) attachControlChannel(peerID string, ch DataChannel) {
 		appProtocol.Major, appProtocol.Minor, h.cfg.Capabilities, h.hostIdentity(), peer.PairNonce))
 }
 
-// attachMediaChannel binds izci-media (ordered/reliable, source transfer in
-// later phases; Phase 1 records readiness only).
+// attachMediaChannel binds izci-media (ordered/reliable): source-file
+// transfer with begin/chunk/end framing, 16KiB chunks, per-peer
+// backpressure, and cancellation tokens. A channel opening mid-generation
+// starts the current generation fresh for that peer.
 func (h *Host) attachMediaChannel(peerID string, ch DataChannel) {
 	h.peersMu.Lock()
 	peer, ok := h.peers[peerID]
@@ -376,7 +531,19 @@ func (h *Host) attachMediaChannel(peerID string, ch DataChannel) {
 	}
 	peer.mu.Lock()
 	peer.Media = ch
+	// A new media channel always resets transfer state: never resume
+	// ambiguous stale bytes after a reconnect.
+	peer.SourceTrackKey = ""
+	peer.RetryGeneration = ""
+	peer.RetryCount = 0
+	freeplay := peer.FreeplayActive
+	hello := peer.HelloReceived
 	peer.mu.Unlock()
+	if !hello {
+		return
+	}
+	// Late media open catches the peer up to the current generation.
+	h.maybeTransferForNewPeer(peer, freeplay)
 }
 
 // attachRenderChannel binds izci-render (unordered/reliable, buffered Opus in
@@ -395,8 +562,11 @@ func (h *Host) attachRenderChannel(peerID string, ch DataChannel) {
 }
 
 func (h *Host) hostIdentity() string {
-	// Stable per-host identity for pairing proofs (Phase 4 persists it;
-	// Phase 1 mints per-process but keeps the wire shape).
+	// Persistent server identity for pairing proofs; falls back to the
+	// per-process Phase 1 shape when no store is configured.
+	if h.serverID != "" {
+		return h.serverID
+	}
 	return "izci-server-host"
 }
 
@@ -467,7 +637,13 @@ func (h *Host) HandleControlText(peerID, text string) {
 		}
 		_ = json.Unmarshal([]byte(text), &body)
 		h.handleFreeplayQueue(peer, body.ItemIDs)
-	case "source.retry", "render.need", "render.ready", "chat.send", "pair.proof", "oda.background.preference":
+	case "source.retry":
+		var body struct {
+			GenerationID string `json:"generationId"`
+		}
+		_ = json.Unmarshal([]byte(text), &body)
+		h.handleSourceRetry(peer, body.GenerationID)
+	case "render.need", "render.ready", "chat.send", "pair.proof", "oda.background.preference":
 		// Known kinds with Phase 1 no-op backends: acknowledge liveness,
 		// change no session state.
 		peer.mu.Lock()
@@ -506,6 +682,13 @@ func (h *Host) handleClientHello(peer *Peer, raw []byte) {
 		name = name[:48]
 	}
 	peer.MarkHello(name, hello.FreeplayEnabled, hello.Identity, hello.ProtocolMinor, hello.Capabilities)
+	// Reset transfer state on (re)hello: reconnects resume through a new
+	// generation or retry, never by appending to stale bytes.
+	peer.mu.Lock()
+	peer.SourceTrackKey = ""
+	peer.RetryGeneration = ""
+	peer.RetryCount = 0
+	peer.mu.Unlock()
 	// Freeplay sessions are independent and do not participate in the
 	// shared preparation barrier.
 	if hello.FreeplayEnabled && hasCapability(h.cfg.Capabilities, "freeplay") && hasCapability(hello.Capabilities, "freeplay") {
@@ -516,11 +699,13 @@ func (h *Host) handleClientHello(peer *Peer, raw []byte) {
 		peer.mu.Unlock()
 		h.sendCatalogState(peer, true)
 		h.sendDeliveryPlayback(peer, true)
+		h.maybeTransferForNewPeer(peer, true)
 		return
 	}
 	h.sessions.Shared().Subscribe(peer.ID)
 	h.sendCatalogState(peer, false)
 	h.sendDeliveryPlayback(peer, false)
+	h.maybeTransferForNewPeer(peer, false)
 }
 
 func hasCapability(caps []string, want string) bool {
@@ -558,6 +743,13 @@ func (h *Host) handleClientCommand(peer *Peer, msg map[string]json.RawMessage) {
 	peer.mu.Lock()
 	freeplay := peer.FreeplayActive
 	peer.mu.Unlock()
+	// Collection validation before any navigation/state mutation, mirroring
+	// the browser host (window-controller): unknown items nack without
+	// touching the session.
+	if !h.validateCommand(peer, cmd.Type, cmd.Collection, cmd.ItemID, cmd.ItemIDs, freeplay) {
+		h.sendToPeer(peer, AckMessage(cmd.CommandID, false, "Track not found."))
+		return
+	}
 	result := h.sessions.Dispatch(Command{
 		Type: cmd.Type, CommandID: cmd.CommandID, PeerID: peer.ID,
 		Seconds: cmd.Seconds, Collection: cmd.Collection, ItemID: cmd.ItemID, ItemIDs: cmd.ItemIDs,
@@ -566,6 +758,34 @@ func (h *Host) handleClientCommand(peer *Peer, msg map[string]json.RawMessage) {
 	if !result.Accepted {
 		return
 	}
+	// Any new generation supersedes in-flight transfers for the affected
+	// timeline so stale bytes never mix into the new generation.
+	if result.Preparation != nil || result.CancelledGen != nil {
+		if freeplay {
+			h.cancelPeerTransfer(peer.ID)
+			peer.mu.Lock()
+			peer.SourceTrackKey = ""
+			peer.RetryGeneration = ""
+			peer.RetryCount = 0
+			peer.mu.Unlock()
+		} else {
+			for _, id := range h.sessions.Shared().Subscribers() {
+				h.cancelPeerTransfer(id)
+			}
+			h.peersMu.Lock()
+			for _, p := range h.peers {
+				p.mu.Lock()
+				if !p.FreeplayActive {
+					p.SourceTrackKey = ""
+					p.RetryGeneration = ""
+					p.RetryCount = 0
+				}
+				p.mu.Unlock()
+			}
+			h.peersMu.Unlock()
+		}
+	}
+	h.persistSharedState()
 	// Broadcast host-authoritative state to the affected timeline.
 	if freeplay {
 		h.sendCatalogState(peer, true)
@@ -576,6 +796,8 @@ func (h *Host) handleClientCommand(peer *Peer, msg map[string]json.RawMessage) {
 		if result.Preparation != nil {
 			h.sendToPeer(peer, PrepareMessage(*result.Preparation))
 			h.sendToPeer(peer, PingMessage(result.Preparation.GenerationID, h.nowMs()))
+			_, delivery, _ := h.sessions.FreeplayFor(peer.ID).Snapshot()
+			h.startFreeplayTransfer(peer, delivery)
 		}
 		return
 	}
@@ -586,6 +808,71 @@ func (h *Host) handleClientCommand(peer *Peer, msg map[string]json.RawMessage) {
 	if result.Preparation != nil {
 		h.broadcastSharedText(PrepareMessage(*result.Preparation))
 		h.broadcastSharedText(PingMessage(result.Preparation.GenerationID, h.nowMs()))
+		_, delivery, _ := h.sessions.Shared().Snapshot()
+		h.startSharedTransfers(delivery)
+	}
+}
+
+// validateCommand checks collection/item existence before Dispatch runs any
+// navigation or state mutation. Permissions stay separate in the dispatcher.
+func (h *Host) validateCommand(peer *Peer, typ, collection, itemID string, itemIDs []string, freeplay bool) bool {
+	switch typ {
+	case "collection.activate":
+		if collection != "queue" && collection != "library" && collection != "favorites" {
+			return false
+		}
+		if itemID == "" || len(itemID) > 200 {
+			return false
+		}
+		if freeplay {
+			if collection == "queue" {
+				sess := h.sessions.FreeplayFor(peer.ID)
+				for _, id := range sess.Queue() {
+					if id == itemID {
+						return true
+					}
+				}
+				// Freeplay queue may not be populated yet; fall back to
+				// catalog existence so library activations still work.
+				return h.catalog.HasTrack(itemID)
+			}
+			if collection == "library" {
+				return h.catalog.HasTrack(itemID)
+			}
+			return h.catalog.HasInCollection("favorites", itemID)
+		}
+		return h.catalog.HasInCollection(collection, itemID)
+	case "queue.play-next":
+		if collection != "queue" && collection != "library" && collection != "favorites" {
+			return false
+		}
+		if len(itemIDs) == 0 || len(itemIDs) > 50000 {
+			return false
+		}
+		if freeplay {
+			for _, id := range itemIDs {
+				if !h.catalog.HasTrack(id) {
+					return false
+				}
+			}
+			return true
+		}
+		// Shared mirrors the browser host: only queue items can be queued
+		// next, and every ID must already be in the shared queue.
+		if collection != "queue" {
+			return false
+		}
+		for _, id := range itemIDs {
+			if !h.catalog.HasInCollection("queue", id) {
+				return false
+			}
+		}
+		return true
+	case "transport.seek":
+		return true // bounds already validated by protocol; duration
+		// clamping happens in playback-commands sequencing on the client.
+	default:
+		return true
 	}
 }
 
@@ -633,6 +920,33 @@ func (h *Host) handleEnded(peer *Peer, generationID, trackID string) {
 	if !advanced {
 		return
 	}
+	// New ended generation supersedes transfers like any activation.
+	if prep != nil || cancelled != nil {
+		if freeplay {
+			h.cancelPeerTransfer(peer.ID)
+			peer.mu.Lock()
+			peer.SourceTrackKey = ""
+			peer.RetryGeneration = ""
+			peer.RetryCount = 0
+			peer.mu.Unlock()
+		} else {
+			for _, id := range h.sessions.Shared().Subscribers() {
+				h.cancelPeerTransfer(id)
+			}
+			h.peersMu.Lock()
+			for _, p := range h.peers {
+				p.mu.Lock()
+				if !p.FreeplayActive {
+					p.SourceTrackKey = ""
+					p.RetryGeneration = ""
+					p.RetryCount = 0
+				}
+				p.mu.Unlock()
+			}
+			h.peersMu.Unlock()
+		}
+	}
+	h.persistSharedState()
 	if cancelled != nil {
 		if freeplay {
 			h.sendToPeer(peer, CancelMessage(*cancelled))
@@ -644,9 +958,13 @@ func (h *Host) handleEnded(peer *Peer, generationID, trackID string) {
 		if freeplay {
 			h.sendToPeer(peer, PrepareMessage(*prep))
 			h.sendToPeer(peer, PingMessage(prep.GenerationID, h.nowMs()))
+			_, delivery, _ := target.Snapshot()
+			h.startFreeplayTransfer(peer, delivery)
 		} else {
 			h.broadcastSharedText(PrepareMessage(*prep))
 			h.broadcastSharedText(PingMessage(prep.GenerationID, h.nowMs()))
+			_, delivery, _ := target.Snapshot()
+			h.startSharedTransfers(delivery)
 		}
 	}
 	if freeplay {
@@ -661,13 +979,18 @@ func (h *Host) handleFreeplayPreference(peer *Peer, enabled bool) {
 	peer.FreeplayEnabled = enabled
 	peer.mu.Unlock()
 	if !enabled {
+		h.cancelPeerTransfer(peer.ID)
 		peer.mu.Lock()
 		peer.FreeplayActive = false
+		peer.SourceTrackKey = ""
+		peer.RetryGeneration = ""
+		peer.RetryCount = 0
 		peer.mu.Unlock()
 		h.sessions.RemoveFreeplay(peer.ID)
 		h.sessions.Shared().Subscribe(peer.ID)
 		h.sendCatalogState(peer, false)
 		h.sendDeliveryPlayback(peer, false)
+		h.maybeTransferForNewPeer(peer, false)
 		return
 	}
 	peer.mu.Lock()
@@ -676,14 +999,19 @@ func (h *Host) handleFreeplayPreference(peer *Peer, enabled bool) {
 	if !hasCapability(h.cfg.Capabilities, "freeplay") || !clientSupportsFreeplay {
 		return
 	}
+	h.cancelPeerTransfer(peer.ID)
 	peer.mu.Lock()
 	peer.FreeplayActive = true
+	peer.SourceTrackKey = ""
+	peer.RetryGeneration = ""
+	peer.RetryCount = 0
 	peer.mu.Unlock()
 	h.unsubscribeShared(peer.ID)
 	sess := h.sessions.FreeplayFor(peer.ID)
 	sess.Subscribe(peer.ID)
 	h.sendCatalogState(peer, true)
 	h.sendDeliveryPlayback(peer, true)
+	h.maybeTransferForNewPeer(peer, true)
 }
 
 func (h *Host) unsubscribeShared(peerID string) {
@@ -707,11 +1035,24 @@ func (h *Host) handleFreeplayQueue(peer *Peer, itemIDs []string) {
 		return
 	}
 	sess := h.sessions.FreeplayFor(peer.ID)
-	// Bound like the protocol.
-	if len(itemIDs) > 50000 {
-		itemIDs = itemIDs[:50000]
+	// Bound like the protocol and filter to existing catalog tracks with
+	// dedup, mirroring sanitizeFreeplayQueueIds.
+	seen := map[string]bool{}
+	var filtered []string
+	for _, id := range itemIDs {
+		if id == "" || len(id) > 200 || seen[id] {
+			continue
+		}
+		if !h.catalog.HasTrack(id) {
+			continue
+		}
+		seen[id] = true
+		filtered = append(filtered, id)
+		if len(filtered) >= 50000 {
+			break
+		}
 	}
-	sess.SetQueue(itemIDs)
+	sess.SetQueue(filtered)
 	h.sendCatalogState(peer, true)
 }
 
@@ -733,8 +1074,28 @@ func (h *Host) sendCatalogState(peer *Peer, freeplay bool) {
 		sess = h.sessions.Shared()
 	}
 	_, _, _ = sess.Snapshot()
-	revision := int(h.catalogRevision.Add(1))
-	h.sendToPeer(peer, CatalogMessage(revision, sess.ShuffleEnabled(), sess.RepeatMode()))
+	// Sending a snapshot is not a catalog mutation. Revisions advance on
+	// reconciliation, not once per peer/hello.
+	revision := int(h.catalogRevision.Load())
+	// Render the real catalog with limits applied before encoding. Freeplay
+	// peers get their private queue but the shared library/favorites.
+	if freeplay {
+		qIDs := sess.Queue()
+		var qItems []map[string]any
+		for _, id := range qIDs {
+			if t, ok := h.catalog.Get(id); ok {
+				qItems = append(qItems, t.TrackItemJSON())
+			}
+			if len(qItems) >= 50000 {
+				break
+			}
+		}
+		_, libItems, favItems := h.catalog.Snapshot()
+		h.sendToPeer(peer, CatalogMessageWithItems(revision, qItems, libItems, favItems, sess.ShuffleEnabled(), sess.RepeatMode()))
+	} else {
+		qItems, libItems, favItems := h.catalog.Snapshot()
+		h.sendToPeer(peer, CatalogMessageWithItems(revision, qItems, libItems, favItems, sess.ShuffleEnabled(), sess.RepeatMode()))
+	}
 	h.sendToPeer(peer, StateMessage(sess.ShuffleEnabled(), sess.RepeatMode()))
 }
 
@@ -746,13 +1107,14 @@ func (h *Host) sendDeliveryPlayback(peer *Peer, freeplay bool) {
 		sess = h.sessions.Shared()
 	}
 	clock, delivery, _ := sess.Snapshot()
-	var trackID *string
+	var trackItem map[string]any
 	if delivery.TrackID != nil {
-		v := *delivery.TrackID
-		trackID = &v
+		if t, ok := h.catalog.Get(*delivery.TrackID); ok {
+			trackItem = t.TrackItemJSON()
+		}
 	}
 	h.sendToPeer(peer, DeliveryMessage(delivery))
-	h.sendToPeer(peer, PlaybackMessage(clock, trackID, h.nowMs()))
+	h.sendToPeer(peer, PlaybackMessageWithTrack(clock, trackItem, h.nowMs()))
 }
 
 func (h *Host) broadcastShared() {
@@ -764,11 +1126,14 @@ func (h *Host) broadcastShared() {
 	h.peersMu.Unlock()
 	shared := h.sessions.Shared()
 	clock, delivery, _ := shared.Snapshot()
-	var trackID *string
+	var trackItem map[string]any
 	if delivery.TrackID != nil {
-		v := *delivery.TrackID
-		trackID = &v
+		if t, ok := h.catalog.Get(*delivery.TrackID); ok {
+			trackItem = t.TrackItemJSON()
+		}
 	}
+	qItems, libItems, favItems := h.catalog.Snapshot()
+	rev := int(h.catalogRevision.Load())
 	for _, peer := range peers {
 		peer.mu.Lock()
 		hello := peer.HelloReceived
@@ -778,10 +1143,10 @@ func (h *Host) broadcastShared() {
 		if !hello || freeplay || ch == nil {
 			continue
 		}
-		_ = ch.SendText(CatalogMessage(int(h.catalogRevision.Load()), shared.ShuffleEnabled(), shared.RepeatMode()))
+		_ = ch.SendText(CatalogMessageWithItems(rev, qItems, libItems, favItems, shared.ShuffleEnabled(), shared.RepeatMode()))
 		_ = ch.SendText(StateMessage(shared.ShuffleEnabled(), shared.RepeatMode()))
 		_ = ch.SendText(DeliveryMessage(delivery))
-		_ = ch.SendText(PlaybackMessage(clock, trackID, h.nowMs()))
+		_ = ch.SendText(PlaybackMessageWithTrack(clock, trackItem, h.nowMs()))
 	}
 }
 

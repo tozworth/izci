@@ -58,6 +58,16 @@ func (c *pionChannel) SendText(text string) error {
 	return c.ch.SendText(text)
 }
 
+// SendBinary implements DataChannel.
+func (c *pionChannel) SendBinary(data []byte) error {
+	return c.ch.Send(data)
+}
+
+// BufferedAmount implements DataChannel.
+func (c *pionChannel) BufferedAmount() uint64 {
+	return c.ch.BufferedAmount()
+}
+
 // Close implements DataChannel.
 func (c *pionChannel) Close() error { return c.ch.Close() }
 
