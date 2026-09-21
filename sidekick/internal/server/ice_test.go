@@ -123,7 +123,7 @@ func joinVia(t *testing.T, s *Server, room, invite string) map[string]any {
 	t.Helper()
 	body, _ := json.Marshal(map[string]any{
 		"roomId": room, "invitationSecret": invite,
-		"attemptNonce": "ice-test-nonce", "appProtocol": AppProtocolVersion,
+		"attemptNonce": "ice-test-nonce", "appProtocolMajor": AppProtocolMajor, "appProtocolMinor": 0,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/v1/join", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
@@ -313,7 +313,7 @@ func TestRecreateRoomAfterRestart(t *testing.T) {
 		t.Fatalf("recreate changed saved IDs: %v", v)
 	}
 	// The saved invitation admits guests again.
-	joinStatus, _ := h.join(roomID, invite, "recreate-nonce-1", AppProtocolVersion)
+	joinStatus, _ := h.join(roomID, invite, "recreate-nonce-1", AppProtocolMajor)
 	if joinStatus != http.StatusCreated {
 		t.Fatalf("join after recreate = %d", joinStatus)
 	}

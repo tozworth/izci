@@ -26,7 +26,12 @@ import type {
 import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
 import { formatDisplayVersion } from '$lib/utils/version';
 import type { MultiplayerClient, MultiplayerAudioStatus, MultiplayerConnectionStats, MultiplayerConnectionStatus, MultiplayerMode } from '$lib/services/multiplayer-types';
-import { MULTIPLAYER_PROTOCOL_VERSION } from '$lib/services/multiplayer-protocol';
+import {
+  MULTIPLAYER_PROTOCOL_MAJOR,
+  MULTIPLAYER_PROTOCOL_MINOR,
+  formatHostImplementation,
+  type MultiplayerImplementation
+} from '$lib/services/multiplayer-protocol';
 import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
 import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
 import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
@@ -58,6 +63,8 @@ interface MenuItemsDeps {
   multiplayerFreeplay: boolean;
   multiplayerReceiveAudio: boolean;
   multiplayerHostVersion: string | null;
+  multiplayerHostImplementation: MultiplayerImplementation | null;
+  multiplayerHostProtocol: { major: number; minor: number } | null;
   multiplayerConnectionStats: MultiplayerConnectionStats | null;
   multiplayerEnabled: boolean;
   playingTrack: TrackItem | null;
@@ -302,9 +309,18 @@ function buildSessionMenuItems(deps: MenuItemsDeps, multiplayerMenuItems: MenuAc
     },
     {
       id: 'multiplayerStatHostVersion',
-      label: deps.translate('main.multiplayer.stats.hostVersion', { default: 'Host izci' }),
-      shortcut: deps.multiplayerHostVersion
-        ? `v${deps.multiplayerHostVersion} · ${deps.translate('main.multiplayer.stats.protocol', { default: 'Protocol' })} ${MULTIPLAYER_PROTOCOL_VERSION}`
+      label: deps.translate('main.multiplayer.stats.hostVersion', { default: 'Host' }),
+      shortcut: deps.multiplayerHostImplementation ?? deps.multiplayerHostVersion
+        ? `${formatHostImplementation(
+            deps.multiplayerHostImplementation
+              ?? (deps.multiplayerHostVersion
+                ? { product: 'izci', productVersion: deps.multiplayerHostVersion }
+                : null)
+          )} · ${deps.translate('main.multiplayer.stats.protocol', { default: 'Protocol' })} ${
+            deps.multiplayerHostProtocol
+              ? `${deps.multiplayerHostProtocol.major}.${deps.multiplayerHostProtocol.minor}`
+              : `${MULTIPLAYER_PROTOCOL_MAJOR}.${MULTIPLAYER_PROTOCOL_MINOR}`
+          }`
         : '—',
       icon: 'info',
       disabled: true,

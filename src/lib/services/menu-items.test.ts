@@ -34,6 +34,8 @@ const baseDeps = (): MenuItemsDeps => ({
   multiplayerFreeplay: false,
   multiplayerReceiveAudio: true,
   multiplayerHostVersion: null,
+  multiplayerHostImplementation: null,
+  multiplayerHostProtocol: null,
   multiplayerConnectionStats: null,
   multiplayerEnabled: true,
   playingTrack: null,

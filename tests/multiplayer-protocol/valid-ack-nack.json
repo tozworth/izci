@@ -1,0 +1,6 @@
+{
+  "kind": "ack",
+  "commandId": "cmd-9",
+  "accepted": false,
+  "message": "Unsupported command."
+}

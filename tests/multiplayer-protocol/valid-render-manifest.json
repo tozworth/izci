@@ -1,0 +1,28 @@
+{
+  "kind": "render.manifest",
+  "manifest": {
+    "generationId": "gen-2",
+    "renderId": "render-1",
+    "trackId": "track-1",
+    "sourceRevision": "2:100:200:0",
+    "codec": "opus",
+    "container": "webm",
+    "durationMs": 12000,
+    "bitrateKbps": 128,
+    "clusterDurationMs": 1000,
+    "clusters": [
+      {
+        "index": 0,
+        "timeMs": 0,
+        "sizeBytes": 10
+      },
+      {
+        "index": 1,
+        "timeMs": 1000,
+        "sizeBytes": 10
+      }
+    ],
+    "initSizeBytes": 5,
+    "totalBytes": 25
+  }
+}

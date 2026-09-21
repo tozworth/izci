@@ -1,0 +1,22 @@
+{
+  "kind": "hello",
+  "protocolMajor": 1,
+  "protocolMinor": 1,
+  "capabilities": [
+    "source-file",
+    "buffered-opus",
+    "synchronized-start",
+    "pairing-proof",
+    "freeplay",
+    "chat",
+    "future-cap"
+  ],
+  "impl": {
+    "product": "izci",
+    "productVersion": "0.3.2"
+  },
+  "name": "Living room",
+  "futureField": "ignored",
+  "identity": "host-identity-01",
+  "pairNonce": "host-nonce-001"
+}

@@ -160,10 +160,18 @@ func (h *harness) createRoom(token string) (roomID, owner, invite string) {
 }
 
 func (h *harness) join(room, invite, nonce string, proto int) (int, map[string]any) {
-	return h.post("/v1/join", map[string]any{
+	return h.joinMajor(room, invite, nonce, proto, 0, nil)
+}
+
+func (h *harness) joinMajor(room, invite, nonce string, major, minor int, caps []string) (int, map[string]any) {
+	body := map[string]any{
 		"roomId": room, "invitationSecret": invite,
-		"attemptNonce": nonce, "appProtocol": proto,
-	}, "")
+		"attemptNonce": nonce, "appProtocolMajor": major, "appProtocolMinor": minor,
+	}
+	if caps != nil {
+		body["appCapabilities"] = caps
+	}
+	return h.post("/v1/join", body, "")
 }
 
 func (h *harness) socketTicket(bearer, roomID string) (int, map[string]any) {
@@ -284,7 +292,7 @@ func TestCompleteExchange(t *testing.T) {
 		t.Fatalf("host ready = %+v", rp)
 	}
 
-	status, jv := h.join(roomID, invite, "guest-nonce-1", AppProtocolVersion)
+	status, jv := h.join(roomID, invite, "guest-nonce-1", AppProtocolMajor)
 	if status != http.StatusCreated {
 		t.Fatalf("join = %d (%v)", status, jv)
 	}
@@ -419,7 +427,7 @@ func TestTicketReplay(t *testing.T) {
 	_, v := h.socketTicket(token, roomID)
 	host, _ := h.authConn(strMap(v, "ticket"))
 
-	status, jv := h.join(roomID, invite, "replay-nonce-1", AppProtocolVersion)
+	status, jv := h.join(roomID, invite, "replay-nonce-1", AppProtocolMajor)
 	if status != http.StatusCreated {
 		t.Fatalf("join = %d", status)
 	}
@@ -449,19 +457,19 @@ func TestWrongRoomRole(t *testing.T) {
 	roomA, _, inviteA := h.createRoom(token)
 	roomB, _, _ := h.createRoom(token)
 
-	if status, v := h.join(roomA, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "nonce-wrong-01", AppProtocolVersion); status != http.StatusNotFound || errCodeMap(v) != CodeRoomUnavailable {
+	if status, v := h.join(roomA, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "nonce-wrong-01", AppProtocolMajor); status != http.StatusNotFound || errCodeMap(v) != CodeRoomUnavailable {
 		t.Fatalf("wrong invite = %d %v", status, v)
 	}
 	if status, v := h.post("/v1/join", map[string]any{
-		"roomId": roomA, "attemptNonce": "nonce-missing1", "appProtocol": AppProtocolVersion,
+		"roomId": roomA, "attemptNonce": "nonce-missing1", "appProtocolMajor": AppProtocolMajor, "appProtocolMinor": 0,
 	}, ""); status != http.StatusNotFound || errCodeMap(v) != CodeRoomUnavailable {
 		t.Fatalf("missing invite = %d %v", status, v)
 	}
-	if status, v := h.join("cccccccccccccccccccccccccccccccc", inviteA, "nonce-unknown1", AppProtocolVersion); status != http.StatusNotFound || errCodeMap(v) != CodeRoomUnavailable {
+	if status, v := h.join("cccccccccccccccccccccccccccccccc", inviteA, "nonce-unknown1", AppProtocolMajor); status != http.StatusNotFound || errCodeMap(v) != CodeRoomUnavailable {
 		t.Fatalf("unknown room = %d %v", status, v)
 	}
 
-	status, jv := h.join(roomA, inviteA, "nonce-role-001", AppProtocolVersion)
+	status, jv := h.join(roomA, inviteA, "nonce-role-001", AppProtocolMajor)
 	if status != http.StatusCreated {
 		t.Fatalf("join = %d", status)
 	}
@@ -564,7 +572,7 @@ func TestConcurrentLastSlot(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			nonce := "race-non" + string(rune('a'+i)) + "ce-001"
-			status, _ := h.join(roomID, invite, nonce, AppProtocolVersion)
+			status, _ := h.join(roomID, invite, nonce, AppProtocolMajor)
 			codes[i] = status
 		}(i)
 	}
@@ -592,7 +600,7 @@ func TestExpiry(t *testing.T) {
 		h := newHarness(t, "")
 		token := h.login()
 		roomID, _, invite := h.createRoom(token)
-		status, jv := h.join(roomID, invite, "expiry-nonce-1", AppProtocolVersion)
+		status, jv := h.join(roomID, invite, "expiry-nonce-1", AppProtocolMajor)
 		if status != http.StatusCreated {
 			t.Fatalf("join = %d", status)
 		}
@@ -611,7 +619,7 @@ func TestExpiry(t *testing.T) {
 		h := newHarness(t, "")
 		token := h.login()
 		roomID, _, invite := h.createRoom(token)
-		status, jv := h.join(roomID, invite, "expiry-nonce-2", AppProtocolVersion)
+		status, jv := h.join(roomID, invite, "expiry-nonce-2", AppProtocolMajor)
 		if status != http.StatusCreated {
 			t.Fatalf("join = %d", status)
 		}
@@ -635,7 +643,7 @@ func TestExpiry(t *testing.T) {
 		token := h.login()
 		roomID, _, invite := h.createRoom(token)
 		h.advance(24*time.Hour + time.Second)
-		if status, v := h.join(roomID, invite, "expiry-nonce-3", AppProtocolVersion); status != http.StatusNotFound || errCodeMap(v) != CodeRoomUnavailable {
+		if status, v := h.join(roomID, invite, "expiry-nonce-3", AppProtocolMajor); status != http.StatusNotFound || errCodeMap(v) != CodeRoomUnavailable {
 			t.Fatalf("expired lease join = %d %v", status, v)
 		}
 	})
@@ -676,7 +684,7 @@ func TestStaleSocketCleanup(t *testing.T) {
 	}
 
 	// The replacement still receives admissions.
-	status, jv := h.join(roomID, invite, "stale-nonce-001", AppProtocolVersion)
+	status, jv := h.join(roomID, invite, "stale-nonce-001", AppProtocolMajor)
 	if status != http.StatusCreated {
 		t.Fatalf("join = %d", status)
 	}
@@ -740,7 +748,7 @@ func TestShutdown(t *testing.T) {
 	roomID, _, invite := h.createRoom(token)
 	_, v := h.socketTicket(token, roomID)
 	host, _ := h.authConn(strMap(v, "ticket"))
-	status, jv := h.join(roomID, invite, "shutdown-nonce", AppProtocolVersion)
+	status, jv := h.join(roomID, invite, "shutdown-nonce", AppProtocolMajor)
 	if status != http.StatusCreated {
 		t.Fatalf("join = %d", status)
 	}
@@ -784,7 +792,7 @@ func TestShutdown(t *testing.T) {
 	h2 := newHarness(t, "")
 	h2.srv.markShuttingDown()
 	if status, v := h2.join("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "shut-nonce-001", AppProtocolVersion); status != http.StatusServiceUnavailable || errCodeMap(v) != CodeServerShuttingDown {
+		"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "shut-nonce-001", AppProtocolMajor); status != http.StatusServiceUnavailable || errCodeMap(v) != CodeServerShuttingDown {
 		t.Fatalf("shutdown join = %d %v", status, v)
 	}
 }
@@ -795,7 +803,7 @@ func TestPrefixedSignaling(t *testing.T) {
 	h := newHarness(t, "/party")
 	token := h.login()
 	roomID, _, invite := h.createRoom(token)
-	status, jv := h.join(roomID, invite, "prefix-nonce-01", AppProtocolVersion)
+	status, jv := h.join(roomID, invite, "prefix-nonce-01", AppProtocolMajor)
 	if status != http.StatusCreated {
 		t.Fatalf("prefixed join = %d (%v)", status, jv)
 	}
@@ -824,10 +832,10 @@ func TestUnsupportedVersion(t *testing.T) {
 	h := newHarness(t, "")
 	token := h.login()
 	roomID, _, invite := h.createRoom(token)
-	if status, v := h.join(roomID, invite, "ver-nonce-00001", AppProtocolVersion+1); status != http.StatusBadRequest || errCodeMap(v) != CodeUnsupportedVersion {
+	if status, v := h.join(roomID, invite, "ver-nonce-00001", AppProtocolMajor+1); status != http.StatusBadRequest || errCodeMap(v) != CodeUnsupportedVersion {
 		t.Fatalf("bad app protocol = %d %v", status, v)
 	}
-	status, jv := h.join(roomID, invite, "ver-nonce-00002", AppProtocolVersion)
+	status, jv := h.join(roomID, invite, "ver-nonce-00002", AppProtocolMajor)
 	if status != http.StatusCreated {
 		t.Fatalf("join = %d", status)
 	}
@@ -871,7 +879,7 @@ func TestRateLimits(t *testing.T) {
 	for i := 0; i < 12; i++ {
 		status, v := h.post("/v1/join", map[string]any{
 			"roomId": roomID, "invitationSecret": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-			"attemptNonce": "rl-nonce-0000000" + string(rune('a'+i)), "appProtocol": AppProtocolVersion,
+			"attemptNonce": "rl-nonce-0000000" + string(rune('a'+i)), "appProtocolMajor": AppProtocolMajor, "appProtocolMinor": 0,
 		}, "")
 		if status == http.StatusTooManyRequests && errCodeMap(v) == CodeRateLimited {
 			limited = true
@@ -996,7 +1004,7 @@ func TestLogsRedactSignaling(t *testing.T) {
 	invite := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 	body, _ := json.Marshal(map[string]any{
 		"roomId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "invitationSecret": invite,
-		"attemptNonce": "secret-nonce-01", "appProtocol": AppProtocolVersion,
+		"attemptNonce": "secret-nonce-01", "appProtocolMajor": AppProtocolMajor, "appProtocolMinor": 0,
 	})
 	req, _ := http.NewRequest(http.MethodPost, "/v1/join", bytes.NewReader(body))
 	req.Header.Set("Authorization", "Bearer session-token-secret-abc")

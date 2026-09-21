@@ -1,0 +1,9 @@
+{
+  "kind": "delivery",
+  "delivery": {
+    "generationId": "x",
+    "trackId": "t",
+    "mode": "source-file",
+    "reason": "host-disabled"
+  }
+}

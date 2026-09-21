@@ -1,0 +1,9 @@
+{
+  "kind": "chat.message",
+  "message": {
+    "id": "one",
+    "name": "Host",
+    "text": "waves",
+    "sentAt": 1
+  }
+}

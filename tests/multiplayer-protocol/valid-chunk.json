@@ -1,0 +1,7 @@
+{
+  "kind": "chunk",
+  "transferId": "abc123def456789012",
+  "index": 0,
+  "total": 2,
+  "payload": "part-one"
+}

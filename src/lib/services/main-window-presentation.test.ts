@@ -43,6 +43,8 @@ function createSessionState(
     hostName: null,
     hostMotd: '',
     hostVersion: null,
+    hostImplementation: null,
+    hostProtocol: null,
     freeplay: false,
     freeplayQueue: [],
     clients: [],

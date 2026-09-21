@@ -1,0 +1,14 @@
+{
+  "kind": "hello",
+  "protocolMajor": 1,
+  "protocolMinor": 0,
+  "capabilities": [
+    "source-file",
+    "buffered-opus",
+    "synchronized-start",
+    "pairing-proof",
+    "freeplay",
+    "chat"
+  ],
+  "name": "Host"
+}

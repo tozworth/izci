@@ -1,0 +1,9 @@
+{
+  "kind": "delivery",
+  "delivery": {
+    "generationId": "gen-1",
+    "trackId": "track-1",
+    "mode": "source-file",
+    "reason": null
+  }
+}

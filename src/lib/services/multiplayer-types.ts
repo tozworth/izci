@@ -89,6 +89,14 @@ export interface MultiplayerSessionState {
   hostName: string | null;
   hostMotd: string;
   hostVersion: string | null;
+  /** Dedicated host implementation identity; null until hello. Never assumes browser izci. */
+  hostImplementation: import('./multiplayer-protocol').MultiplayerImplementation | null;
+  /** Negotiated app-protocol identity from hello; null until hello. */
+  hostProtocol: {
+    major: number;
+    minor: number;
+    capabilities: string[];
+  } | null;
   freeplay: boolean;
   freeplayQueue: string[];
   clients: MultiplayerClient[];

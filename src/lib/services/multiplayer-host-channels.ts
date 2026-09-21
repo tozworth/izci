@@ -1,9 +1,14 @@
-import { version as appVersion } from '../../../package.json';
 import { clearPeerConnectionTimer, sendToPeer } from './multiplayer-peer';
 import { getLocalSidekickIdentity, isValidSidekickIdentity } from './multiplayer-sidekick-identity';
 import { createPairNonce } from './multiplayer-sidekick-pairing';
 import { verifySidekickPairProof } from './multiplayer-sidekick-host-pairing';
-import { MULTIPLAYER_PROTOCOL_VERSION, isMultiplayerCommand } from './multiplayer-protocol';
+import {
+  MULTIPLAYER_PROTOCOL_MAJOR,
+  MULTIPLAYER_PROTOCOL_MINOR,
+  isMultiplayerCommand,
+  isMultiplayerCommandEnvelope,
+  isUnknownCriticalMessage
+} from './multiplayer-protocol';
 import { flushPeerMedia } from './multiplayer-source-transfer';
 import { flushPeerRender, resetPeerRenderQueue, schedulePeerRender } from './multiplayer-render-transfer';
 import { multiplayerRenderCoordinator } from './multiplayer-render-coordinator';
@@ -26,6 +31,8 @@ import {
 } from './multiplayer-host-playback-prep';
 import {
   getLocalName,
+  getLocalCapabilities,
+  getLocalImplementation,
   parseFreeplayRestoredFlags,
   sanitizeClientName,
   sanitizeFreeplayQueueIds,
@@ -60,23 +67,58 @@ export function attachHostChannel(
 ): void {
   const { core } = ctx;
   peer.channel = channel;
+  const sendHello = () => {
+    sendToPeer(peer, {
+      kind: 'hello',
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+      protocolMinor: MULTIPLAYER_PROTOCOL_MINOR,
+      capabilities: getLocalCapabilities(),
+      impl: getLocalImplementation(),
+      name: getLocalName(),
+      ...sidekickHelloExtra(ctx, peer)
+    });
+  };
   channel.onopen = () => {
     if (core.hostPeers.get(peer.id) !== peer || peer.channel !== channel) return;
     clearPeerConnectionTimer(peer);
     core.updateClient(peer.id, { status: 'connected' });
-    sendToPeer(peer, {
-      kind: 'hello',
-      version: MULTIPLAYER_PROTOCOL_VERSION,
-      name: getLocalName(),
-      appVersion,
-      ...sidekickHelloExtra(ctx, peer)
-    });
+    sendHello();
   };
   channel.onmessage = (event) => {
     if (core.hostPeers.get(peer.id) !== peer || peer.channel !== channel) return;
     if (typeof event.data !== 'string') return;
+    let raw: unknown = null;
+    try {
+      raw = JSON.parse(event.data);
+    } catch {
+      raw = null;
+    }
     const message = peer.decode(event.data);
-    if (!message) return;
+    if (!message) {
+      // Unknown optional kinds are ignored safely; critical unknowns are
+      // logged so a missing capability negotiation is visible.
+      if (raw && typeof raw === 'object' && isUnknownCriticalMessage(raw)) {
+        // Sender violated the critical-negotiation rule; drop without failing.
+      }
+      // A well-formed but unsupported command envelope fails decode only when
+      // the envelope itself is malformed; unsupported types decode and nack below.
+      // Try to nack malformed-but-identifiable commands best-effort.
+      if (raw && typeof raw === 'object') {
+        const record = raw as Record<string, unknown>;
+        if (record.kind === 'command') {
+          const envelope = record.command as { commandId?: unknown } | undefined;
+          if (envelope && typeof envelope.commandId === 'string' && envelope.commandId) {
+            sendToPeer(peer, {
+              kind: 'ack',
+              commandId: envelope.commandId,
+              accepted: false,
+              message: 'Unsupported command.'
+            });
+          }
+        }
+      }
+      return;
+    }
     if (message.kind === 'hello') {
       const firstHello = !peer.helloReceived;
       peer.name = sanitizeClientName(message.name);
@@ -134,7 +176,20 @@ export function attachHostChannel(
       sendFreeplayCatalog(ctx, peer);
       return;
     }
-    if (message.kind === 'command' && isMultiplayerCommand(message.command)) {
+    if (message.kind === 'command') {
+      if (!isMultiplayerCommand(message.command)) {
+        // Unsupported command type: negative acknowledgement, not silent drop.
+        const envelope = message.command as unknown as { commandId?: unknown; type?: unknown };
+        if (isMultiplayerCommandEnvelope(envelope)) {
+          sendToPeer(peer, {
+            kind: 'ack',
+            commandId: envelope.commandId,
+            accepted: false,
+            message: 'Unsupported command.'
+          });
+        }
+        return;
+      }
       void Promise.resolve(peer.freeplay
         ? handleFreeplayCommand(ctx, peer, message.command)
         : ctx.handleHostCommand(message.command, peer))
@@ -189,13 +244,7 @@ export function attachHostChannel(
     core.updateClient(peer.id, { status: 'disconnected' });
     removePeerFromHostPlaybackPreparation(ctx, peer.id);
   };
-  sendToPeer(peer, {
-    kind: 'hello',
-    version: MULTIPLAYER_PROTOCOL_VERSION,
-    name: getLocalName(),
-    appVersion,
-    ...sidekickHelloExtra(ctx, peer)
-  });
+  sendHello();
 }
 
 export function attachHostMediaChannel(

@@ -1,0 +1,20 @@
+{
+  "kind": "render.need",
+  "need": {
+    "generationId": "gen-2",
+    "renderId": "render-1",
+    "epoch": 3,
+    "targetTimeMs": 5000,
+    "aheadMs": 3000,
+    "ranges": [
+      [
+        0,
+        2
+      ],
+      [
+        5,
+        9
+      ]
+    ]
+  }
+}

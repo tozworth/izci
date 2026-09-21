@@ -1,0 +1,16 @@
+{
+  "kind": "playback",
+  "playback": {
+    "generationId": "gen-1",
+    "snapshot": {
+      "state": "paused",
+      "currentTime": 0,
+      "duration": 1,
+      "volume": 1,
+      "muted": false,
+      "backend": "stream"
+    },
+    "track": null,
+    "sentAt": 1
+  }
+}

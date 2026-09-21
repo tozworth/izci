@@ -1,0 +1,132 @@
+{
+  "name": "shared-source",
+  "steps": [
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "delivery",
+      "payload": {
+        "delivery": {
+          "generationId": "gen-source-1",
+          "trackId": "track-1",
+          "mode": "source-file",
+          "reason": null
+        }
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "playback.prepare",
+      "payload": {
+        "preparation": {
+          "generationId": "gen-source-1",
+          "trackId": "track-1",
+          "delivery": "source-file"
+        }
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "clock.ping",
+      "payload": {
+        "generationId": "gen-source-1",
+        "hostSentAt": 1000
+      }
+    },
+    {
+      "from": "client",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "clock.pong",
+      "payload": {
+        "generationId": "gen-source-1",
+        "hostSentAt": 1000,
+        "clientReceivedAt": 1030,
+        "clientSentAt": 1031
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-media",
+      "kind": "file.begin",
+      "payload": {
+        "transferId": "t-1",
+        "trackId": "track-1",
+        "generationId": "gen-source-1",
+        "name": "song.mp3",
+        "type": "audio/mpeg",
+        "size": 5,
+        "lastModified": 1
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-media",
+      "kind": "file.end",
+      "payload": {
+        "transferId": "t-1"
+      }
+    },
+    {
+      "from": "client",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "playback.ready",
+      "payload": {
+        "generationId": "gen-source-1"
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "playback.start",
+      "payload": {
+        "start": {
+          "generationId": "gen-source-1",
+          "trackId": "track-1",
+          "positionSeconds": 0,
+          "startAt": 2000
+        }
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "playback",
+      "payload": {
+        "playback": {
+          "generationId": "gen-source-1",
+          "snapshot": {
+            "state": "playing",
+            "currentTime": 0,
+            "duration": 10,
+            "volume": 1,
+            "muted": false,
+            "backend": "stream"
+          },
+          "track": null,
+          "sentAt": 2001
+        }
+      }
+    },
+    {
+      "from": "client",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "playback.ended",
+      "payload": {
+        "generationId": "gen-source-1",
+        "trackId": "track-1"
+      }
+    }
+  ]
+}

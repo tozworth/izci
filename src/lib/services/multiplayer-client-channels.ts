@@ -27,13 +27,17 @@ import {
 import {
   createMultiplayerMessageDecoder,
   isHostMessage,
-  MULTIPLAYER_PROTOCOL_VERSION
+  MULTIPLAYER_PROTOCOL_MAJOR,
+  MULTIPLAYER_PROTOCOL_MINOR,
+  normalizeCapabilities
 } from './multiplayer-protocol';
 import { multiplayerRenderPlaybackService } from './multiplayer-render-playback';
 import { multiplayerSourcePlaybackService } from './multiplayer-source-playback';
 import { multiplayerChat } from './multiplayer-chat';
 import {
   getClientPlatform,
+  getLocalCapabilities,
+  getLocalImplementation,
   isIncompatibleProtocolHello,
   sanitizeClientName
 } from './multiplayer-utils';
@@ -87,7 +91,10 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
     });
     sendToPeer(peer, {
       kind: 'hello',
-      version: MULTIPLAYER_PROTOCOL_VERSION,
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+      protocolMinor: MULTIPLAYER_PROTOCOL_MINOR,
+      capabilities: getLocalCapabilities(),
+      impl: getLocalImplementation(),
       name: peer.name,
       platform: getClientPlatform(),
       freeplayEnabled: core.multiplayerSettings.multiplayerFreeplay,
@@ -367,7 +374,16 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
     }
     if (message.kind === 'hello') {
       const hostName = sanitizeClientName(message.name);
-      core.publish({ hostName, hostVersion: message.appVersion });
+      core.publish({
+        hostName,
+        hostVersion: message.impl.productVersion,
+        hostImplementation: message.impl,
+        hostProtocol: {
+          major: message.protocolMajor,
+          minor: message.protocolMinor,
+          capabilities: normalizeCapabilities(message.capabilities)
+        }
+      });
       if (core.state.inviteCode) rememberMultiplayerHost(hostName, core.state.inviteCode);
       rememberMultiplayerLastSession('client', {
         inviteCode: core.state.inviteCode,

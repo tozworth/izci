@@ -7,7 +7,7 @@ import {
   type RulesTestEnvironment
 } from '@firebase/rules-unit-testing';
 import { get, ref, set } from 'firebase/database';
-import { MULTIPLAYER_PROTOCOL_VERSION } from './multiplayer-protocol';
+import { MULTIPLAYER_PROTOCOL_MAJOR, MULTIPLAYER_PROTOCOL_MINOR } from './multiplayer-protocol';
 
 const emulatorAvailable = Boolean(process.env.FIREBASE_DATABASE_EMULATOR_HOST);
 const describeWithEmulator = emulatorAvailable ? describe : describe.skip;
@@ -42,7 +42,8 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
     await assertSucceeds(set(ref(database, `multiplayer/rooms/${room}`), {
       meta: {
         hostUid,
-        protocolVersion: MULTIPLAYER_PROTOCOL_VERSION,
+        protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+        protocolMinor: MULTIPLAYER_PROTOCOL_MINOR,
         hostName: 'Scout host',
         turnRelay: true,
         createdAt: Date.now()
@@ -67,7 +68,7 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
     await assertFails(set(ref(database, 'multiplayer/rooms/z9y8x7w6'), {
       meta: {
         hostUid,
-        protocolVersion: MULTIPLAYER_PROTOCOL_VERSION - 1,
+        protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR + 1,
         hostName: 'Outdated host',
         turnRelay: false,
         createdAt: Date.now()
@@ -164,7 +165,8 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
     await assertSucceeds(set(ref(hostDatabase, `multiplayer/hosts/${hostUid}/directory`), {
       currentRoom: room,
       hostName: 'Scout host',
-      protocolVersion: MULTIPLAYER_PROTOCOL_VERSION,
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+      protocolMinor: MULTIPLAYER_PROTOCOL_MINOR,
       updatedAt: Date.now()
     }));
 

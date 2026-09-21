@@ -71,7 +71,7 @@
       "leave": "Leave",
       "receiveAudio": "Receive audio",
       "stats": {
-        "hostVersion": "Host izci",
+        "hostVersion": "Host",
         "protocol": "Protocol",
         "connection": "Connection",
         "audio": "Audio",

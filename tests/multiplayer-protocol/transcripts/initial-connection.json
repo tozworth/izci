@@ -1,0 +1,88 @@
+{
+  "name": "initial-connection",
+  "steps": [
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "hello",
+      "payload": {
+        "protocolMajor": 1,
+        "protocolMinor": 0,
+        "capabilities": [
+          "source-file",
+          "buffered-opus",
+          "synchronized-start",
+          "pairing-proof",
+          "freeplay",
+          "chat"
+        ],
+        "impl": {
+          "product": "izci",
+          "productVersion": "0.3.2"
+        },
+        "name": "Host"
+      }
+    },
+    {
+      "from": "client",
+      "to": "host",
+      "channel": "izci-control",
+      "kind": "hello",
+      "payload": {
+        "protocolMajor": 1,
+        "protocolMinor": 0,
+        "capabilities": [
+          "source-file",
+          "buffered-opus",
+          "synchronized-start",
+          "pairing-proof",
+          "freeplay",
+          "chat"
+        ],
+        "impl": {
+          "product": "izci",
+          "productVersion": "0.3.2"
+        },
+        "name": "Phone",
+        "platform": "Android",
+        "freeplayEnabled": false
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "catalog",
+      "payload": {
+        "catalog": {
+          "revision": 1,
+          "queue": [],
+          "library": [],
+          "favorites": [],
+          "shuffleEnabled": false,
+          "repeatMode": "off"
+        }
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "chat.motd",
+      "payload": {
+        "motd": "Welcome",
+        "hostName": "Host"
+      }
+    },
+    {
+      "from": "host",
+      "to": "client",
+      "channel": "izci-control",
+      "kind": "chat.history",
+      "payload": {
+        "messages": []
+      }
+    }
+  ]
+}

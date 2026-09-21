@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   MULTIPLAYER_QUEUE_MAX_ITEMS,
-  MULTIPLAYER_PROTOCOL_VERSION,
+  MULTIPLAYER_PROTOCOL_MAJOR,
+  MULTIPLAYER_PROTOCOL_MINOR,
+  MULTIPLAYER_PROTOCOL_CAPABILITIES,
   createMultiplayerMessageDecoder,
   encodeMultiplayerMessage,
   isHostMessage,
@@ -13,17 +15,27 @@ import { isClientMessage } from './multiplayer-utils';
 import { normalizeInviteCode } from './multiplayer-signaling';
 
 describe('multiplayer protocol', () => {
-  it('requires the host app version in the protocol hello', () => {
+  it('requires protocol and implementation identity in the hello', () => {
     expect(isHostMessage({
       kind: 'hello',
-      version: MULTIPLAYER_PROTOCOL_VERSION,
-      name: 'Living room',
-      appVersion: '0.3.2'
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+      protocolMinor: MULTIPLAYER_PROTOCOL_MINOR,
+      capabilities: [...MULTIPLAYER_PROTOCOL_CAPABILITIES],
+      impl: { product: 'izci', productVersion: '0.3.2' },
+      name: 'Living room'
     })).toBe(true);
     expect(isHostMessage({
       kind: 'hello',
-      version: MULTIPLAYER_PROTOCOL_VERSION,
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+      protocolMinor: MULTIPLAYER_PROTOCOL_MINOR,
+      capabilities: [],
       name: 'Living room'
+    })).toBe(false);
+    expect(isHostMessage({
+      kind: 'hello',
+      version: 29,
+      name: 'Living room',
+      appVersion: '0.3.2'
     })).toBe(false);
   });
 
@@ -195,23 +207,29 @@ describe('multiplayer protocol', () => {
   it('accepts sidekick hello identity extras and pair messages', () => {
     expect(isHostMessage({
       kind: 'hello',
-      version: MULTIPLAYER_PROTOCOL_VERSION,
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+      protocolMinor: MULTIPLAYER_PROTOCOL_MINOR,
+      capabilities: [...MULTIPLAYER_PROTOCOL_CAPABILITIES],
+      impl: { product: 'izci', productVersion: '1.0' },
       name: 'Host',
-      appVersion: '1.0',
       identity: 'host-identity-01',
       pairNonce: 'host-nonce-001'
     })).toBe(true);
     expect(isHostMessage({
       kind: 'hello',
-      version: MULTIPLAYER_PROTOCOL_VERSION,
-      name: 'Host',
-      appVersion: '1.0'
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+      protocolMinor: MULTIPLAYER_PROTOCOL_MINOR,
+      capabilities: [],
+      impl: { product: 'izci', productVersion: '1.0' },
+      name: 'Host'
     })).toBe(true);
     expect(isHostMessage({
       kind: 'hello',
-      version: MULTIPLAYER_PROTOCOL_VERSION,
+      protocolMajor: MULTIPLAYER_PROTOCOL_MAJOR,
+      protocolMinor: MULTIPLAYER_PROTOCOL_MINOR,
+      capabilities: [],
+      impl: { product: 'izci', productVersion: '1.0' },
       name: 'Host',
-      appVersion: '1.0',
       identity: 'bad id!'
     })).toBe(false);
     expect(isHostMessage({

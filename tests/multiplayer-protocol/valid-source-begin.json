@@ -1,0 +1,10 @@
+{
+  "kind": "file.begin",
+  "transferId": "t-1",
+  "trackId": "track-1",
+  "generationId": "gen-1",
+  "name": "song.mp3",
+  "type": "audio/mpeg",
+  "size": 123,
+  "lastModified": 1
+}
