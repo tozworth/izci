@@ -1,5 +1,9 @@
 # Multiplayer sidekick plan
 
+> This plan describes the signaling-only Sidekick work. The follow-on
+> dedicated-host architecture, protocol rewrite, and rename to `izci-server`
+> are specified in `docs/izci-server-plan.md`.
+
 Replace Firebase Multiplayer signaling with a small self-hosted Go service. Official izci ships with no server configured; a host enters their server, logs in, and shares an invitation. Guests open that invitation in official izci. The sidekick handles rooms and WebRTC signaling; existing Multiplayer handles everything after connection.
 
 Keep RTDB working during implementation, with an explicit transport choice and no automatic fallback. Reuse existing playback, media transfer, buffering, caches, DSP, and Freeplay renderers.
