@@ -388,6 +388,23 @@ func (s *Session) Stop() (Clock, Delivery, *string) {
 	return s.clock, s.delivery, cancelled
 }
 
+// CancelGeneration stops only when generationID is still active. Source
+// workers use this compare-and-cancel operation after detecting replacement,
+// so a stale worker cannot stop a newer user activation.
+func (s *Session) CancelGeneration(generationID string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if generationID == "" || s.delivery.GenerationID != generationID {
+		return false
+	}
+	s.preparation = nil
+	s.currentTrackID = nil
+	s.clock = Clock{State: StateIdle}
+	reason := "source-replaced"
+	s.delivery = Delivery{GenerationID: s.nextGenerationLocked(), Mode: DeliveryNone, Reason: &reason}
+	return true
+}
+
 // Toggle flips between play and pause.
 func (s *Session) Toggle() (Clock, Delivery) {
 	s.mu.Lock()

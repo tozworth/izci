@@ -8,9 +8,15 @@ import (
 )
 
 // Peer is one connected client: registry state plus channels. Media bytes
-// are never stored here; sessions own timelines, the peer owns its channels.
+// are never stored here; sessions own timelines, the peer owns its channels
+// plus per-peer source-transfer cancellation state.
 type Peer struct {
 	mu sync.Mutex
+	// mediaSendMu serializes complete source transfers on izci-media. A
+	// cancelled worker must leave the channel before its replacement emits a
+	// fresh file.begin, otherwise concurrent Send calls can interleave stale
+	// chunks with the new generation.
+	mediaSendMu sync.Mutex
 
 	ID              string
 	AttemptID       string
@@ -30,6 +36,21 @@ type Peer struct {
 	Control DataChannel
 	Media   DataChannel
 	Render  DataChannel
+
+	// Source-transfer cancellation: incremented on every new generation,
+	// cancel, disconnect, or retry-supersede so stale workers abort instead
+	// of mixing bytes. Workers capture the token value and exit when it
+	// changes. Reconnects start a fresh transferId, never appending to
+	// ambiguous stale bytes.
+	MediaToken int
+	// SourceTrackKey is "<generationId>:<trackId>:<size>:<mtimeNs>" for the
+	// in-flight or completed transfer; empty when idle. It dedups
+	// redundant transfers like the browser's sourceTrackKey.
+	SourceTrackKey string
+	// RetryCount tracks source.retry per generation (client caps at 2;
+	// the server enforces the same bound before re-transferring).
+	RetryGeneration string
+	RetryCount      int
 
 	pc PeerConnection
 }

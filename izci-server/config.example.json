@@ -10,5 +10,24 @@
   "iceUrls": [],
   "relaySecretFile": "",
   "relayCredentialTtl": "10m",
-  "maxIcePerConnection": 16
+  "maxIcePerConnection": 16,
+  "library": {
+    "roots": [
+      { "name": "music", "path": "/srv/izci-server/music" },
+      { "name": "modules", "path": "/srv/izci-server/modules" }
+    ],
+    "scanConcurrency": 8,
+    "rescanInterval": "0s"
+  },
+  "sourceTransfer": {
+    "mode": "always",
+    "maxBytes": 33554432
+  },
+  "database": {
+    "path": "/var/lib/izci-server/izci-server.db"
+  },
+  "catalog": {
+    "maxItemsPerCollection": 50000,
+    "maxTotalItems": 100000
+  }
 }

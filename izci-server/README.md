@@ -4,7 +4,9 @@ A lightweight self-hosted izci Multiplayer server: signaling plus a
 dedicated host that does not run the web application. An izci client
 joining the server behaves as though it joined an ordinary izci host;
 connection details show `izci dedicated server <version>`. Rooms, sessions,
-tickets, and signaling live in memory only; there is no server database.
+tickets, and signaling live in memory only; durable host state (server
+identity, library reconciliation, shared queue/state, pairing records)
+lives in SQLite when `database.path` is set, otherwise in memory.
 
 Official izci builds ship with no server configured: a host enters their
 server address, logs in with the operator key, and shares an invitation.
@@ -100,11 +102,18 @@ rejected, and unsupported commands receive a negative acknowledgement.
 
 Each room owns one permanent shared session plus an independent Freeplay
 session per peer, with per-session clocks, delivery generations,
-preparation barriers, seek epochs, and repeat/shuffle state. The served
-catalog is currently a stub (empty collections with revision and
-shuffle/repeat state) and delivery uses a fake backend: real library
-scanning, source transfer, and buffered Opus rendering land in later
-phases without changing the session engine.
+preparation barriers, seek epochs, and repeat/shuffle state. The host scans
+configured `library.roots` (virtual mounts like `/music`) into a persistent
+catalog with stable IDs, virtual paths, kind/size/mtime/metadata, and
+favorites; scans reconcile atomically, resolve symlinks, and never publish
+absolute filesystem paths. Delivery follows the configured
+`sourceTransfer` policy (`always`, `never`, or byte-size `threshold`):
+playable streams, modules (including Hively AHX/HVL), and video sources
+transfer as source files over `izci-media` with begin/chunk/end framing,
+16KiB chunks, per-peer backpressure, cancellation tokens, and retry
+support. Shared playback waits on all subscribers; Freeplay waits only on
+its owner. Buffered Opus rendering lands in Phase 3; the session engine is
+unchanged.
 
 ```sh
 curl -X POST https://izci-server.example.com/party/v1/host/sessions \
@@ -124,6 +133,36 @@ defined in `internal/signaling/protocol.go`; representative valid/invalid
 frames live in `tests/multiplayer-server-contract/` for the browser
 client. Errors are stable codes (`room-unavailable` covers wrong and
 missing invitations alike); rate limits add a `retryAfter` hint.
+
+## Library, source transfer, and dependencies
+
+Configure named roots, the source-transfer policy, SQLite location, and
+catalog bounds (see `config.example.json`):
+
+```json
+{
+  "library": {
+    "roots": [{ "name": "music", "path": "/srv/izci-server/music" }],
+    "scanConcurrency": 8,
+    "rescanInterval": "0s"
+  },
+  "sourceTransfer": { "mode": "always", "maxBytes": 33554432 },
+  "database": { "path": "/var/lib/izci-server/izci-server.db" },
+  "catalog": { "maxItemsPerCollection": 50000, "maxTotalItems": 100000 }
+}
+```
+
+Unknown config fields are rejected; ambiguous or overlapping virtual mounts
+(`/music` vs `/music/rock`) and filesystem roots are rejected. At startup
+the server probes system FFmpeg (decode plus Opus/WebM encode support),
+system libopenmpt, and the built-in Hively replayer (`0.1.0`), logging which
+formats remain serviceable through source transfer when rendering is
+missing. Buffered Opus rendering is unavailable until Phase 3; source
+transfer covers ordinary audio, modules, Hively files, and video sources.
+Restarting with a file database preserves server identity and catalog
+stability (stable IDs, favorites, queue) without persisting live clocks,
+peers, barriers, or transfer buffers; restarting drops rooms (memory only)
+as before.
 
 ## Developing
 

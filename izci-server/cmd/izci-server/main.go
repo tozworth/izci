@@ -162,13 +162,14 @@ func runCombined(ctx context.Context, cfg *config.Config, key [32]byte, logger *
 	if err != nil {
 		return err
 	}
-	h := host.NewHost(host.HostConfig{
-		Name:           hostName,
-		Product:        "izci-server",
-		ProductVersion: version.Version,
-		Logger:         logger,
-		RTC:            host.RTCConfig{StunURLs: cfg.IceURLs},
-	})
+	h, store, stopRescan, err := buildDedicatedHost(cfg, logger, hostName)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		stopRescan()
+		_ = store.Close()
+	}()
 	transport := host.NewSignalTransport(host.SignalClientConfig{BaseURL: localBase, HostKey: hostKeyHex})
 	h.AttachTransport(transport)
 	hostErr := make(chan error, 1)
@@ -221,13 +222,14 @@ func runHost(args []string) error {
 		return err
 	}
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	h := host.NewHost(host.HostConfig{
-		Name:           *hostName,
-		Product:        "izci-server",
-		ProductVersion: version.Version,
-		Logger:         logger,
-		RTC:            host.RTCConfig{StunURLs: cfg.IceURLs},
-	})
+	h, store, stopRescan, err := buildDedicatedHost(cfg, logger, *hostName)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		stopRescan()
+		_ = store.Close()
+	}()
 	transport := host.NewSignalTransport(host.SignalClientConfig{BaseURL: *signalURL, HostKey: hostKeyHex})
 	h.AttachTransport(transport)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -256,9 +258,11 @@ func runCheckConfig(args []string) error {
 			return err
 		}
 	}
-	fmt.Printf("config ok: listen=%s public=%s prefix=%q rooms=%d peers/room=%d\n",
+	fmt.Printf("config ok: listen=%s public=%s prefix=%q rooms=%d peers/room=%d library=%d roots transfer=%s db=%q catalog=%d/%d\n",
 		cfg.Listen, cfg.PublicBaseURL, cfg.PathPrefix,
-		cfg.Limits.MaxRooms, cfg.Limits.MaxPeersPerRoom)
+		cfg.Limits.MaxRooms, cfg.Limits.MaxPeersPerRoom,
+		len(cfg.Library.Roots), cfg.SourceTransfer.Mode,
+		cfg.Database.Path, cfg.Catalog.MaxItemsPerCollection, cfg.Catalog.MaxTotalItems)
 	return nil
 }
 

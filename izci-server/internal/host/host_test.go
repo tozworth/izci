@@ -231,7 +231,8 @@ func (denySharedPermissions) CanControlShared(peerID string) bool { return false
 func (denySharedPermissions) CanUseFreeplay(peerID string) bool   { return true }
 
 // TestHelloNegotiation covers minor tolerance, major rejection, unknown
-// capabilities, and stub catalog/state emission.
+// capabilities, and catalog/state emission. Phase 2 advertises source-file
+// (implemented); buffered-opus, pairing-proof, and chat remain future.
 func TestHelloNegotiation(t *testing.T) {
 	h := testHost("test")
 	ch := attachFakeControl(h, "alice")
@@ -245,10 +246,17 @@ func TestHelloNegotiation(t *testing.T) {
 		t.Fatalf("first frame must be hello: %v", sent)
 	}
 	caps, _ := hello["capabilities"].([]any)
+	hasSourceFile := false
 	for _, cap := range caps {
-		if cap == "source-file" || cap == "buffered-opus" || cap == "pairing-proof" || cap == "chat" {
-			t.Fatalf("Phase 1 host advertised unimplemented capability %q", cap)
+		if cap == "source-file" {
+			hasSourceFile = true
 		}
+		if cap == "buffered-opus" || cap == "pairing-proof" || cap == "chat" {
+			t.Fatalf("Phase 2 host advertised unimplemented capability %q", cap)
+		}
+	}
+	if !hasSourceFile {
+		t.Fatalf("Phase 2 host must advertise source-file")
 	}
 	// Minor skew admits.
 	h.HandleControlText("alice", clientHello("alice", 99))

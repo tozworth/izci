@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
@@ -60,6 +61,16 @@ const (
 	DefaultHeartbeatTimeout               = Duration(10 * time.Second)
 	DefaultCleanupInterval                = Duration(5 * time.Second)
 	DefaultShutdownGrace                  = Duration(10 * time.Second)
+)
+
+// Library and media defaults for Phase 2 (persistent library + source-file
+// playback). See docs/izci-server-plan.md.
+const (
+	DefaultLibraryScanConcurrency = 8
+	DefaultSourceTransferMode     = "always"
+	DefaultSourceTransferMaxBytes = int64(32 * 1024 * 1024)
+	DefaultCatalogMaxPerCollect   = 50000
+	DefaultCatalogMaxTotal        = 100000
 )
 
 // Duration is a time.Duration encoded as a JSON string ("12h", "30s").
@@ -132,8 +143,57 @@ type Config struct {
 	// RelayCredentialTtl is the TURN credential lifetime (default 10m).
 	RelayCredentialTtl Duration `json:"relayCredentialTtl"`
 	// MaxIcePerConnection caps POST /v1/ice calls per admitted connection.
-	MaxIcePerConnection int    `json:"maxIcePerConnection"`
-	Limits              Limits `json:"limits"`
+	MaxIcePerConnection int            `json:"maxIcePerConnection"`
+	Limits              Limits         `json:"limits"`
+	Library             LibraryConfig  `json:"library"`
+	SourceTransfer      SourceTransfer `json:"sourceTransfer"`
+	Database            DatabaseConfig `json:"database"`
+	Catalog             CatalogConfig  `json:"catalog"`
+}
+
+// LibraryRoot maps one filesystem directory to one virtual mount such as
+// "/music". Catalog records expose only virtual paths; absolute
+// filesystem paths are never published.
+type LibraryRoot struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+// LibraryConfig holds named library roots and scan behavior.
+type LibraryConfig struct {
+	Roots []LibraryRoot `json:"roots"`
+	// ScanConcurrency bounds parallel file inspection during scans.
+	ScanConcurrency int `json:"scanConcurrency"`
+	// RescanInterval re-scans library roots periodically; zero disables.
+	RescanInterval Duration `json:"rescanInterval"`
+}
+
+// SourceTransfer holds the Phase 2 delivery policy:
+//
+//	no playable item or audio disabled -> none
+//	source transfer enabled and file matches size policy -> source-file
+//	otherwise (finite decodable input without a renderer yet) -> none
+//
+// Modes: "always" transfers every playable file, "never" disables
+// source transfer entirely, "threshold" transfers files at or under
+// MaxBytes. The server never silently transfers when mode is "never".
+type SourceTransfer struct {
+	Mode     string `json:"mode"`
+	MaxBytes int64  `json:"maxBytes"`
+}
+
+// DatabaseConfig owns the SQLite location. An empty Path keeps durable
+// host state (identity, library, queue, pairings) in memory only; setting
+// a file path makes restarts preserve identity and catalog stability.
+type DatabaseConfig struct {
+	Path string `json:"path"`
+}
+
+// CatalogConfig bounds catalog encoding. Item limits are applied before
+// encoding so oversized libraries cannot blow the control channel.
+type CatalogConfig struct {
+	MaxItemsPerCollection int `json:"maxItemsPerCollection"`
+	MaxTotalItems         int `json:"maxTotalItems"`
 }
 
 // Default returns the configuration with default listen address and limits.
@@ -148,6 +208,20 @@ func Default() Config {
 		IceURLs:             []string{},
 		RelayCredentialTtl:  DefaultRelayCredentialTTL,
 		MaxIcePerConnection: DefaultMaxIcePerConnection,
+		Library: LibraryConfig{
+			Roots:           []LibraryRoot{},
+			ScanConcurrency: DefaultLibraryScanConcurrency,
+			RescanInterval:  Duration(0),
+		},
+		SourceTransfer: SourceTransfer{
+			Mode:     DefaultSourceTransferMode,
+			MaxBytes: DefaultSourceTransferMaxBytes,
+		},
+		Database: DatabaseConfig{Path: ""},
+		Catalog: CatalogConfig{
+			MaxItemsPerCollection: DefaultCatalogMaxPerCollect,
+			MaxTotalItems:         DefaultCatalogMaxTotal,
+		},
 		Limits: Limits{
 			MaxRooms:                       DefaultMaxRooms,
 			MaxPeersPerRoom:                DefaultMaxPeersPerRoom,
@@ -243,6 +317,18 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid config: maxIcePerConnection must be between 1 and 1024")
 	}
 	if err := c.Limits.validate(); err != nil {
+		return err
+	}
+	if err := c.Library.validate(); err != nil {
+		return err
+	}
+	if err := c.SourceTransfer.validate(); err != nil {
+		return err
+	}
+	if err := c.Database.validate(); err != nil {
+		return err
+	}
+	if err := c.Catalog.validate(); err != nil {
 		return err
 	}
 	return nil
@@ -575,6 +661,144 @@ func LoadRelaySecret(path string) ([]byte, error) {
 
 // HostKeyLength is the required operator key size in bytes.
 const HostKeyLength = 32
+
+// validate is the shared mount-name alphabet: single-segment names map to
+// "/<name>"; multi-segment mounts like "music/rock" map to
+// "/music/rock". Segments use URL-safe characters only.
+func validMountName(name string) bool {
+	if name == "" || len(name) > 128 {
+		return false
+	}
+	// Allow "music" or "music/rock" but no leading/trailing slash,
+	// no empty segments, no dot segments.
+	if strings.HasPrefix(name, "/") || strings.HasSuffix(name, "/") {
+		return false
+	}
+	for _, seg := range strings.Split(name, "/") {
+		if seg == "" || seg == "." || seg == ".." {
+			return false
+		}
+		if len(seg) > 64 {
+			return false
+		}
+		for _, r := range seg {
+			if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' {
+				continue
+			}
+			switch r {
+			case '-', '_':
+				continue
+			}
+			return false
+		}
+	}
+	return true
+}
+
+// VirtualMount returns the canonical virtual prefix for a root name.
+func (r LibraryRoot) VirtualMount() string {
+	return "/" + strings.Trim(r.Name, "/")
+}
+
+// validate checks named library roots, virtual mounts, and scan behavior.
+// Unknown fields are already rejected by DisallowUnknownFields; here we
+// reject ambiguous or overlapping virtual roots and filesystem roots.
+func (l *LibraryConfig) validate() error {
+	if len(l.Roots) > 64 {
+		return fmt.Errorf("invalid config: library.roots must have at most 64 entries")
+	}
+	if l.ScanConcurrency < 1 || l.ScanConcurrency > 64 {
+		return fmt.Errorf("invalid config: library.scanConcurrency must be between 1 and 64")
+	}
+	if d := time.Duration(l.RescanInterval); d < 0 || d > 24*time.Hour {
+		return fmt.Errorf("invalid config: library.rescanInterval must be between 0 and 24h")
+	}
+	seenMounts := map[string]string{}
+	seenPaths := []string{}
+	for i, root := range l.Roots {
+		if !validMountName(root.Name) {
+			return fmt.Errorf("invalid config: library.roots[%d].name must be 1-64 char segments of [A-Za-z0-9_-] separated by \"/\"", i)
+		}
+		mount := LibraryRoot{Name: root.Name}.VirtualMount()
+		// Normalize case-insensitively for ambiguity: "/Music" vs "/music".
+		lower := strings.ToLower(mount)
+		if prev, dup := seenMounts[lower]; dup {
+			return fmt.Errorf("invalid config: library.roots[%d] virtual mount %q overlaps %q", i, mount, prev)
+		}
+		// Prefix overlap: "/music" overlaps "/music/rock".
+		for prevLower, prev := range seenMounts {
+			if lower == prevLower || strings.HasPrefix(lower+"/", prevLower+"/") || strings.HasPrefix(prevLower+"/", lower+"/") {
+				return fmt.Errorf("invalid config: library.roots[%d] virtual mount %q overlaps %q", i, mount, prev)
+			}
+		}
+		seenMounts[lower] = mount
+		if strings.TrimSpace(root.Path) == "" || len(root.Path) > 4096 {
+			return fmt.Errorf("invalid config: library.roots[%d].path is required (1-4096 chars)", i)
+		}
+		for _, r := range root.Path {
+			if unicode.IsControl(r) {
+				return fmt.Errorf("invalid config: library.roots[%d].path must not contain control characters", i)
+			}
+		}
+		// Filesystem overlap: one root containing another would scan the
+		// same file twice under two virtual mounts (ambiguous identity).
+		clean, err := filepath.Abs(strings.TrimSpace(root.Path))
+		if err != nil {
+			return fmt.Errorf("invalid config: library.roots[%d].path is invalid", i)
+		}
+		clean = filepath.Clean(clean)
+		for _, prev := range seenPaths {
+			rel, relErr := filepath.Rel(prev, clean)
+			reverseRel, reverseErr := filepath.Rel(clean, prev)
+			if (relErr == nil && (rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))))) ||
+				(reverseErr == nil && (reverseRel == "." || (reverseRel != ".." && !strings.HasPrefix(reverseRel, ".."+string(filepath.Separator))))) {
+				return fmt.Errorf("invalid config: library.roots[%d].path %q overlaps another root %q", i, root.Path, prev)
+			}
+		}
+		seenPaths = append(seenPaths, clean)
+	}
+	return nil
+}
+
+func (s *SourceTransfer) validate() error {
+	switch s.Mode {
+	case "always", "never", "threshold":
+	default:
+		return fmt.Errorf("invalid config: sourceTransfer.mode must be one of \"always\", \"never\", \"threshold\"")
+	}
+	if s.MaxBytes < 0 || s.MaxBytes > 8*1024*1024*1024 {
+		return fmt.Errorf("invalid config: sourceTransfer.maxBytes must be between 0 and 8GiB")
+	}
+	if s.Mode == "threshold" && s.MaxBytes <= 0 {
+		return fmt.Errorf("invalid config: sourceTransfer.maxBytes must be positive in threshold mode")
+	}
+	return nil
+}
+
+func (d *DatabaseConfig) validate() error {
+	if d.Path == "" {
+		return nil
+	}
+	if len(d.Path) > 4096 {
+		return fmt.Errorf("invalid config: database.path is too long")
+	}
+	for _, r := range d.Path {
+		if unicode.IsControl(r) {
+			return fmt.Errorf("invalid config: database.path must not contain control characters")
+		}
+	}
+	return nil
+}
+
+func (c *CatalogConfig) validate() error {
+	if c.MaxItemsPerCollection < 1 || c.MaxItemsPerCollection > 50000 {
+		return fmt.Errorf("invalid config: catalog.maxItemsPerCollection must be between 1 and 50000")
+	}
+	if c.MaxTotalItems < 1 || c.MaxTotalItems > 150000 {
+		return fmt.Errorf("invalid config: catalog.maxTotalItems must be between 1 and 150000")
+	}
+	return nil
+}
 
 // LoadHostKey reads the secret file at path and decodes the 32-byte operator
 // key. The file must contain hex-encoded bytes with optional surrounding
