@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -78,7 +79,7 @@ func runFFmpeg(ctx context.Context, settings FFmpegSettings, display string, std
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 	runErr := cmd.Run()
-	diag = scrubPath(truncateDiag(errBuf.String(), 4096), args[len(args)-1], display)
+	diag = truncateDiag(scrubPath(errBuf.String(), args[len(args)-1], display), 4096)
 	if cctx.Err() == context.DeadlineExceeded {
 		return nil, diag, fmt.Errorf("media: ffmpeg timed out after %s (%s)", timeout, display)
 	}
@@ -117,10 +118,7 @@ func (p FFmpegProducer) ProducePCM(ctx context.Context, absPath string, _ int, w
 // displayName keeps a short human identifier for diagnostics. Absolute
 // paths never reach clients; see scrubPath.
 func displayName(absPath string) string {
-	if i := strings.LastIndex(absPath, "/"); i >= 0 {
-		return "…" + absPath[i:]
-	}
-	return absPath
+	return "…/" + filepath.Base(absPath)
 }
 
 // DecodeToPCM decodes ordinary audio (or a video soundtrack) to stereo
@@ -149,7 +147,7 @@ func DecodeToPCM(ctx context.Context, settings FFmpegSettings, absPath, display 
 		cmd.Stdout = pw
 		cmd.Stderr = &errBuf
 		runErr := cmd.Run()
-		diag := scrubPath(truncateDiag(errBuf.String(), 2048), absPath, display)
+		diag := truncateDiag(scrubPath(errBuf.String(), absPath, display), 2048)
 		if cctx.Err() == context.DeadlineExceeded {
 			done <- fmt.Errorf("media: decode timed out (%s)", display)
 			return

@@ -724,7 +724,7 @@ func (h *Host) attachControlChannel(peerID string, ch DataChannel) {
 	peer.Control = ch
 	peer.mu.Unlock()
 	// The RTC adapter invokes this only after the channel is open.
-	_ = ch.SendText(HelloMessage(h.cfg.Product, h.cfg.ProductVersion, h.cfg.Name,
+	_ = sendControlMessage(ch, HelloMessage(h.cfg.Product, h.cfg.ProductVersion, h.cfg.Name,
 		appProtocol.Major, appProtocol.Minor, h.cfg.Capabilities, h.hostIdentity(), peer.PairNonce))
 }
 
@@ -1367,7 +1367,9 @@ func (h *Host) sendToPeer(peer *Peer, text string) {
 	if ch == nil {
 		return
 	}
-	_ = ch.SendText(text)
+	if err := sendControlMessage(ch, text); err != nil {
+		h.log.Printf("izci-server control send failed peer=%s err=%v", peerIDShort(peer.ID), err)
+	}
 }
 
 func (h *Host) sendCatalogState(peer *Peer, freeplay bool) {
@@ -1448,10 +1450,10 @@ func (h *Host) broadcastShared() {
 		if !hello || freeplay || ch == nil {
 			continue
 		}
-		_ = ch.SendText(CatalogMessageWithItems(rev, qItems, libItems, favItems, shared.ShuffleEnabled(), shared.RepeatMode()))
-		_ = ch.SendText(StateMessage(shared.ShuffleEnabled(), shared.RepeatMode()))
-		_ = ch.SendText(DeliveryMessage(delivery))
-		_ = ch.SendText(PlaybackMessageWithTrack(clock, trackItem, h.nowMs()))
+		h.sendToPeer(peer, CatalogMessageWithItems(rev, qItems, libItems, favItems, shared.ShuffleEnabled(), shared.RepeatMode()))
+		h.sendToPeer(peer, StateMessage(shared.ShuffleEnabled(), shared.RepeatMode()))
+		h.sendToPeer(peer, DeliveryMessage(delivery))
+		h.sendToPeer(peer, PlaybackMessageWithTrack(clock, trackItem, h.nowMs()))
 		h.sendArtwork(peer, delivery)
 	}
 }
@@ -1482,8 +1484,8 @@ func (h *Host) broadcastSharedClock() {
 		if !hello || freeplay || ch == nil {
 			continue
 		}
-		_ = ch.SendText(deliveryText)
-		_ = ch.SendText(playbackText)
+		h.sendToPeer(peer, deliveryText)
+		h.sendToPeer(peer, playbackText)
 	}
 }
 
@@ -1515,7 +1517,7 @@ func (h *Host) broadcastSharedText(text string) {
 		if !hello || freeplay || ch == nil {
 			continue
 		}
-		_ = ch.SendText(text)
+		h.sendToPeer(peer, text)
 	}
 }
 

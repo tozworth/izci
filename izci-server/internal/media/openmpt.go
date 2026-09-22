@@ -62,8 +62,8 @@ var openmptOnce struct {
 
 func loadOpenMPT() (*openmptAPI, string, error) {
 	openmptOnce.Once.Do(func() {
-		for _, name := range []string{"libopenmpt.so.0", "libopenmpt.so"} {
-			lib, err := purego.Dlopen(name, purego.RTLD_NOW|purego.RTLD_GLOBAL)
+		for _, name := range openmptLibraryNames {
+			lib, err := openOpenMPTLibrary(name)
 			if err != nil {
 				continue
 			}

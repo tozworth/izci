@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -316,6 +317,11 @@ func runKeygen(args []string) error {
 // warnKeyFilePerms nudges operators away from world-readable secret files.
 // Advisory only: startup must not fail because of it.
 func warnKeyFilePerms(path string) {
+	// Windows FileMode does not report ACLs, so its synthetic 0666 mode
+	// cannot tell us whether the key is accessible to other users.
+	if runtime.GOOS == "windows" {
+		return
+	}
 	fi, err := os.Stat(path)
 	if err != nil {
 		return
