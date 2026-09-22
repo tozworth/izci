@@ -20,6 +20,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/dunsparce9/izci/izci-server/internal/library"
 )
 
 const (
@@ -155,8 +157,10 @@ type Config struct {
 // "/music". Catalog records expose only virtual paths; absolute
 // filesystem paths are never published.
 type LibraryRoot struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
+	Name    string   `json:"name"`
+	Path    string   `json:"path"`
+	Include []string `json:"include"`
+	Exclude []string `json:"exclude"`
 }
 
 // LibraryConfig holds named library roots and scan behavior.
@@ -738,6 +742,21 @@ func (l *LibraryConfig) validate() error {
 		for _, r := range root.Path {
 			if unicode.IsControl(r) {
 				return fmt.Errorf("invalid config: library.roots[%d].path must not contain control characters", i)
+			}
+		}
+		if len(root.Include) > 128 || len(root.Exclude) > 128 {
+			return fmt.Errorf("invalid config: library.roots[%d] include/exclude must have at most 128 patterns", i)
+		}
+		for field, patterns := range map[string][]string{"include": root.Include, "exclude": root.Exclude} {
+			seen := map[string]bool{}
+			for j, pattern := range patterns {
+				if err := library.ValidateGlob(pattern); err != nil {
+					return fmt.Errorf("invalid config: library.roots[%d].%s[%d] %v", i, field, j, err)
+				}
+				if seen[pattern] {
+					return fmt.Errorf("invalid config: library.roots[%d].%s contains duplicate pattern %q", i, field, pattern)
+				}
+				seen[pattern] = true
 			}
 		}
 		// Filesystem overlap: one root containing another would scan the

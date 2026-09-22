@@ -318,8 +318,9 @@ func TestFreeplayConcurrentSourceTransfers(t *testing.T) {
 	}, "bob start")
 }
 
-// TestReconnectStartsFreshTransfer proves reconnects resume through a new
-// transferId from offset 0, never appending to stale bytes.
+// TestReconnectStartsFreshTransfer proves reconnects join the current shared
+// generation through a new transferId from offset 0, never appending to stale
+// bytes or restarting playback for peers that remained connected.
 func TestReconnectStartsFreshTransfer(t *testing.T) {
 	h, ids := testHostWithLibrary(t, map[string]string{
 		"/music/song.mp3": strings.Repeat("x-", 8000),
@@ -343,6 +344,7 @@ func TestReconnectStartsFreshTransfer(t *testing.T) {
 	if firstBegins != 1 {
 		t.Fatalf("first transfer begins = %d", firstBegins)
 	}
+	firstTransferID := mediaTexts(aliceMedia)[0]["transferId"]
 	// Simulate reconnect: drop the peer (cancels transfer) and re-add with a
 	// new peer ID like signaling would (new attempt). The shared generation
 	// is unchanged, but the new peer gets a fresh transferId from offset 0.
@@ -358,8 +360,13 @@ func TestReconnectStartsFreshTransfer(t *testing.T) {
 		t.Fatalf("reconnect must start one fresh begin, got %v", frames)
 	}
 	for _, f := range frames {
-		if f["kind"] == "file.begin" && f["generationId"] != gen {
-			t.Fatalf("reconnect keeps the same shared generation %q, got %q", gen, f["generationId"])
+		if f["kind"] == "file.begin" {
+			if f["generationId"] != gen {
+				t.Fatalf("reconnect keeps the same shared generation %q, got %q", gen, f["generationId"])
+			}
+			if f["transferId"] == firstTransferID {
+				t.Fatalf("reconnect reused interrupted transfer ID %v", firstTransferID)
+			}
 		}
 	}
 }

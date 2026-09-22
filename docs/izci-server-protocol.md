@@ -194,7 +194,9 @@ String frames over `izci-media` plus raw bytes between them:
 - `file.end {transferId}`.
 - Receivers validate byte count against `size`; mismatch → `source.retry`;
   overshoot → retry. Replacement during transfer cancels the stale generation;
-  never append to ambiguous bytes. Reconnects start a new generation.
+  never append to ambiguous bytes. A reconnect joining an otherwise-current
+  shared generation receives a fresh `transferId` and the complete file from
+  byte zero; it never resumes or appends to the interrupted transfer.
 
 ### 4.6 Commands and acks
 

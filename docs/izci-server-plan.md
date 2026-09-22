@@ -319,8 +319,9 @@ Phase gate:
    transfer it.
 7. Attach source delivery to both shared and Freeplay sessions. Shared playback
    waits on the appropriate subscriber preparation barrier; Freeplay waits only
-   on its owning peer. Reconnects must resume through a new generation or a
-   protocol-specified retry, never append to ambiguous stale bytes.
+   on its owning peer. A reconnect may rejoin the current shared playback
+   generation, but source delivery must use a fresh transfer ID from byte zero;
+   it must never append to ambiguous bytes.
 8. Implement queue activation, transport controls, synchronized starts, seeks,
    next/previous, repeat, shuffle, play-next, and ended handling with real
    source-file clients.

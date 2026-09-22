@@ -11,9 +11,11 @@ import (
 
 // Root ties a virtual mount to a filesystem directory.
 type Root struct {
-	Mount string // canonical "/music"
-	Path  string // configured filesystem path (may be relative)
-	Abs   string // absolute cleaned path for scanning
+	Mount   string   // canonical "/music"
+	Path    string   // configured filesystem path (may be relative)
+	Abs     string   // absolute cleaned path for scanning
+	Include []string // root-relative globs; empty includes all supported files
+	Exclude []string // root-relative globs; exclusion wins
 }
 
 // ResolveRoots validates configured roots against the live filesystem:
@@ -37,7 +39,10 @@ func ResolveRoots(configured []Root) ([]Root, error) {
 		if err != nil {
 			resolved = abs
 		}
-		out = append(out, Root{Mount: r.Mount, Path: r.Path, Abs: resolved})
+		if _, err := newPathFilter(r.Include, r.Exclude); err != nil {
+			return nil, fmt.Errorf("library: root %q: %v", r.Mount, err)
+		}
+		out = append(out, Root{Mount: r.Mount, Path: r.Path, Abs: resolved, Include: append([]string(nil), r.Include...), Exclude: append([]string(nil), r.Exclude...)})
 	}
 	// Filesystem overlap after symlink resolution.
 	for i := range out {
@@ -101,7 +106,11 @@ func Scan(roots []Root, concurrency int) ([]ScannedFile, error) {
 
 	for _, root := range roots {
 		root := root
-		err := filepath.WalkDir(root.Abs, func(p string, d os.DirEntry, err error) error {
+		filter, err := newPathFilter(root.Include, root.Exclude)
+		if err != nil {
+			return nil, fmt.Errorf("library: root %q: %v", root.Mount, err)
+		}
+		err = filepath.WalkDir(root.Abs, func(p string, d os.DirEntry, err error) error {
 			if err != nil {
 				// A partial snapshot must never reconcile as authoritative: a
 				// transient permission or I/O error would otherwise look like
@@ -111,6 +120,9 @@ func Scan(roots []Root, concurrency int) ([]ScannedFile, error) {
 			}
 			// Never follow a symlinked directory outside its root.
 			if d.IsDir() {
+				if p != root.Abs && strings.HasPrefix(d.Name(), ".") {
+					return filepath.SkipDir
+				}
 				if d.Type()&os.ModeSymlink != 0 || isSymlink(p) {
 					resolved, evalErr := filepath.EvalSymlinks(p)
 					if evalErr != nil {
@@ -128,6 +140,10 @@ func Scan(roots []Root, concurrency int) ([]ScannedFile, error) {
 			name := d.Name()
 			// Skip dotfiles and hidden bookkeeping.
 			if strings.HasPrefix(name, ".") {
+				return nil
+			}
+			relative, relErr := filepath.Rel(root.Abs, p)
+			if relErr != nil || !filter.allows(filepath.ToSlash(relative)) {
 				return nil
 			}
 			ext := InferExtension(name)
