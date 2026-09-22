@@ -1,8 +1,10 @@
 package persistence
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -53,6 +55,57 @@ func TestServerIDPersistent(t *testing.T) {
 	mid2, _ := m2.ServerID()
 	if mid1 == mid2 {
 		t.Fatalf("memory stores should not share identity")
+	}
+}
+
+func TestPairingFreeplayStatePersists(t *testing.T) {
+	s, err := Open("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	want := PairingRecord{PeerIdentity: "peer_identity", Secret: strings.Repeat("a", 64), Name: "Listener", PairedAt: 123, FreeplayEnabled: true, FreeplayQueue: []string{"one", "two"}, FreeplayShuffle: true, FreeplayRepeat: "one"}
+	if err := s.SavePairing(want); err != nil {
+		t.Fatal(err)
+	}
+	got, ok, err := s.Pairing(want.PeerIdentity)
+	if err != nil || !ok {
+		t.Fatalf("Pairing: ok=%v err=%v", ok, err)
+	}
+	if !got.FreeplayEnabled || !got.FreeplayShuffle || got.FreeplayRepeat != "one" || len(got.FreeplayQueue) != 2 {
+		t.Fatalf("pairing state = %+v", got)
+	}
+}
+
+func TestExistingPairingTableGainsSeparateFreeplayState(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "existing.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE pairings (peer_identity TEXT PRIMARY KEY, secret TEXT NOT NULL, name TEXT NOT NULL, paired_at INTEGER NOT NULL); INSERT INTO pairings VALUES ('peer_identity','secret','Old pair',1)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	record, ok, err := s.Pairing("peer_identity")
+	if err != nil || !ok || record.Name != "Old pair" || record.FreeplayEnabled || record.FreeplayRepeat != "off" {
+		t.Fatalf("existing pair: %+v ok=%v err=%v", record, ok, err)
+	}
+	record.FreeplayEnabled = true
+	record.FreeplayRepeat = "all"
+	if err := s.SavePairing(record); err != nil {
+		t.Fatal(err)
+	}
+	got, ok, err := s.Pairing("peer_identity")
+	if err != nil || !ok || !got.FreeplayEnabled || got.FreeplayRepeat != "all" {
+		t.Fatalf("updated pair: %+v ok=%v err=%v", got, ok, err)
 	}
 }
 

@@ -464,6 +464,15 @@ Phase gate:
 
 ## Phase 6 — Cut over naming and verify the complete system
 
+> Implementation status (2026-09-22): Phases 4 and 5 are implemented in the
+> Go host, signaling service, configuration, tests, and deployment examples.
+> Automated protocol/session, pairing, Freeplay isolation, chat, persistence,
+> resource-limit, slow-reader, render/cache, readiness/metrics, reconnect, and
+> packaging checks are part of the repository verification. Per the current
+> work scope, real-browser, real-NAT, relay-provider, and long-duration testing
+> remains explicitly deferred to Phase 6 and must not be inferred from the
+> automated ICE/Pion coverage.
+
 1. Remove remaining Sidekick product terminology from active code,
    configuration, UI, tests, deployment files, and documentation. Historical
    planning documents may retain their original title but should point to this

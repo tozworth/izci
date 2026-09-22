@@ -66,8 +66,24 @@ func TestLoadDefaults(t *testing.T) {
 	if time.Duration(l.CleanupInterval) != 5*time.Second || time.Duration(l.ShutdownGrace) != 10*time.Second {
 		t.Errorf("cleanup/shutdown = %v/%v", time.Duration(l.CleanupInterval), time.Duration(l.ShutdownGrace))
 	}
+	if l.MaxCommandsPerMinute != 600 || l.MaxSeeksPerMinute != 120 || l.MaxFreeplaySessions != 8 || l.MaxSourceTransfers != 16 {
+		t.Errorf("host limits = %+v", l)
+	}
+	if l.MaxRenderRanges != 4096 || l.MaxRenderNeedsPerMinute != 600 || l.MaxChatHistory != 200 {
+		t.Errorf("render/chat limits = %+v", l)
+	}
+	if l.MaxControlMessageBytes != 64*1024 || l.MaxMediaBufferedBytes != 512*1024 || l.MaxRenderBufferedBytes != 512*1024 {
+		t.Errorf("channel limits = %+v", l)
+	}
+	if cfg.Host.SharedControl != "all" || !cfg.Host.AutoPair || !cfg.Host.ChatEnabled {
+		t.Errorf("host policy defaults = %+v", cfg.Host)
+	}
 	if got := cfg.PublicOrigin(); got != "https://server.example.com" {
 		t.Errorf("PublicOrigin = %q", got)
+	}
+	if r := cfg.Render; r.BitrateKbps != DefaultRenderBitrateKbps || r.CacheDir != "" ||
+		r.CacheSizeMB != DefaultRenderCacheSizeMB || r.MaxEncoders != DefaultRenderMaxEncoders {
+		t.Errorf("Render defaults = %+v", r)
 	}
 }
 
@@ -120,6 +136,15 @@ func TestLoadInvalid(t *testing.T) {
 		{"bad-relay-ttl-type", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","relayCredentialTtl":600}`},
 		{"bad-relay-ttl-range", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","relayCredentialTtl":"30s"}`},
 		{"bad-ice-cap", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","maxIcePerConnection":0}`},
+		{"bad-render-bitrate", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","render":{"bitrateKbps":8}}`},
+		{"bad-render-cache", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","render":{"cacheSizeMB":1}}`},
+		{"bad-render-encoders", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","render":{"maxEncoders":0}}`},
+		{"bad-render-dir", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","render":{"cacheDir":"a\u0000b"}}`},
+		{"bad-shared-control", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","host":{"sharedControl":"owners"}}`},
+		{"bad-motd", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","host":{"motd":"a\u0000b"}}`},
+		{"bad-public-ip", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","rtc":{"publicIps":["not-an-ip"]}}`},
+		{"partial-udp-range", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","rtc":{"udpPortMin":20000}}`},
+		{"tiny-udp-range", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","rtc":{"udpPortMin":20000,"udpPortMax":20010}}`},
 	}
 	for _, tc := range table {
 		t.Run(tc.name, func(t *testing.T) {
@@ -145,6 +170,8 @@ func TestLoadValidVariants(t *testing.T) {
 		`{"publicBaseUrl":"https://a.example","hostKeyFile":"k","iceUrls":["stun:stun.example:3478","turns:turn.example:5349"]}`,
 		// Relay credentials with a custom TTL and issuance cap
 		`{"publicBaseUrl":"https://a.example","hostKeyFile":"k","relaySecretFile":"/etc/izci-server/relay-secret","relayCredentialTtl":"5m","maxIcePerConnection":4}`,
+		// Render section with explicit tuning
+		`{"publicBaseUrl":"https://a.example","hostKeyFile":"k","render":{"bitrateKbps":96,"cacheDir":"/var/cache/izci-server/renders","cacheSizeMB":256,"maxEncoders":4}}`,
 	}
 	for i, doc := range docs {
 		if _, err := Load([]byte(doc)); err != nil {

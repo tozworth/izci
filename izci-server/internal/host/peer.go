@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"sync"
 	"time"
+
+	"github.com/dunsparce9/izci/izci-server/internal/media"
 )
 
 // Peer is one connected client: registry state plus channels. Media bytes
@@ -32,6 +34,12 @@ type Peer struct {
 	ConnectedAt     time.Time
 	LastActivity    time.Time
 	FreeplayActive  bool
+	Paired          bool
+	LastGuestNonce  string
+	RateWindow      time.Time
+	CommandCount    int
+	SeekCount       int
+	RenderNeedCount int
 
 	Control DataChannel
 	Media   DataChannel
@@ -52,7 +60,69 @@ type Peer struct {
 	RetryGeneration string
 	RetryCount      int
 
+	// RenderToken cancels in-flight render work (acquire + sender) on
+	// every new generation, cancel, disconnect, or retry-supersede.
+	// Workers capture the token and exit when it changes.
+	RenderToken int
+	// RenderState holds this peer's buffered-Opus delivery state for the
+	// current generation, or nil when idle. Guarded by mu. (Render is
+	// the izci-render data channel.)
+	RenderState *PeerRenderState
+	// renderSendMu serializes render fragment sends with schedule
+	// decisions so a plan and its queue cannot interleave with a newer
+	// epoch's reset.
+	renderSendMu sync.Mutex
+
 	pc PeerConnection
+}
+
+// AllowRate applies bounded one-minute per-peer command classes. The caller
+// supplies configured limits; rejected work never reaches session mutation or
+// render scheduling.
+func (p *Peer) AllowRate(kind string, limit int, now time.Time) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.RateWindow.IsZero() || now.Sub(p.RateWindow) >= time.Minute {
+		p.RateWindow = now
+		p.CommandCount, p.SeekCount, p.RenderNeedCount = 0, 0, 0
+	}
+	var counter *int
+	switch kind {
+	case "seek":
+		counter = &p.SeekCount
+	case "render":
+		counter = &p.RenderNeedCount
+	default:
+		counter = &p.CommandCount
+	}
+	if limit > 0 && *counter >= limit {
+		return false
+	}
+	*counter++
+	return true
+}
+
+// PeerRenderState is one peer's view of a render generation: window,
+// epoch, queues, and the pinned cache key. The manifest bytes live in the
+// shared cache; sessions pin entries independently and never duplicate
+// them.
+type PeerRenderState struct {
+	GenerationID string
+	RenderID     string
+	CacheKey     string
+	Manifest     media.Manifest
+	Epoch        int
+	TargetMs     float64
+	AheadMs      float64
+	ProtectionMs float64
+	Received     [][2]int
+	Sent         map[int]bool
+	InitSent     bool
+	Outgoing     [][]byte
+	SenderOn     bool
+	// ReadyGen/ReadyEpoch dedupe render.ready per generation+epoch.
+	ReadyGen   string
+	ReadyEpoch int
 }
 
 // PeerConnection is the subset of Pion behavior the host needs. Production

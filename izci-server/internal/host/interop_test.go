@@ -10,10 +10,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/dunsparce9/izci/izci-server/internal/config"
+	"github.com/dunsparce9/izci/izci-server/internal/media"
 	appProtocol "github.com/dunsparce9/izci/izci-server/internal/protocol"
 	"github.com/dunsparce9/izci/izci-server/internal/signaling"
 	"github.com/pion/webrtc/v3"
@@ -160,6 +162,300 @@ func TestPionThreeChannelsHello(t *testing.T) {
 		t.Fatalf("host did not receive control text")
 	}
 	rtcHost.ClosePeer("interop-peer")
+}
+
+// TestPionRenderEndToEnd drives a full buffered-Opus generation over real
+// WebRTC: Pion client offers, the production Host answers, and the client
+// plays client — activate, manifest, need, binary fragments reassembled to
+// manifest bytes, ready, synchronized start. It proves the delivery
+// machinery works over real SCTP (ordered control plus unordered reliable
+// render), not just over fake channels.
+func TestPionRenderEndToEnd(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping WebRTC interop in short mode")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	dir := t.TempDir()
+	tone := renderTone(t, dir, "tone.wav", 4)
+	h, _, ids := renderTestHost(t,
+		media.Policy{Mode: media.ModeThreshold, MaxBytes: 1},
+		map[string][]byte{"/music/tone.wav": tone})
+	trackID := ids["/music/tone.wav"]
+
+	clientPC, err := webrtc.NewPeerConnection(webrtc.Configuration{})
+	if err != nil {
+		t.Fatalf("client pc: %v", err)
+	}
+	defer func() { _ = clientPC.Close() }()
+	ordered := true
+	controlDC, err := clientPC.CreateDataChannel(ChannelControl, &webrtc.DataChannelInit{Ordered: &ordered})
+	if err != nil {
+		t.Fatalf("control dc: %v", err)
+	}
+	if _, err := clientPC.CreateDataChannel(ChannelMedia, &webrtc.DataChannelInit{Ordered: &ordered}); err != nil {
+		t.Fatalf("media dc: %v", err)
+	}
+	unordered := false
+	renderDC, err := clientPC.CreateDataChannel(ChannelRender, &webrtc.DataChannelInit{Ordered: &unordered})
+	if err != nil {
+		t.Fatalf("render dc: %v", err)
+	}
+	if _, err := clientPC.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly}); err != nil {
+		t.Fatalf("audio transceiver: %v", err)
+	}
+
+	controlTexts := make(chan string, 256)
+	controlDC.OnMessage(func(msg webrtc.DataChannelMessage) {
+		if !msg.IsString {
+			return
+		}
+		select {
+		case controlTexts <- string(msg.Data):
+		default:
+		}
+	})
+	var renderMu sync.Mutex
+	var renderFrames [][]byte
+	renderDC.OnMessage(func(msg webrtc.DataChannelMessage) {
+		if msg.IsString {
+			return
+		}
+		cpy := append([]byte(nil), msg.Data...)
+		renderMu.Lock()
+		renderFrames = append(renderFrames, cpy)
+		renderMu.Unlock()
+	})
+
+	offer, err := clientPC.CreateOffer(nil)
+	if err != nil {
+		t.Fatalf("offer: %v", err)
+	}
+	if err := clientPC.SetLocalDescription(offer); err != nil {
+		t.Fatalf("set local offer: %v", err)
+	}
+
+	// Drive the production host path: register the peer as OnPeerRequested
+	// does, then answer like OnOffer but capturing the SDP (the signaling
+	// transport is nil here, so OnOffer's answer would be discarded and
+	// the client could never connect).
+	h.OnPeerRequested("conn-e2e", "attempt-e2e")
+	peerID := h.peerForAttempt("attempt-e2e")
+	if peerID == "" {
+		t.Fatal("no peer for attempt")
+	}
+	answerCtx, answerCancel := context.WithTimeout(ctx, 15*time.Second)
+	defer answerCancel()
+	answerSDP, err := h.rtc.Answer(answerCtx, AnswerConfig{
+		PeerID:   peerID,
+		OfferSDP: clientPC.LocalDescription().SDP,
+		OnControl: func(ch DataChannel) {
+			h.attachControlChannel(peerID, ch)
+		},
+		OnControlText: func(text string) {
+			h.HandleControlText(peerID, text)
+		},
+		OnMedia: func(ch DataChannel) {
+			h.attachMediaChannel(peerID, ch)
+		},
+		OnRender: func(ch DataChannel) {
+			h.attachRenderChannel(peerID, ch)
+		},
+		OnConnected: func() {
+			h.markPeerConnected(peerID)
+		},
+		OnFailed: func() {
+			h.reportIceFailure(peerID, "attempt-e2e")
+		},
+	})
+	if err != nil {
+		t.Fatalf("host answer: %v", err)
+	}
+	if err := clientPC.SetRemoteDescription(webrtc.SessionDescription{Type: webrtc.SDPTypeAnswer, SDP: answerSDP}); err != nil {
+		t.Fatalf("set remote answer: %v", err)
+	}
+
+	connected := make(chan struct{})
+	clientPC.OnConnectionStateChange(func(s webrtc.PeerConnectionState) {
+		if s == webrtc.PeerConnectionStateConnected {
+			select {
+			case <-connected:
+			default:
+				close(connected)
+			}
+		}
+	})
+	if clientPC.ConnectionState() == webrtc.PeerConnectionStateConnected {
+		close(connected)
+	}
+	select {
+	case <-ctx.Done():
+		t.Fatal("Pion peers never connected")
+	case <-connected:
+	}
+
+	// Wait for the host hello, then join as a render-capable listener.
+	var hostHello map[string]any
+	waitForControl(t, ctx, controlTexts, func(m map[string]any) bool {
+		if m["kind"] == "hello" {
+			hostHello = m
+			return true
+		}
+		return false
+	}, "host hello")
+	caps, _ := hostHello["capabilities"].([]any)
+	foundOpus := false
+	for _, c := range caps {
+		if c == "buffered-opus" {
+			foundOpus = true
+		}
+	}
+	if !foundOpus {
+		t.Fatal("host must advertise buffered-opus")
+	}
+	if err := controlDC.SendText(renderHello("e2e", false)); err != nil {
+		t.Fatalf("client hello: %v", err)
+	}
+	// Catalog arrives on hello; then activate.
+	waitForControl(t, ctx, controlTexts, func(m map[string]any) bool {
+		return m["kind"] == "catalog"
+	}, "catalog")
+	if err := controlDC.SendText(activateCmd("e2e-1", "library", trackID)); err != nil {
+		t.Fatalf("activate: %v", err)
+	}
+	// Preparation, then the manifest bound to this generation.
+	var gen, renderID string
+	var totalBytes int64
+	var clusterCount int
+	waitForControl(t, ctx, controlTexts, func(m map[string]any) bool {
+		if m["kind"] != "render.manifest" {
+			return false
+		}
+		man, _ := m["manifest"].(map[string]any)
+		if man == nil {
+			return false
+		}
+		gen, _ = man["generationId"].(string)
+		renderID, _ = man["renderId"].(string)
+		if tb, ok := man["totalBytes"].(float64); ok {
+			totalBytes = int64(tb)
+		}
+		if cl, ok := man["clusters"].([]any); ok {
+			clusterCount = len(cl)
+		}
+		return gen != "" && renderID != "" && totalBytes > 0 && clusterCount > 0
+	}, "render.manifest")
+	// Request the whole window and reassemble init + clusters.
+	need, _ := json.Marshal(map[string]any{
+		"kind": "render.need", "need": map[string]any{
+			"generationId": gen, "renderId": renderID, "epoch": 0,
+			"targetTimeMs": 0, "aheadMs": 30000, "ranges": []any{},
+		},
+	})
+	if err := controlDC.SendText(string(need)); err != nil {
+		t.Fatalf("need: %v", err)
+	}
+	deadline := time.Now().Add(60 * time.Second)
+	for time.Now().Before(deadline) {
+		renderMu.Lock()
+		frames := append([][]byte(nil), renderFrames...)
+		renderMu.Unlock()
+		initSegs := map[uint32]bool{}
+		clusterSegs := map[uint32]map[uint32]bool{}
+		var total int64
+		valid := true
+		for _, raw := range frames {
+			f, err := appProtocol.DecodeRenderFrame(raw)
+			if err != nil || f.RenderID != renderID {
+				if err != nil {
+					t.Fatalf("bad frame over SCTP: %v", err)
+				}
+				continue
+			}
+			total += int64(len(f.Payload))
+			if f.ClusterIndex == 0xffffffff {
+				initSegs[f.FragmentOffset] = true
+				continue
+			}
+			segs, ok := clusterSegs[f.ClusterIndex]
+			if !ok {
+				segs = map[uint32]bool{}
+				clusterSegs[f.ClusterIndex] = segs
+			}
+			segs[f.FragmentOffset] = true
+		}
+		_ = valid
+		if total >= totalBytes && len(clusterSegs) == clusterCount && len(initSegs) > 0 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	renderMu.Lock()
+	frames := append([][]byte(nil), renderFrames...)
+	renderMu.Unlock()
+	var total int64
+	seenInit := map[uint32]bool{}
+	seenClusters := map[uint32]map[uint32]bool{}
+	for _, raw := range frames {
+		f, err := appProtocol.DecodeRenderFrame(raw)
+		if err != nil || f.RenderID != renderID {
+			continue
+		}
+		if f.ClusterIndex == 0xffffffff {
+			if !seenInit[f.FragmentOffset] {
+				seenInit[f.FragmentOffset] = true
+				total += int64(len(f.Payload))
+			}
+			continue
+		}
+		segs, ok := seenClusters[f.ClusterIndex]
+		if !ok {
+			segs = map[uint32]bool{}
+			seenClusters[f.ClusterIndex] = segs
+		}
+		if !segs[f.FragmentOffset] {
+			segs[f.FragmentOffset] = true
+			total += int64(len(f.Payload))
+		}
+	}
+	if total != totalBytes || len(seenClusters) != clusterCount {
+		t.Fatalf("SCTP reassembly: %d bytes in %d clusters, manifest says %d in %d",
+			total, len(seenClusters), totalBytes, clusterCount)
+	}
+	// Ready releases the synchronized start.
+	ready, _ := json.Marshal(map[string]any{
+		"kind": "render.ready", "generationId": gen, "renderId": renderID, "epoch": 0, "positionMs": 0,
+	})
+	if err := controlDC.SendText(string(ready)); err != nil {
+		t.Fatalf("ready: %v", err)
+	}
+	waitForControl(t, ctx, controlTexts, func(m map[string]any) bool {
+		if m["kind"] != "playback.start" {
+			return false
+		}
+		st, _ := m["start"].(map[string]any)
+		return st != nil && st["generationId"] == gen
+	}, "playback.start")
+}
+
+// waitForControl drains control texts until match or context end.
+func waitForControl(t *testing.T, ctx context.Context, ch chan string, match func(map[string]any) bool, what string) {
+	t.Helper()
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatalf("timeout waiting for %s", what)
+		case text := <-ch:
+			var m map[string]any
+			if err := json.Unmarshal([]byte(text), &m); err != nil {
+				continue
+			}
+			if match(m) {
+				return
+			}
+		}
+	}
 }
 
 // mustRawHello builds a client hello frame for validation.

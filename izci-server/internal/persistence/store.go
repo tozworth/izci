@@ -13,6 +13,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -56,6 +57,14 @@ CREATE TABLE IF NOT EXISTS pairings (
   secret TEXT NOT NULL,
   name TEXT NOT NULL,
   paired_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS pairing_freeplay (
+  peer_identity TEXT PRIMARY KEY,
+  freeplay_enabled INTEGER NOT NULL DEFAULT 0,
+  freeplay_queue TEXT NOT NULL DEFAULT '[]',
+  freeplay_shuffle INTEGER NOT NULL DEFAULT 0,
+  freeplay_repeat TEXT NOT NULL DEFAULT 'off',
+  FOREIGN KEY(peer_identity) REFERENCES pairings(peer_identity) ON DELETE CASCADE
 );
 `
 
@@ -511,34 +520,88 @@ func newTrackID() string {
 // PairingRecord is one remembered pairing (Phase 4 completes proof
 // behavior; Phase 2 persists the records with clear ownership).
 type PairingRecord struct {
-	PeerIdentity string
-	Secret       string
-	Name         string
-	PairedAt     int64
+	PeerIdentity    string
+	Secret          string
+	Name            string
+	PairedAt        int64
+	FreeplayEnabled bool
+	FreeplayQueue   []string
+	FreeplayShuffle bool
+	FreeplayRepeat  string
 }
 
 // SavePairing upserts a pairing record.
 func (s *Store) SavePairing(r PairingRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, err := s.db.Exec(`INSERT INTO pairings(peer_identity,secret,name,paired_at) VALUES(?,?,?,?) ON CONFLICT(peer_identity) DO UPDATE SET secret=excluded.secret,name=excluded.name,paired_at=excluded.paired_at`,
-		r.PeerIdentity, r.Secret, r.Name, r.PairedAt)
-	return err
+	queue, err := json.Marshal(r.FreeplayQueue)
+	if err != nil {
+		return err
+	}
+	repeat := r.FreeplayRepeat
+	if repeat != "one" && repeat != "all" {
+		repeat = "off"
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err = tx.Exec(`INSERT INTO pairings(peer_identity,secret,name,paired_at) VALUES(?,?,?,?) ON CONFLICT(peer_identity) DO UPDATE SET secret=excluded.secret,name=excluded.name,paired_at=excluded.paired_at`, r.PeerIdentity, r.Secret, r.Name, r.PairedAt); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(`INSERT INTO pairing_freeplay(peer_identity,freeplay_enabled,freeplay_queue,freeplay_shuffle,freeplay_repeat) VALUES(?,?,?,?,?) ON CONFLICT(peer_identity) DO UPDATE SET freeplay_enabled=excluded.freeplay_enabled,freeplay_queue=excluded.freeplay_queue,freeplay_shuffle=excluded.freeplay_shuffle,freeplay_repeat=excluded.freeplay_repeat`, r.PeerIdentity, r.FreeplayEnabled, string(queue), r.FreeplayShuffle, repeat); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// Pairing returns one record without disclosing it outside the host package.
+func (s *Store) Pairing(peerIdentity string) (PairingRecord, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var r PairingRecord
+	var enabled, shuffle int
+	var queue string
+	err := s.db.QueryRow(`SELECT p.peer_identity,p.secret,p.name,p.paired_at,COALESCE(f.freeplay_enabled,0),COALESCE(f.freeplay_queue,'[]'),COALESCE(f.freeplay_shuffle,0),COALESCE(f.freeplay_repeat,'off') FROM pairings p LEFT JOIN pairing_freeplay f ON f.peer_identity=p.peer_identity WHERE p.peer_identity=?`, peerIdentity).
+		Scan(&r.PeerIdentity, &r.Secret, &r.Name, &r.PairedAt, &enabled, &queue, &shuffle, &r.FreeplayRepeat)
+	if err == sql.ErrNoRows {
+		return PairingRecord{}, false, nil
+	}
+	if err != nil {
+		return PairingRecord{}, false, err
+	}
+	r.FreeplayEnabled = enabled != 0
+	r.FreeplayShuffle = shuffle != 0
+	if err := json.Unmarshal([]byte(queue), &r.FreeplayQueue); err != nil {
+		r.FreeplayQueue = nil
+	}
+	return r, true, nil
 }
 
 // DeletePairing removes a pairing.
 func (s *Store) DeletePairing(peerIdentity string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, err := s.db.Exec(`DELETE FROM pairings WHERE peer_identity=?`, peerIdentity)
-	return err
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM pairing_freeplay WHERE peer_identity=?`, peerIdentity); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM pairings WHERE peer_identity=?`, peerIdentity); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // ListPairings returns all pairings.
 func (s *Store) ListPairings() ([]PairingRecord, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	rows, err := s.db.Query(`SELECT peer_identity,secret,name,paired_at FROM pairings ORDER BY paired_at ASC`)
+	rows, err := s.db.Query(`SELECT p.peer_identity,p.secret,p.name,p.paired_at,COALESCE(f.freeplay_enabled,0),COALESCE(f.freeplay_queue,'[]'),COALESCE(f.freeplay_shuffle,0),COALESCE(f.freeplay_repeat,'off') FROM pairings p LEFT JOIN pairing_freeplay f ON f.peer_identity=p.peer_identity ORDER BY p.paired_at ASC`)
 	if err != nil {
 		return nil, err
 	}
@@ -546,9 +609,14 @@ func (s *Store) ListPairings() ([]PairingRecord, error) {
 	var out []PairingRecord
 	for rows.Next() {
 		var r PairingRecord
-		if err := rows.Scan(&r.PeerIdentity, &r.Secret, &r.Name, &r.PairedAt); err != nil {
+		var enabled, shuffle int
+		var queue string
+		if err := rows.Scan(&r.PeerIdentity, &r.Secret, &r.Name, &r.PairedAt, &enabled, &queue, &shuffle, &r.FreeplayRepeat); err != nil {
 			return nil, err
 		}
+		r.FreeplayEnabled = enabled != 0
+		r.FreeplayShuffle = shuffle != 0
+		_ = json.Unmarshal([]byte(queue), &r.FreeplayQueue)
 		out = append(out, r)
 	}
 	return out, rows.Err()

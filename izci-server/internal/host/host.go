@@ -15,11 +15,11 @@ import (
 	appProtocol "github.com/dunsparce9/izci/izci-server/internal/protocol"
 )
 
-// phase2Capabilities advertises the facilities this host implements:
-// source-file transfer plus the session engine. Buffered Opus,
-// pairing-proof, and chat land in later phases and are omitted so clients
+// phase3Capabilities advertises the facilities this host implements:
+// source-file transfer, buffered Opus rendering, and the session engine.
+// Pairing-proof and chat land in later phases and are omitted so clients
 // degrade through capabilities instead of product-name checks.
-var phase2Capabilities = []string{"source-file", "synchronized-start", "freeplay"}
+var phase5Capabilities = []string{"source-file", "buffered-opus", "synchronized-start", "pairing-proof", "freeplay", "chat"}
 
 // HostConfig configures the dedicated host.
 type HostConfig struct {
@@ -47,6 +47,37 @@ type HostConfig struct {
 	ServerID string
 	// Deps reports renderer availability for startup diagnostics.
 	Deps media.Dependencies
+	// RenderCoordinator deduplicates and bounds render work. Nil disables
+	// the render tier (Phase 2 behavior); ModeFor then never selects it.
+	RenderCoordinator *media.Coordinator
+	// RenderCache holds completed renders for delivery. Nil disables the
+	// render tier alongside a nil coordinator.
+	RenderCache *media.Cache
+	// RenderFFmpeg tunes render subprocesses. Zero selects defaults.
+	RenderFFmpeg media.FFmpegSettings
+	// RenderBitrate is the Opus bitrate in kbps. Zero selects the default.
+	RenderBitrate           int
+	SharedControl           string
+	AutoPair                bool
+	ChatEnabled             bool
+	DisableChat             bool
+	Motd                    string
+	MaxPeers                int
+	MaxFreeplaySessions     int
+	MaxCommandsPerMinute    int
+	MaxSeeksPerMinute       int
+	MaxRenderNeedsPerMinute int
+	MaxRenderRanges         int
+	MaxControlMessageBytes  int
+	MaxChatHistory          int
+	MaxSourceTransfers      int
+	MaxMediaBufferedBytes   int
+	MaxRenderBufferedBytes  int
+	ArtworkProvider         ArtworkProvider
+}
+
+type ArtworkProvider interface {
+	Extract(context.Context, string, string, string) (*media.Artwork, error)
 }
 
 // Host is the dedicated host: peers, sessions, RTC answerer, and signaling.
@@ -65,10 +96,29 @@ type Host struct {
 	transport   HostSignalingTransport
 	onRoomReady func(RoomCredentials)
 
-	catalog  *Catalog
-	policy   media.Policy
-	store    *persistence.Store
-	serverID string
+	catalog       *Catalog
+	policy        media.Policy
+	store         *persistence.Store
+	serverID      string
+	roomID        string
+	permissions   *PolicyPermissions
+	chatMu        sync.Mutex
+	chatHistory   []chatMessage
+	pairMu        sync.Mutex
+	pairings      map[string]persistence.PairingRecord
+	transferSlots chan struct{}
+	shuttingDown  atomic.Bool
+	metrics       HostMetrics
+	artwork       ArtworkProvider
+
+	// Render delivery: coordinator deduplicates and bounds encoder work,
+	// the cache serves completed bytes, and policyBackend carries the
+	// render-fallback set. All nil unless wired (tests stay Phase 2).
+	renderCoord   *media.Coordinator
+	renderCache   *media.Cache
+	renderFFmpeg  media.FFmpegSettings
+	renderBitrate int
+	policyBackend *PolicyDelivery
 
 	catalogRevision atomic.Int64
 	// attemptID -> peerID for signaling routing.
@@ -81,6 +131,12 @@ type Host struct {
 	transfersMu     sync.Mutex
 	transferCancels map[string]context.CancelFunc
 	transferTokens  map[string]int
+	// renderCancels tracks per-peer render acquisition so a new
+	// generation or disconnect abandons stale coordinator waiters instead
+	// of pinning renders nobody consumes. Guarded by rendersMu.
+	rendersMu     sync.Mutex
+	renderCancels map[string]context.CancelFunc
+	renderTokens  map[string]int
 }
 
 // NewHost builds a host with one shared session and no peers.
@@ -92,7 +148,10 @@ func NewHost(cfg HostConfig) *Host {
 		cfg.Name = "izci-server"
 	}
 	if len(cfg.Capabilities) == 0 {
-		cfg.Capabilities = append([]string(nil), phase2Capabilities...)
+		cfg.Capabilities = append([]string(nil), phase5Capabilities...)
+	}
+	if !cfg.DisableChat {
+		cfg.ChatEnabled = true
 	}
 	logger := cfg.Logger
 	if logger == nil {
@@ -112,12 +171,19 @@ func NewHost(cfg HostConfig) *Host {
 	}
 	backend := cfg.Backend
 	if backend == nil {
-		backend = PolicyDelivery{Catalog: catalog, Policy: policy}
+		backend = &PolicyDelivery{Catalog: catalog, Policy: policy, Deps: cfg.Deps}
+	}
+	// The render tier selects only when a coordinator and cache are wired;
+	// tests and signaling-only paths without them keep Phase 2 behavior.
+	if pb, ok := backend.(*PolicyDelivery); ok {
+		pb.RenderAvailable = cfg.RenderCoordinator != nil && cfg.RenderCache != nil
 	}
 	shared := NewSession(SessionConfig{ID: "shared", Kind: SessionShared, Controller: "shared", NowMs: nowMs, StartLeadMs: cfg.StartLeadMs, Backend: backend})
 	perms := cfg.Permissions
+	var policyPerms *PolicyPermissions
 	if perms == nil {
-		perms = OpenPermissions{}
+		policyPerms = NewPolicyPermissions(cfg.SharedControl)
+		perms = policyPerms
 	}
 	backendCopy := backend
 	newFreeplay := func(peerID string) *Session {
@@ -138,9 +204,67 @@ func NewHost(cfg HostConfig) *Host {
 		policy:          policy,
 		store:           cfg.Store,
 		serverID:        serverID,
+		permissions:     policyPerms,
+		artwork:         cfg.ArtworkProvider,
+		pairings:        make(map[string]persistence.PairingRecord),
 		attempts:        make(map[string]string),
 		transferCancels: make(map[string]context.CancelFunc),
 		transferTokens:  make(map[string]int),
+		renderCancels:   make(map[string]context.CancelFunc),
+		renderTokens:    make(map[string]int),
+		renderCoord:     cfg.RenderCoordinator,
+		renderCache:     cfg.RenderCache,
+		renderFFmpeg:    cfg.RenderFFmpeg,
+		renderBitrate:   cfg.RenderBitrate,
+	}
+	if cfg.MaxPeers <= 0 {
+		h.cfg.MaxPeers = 8
+	}
+	if cfg.MaxFreeplaySessions <= 0 {
+		h.cfg.MaxFreeplaySessions = h.cfg.MaxPeers
+	}
+	if cfg.MaxCommandsPerMinute <= 0 {
+		h.cfg.MaxCommandsPerMinute = 600
+	}
+	if cfg.MaxSeeksPerMinute <= 0 {
+		h.cfg.MaxSeeksPerMinute = 120
+	}
+	if cfg.MaxRenderNeedsPerMinute <= 0 {
+		h.cfg.MaxRenderNeedsPerMinute = 600
+	}
+	if cfg.MaxRenderRanges <= 0 {
+		h.cfg.MaxRenderRanges = 4096
+	}
+	if cfg.MaxControlMessageBytes <= 0 {
+		h.cfg.MaxControlMessageBytes = 64 * 1024
+	}
+	if cfg.MaxChatHistory <= 0 || cfg.MaxChatHistory > 200 {
+		h.cfg.MaxChatHistory = 200
+	}
+	if cfg.MaxSourceTransfers <= 0 {
+		h.cfg.MaxSourceTransfers = 16
+	}
+	if cfg.MaxMediaBufferedBytes <= 0 {
+		h.cfg.MaxMediaBufferedBytes = media.SourceFlushUnder
+	}
+	if cfg.MaxRenderBufferedBytes <= 0 {
+		h.cfg.MaxRenderBufferedBytes = media.RenderQueueHigh
+	}
+	h.transferSlots = make(chan struct{}, h.cfg.MaxSourceTransfers)
+	if h.renderBitrate <= 0 {
+		h.renderBitrate = media.DefaultRenderBitrateKbps
+	}
+	if cfg.DisableChat {
+		filtered := h.cfg.Capabilities[:0]
+		for _, capability := range h.cfg.Capabilities {
+			if capability != "chat" {
+				filtered = append(filtered, capability)
+			}
+		}
+		h.cfg.Capabilities = filtered
+	}
+	if pb, ok := backend.(*PolicyDelivery); ok {
+		h.policyBackend = pb
 	}
 	// Restore persisted shared queue/state into the session engine when a
 	// store is present; transient clocks and barriers stay fresh.
@@ -265,9 +389,8 @@ func (h *Host) SetRoomReadyHandler(handler func(RoomCredentials)) {
 }
 
 // Run acquires a room, connects the host socket, and supervises it until ctx
-// ends. A socket drop fails fast so the operator restarts from a known
-// state; established RTC peers keep their media until the process exits.
-// Signaling reconnect with RTC survival is later work.
+// ends. Signaling reconnects independently of established RTC: a healthy
+// data-channel/media session remains alive while admissions recover.
 func (h *Host) Run(ctx context.Context, capacity int) error {
 	if h.transport == nil {
 		return errNoTransport
@@ -276,7 +399,18 @@ func (h *Host) Run(ctx context.Context, capacity int) error {
 	if err != nil {
 		return err
 	}
-	h.log.Printf("izci-server host acquired room %s", redactRoom(credentials.RoomID))
+	h.roomID = credentials.RoomID
+	if provider, ok := h.transport.(HostICEProvider); ok {
+		iceCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		servers, iceErr := provider.FetchICE(iceCtx)
+		cancel()
+		if iceErr != nil {
+			return fmt.Errorf("host: fetch ICE configuration: %w", iceErr)
+		}
+		h.rtc.SetICEServers(servers)
+		go h.refreshICE(ctx, provider)
+	}
+	h.logEvent("host.room.acquired", nil)
 	if err := h.transport.Connect(ctx, h); err != nil {
 		return err
 	}
@@ -287,17 +421,60 @@ func (h *Host) Run(ctx context.Context, capacity int) error {
 	defer stopMaintain()
 	maintainErr := make(chan error, 1)
 	go func() { maintainErr <- h.transport.Maintain(maintainCtx) }()
-	select {
-	case <-ctx.Done():
-		_ = h.transport.Close()
-		return nil
-	case <-h.transport.Done():
-		return fmt.Errorf("host: signaling socket closed")
-	case err := <-maintainErr:
-		if err != nil {
-			return fmt.Errorf("host: signaling maintenance: %w", err)
+	backoff := []time.Duration{500 * time.Millisecond, time.Second, 2 * time.Second, 5 * time.Second, 10 * time.Second}
+	for attempt := 0; ; {
+		select {
+		case <-ctx.Done():
+			h.shuttingDown.Store(true)
+			h.ClosePeers()
+			_ = h.transport.Close()
+			return nil
+		case err := <-maintainErr:
+			if err != nil {
+				return fmt.Errorf("host: signaling maintenance: %w", err)
+			}
+			return nil
+		case <-h.transport.Done():
+			delay := backoff[attempt]
+			if attempt < len(backoff)-1 {
+				attempt++
+			}
+			h.logEvent("host.signaling.reconnect", map[string]any{"delayMs": delay.Milliseconds()})
+			timer := time.NewTimer(delay)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				h.shuttingDown.Store(true)
+				h.ClosePeers()
+				_ = h.transport.Close()
+				return nil
+			case <-timer.C:
+			}
+			if err := h.transport.Connect(ctx, h); err != nil {
+				continue
+			}
+			attempt = 0
 		}
-		return nil
+	}
+}
+
+func (h *Host) refreshICE(ctx context.Context, provider HostICEProvider) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			fetchCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			servers, err := provider.FetchICE(fetchCtx)
+			cancel()
+			if err != nil {
+				h.logEvent("host.ice.refresh_failed", nil)
+				continue
+			}
+			h.rtc.SetICEServers(servers)
+		}
 	}
 }
 
@@ -307,17 +484,26 @@ func (e hostError) Error() string { return string(e) }
 
 var errNoTransport = hostError("host: no signaling transport attached")
 
-func redactRoom(roomID string) string {
-	if len(roomID) <= 8 {
-		return "{room}"
+func (h *Host) logEvent(event string, fields map[string]any) {
+	entry := map[string]any{"component": "host", "event": event}
+	for key, value := range fields {
+		entry[key] = value
 	}
-	return "{room}"
+	raw, _ := json.Marshal(entry)
+	h.log.Print(string(raw))
 }
 
 // --- HostSignalingEvents (same lifecycle for embedded and remote) ---
 
 // OnPeerRequested implements HostSignalingEvents.
 func (h *Host) OnPeerRequested(connectionID, attemptID string) {
+	if h.shuttingDown.Load() || h.PeerCount() >= h.cfg.MaxPeers {
+		if h.transport != nil {
+			_ = h.transport.Reject(attemptID)
+		}
+		h.metrics.PeersRejected.Add(1)
+		return
+	}
 	h.attemptsMu.Lock()
 	// One peer object per attempt; identity arrives via RTC hello.
 	peerID := NewPeerID()
@@ -327,6 +513,7 @@ func (h *Host) OnPeerRequested(connectionID, attemptID string) {
 	h.peersMu.Lock()
 	h.peers[peerID] = peer
 	h.peersMu.Unlock()
+	h.metrics.PeersAccepted.Add(1)
 	if h.transport != nil {
 		_ = h.transport.Accept(attemptID)
 	}
@@ -405,7 +592,7 @@ func (h *Host) OnConnected(attemptID string) {
 
 // OnReady implements HostSignalingEvents: the host socket authenticated.
 func (h *Host) OnReady() {
-	h.log.Printf("izci-server host signaling ready")
+	h.logEvent("host.signaling.ready", nil)
 }
 
 // OnReleased implements HostSignalingEvents.
@@ -419,12 +606,12 @@ func (h *Host) OnReleased(attemptID, reason string) {
 
 // OnError implements HostSignalingEvents.
 func (h *Host) OnError(code string) {
-	h.log.Printf("izci-server host signaling error %s", code)
+	h.logEvent("host.signaling.error", map[string]any{"code": code})
 }
 
 // OnSocketClose implements HostSignalingEvents: healthy RTC keeps playing.
 func (h *Host) OnSocketClose() {
-	h.log.Printf("izci-server host signaling socket closed; RTC peers continue")
+	h.logEvent("host.signaling.closed", map[string]any{"rtcPeersPreserved": true})
 }
 
 func (h *Host) peerForAttempt(attemptID string) string {
@@ -457,7 +644,7 @@ func (h *Host) markPeerConnected(peerID string) {
 // and frees the slot so the client can restart via a fresh attempt (ICE
 // restart). Healthy peers are untouched.
 func (h *Host) reportIceFailure(peerID, attemptID string) {
-	h.log.Printf("izci-server host ICE failed peer=%s; closing peer for restart", peerIDShort(peerID))
+	h.logEvent("host.ice.failed", map[string]any{"peer": peerIDShort(peerID)})
 	h.peersMu.Lock()
 	peer, ok := h.peers[peerID]
 	h.peersMu.Unlock()
@@ -486,12 +673,17 @@ func (h *Host) removePeer(peerID, attemptID, reason string) {
 	// writing to a closed channel; reconnects resume via a fresh
 	// generation or retry, never by appending to stale bytes.
 	h.cancelPeerTransfer(peerID)
+	h.cancelPeerRender(peerID)
 	peer.mu.Lock()
 	peer.MediaToken++
 	peer.SourceTrackKey = ""
 	peer.mu.Unlock()
 	h.unsubscribeShared(peerID)
 	h.sessions.RemoveFreeplay(peerID)
+	if h.permissions != nil {
+		h.permissions.Remove(peerID)
+	}
+	h.announcePresence(peer.Name, "leave")
 	peer.mu.Lock()
 	control, media, render := peer.Control, peer.Media, peer.Render
 	peer.Control, peer.Media, peer.Render = nil, nil, nil
@@ -512,7 +704,7 @@ func (h *Host) removePeer(peerID, attemptID, reason string) {
 	if h.transport != nil && (reason == "ice-failed" || reason == "kicked") {
 		_ = h.transport.Release(attemptID)
 	}
-	h.log.Printf("izci-server host peer removed peer=%s reason=%s", peerIDShort(peerID), reason)
+	h.logEvent("host.peer.removed", map[string]any{"peer": peerIDShort(peerID), "reason": reason})
 	_ = peer
 }
 
@@ -565,8 +757,10 @@ func (h *Host) attachMediaChannel(peerID string, ch DataChannel) {
 	h.maybeTransferForNewPeer(peer, freeplay)
 }
 
-// attachRenderChannel binds izci-render (unordered/reliable, buffered Opus in
-// later phases).
+// attachRenderChannel binds izci-render (unordered/reliable): buffered
+// Opus fragments with 16 KiB framing and high-water backpressure. A
+// channel opening mid-generation catches the peer up to the current
+// render like the media path.
 func (h *Host) attachRenderChannel(peerID string, ch DataChannel) {
 	h.peersMu.Lock()
 	peer, ok := h.peers[peerID]
@@ -577,7 +771,17 @@ func (h *Host) attachRenderChannel(peerID string, ch DataChannel) {
 	}
 	peer.mu.Lock()
 	peer.Render = ch
+	freeplay := peer.FreeplayActive
+	hello := peer.HelloReceived
 	peer.mu.Unlock()
+	// A new render channel always resets per-peer render state: never
+	// resume ambiguous stale bytes after a reconnect.
+	h.cancelPeerRender(peerID)
+	if !hello {
+		return
+	}
+	// Late render open catches the peer up to the current generation.
+	h.maybeRenderForNewPeer(peer, freeplay)
 }
 
 func (h *Host) hostIdentity() string {
@@ -593,6 +797,9 @@ func (h *Host) hostIdentity() string {
 // the single ingress for hello/commands/readiness; Pion and test channels
 // both funnel here.
 func (h *Host) HandleControlText(peerID, text string) {
+	if len(text) > h.cfg.MaxControlMessageBytes {
+		return
+	}
 	h.peersMu.Lock()
 	peer, ok := h.peers[peerID]
 	h.peersMu.Unlock()
@@ -652,19 +859,27 @@ func (h *Host) HandleControlText(peerID, text string) {
 		h.handleFreeplayPreference(peer, body.Enabled)
 	case "freeplay.queue":
 		var body struct {
-			ItemIDs []string `json:"itemIds"`
+			ItemIDs        []string    `json:"itemIds"`
+			ShuffleEnabled *bool       `json:"shuffleEnabled"`
+			RepeatMode     *RepeatMode `json:"repeatMode"`
 		}
 		_ = json.Unmarshal([]byte(text), &body)
-		h.handleFreeplayQueue(peer, body.ItemIDs)
+		h.handleFreeplayQueue(peer, body.ItemIDs, body.ShuffleEnabled, body.RepeatMode)
 	case "source.retry":
 		var body struct {
 			GenerationID string `json:"generationId"`
 		}
 		_ = json.Unmarshal([]byte(text), &body)
 		h.handleSourceRetry(peer, body.GenerationID)
-	case "render.need", "render.ready", "chat.send", "pair.proof", "oda.background.preference":
-		// Known kinds with Phase 1 no-op backends: acknowledge liveness,
-		// change no session state.
+	case "render.need":
+		h.handleRenderNeed(peer, []byte(text))
+	case "render.ready":
+		h.handleRenderReady(peer, []byte(text))
+	case "pair.proof":
+		h.handlePairProof(peer, []byte(text))
+	case "chat.send":
+		h.handleChatSend(peer, []byte(text))
+	case "oda.background.preference":
 		peer.mu.Lock()
 		peer.LastActivity = time.Now()
 		peer.mu.Unlock()
@@ -701,8 +916,20 @@ func (h *Host) handleClientHello(peer *Peer, raw []byte) {
 		name = name[:48]
 	}
 	peer.MarkHello(name, hello.FreeplayEnabled, hello.Identity, hello.ProtocolMinor, hello.Capabilities)
+	h.sendToPeer(peer, ChatMotdMessage(h.cfg.Motd, h.cfg.Name))
+	h.sendChatHistory(peer)
+	h.announcePresence(name, "join")
+	// A dedicated server has no host UI button. autoPair is therefore an
+	// explicit operator policy: an invitation-admitted identity receives a
+	// per-pair secret over encrypted RTC, then proves it on reconnect.
+	if h.cfg.AutoPair && validIdentity(hello.Identity) {
+		h.establishPair(peer)
+	} else {
+		h.sendPairingState(peer)
+	}
 	// Reset transfer state on (re)hello: reconnects resume through a new
 	// generation or retry, never by appending to stale bytes.
+	h.cancelPeerRender(peer.ID)
 	peer.mu.Lock()
 	peer.SourceTrackKey = ""
 	peer.RetryGeneration = ""
@@ -710,7 +937,12 @@ func (h *Host) handleClientHello(peer *Peer, raw []byte) {
 	peer.mu.Unlock()
 	// Freeplay sessions are independent and do not participate in the
 	// shared preparation barrier.
-	if hello.FreeplayEnabled && hasCapability(h.cfg.Capabilities, "freeplay") && hasCapability(hello.Capabilities, "freeplay") {
+	restoredFreeplay := h.restorePairPreferences(peer)
+	if (hello.FreeplayEnabled || restoredFreeplay) && hasCapability(h.cfg.Capabilities, "freeplay") && hasCapability(hello.Capabilities, "freeplay") {
+		if (!restoredFreeplay && h.sessions.FreeplayCount() >= h.cfg.MaxFreeplaySessions) || h.sessions.FreeplayCount() > h.cfg.MaxFreeplaySessions {
+			h.sendPairingState(peer)
+			return
+		}
 		sess := h.sessions.FreeplayFor(peer.ID)
 		sess.Subscribe(peer.ID)
 		peer.mu.Lock()
@@ -719,12 +951,16 @@ func (h *Host) handleClientHello(peer *Peer, raw []byte) {
 		h.sendCatalogState(peer, true)
 		h.sendDeliveryPlayback(peer, true)
 		h.maybeTransferForNewPeer(peer, true)
+		h.maybeRenderForNewPeer(peer, true)
+		h.sendPairingState(peer)
 		return
 	}
 	h.sessions.Shared().Subscribe(peer.ID)
 	h.sendCatalogState(peer, false)
 	h.sendDeliveryPlayback(peer, false)
 	h.maybeTransferForNewPeer(peer, false)
+	h.maybeRenderForNewPeer(peer, false)
+	h.sendPairingState(peer)
 }
 
 func hasCapability(caps []string, want string) bool {
@@ -755,6 +991,17 @@ func (h *Host) handleClientCommand(peer *Peer, msg map[string]json.RawMessage) {
 	if cmd.CommandID == "" {
 		return // malformed envelopes are dropped.
 	}
+	rateKind := "command"
+	limit := h.cfg.MaxCommandsPerMinute
+	if cmd.Type == "transport.seek" {
+		rateKind, limit = "seek", h.cfg.MaxSeeksPerMinute
+	}
+	if !peer.AllowRate(rateKind, limit, time.Now()) {
+		h.metrics.RateLimited.Add(1)
+		h.sendToPeer(peer, AckMessage(cmd.CommandID, false, "Rate limit exceeded."))
+		return
+	}
+	h.metrics.Commands.Add(1)
 	if !IsSupportedCommand(cmd.Type) {
 		h.sendToPeer(peer, AckMessage(cmd.CommandID, false, "Unsupported command."))
 		return
@@ -782,6 +1029,7 @@ func (h *Host) handleClientCommand(peer *Peer, msg map[string]json.RawMessage) {
 	if result.Preparation != nil || result.CancelledGen != nil {
 		if freeplay {
 			h.cancelPeerTransfer(peer.ID)
+			h.cancelPeerRender(peer.ID)
 			peer.mu.Lock()
 			peer.SourceTrackKey = ""
 			peer.RetryGeneration = ""
@@ -790,6 +1038,7 @@ func (h *Host) handleClientCommand(peer *Peer, msg map[string]json.RawMessage) {
 		} else {
 			for _, id := range h.sessions.Shared().Subscribers() {
 				h.cancelPeerTransfer(id)
+				h.cancelPeerRender(id)
 			}
 			h.peersMu.Lock()
 			for _, p := range h.peers {
@@ -805,6 +1054,9 @@ func (h *Host) handleClientCommand(peer *Peer, msg map[string]json.RawMessage) {
 		}
 	}
 	h.persistSharedState()
+	if freeplay {
+		h.persistPairPreferences(peer)
+	}
 	// Broadcast host-authoritative state to the affected timeline.
 	if freeplay {
 		h.sendCatalogState(peer, true)
@@ -816,7 +1068,7 @@ func (h *Host) handleClientCommand(peer *Peer, msg map[string]json.RawMessage) {
 			h.sendToPeer(peer, PrepareMessage(*result.Preparation))
 			h.sendToPeer(peer, PingMessage(result.Preparation.GenerationID, h.nowMs()))
 			_, delivery, _ := h.sessions.FreeplayFor(peer.ID).Snapshot()
-			h.startFreeplayTransfer(peer, delivery)
+			h.startSessionDelivery(h.sessions.FreeplayFor(peer.ID), delivery, true, peer)
 		}
 		return
 	}
@@ -828,7 +1080,7 @@ func (h *Host) handleClientCommand(peer *Peer, msg map[string]json.RawMessage) {
 		h.broadcastSharedText(PrepareMessage(*result.Preparation))
 		h.broadcastSharedText(PingMessage(result.Preparation.GenerationID, h.nowMs()))
 		_, delivery, _ := h.sessions.Shared().Snapshot()
-		h.startSharedTransfers(delivery)
+		h.startSessionDelivery(h.sessions.Shared(), delivery, false, nil)
 	}
 }
 
@@ -905,6 +1157,11 @@ func (h *Host) handleReady(peer *Peer, generationID string) {
 	} else {
 		target = h.sessions.Shared()
 	}
+	// Render generations release the barrier on render.ready only; a bare
+	// playback.ready never verifies buffered output (browser host parity).
+	if _, delivery, _ := target.Snapshot(); delivery.Mode == DeliveryRender {
+		return
+	}
 	ready, clock, startAt := target.HandleReady(peer.ID, generationID)
 	if !ready {
 		return
@@ -943,6 +1200,7 @@ func (h *Host) handleEnded(peer *Peer, generationID, trackID string) {
 	if prep != nil || cancelled != nil {
 		if freeplay {
 			h.cancelPeerTransfer(peer.ID)
+			h.cancelPeerRender(peer.ID)
 			peer.mu.Lock()
 			peer.SourceTrackKey = ""
 			peer.RetryGeneration = ""
@@ -951,6 +1209,7 @@ func (h *Host) handleEnded(peer *Peer, generationID, trackID string) {
 		} else {
 			for _, id := range h.sessions.Shared().Subscribers() {
 				h.cancelPeerTransfer(id)
+				h.cancelPeerRender(id)
 			}
 			h.peersMu.Lock()
 			for _, p := range h.peers {
@@ -978,12 +1237,12 @@ func (h *Host) handleEnded(peer *Peer, generationID, trackID string) {
 			h.sendToPeer(peer, PrepareMessage(*prep))
 			h.sendToPeer(peer, PingMessage(prep.GenerationID, h.nowMs()))
 			_, delivery, _ := target.Snapshot()
-			h.startFreeplayTransfer(peer, delivery)
+			h.startSessionDelivery(target, delivery, true, peer)
 		} else {
 			h.broadcastSharedText(PrepareMessage(*prep))
 			h.broadcastSharedText(PingMessage(prep.GenerationID, h.nowMs()))
 			_, delivery, _ := target.Snapshot()
-			h.startSharedTransfers(delivery)
+			h.startSessionDelivery(target, delivery, false, nil)
 		}
 	}
 	if freeplay {
@@ -998,7 +1257,9 @@ func (h *Host) handleFreeplayPreference(peer *Peer, enabled bool) {
 	peer.FreeplayEnabled = enabled
 	peer.mu.Unlock()
 	if !enabled {
+		h.persistPairPreferencesEnabled(peer, false)
 		h.cancelPeerTransfer(peer.ID)
+		h.cancelPeerRender(peer.ID)
 		peer.mu.Lock()
 		peer.FreeplayActive = false
 		peer.SourceTrackKey = ""
@@ -1010,6 +1271,8 @@ func (h *Host) handleFreeplayPreference(peer *Peer, enabled bool) {
 		h.sendCatalogState(peer, false)
 		h.sendDeliveryPlayback(peer, false)
 		h.maybeTransferForNewPeer(peer, false)
+		h.maybeRenderForNewPeer(peer, false)
+		h.sendPairingState(peer)
 		return
 	}
 	peer.mu.Lock()
@@ -1018,7 +1281,12 @@ func (h *Host) handleFreeplayPreference(peer *Peer, enabled bool) {
 	if !hasCapability(h.cfg.Capabilities, "freeplay") || !clientSupportsFreeplay {
 		return
 	}
+	if h.sessions.FreeplayCount() >= h.cfg.MaxFreeplaySessions {
+		h.metrics.RateLimited.Add(1)
+		return
+	}
 	h.cancelPeerTransfer(peer.ID)
+	h.cancelPeerRender(peer.ID)
 	peer.mu.Lock()
 	peer.FreeplayActive = true
 	peer.SourceTrackKey = ""
@@ -1031,6 +1299,9 @@ func (h *Host) handleFreeplayPreference(peer *Peer, enabled bool) {
 	h.sendCatalogState(peer, true)
 	h.sendDeliveryPlayback(peer, true)
 	h.maybeTransferForNewPeer(peer, true)
+	h.maybeRenderForNewPeer(peer, true)
+	h.persistPairPreferences(peer)
+	h.sendPairingState(peer)
 }
 
 func (h *Host) unsubscribeShared(peerID string) {
@@ -1046,7 +1317,7 @@ func (h *Host) unsubscribeShared(peerID string) {
 	h.broadcastSharedText(StartMessage(delivery.GenerationID, trackID, 0, startAt))
 }
 
-func (h *Host) handleFreeplayQueue(peer *Peer, itemIDs []string) {
+func (h *Host) handleFreeplayQueue(peer *Peer, itemIDs []string, shuffle *bool, repeat *RepeatMode) {
 	peer.mu.Lock()
 	active := peer.FreeplayActive
 	peer.mu.Unlock()
@@ -1072,6 +1343,17 @@ func (h *Host) handleFreeplayQueue(peer *Peer, itemIDs []string) {
 		}
 	}
 	sess.SetQueue(filtered)
+	if shuffle != nil || repeat != nil {
+		shuffleValue, repeatValue := sess.ShuffleEnabled(), sess.RepeatMode()
+		if shuffle != nil {
+			shuffleValue = *shuffle
+		}
+		if repeat != nil {
+			repeatValue = *repeat
+		}
+		sess.RestorePreferences(shuffleValue, repeatValue)
+	}
+	h.persistPairPreferences(peer)
 	h.sendCatalogState(peer, true)
 }
 
@@ -1134,6 +1416,7 @@ func (h *Host) sendDeliveryPlayback(peer *Peer, freeplay bool) {
 	}
 	h.sendToPeer(peer, DeliveryMessage(delivery))
 	h.sendToPeer(peer, PlaybackMessageWithTrack(clock, trackItem, h.nowMs()))
+	h.sendArtwork(peer, delivery)
 }
 
 func (h *Host) broadcastShared() {
@@ -1166,6 +1449,7 @@ func (h *Host) broadcastShared() {
 		_ = ch.SendText(StateMessage(shared.ShuffleEnabled(), shared.RepeatMode()))
 		_ = ch.SendText(DeliveryMessage(delivery))
 		_ = ch.SendText(PlaybackMessageWithTrack(clock, trackItem, h.nowMs()))
+		h.sendArtwork(peer, delivery)
 	}
 }
 
@@ -1200,4 +1484,25 @@ func (h *Host) Kick(peerID string) {
 	}
 	h.sendToPeer(peer, marshal(map[string]any{"kind": "kicked"}))
 	h.removePeer(peerID, peer.AttemptID, "kicked")
+}
+
+// ClosePeers predictably closes every RTC peer during process shutdown.
+func (h *Host) ClosePeers() {
+	if h.renderCoord != nil {
+		h.renderCoord.Close()
+	}
+	h.peersMu.Lock()
+	ids := make([]string, 0, len(h.peers))
+	for id := range h.peers {
+		ids = append(ids, id)
+	}
+	h.peersMu.Unlock()
+	for _, id := range ids {
+		h.peersMu.Lock()
+		p := h.peers[id]
+		h.peersMu.Unlock()
+		if p != nil {
+			h.removePeer(id, p.AttemptID, "shutdown")
+		}
+	}
 }

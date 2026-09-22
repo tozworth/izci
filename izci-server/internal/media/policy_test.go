@@ -1,6 +1,7 @@
 package media
 
 import (
+	"math"
 	"testing"
 )
 
@@ -52,5 +53,31 @@ func TestProbeNeverFails(t *testing.T) {
 	_ = d.Describe()
 	if len(d.SourceTransferServiceable()) == 0 {
 		t.Fatalf("must list source-transferable families")
+	}
+}
+
+func TestCanRenderRequiresCommonEncoder(t *testing.T) {
+	withoutEncoder := Dependencies{LibopenmptVersion: "libopenmpt test", HivelyVersion: HivelyVersion}
+	if withoutEncoder.CanRender("module", "mod") || withoutEncoder.CanRender("module", "hvl") {
+		t.Fatal("PCM decoder availability must not advertise a render without the FFmpeg encoder")
+	}
+	withEncoder := withoutEncoder
+	withEncoder.FFmpegVersion = "ffmpeg test"
+	withEncoder.FFmpegOpus = true
+	withEncoder.FFmpegWebM = true
+	if !withEncoder.CanRender("module", "mod") || !withEncoder.CanRender("module", "hvl") {
+		t.Fatal("complete module pipelines should render")
+	}
+}
+
+func TestManifestRejectsNonFiniteClusterTiming(t *testing.T) {
+	m := Manifest{
+		RenderID: "r", TrackID: "t", SourceRevision: "rev", Codec: RenderCodec, Container: RenderContainer,
+		DurationMs: 1000, BitrateKbps: 96, ClusterDurationMs: 1000,
+		Clusters:      []ManifestCluster{{Index: 0, TimeMs: math.Inf(1), SizeBytes: 1}},
+		InitSizeBytes: 1, TotalBytes: 2,
+	}
+	if err := m.CheckUnbound(); err == nil {
+		t.Fatal("infinite cluster time accepted")
 	}
 }

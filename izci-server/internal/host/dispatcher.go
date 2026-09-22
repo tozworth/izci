@@ -37,8 +37,9 @@ type Permissions interface {
 	CanUseFreeplay(peerID string) bool
 }
 
-// OpenPermissions allows every admitted peer (Phase 1 stub; real policy in
-// Phase 4).
+// OpenPermissions allows every admitted peer. Dedicated deployments use
+// PolicyPermissions; this implementation remains useful for tests and explicit
+// all-controller embeddings.
 type OpenPermissions struct{}
 
 // CanControlShared implements Permissions.
@@ -46,6 +47,43 @@ func (OpenPermissions) CanControlShared(peerID string) bool { return true }
 
 // CanUseFreeplay implements Permissions.
 func (OpenPermissions) CanUseFreeplay(peerID string) bool { return true }
+
+// PolicyPermissions centralizes dedicated-host privileges. "paired" limits
+// shared timeline mutation to peers whose reconnect proof (or initial
+// operator policy pairing) succeeded; Freeplay remains a private admitted
+// client facility and never grants administration.
+type PolicyPermissions struct {
+	mu            sync.RWMutex
+	sharedControl string
+	paired        map[string]bool
+}
+
+func NewPolicyPermissions(sharedControl string) *PolicyPermissions {
+	return &PolicyPermissions{sharedControl: sharedControl, paired: make(map[string]bool)}
+}
+
+func (p *PolicyPermissions) SetPaired(peerID string, paired bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if paired {
+		p.paired[peerID] = true
+	} else {
+		delete(p.paired, peerID)
+	}
+}
+
+func (p *PolicyPermissions) Remove(peerID string) { p.SetPaired(peerID, false) }
+
+func (p *PolicyPermissions) CanControlShared(peerID string) bool {
+	if p.sharedControl != "paired" {
+		return true
+	}
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.paired[peerID]
+}
+
+func (p *PolicyPermissions) CanUseFreeplay(peerID string) bool { return true }
 
 // DispatchResult is the host-authoritative outcome of one command.
 type DispatchResult struct {
@@ -105,6 +143,12 @@ func (r *RoomSessions) RemoveFreeplay(peerID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.freeplay, peerID)
+}
+
+func (r *RoomSessions) FreeplayCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.freeplay)
 }
 
 // Dispatch routes one command: shared commands target the room session,

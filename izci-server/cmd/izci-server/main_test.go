@@ -83,7 +83,7 @@ func TestServeCombinedBootsHost(t *testing.T) {
 	deadline := time.Now().Add(15 * time.Second)
 	for {
 		out := logs.String()
-		if strings.Contains(out, "host acquired room") && strings.Contains(out, "host signaling ready") {
+		if strings.Contains(out, `"event":"host.room.acquired"`) && strings.Contains(out, `"event":"host.signaling.ready"`) {
 			break
 		}
 		if time.Now().After(deadline) {

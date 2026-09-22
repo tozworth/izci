@@ -64,6 +64,10 @@ type HostSignalingTransport interface {
 	Close() error
 }
 
+type HostICEProvider interface {
+	FetchICE(context.Context) ([]ICEServer, error)
+}
+
 // RoomCredentials are the stable coordinates for the dedicated host room.
 // They are deliberately returned only to trusted operator surfaces.
 type RoomCredentials struct {
@@ -204,6 +208,25 @@ func (t *SignalTransport) Acquire(ctx context.Context, capacity int) (RoomCreden
 	t.sessionExpiresAt, _ = time.Parse(time.RFC3339, session.ExpiresAt)
 	t.mu.Unlock()
 	return room, nil
+}
+
+// FetchICE obtains the same authenticated STUN/TURN configuration issued to
+// browser hosts, including short-lived coturn credentials. Secrets remain in
+// memory and are never logged.
+func (t *SignalTransport) FetchICE(ctx context.Context) ([]ICEServer, error) {
+	t.mu.Lock()
+	session, roomID := t.session, t.roomID
+	t.mu.Unlock()
+	if session == "" || roomID == "" {
+		return nil, fmt.Errorf("signal: acquire a room before ICE")
+	}
+	var response struct {
+		IceServers []ICEServer `json:"iceServers"`
+	}
+	if err := t.post(ctx, "/v1/ice", session, map[string]any{"roomId": roomID}, &response); err != nil {
+		return nil, err
+	}
+	return response.IceServers, nil
 }
 
 // Maintain refreshes the same session and room well before the shorter of

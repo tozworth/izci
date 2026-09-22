@@ -91,6 +91,13 @@ func (h *Host) startTransferForPeer(peerID string, sess *Session, delivery Deliv
 	h.transfersMu.Unlock()
 
 	go func(t *library.Track, tok int, genID string) {
+		select {
+		case h.transferSlots <- struct{}{}:
+			defer func() { <-h.transferSlots }()
+		case <-ctx.Done():
+			return
+		}
+		h.metrics.SourceTransfers.Add(1)
 		peer.mediaSendMu.Lock()
 		defer peer.mediaSendMu.Unlock()
 		// A replacement transfer may have superseded this goroutine while it
@@ -104,7 +111,7 @@ func (h *Host) startTransferForPeer(peerID string, sess *Session, delivery Deliv
 		facts := media.FileFacts{Size: t.Size, MtimeNs: t.MtimeNs, FileKey: t.FileKey, Revision: t.SourceRevision}
 		mime := media.MimeFor(t.Extension)
 		lastMs := t.MtimeNs / 1_000_000
-		_, err := media.TransferFile(ctx, mediaCh, t.FilesystemPath, facts, t.ID, genID, t.Name, mime, lastMs)
+		_, err := media.TransferFileWithLimit(ctx, mediaCh, t.FilesystemPath, facts, t.ID, genID, t.Name, mime, lastMs, uint64(h.cfg.MaxMediaBufferedBytes))
 		if err != nil {
 			// Stale workers exit silently; only the current token reports.
 			peer.mu.Lock()

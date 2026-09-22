@@ -16,6 +16,9 @@ services:
     volumes:
       - ./config.json:/etc/izci-server/config.json:ro
       - ./host-key:/etc/izci-server/host-key:ro
+      - izci-state:/var/lib/izci-server
+      - izci-cache:/var/cache/izci-server
+      - ./music:/srv/izci-server/music:ro
     expose:
       - "8787"
 
@@ -51,5 +54,7 @@ services:
       - izci-server
 
 volumes:
+  izci-state:
+  izci-cache:
   caddy-data:
   caddy-config:

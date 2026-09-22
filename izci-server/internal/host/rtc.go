@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/pion/webrtc/v3"
 )
@@ -11,10 +12,20 @@ import (
 // RTCConfig carries ICE providers for the host PeerConnections. It reuses
 // the configured STUN/TURN providers from signaling config.
 type RTCConfig struct {
-	StunURLs []string
-	TurnURLs []string
-	Username string
-	Password string
+	StunURLs   []string
+	TurnURLs   []string
+	Username   string
+	Password   string
+	ICEServers []ICEServer
+	PublicIPs  []string
+	UDPMin     uint16
+	UDPMax     uint16
+}
+
+type ICEServer struct {
+	URLs       []string `json:"urls"`
+	Username   string   `json:"username,omitempty"`
+	Credential string   `json:"credential,omitempty"`
 }
 
 // RTCHost answers client offers: the client is the offerer, the server is
@@ -22,15 +33,30 @@ type RTCConfig struct {
 // client's audio transceiver safely even when the server provides no RTP
 // track (sendonly transceiver with a null track, matching the browser host).
 type RTCHost struct {
-	mu     sync.Mutex
-	api    *webrtc.API
-	config RTCConfig
-	peers  map[string]*webrtc.PeerConnection
+	mu           sync.Mutex
+	api          *webrtc.API
+	config       RTCConfig
+	peers        map[string]*webrtc.PeerConnection
+	directRoutes atomic.Uint64
+	relayRoutes  atomic.Uint64
 }
 
 // NewRTCHost builds the Pion answerer.
 func NewRTCHost(cfg RTCConfig) *RTCHost {
-	return &RTCHost{api: webrtc.NewAPI(), config: cfg, peers: make(map[string]*webrtc.PeerConnection)}
+	setting := webrtc.SettingEngine{}
+	if len(cfg.PublicIPs) > 0 {
+		setting.SetNAT1To1IPs(cfg.PublicIPs, webrtc.ICECandidateTypeHost)
+	}
+	if cfg.UDPMin != 0 && cfg.UDPMax != 0 {
+		_ = setting.SetEphemeralUDPPortRange(cfg.UDPMin, cfg.UDPMax)
+	}
+	return &RTCHost{api: webrtc.NewAPI(webrtc.WithSettingEngine(setting)), config: cfg, peers: make(map[string]*webrtc.PeerConnection)}
+}
+
+func (h *RTCHost) SetICEServers(servers []ICEServer) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.config.ICEServers = append([]ICEServer(nil), servers...)
 }
 
 // AnswerConfig describes one answer operation.
@@ -76,14 +102,21 @@ func (c *pionChannel) Close() error { return c.ch.Close() }
 // threads; callers must not block them.
 func (h *RTCHost) Answer(ctx context.Context, cfg AnswerConfig) (string, error) {
 	iceServers := []webrtc.ICEServer{}
-	if len(h.config.StunURLs) > 0 {
-		iceServers = append(iceServers, webrtc.ICEServer{URLs: h.config.StunURLs})
+	h.mu.Lock()
+	rtcConfig := h.config
+	h.mu.Unlock()
+	if len(rtcConfig.ICEServers) > 0 {
+		for _, entry := range rtcConfig.ICEServers {
+			iceServers = append(iceServers, webrtc.ICEServer{URLs: entry.URLs, Username: entry.Username, Credential: entry.Credential})
+		}
+	} else if len(rtcConfig.StunURLs) > 0 {
+		iceServers = append(iceServers, webrtc.ICEServer{URLs: rtcConfig.StunURLs})
 	}
-	if len(h.config.TurnURLs) > 0 {
+	if len(rtcConfig.TurnURLs) > 0 {
 		iceServers = append(iceServers, webrtc.ICEServer{
-			URLs:       h.config.TurnURLs,
-			Username:   h.config.Username,
-			Credential: h.config.Password,
+			URLs:       rtcConfig.TurnURLs,
+			Username:   rtcConfig.Username,
+			Credential: rtcConfig.Password,
 		})
 	}
 	pc, err := h.api.NewPeerConnection(webrtc.Configuration{ICEServers: iceServers})
@@ -132,6 +165,17 @@ func (h *RTCHost) Answer(ctx context.Context, cfg AnswerConfig) (string, error) 
 	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
 		switch state {
 		case webrtc.PeerConnectionStateConnected:
+			relayed := false
+			if sctp := pc.SCTP(); sctp != nil && sctp.Transport() != nil && sctp.Transport().ICETransport() != nil {
+				if pair, pairErr := sctp.Transport().ICETransport().GetSelectedCandidatePair(); pairErr == nil && pair != nil {
+					relayed = pair.Local.Typ == webrtc.ICECandidateTypeRelay || pair.Remote.Typ == webrtc.ICECandidateTypeRelay
+				}
+			}
+			if relayed {
+				h.relayRoutes.Add(1)
+			} else {
+				h.directRoutes.Add(1)
+			}
 			if cfg.OnConnected != nil {
 				cfg.OnConnected()
 			}
@@ -175,6 +219,10 @@ func (h *RTCHost) Answer(ctx context.Context, cfg AnswerConfig) (string, error) 
 		return "", fmt.Errorf("host: missing local description")
 	}
 	return pc.LocalDescription().SDP, nil
+}
+
+func (h *RTCHost) RouteCounts() (direct, relay uint64) {
+	return h.directRoutes.Load(), h.relayRoutes.Load()
 }
 
 func (h *RTCHost) discardPeer(peerID string, pc *webrtc.PeerConnection) {

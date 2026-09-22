@@ -7,10 +7,21 @@
   "trustedProxies": [],
   "description": "Example server operator",
   "contact": "admin@example.com",
-  "iceUrls": [],
+  "iceUrls": ["stun:stun.example.com:3478"],
   "relaySecretFile": "",
   "relayCredentialTtl": "10m",
   "maxIcePerConnection": 16,
+  "rtc": {
+    "publicIps": [],
+    "udpPortMin": 0,
+    "udpPortMax": 0
+  },
+  "host": {
+    "sharedControl": "all",
+    "autoPair": true,
+    "chatEnabled": true,
+    "motd": ""
+  },
   "library": {
     "roots": [
       {
@@ -28,11 +39,49 @@
     "mode": "always",
     "maxBytes": 33554432
   },
+  "render": {
+    "bitrateKbps": 128,
+    "cacheDir": "/var/cache/izci-server/renders",
+    "cacheSizeMB": 512,
+    "maxEncoders": 2
+  },
   "database": {
     "path": "/var/lib/izci-server/izci-server.db"
   },
   "catalog": {
     "maxItemsPerCollection": 50000,
     "maxTotalItems": 100000
+  },
+  "limits": {
+    "maxRooms": 4,
+    "maxPeersPerRoom": 8,
+    "maxPendingAttemptsPerRoom": 8,
+    "maxOpenSockets": 128,
+    "hostSessionTtl": "12h",
+    "roomLeaseTtl": "24h",
+    "socketTicketTtl": "30s",
+    "unauthSocketTimeout": "5s",
+    "attemptTimeout": "45s",
+    "hostReconnectGrace": "90s",
+    "maxJsonMessageBytes": 65536,
+    "maxSdpBytes": 51200,
+    "maxCandidateBytes": 4096,
+    "maxCandidatesPerSidePerAttempt": 128,
+    "maxSocketQueueMessages": 64,
+    "maxSocketQueueBytes": 262144,
+    "heartbeatInterval": "20s",
+    "heartbeatTimeout": "10s",
+    "cleanupInterval": "5s",
+    "shutdownGrace": "10s",
+    "maxCommandsPerMinute": 600,
+    "maxSeeksPerMinute": 120,
+    "maxFreeplaySessions": 8,
+    "maxSourceTransfers": 16,
+    "maxRenderRanges": 4096,
+    "maxRenderNeedsPerMinute": 600,
+    "maxChatHistory": 200,
+    "maxControlMessageBytes": 65536,
+    "maxMediaBufferedBytes": 524288,
+    "maxRenderBufferedBytes": 524288
   }
 }
