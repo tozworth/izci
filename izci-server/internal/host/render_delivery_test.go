@@ -280,6 +280,57 @@ func reassemble(t *testing.T, ch *FakeChannel, m wireManifest, timeout time.Dura
 // prepare, manifest, planned fragments reassembling to manifest bytes,
 // and a barrier that ignores playback.ready but releases on render.ready
 // from every subscriber.
+// Render clients gate event playback on the announced snapshot state, so a
+// released preparation barrier must publish the playing clock on both
+// timelines, not merely the synchronized start message.
+func TestRenderBarrierAnnouncesPlayingState(t *testing.T) {
+	dir := t.TempDir()
+	tone := renderTone(t, dir, "tone.wav", 3)
+	policy := media.Policy{Mode: media.ModeThreshold, MaxBytes: 1}
+	h, _, ids := renderTestHost(t, policy, map[string][]byte{"/music/tone.wav": tone})
+	trackID := ids["/music/tone.wav"]
+
+	attachFakeControl(h, "alice")
+	attachFakeRender(h, "alice")
+	h.HandleControlText("alice", renderHello("alice", false))
+	attachFakeControl(h, "bob")
+	attachFakeRender(h, "bob")
+	h.HandleControlText("bob", renderHello("bob", true))
+
+	h.HandleControlText("alice", activateCmd("c1", "library", trackID))
+	h.HandleControlText("bob", marshal(map[string]any{"kind": "freeplay.queue", "itemIds": []string{trackID}}))
+	h.HandleControlText("bob", activateCmd("c2", "library", trackID))
+
+	var mShared, mFree wireManifest
+	waitFor(t, 15*time.Second, func() bool {
+		var okS, okF bool
+		mShared, okS = latestManifest(getControl(h, "alice"))
+		mFree, okF = latestManifest(getControl(h, "bob"))
+		return okS && okF
+	}, "both timelines need manifests")
+
+	timelines := []struct {
+		peer  string
+		gen   string
+		ready wireManifest
+	}{
+		{"alice", mShared.GenerationID, mShared},
+		{"bob", mFree.GenerationID, mFree},
+	}
+	for _, tl := range timelines {
+		sendNeed(h, tl.peer, tl.gen, tl.ready.RenderID, 0, 0, 3000, nil)
+		if total := reassemble(t, getRender(h, tl.peer), tl.ready, 15*time.Second); total != tl.ready.TotalBytes {
+			t.Fatalf("peer %s got %d bytes, manifest says %d", tl.peer, total, tl.ready.TotalBytes)
+		}
+		sendReady(h, tl.peer, tl.gen, tl.ready.RenderID, 0)
+	}
+	waitFor(t, 10*time.Second, func() bool {
+		return playbackStateFor(getControl(h, "alice"), mShared.GenerationID) == "playing" &&
+			playbackStateFor(getControl(h, "bob"), mFree.GenerationID) == "playing"
+	}, "released barriers must announce a playing snapshot on both timelines")
+}
+
+// TestSharedRenderPlayback keeps the two-timeline manifest/readiness contract.
 func TestSharedRenderPlayback(t *testing.T) {
 	dir := t.TempDir()
 	tone := renderTone(t, dir, "tone.wav", 3)

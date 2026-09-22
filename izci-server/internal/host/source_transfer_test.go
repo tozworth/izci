@@ -256,6 +256,34 @@ func hasStart(ch *FakeChannel) bool {
 	return false
 }
 
+// playbackStateFor returns the latest announced snapshot state for a
+// generation, or "" when the peer was never told about it.
+func playbackStateFor(ch *FakeChannel, gen string) string {
+	if ch == nil {
+		return ""
+	}
+	state := ""
+	for _, text := range ch.Sent() {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(text), &m); err != nil {
+			continue
+		}
+		if m["kind"] != "playback" {
+			continue
+		}
+		pb, ok := m["playback"].(map[string]any)
+		if !ok || pb["generationId"] != gen {
+			continue
+		}
+		if snap, ok := pb["snapshot"].(map[string]any); ok {
+			if s, ok := snap["state"].(string); ok {
+				state = s
+			}
+		}
+	}
+	return state
+}
+
 func hasStartWithGen(ch *FakeChannel, gen string) bool {
 	if ch == nil {
 		return false
