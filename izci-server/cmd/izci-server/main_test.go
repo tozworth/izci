@@ -40,8 +40,8 @@ func (b *syncBuffer) String() string {
 
 // TestServeCombinedBootsHost proves `serve` runs signaling plus the embedded
 // dedicated host: the host acquires a room and completes socket auth over
-// loopback, while a browser-style client can still log in, create a room,
-// and join with minor skew (and is rejected on major mismatch).
+// loopback, while a browser-style client can retrieve and join that exact
+// dedicated room with minor skew (and is rejected on major mismatch).
 func TestServeCombinedBootsHost(t *testing.T) {
 	dir := t.TempDir()
 	var keyRaw [32]byte
@@ -122,14 +122,30 @@ func TestServeCombinedBootsHost(t *testing.T) {
 		_ = json.NewDecoder(resp.Body).Decode(&v)
 		return resp.StatusCode, v
 	}
+	get := func(path, bearer string) (int, map[string]any) {
+		t.Helper()
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBase+path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Authorization", "Bearer "+bearer)
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		var v map[string]any
+		_ = json.NewDecoder(resp.Body).Decode(&v)
+		return resp.StatusCode, v
+	}
 	status, body := post("/v1/host/sessions", "", map[string]any{"hostKey": keyHex})
 	if status != http.StatusCreated {
 		t.Fatalf("login: status=%d body=%v", status, body)
 	}
 	session := body["sessionToken"].(string)
-	status, body = post("/v1/rooms", session, map[string]any{})
-	if status != http.StatusCreated {
-		t.Fatalf("create room: status=%d body=%v", status, body)
+	status, body = get("/v1/dedicated-room", session)
+	if status != http.StatusOK {
+		t.Fatalf("get dedicated room: status=%d body=%v", status, body)
 	}
 	roomID := body["roomId"].(string)
 	invite := body["invitationSecret"].(string)

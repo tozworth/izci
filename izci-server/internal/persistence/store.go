@@ -65,6 +65,49 @@ type Store struct {
 	db *sql.DB
 }
 
+// DedicatedRoomCredentials are the durable admission coordinates owned by
+// the headless host. Keeping them in the server database lets a restart
+// recreate the same room and preserve already-shared invitation links.
+type DedicatedRoomCredentials struct {
+	RoomID           string
+	OwnerSecret      string
+	InvitationSecret string
+}
+
+// DedicatedRoomCredentials loads the headless host's last room credentials.
+func (s *Store) DedicatedRoomCredentials() (DedicatedRoomCredentials, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	credentials := DedicatedRoomCredentials{
+		RoomID:           s.getKV("dedicated_room_id"),
+		OwnerSecret:      s.getKV("dedicated_room_owner_secret"),
+		InvitationSecret: s.getKV("dedicated_room_invitation_secret"),
+	}
+	return credentials, credentials.RoomID != "" && credentials.OwnerSecret != "" && credentials.InvitationSecret != ""
+}
+
+// SetDedicatedRoomCredentials atomically stores the headless host's room.
+func (s *Store) SetDedicatedRoomCredentials(credentials DedicatedRoomCredentials) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	values := map[string]string{
+		"dedicated_room_id":                credentials.RoomID,
+		"dedicated_room_owner_secret":      credentials.OwnerSecret,
+		"dedicated_room_invitation_secret": credentials.InvitationSecret,
+	}
+	for key, value := range values {
+		if _, err := tx.Exec(`INSERT INTO kv(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, key, value); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 // Open opens (creating parent schema) a SQLite store. An empty path uses a
 // private in-memory database (useful for tests); otherwise path is a file.
 // The caller owns Close.

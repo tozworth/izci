@@ -96,14 +96,15 @@ type Server struct {
 	relaySecret []byte
 	relayTtl    time.Duration
 
-	mu           sync.Mutex
-	sessions     map[string]*hostSession
-	rooms        map[string]*room
-	connTokens   map[string]*connection
-	tickets      map[string]*ticket
-	sockets      map[uint64]*socket
-	nextSockID   uint64
-	shuttingDown bool
+	mu            sync.Mutex
+	sessions      map[string]*hostSession
+	rooms         map[string]*room
+	connTokens    map[string]*connection
+	tickets       map[string]*ticket
+	sockets       map[uint64]*socket
+	nextSockID    uint64
+	shuttingDown  bool
+	dedicatedRoom *dedicatedRoom
 
 	loginLimiter *limiterMap
 	joinLimiter  *limiterMap

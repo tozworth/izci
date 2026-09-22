@@ -130,6 +130,58 @@ func (h *harness) del(path, bearer string) int {
 	return resp.StatusCode
 }
 
+func (h *harness) get(path, bearer string) (int, map[string]any) {
+	h.t.Helper()
+	req, err := http.NewRequest(http.MethodGet, h.base+h.prefix+path, nil)
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	if bearer != "" {
+		req.Header.Set("Authorization", "Bearer "+bearer)
+	}
+	resp, err := h.http.Do(req)
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var v map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&v); err != nil {
+		h.t.Fatalf("decode %s: %v", path, err)
+	}
+	return resp.StatusCode, v
+}
+
+func TestDedicatedRoomRegistrationAndSessionRenewal(t *testing.T) {
+	h := newHarness(t, "")
+	hostToken := h.login()
+	roomID, owner, invite := h.createRoom(hostToken)
+	status, body := h.post("/v1/dedicated-room", map[string]any{
+		"roomId": roomID, "ownerSecret": owner, "invitationSecret": invite,
+	}, hostToken)
+	if status != http.StatusOK {
+		t.Fatalf("register dedicated room: %d %v", status, body)
+	}
+
+	operatorToken := h.login()
+	status, body = h.get("/v1/dedicated-room", operatorToken)
+	if status != http.StatusOK || strMap(body, "roomId") != roomID || strMap(body, "invitationSecret") != invite {
+		t.Fatalf("get dedicated room: %d %v", status, body)
+	}
+
+	// Renewal extends the owning session before cleanup, so its room remains
+	// available beyond the original 12-hour session deadline.
+	h.advance(6 * time.Hour)
+	status, body = h.post("/v1/host/session", map[string]any{}, hostToken)
+	if status != http.StatusOK {
+		t.Fatalf("renew session: %d %v", status, body)
+	}
+	h.advance(7 * time.Hour)
+	status, _ = h.join(roomID, invite, "dedicated-renew-1", AppProtocolMajor)
+	if status != http.StatusCreated {
+		t.Fatalf("dedicated room disappeared after original session expiry: %d", status)
+	}
+}
+
 func errCodeMap(v map[string]any) string {
 	e, _ := v["error"].(map[string]any)
 	c, _ := e["code"].(string)

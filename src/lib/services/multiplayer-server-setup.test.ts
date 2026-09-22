@@ -187,6 +187,29 @@ describe('server setup controller', () => {
     expect(receivedKey).toBe(HOST_KEY);
   });
 
+  it('retrieves the dedicated host invite without replacing browser-host room creation', async () => {
+    const network = stubNetwork();
+    network.fetchDedicatedRoom = async (_endpoint, token) => {
+      network.calls.push(`dedicated:${token}`);
+      return { roomId: ROOM, invitationSecret: 'dedicated-invite', expiresAt: '2030-01-01T00:00:00Z' };
+    };
+    const connector = stubConnector();
+    const controller = createServerSetupController(network);
+    controller.setSessionConnector(connector);
+    controller.setServerInput('https://server.example.com');
+    await controller.connectServer();
+    await controller.login(HOST_KEY);
+
+    expect(controller.getSnapshot().dedicatedInviteLink).toContain(
+      `party=https://server.example.com&code=${ROOM}.dedicated-invite`
+    );
+    expect(connector.calls).toEqual([]);
+
+    await controller.createRoom();
+    expect(connector.calls).toEqual(['host']);
+    expect(controller.getSnapshot().inviteLink).toContain(`${ROOM}.invite-1`);
+  });
+
   it('forgets a saved operator key when its remember toggle is disabled', async () => {
     const network = stubNetwork();
     const controller = createServerSetupController(network);

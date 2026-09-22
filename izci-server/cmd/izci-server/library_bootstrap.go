@@ -148,3 +148,22 @@ func redactID(id string) string {
 	}
 	return id[:4] + "…" + id[len(id)-4:]
 }
+
+// dedicatedRoomStore adapts persistence without making the host package own
+// SQLite concerns.
+type dedicatedRoomStore struct{ store *persistence.Store }
+
+func (s dedicatedRoomStore) LoadDedicatedRoom() (host.RoomCredentials, bool) {
+	credentials, ok := s.store.DedicatedRoomCredentials()
+	return host.RoomCredentials{
+		RoomID: credentials.RoomID, OwnerSecret: credentials.OwnerSecret,
+		InvitationSecret: credentials.InvitationSecret,
+	}, ok
+}
+
+func (s dedicatedRoomStore) SaveDedicatedRoom(credentials host.RoomCredentials) error {
+	return s.store.SetDedicatedRoomCredentials(persistence.DedicatedRoomCredentials{
+		RoomID: credentials.RoomID, OwnerSecret: credentials.OwnerSecret,
+		InvitationSecret: credentials.InvitationSecret,
+	})
+}

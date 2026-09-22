@@ -170,8 +170,13 @@ func runCombined(ctx context.Context, cfg *config.Config, key [32]byte, logger *
 		stopRescan()
 		_ = store.Close()
 	}()
-	transport := host.NewSignalTransport(host.SignalClientConfig{BaseURL: localBase, HostKey: hostKeyHex})
+	transport := host.NewSignalTransport(host.SignalClientConfig{
+		BaseURL: localBase, HostKey: hostKeyHex, RoomStore: dedicatedRoomStore{store: store},
+	})
 	h.AttachTransport(transport)
+	h.SetRoomReadyHandler(func(credentials host.RoomCredentials) {
+		printDedicatedInvite(os.Stdout, cfg.PublicBaseURL, credentials)
+	})
 	hostErr := make(chan error, 1)
 	go func() {
 		// Capacity defaults to the signaling room limit.
@@ -230,14 +235,25 @@ func runHost(args []string) error {
 		stopRescan()
 		_ = store.Close()
 	}()
-	transport := host.NewSignalTransport(host.SignalClientConfig{BaseURL: *signalURL, HostKey: hostKeyHex})
+	transport := host.NewSignalTransport(host.SignalClientConfig{
+		BaseURL: *signalURL, HostKey: hostKeyHex, RoomStore: dedicatedRoomStore{store: store},
+	})
 	h.AttachTransport(transport)
+	h.SetRoomReadyHandler(func(credentials host.RoomCredentials) {
+		printDedicatedInvite(os.Stdout, *signalURL, credentials)
+	})
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if *capacity < 1 {
 		*capacity = 1
 	}
 	return h.Run(ctx, *capacity)
+}
+
+func printDedicatedInvite(w io.Writer, endpoint string, credentials host.RoomCredentials) {
+	endpoint = strings.TrimSuffix(strings.TrimSpace(endpoint), "/")
+	fmt.Fprintf(w, "izci-server dedicated invite (paste into izci):\nparty=%s&code=%s.%s\n",
+		endpoint, credentials.RoomID, credentials.InvitationSecret)
 }
 
 func runCheckConfig(args []string) error {
