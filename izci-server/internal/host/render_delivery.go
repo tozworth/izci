@@ -188,6 +188,7 @@ func (h *Host) releaseSharedPeerWithoutRender(peer *Peer, sess *Session, deliver
 		trackID = *delivery.TrackID
 	}
 	h.broadcastSharedText(StartMessage(delivery.GenerationID, trackID, 0, startAt))
+	h.announceBarrierRelease(peer, false)
 }
 
 // acquireRender waits on the coordinator, then either installs the
@@ -738,7 +739,9 @@ func (h *Host) handleRenderReady(peer *Peer, raw []byte) {
 	start := StartMessage(body.GenerationID, trackID, 0, startAt)
 	if freeplay {
 		h.sendToPeer(peer, start)
+		h.announceBarrierRelease(peer, true)
 		return
 	}
 	h.broadcastSharedText(start)
+	h.announceBarrierRelease(peer, false)
 }

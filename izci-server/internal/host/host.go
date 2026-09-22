@@ -1177,9 +1177,11 @@ func (h *Host) handleReady(peer *Peer, generationID string) {
 	start := StartMessage(generationID, trackID, 0, startAt)
 	if freeplay {
 		h.sendToPeer(peer, start)
+		h.announceBarrierRelease(peer, true)
 		return
 	}
 	h.broadcastSharedText(start)
+	h.announceBarrierRelease(peer, false)
 }
 
 func (h *Host) handleEnded(peer *Peer, generationID, trackID string) {
@@ -1315,6 +1317,7 @@ func (h *Host) unsubscribeShared(peerID string) {
 		trackID = *delivery.TrackID
 	}
 	h.broadcastSharedText(StartMessage(delivery.GenerationID, trackID, 0, startAt))
+	h.broadcastSharedClock()
 }
 
 func (h *Host) handleFreeplayQueue(peer *Peer, itemIDs []string, shuffle *bool, repeat *RepeatMode) {
@@ -1451,6 +1454,49 @@ func (h *Host) broadcastShared() {
 		_ = ch.SendText(PlaybackMessageWithTrack(clock, trackItem, h.nowMs()))
 		h.sendArtwork(peer, delivery)
 	}
+}
+
+func (h *Host) broadcastSharedClock() {
+	shared := h.sessions.Shared()
+	clock, delivery, _ := shared.Snapshot()
+	var trackItem map[string]any
+	if delivery.TrackID != nil {
+		if t, ok := h.catalog.Get(*delivery.TrackID); ok {
+			trackItem = t.TrackItemJSON()
+		}
+	}
+	h.peersMu.Lock()
+	peers := make([]*Peer, 0, len(h.peers))
+	for _, p := range h.peers {
+		peers = append(peers, p)
+	}
+	h.peersMu.Unlock()
+	deliveryText := DeliveryMessage(delivery)
+	playbackText := PlaybackMessageWithTrack(clock, trackItem, h.nowMs())
+	for _, peer := range peers {
+		peer.mu.Lock()
+		hello := peer.HelloReceived
+		freeplay := peer.FreeplayActive
+		ch := peer.Control
+		peer.mu.Unlock()
+		if !hello || freeplay || ch == nil {
+			continue
+		}
+		_ = ch.SendText(deliveryText)
+		_ = ch.SendText(playbackText)
+	}
+}
+
+// announceBarrierRelease publishes the clock that a released preparation
+// barrier implies. Clients start and stop event playback from the announced
+// snapshot state, so the transition to playing must reach them as delivery
+// plus playback, not just a synchronized start.
+func (h *Host) announceBarrierRelease(peer *Peer, freeplay bool) {
+	if freeplay {
+		h.sendDeliveryPlayback(peer, true)
+		return
+	}
+	h.broadcastSharedClock()
 }
 
 func (h *Host) broadcastSharedText(text string) {
