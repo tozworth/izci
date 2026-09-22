@@ -231,8 +231,7 @@ func (denySharedPermissions) CanControlShared(peerID string) bool { return false
 func (denySharedPermissions) CanUseFreeplay(peerID string) bool   { return true }
 
 // TestHelloNegotiation covers minor tolerance, major rejection, unknown
-// capabilities, and catalog/state emission. Phase 2 advertises source-file
-// (implemented); buffered-opus, pairing-proof, and chat remain future.
+// capabilities, and catalog/state emission.
 func TestHelloNegotiation(t *testing.T) {
 	h := testHost("test")
 	ch := attachFakeControl(h, "alice")
@@ -247,16 +246,31 @@ func TestHelloNegotiation(t *testing.T) {
 	}
 	caps, _ := hello["capabilities"].([]any)
 	hasSourceFile := false
+	hasBufferedOpus := false
+	hasPairing := false
+	hasChat := false
 	for _, cap := range caps {
 		if cap == "source-file" {
 			hasSourceFile = true
 		}
-		if cap == "buffered-opus" || cap == "pairing-proof" || cap == "chat" {
-			t.Fatalf("Phase 2 host advertised unimplemented capability %q", cap)
+		if cap == "buffered-opus" {
+			hasBufferedOpus = true
+		}
+		if cap == "pairing-proof" {
+			hasPairing = true
+		}
+		if cap == "chat" {
+			hasChat = true
 		}
 	}
 	if !hasSourceFile {
-		t.Fatalf("Phase 2 host must advertise source-file")
+		t.Fatalf("host must advertise source-file")
+	}
+	if !hasBufferedOpus {
+		t.Fatalf("host must advertise buffered-opus")
+	}
+	if !hasPairing || !hasChat {
+		t.Fatalf("host must advertise implemented Phase 4 capabilities: %v", caps)
 	}
 	// Minor skew admits.
 	h.HandleControlText("alice", clientHello("alice", 99))
@@ -364,5 +378,32 @@ func TestSeekEpochsAndEndedStale(t *testing.T) {
 	}
 	if cur := s.CurrentTrackID(); cur == nil || *cur != "s2" {
 		t.Fatalf("should advance to s2, got %v", cur)
+	}
+}
+
+func TestSessionClockFreezesAndReanchors(t *testing.T) {
+	now := int64(1000)
+	s := NewSession(SessionConfig{
+		ID: "clock", Kind: SessionShared, Controller: "shared",
+		NowMs: func() int64 { return now }, StartLeadMs: 1000, Backend: FakeDelivery{},
+	})
+	s.Subscribe("alice")
+	_, delivery, _ := s.Activate("track")
+	if ready, _, _ := s.HandleReady("alice", delivery.GenerationID); !ready {
+		t.Fatal("initial preparation did not complete")
+	}
+	now = 7000 // startAt was 2000: five seconds have elapsed.
+	clock, _ := s.Pause()
+	if clock.PositionSeconds != 5 {
+		t.Fatalf("pause position=%v want 5", clock.PositionSeconds)
+	}
+	now = 8000
+	s.Play()
+	now = 9000
+	s.Seek(20)
+	now = 10000
+	clock, _ = s.Pause()
+	if clock.PositionSeconds != 21 {
+		t.Fatalf("post-seek position=%v want 21", clock.PositionSeconds)
 	}
 }

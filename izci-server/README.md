@@ -86,6 +86,12 @@ the izci frontend from the same origin), then check health:
 curl https://izci-server.example.com/party/healthz
 # {"status":"ok","version":"..."}
 
+curl https://izci-server.example.com/party/readyz
+# signaling, admission, library, dependency, cache, peer and session readiness
+
+curl https://izci-server.example.com/party/metrics
+# bounded Prometheus text counters; no identities, paths, SDP, ICE, or secrets
+
 curl https://izci-server.example.com/party/v1/info
 # protocol versions, operator contact, ICE providers, room limits
 ```
@@ -129,8 +135,21 @@ playable streams, modules (including Hively AHX/HVL), and video sources
 transfer as source files over `izci-media` with begin/chunk/end framing,
 16KiB chunks, per-peer backpressure, cancellation tokens, and retry
 support. Shared playback waits on all subscribers; Freeplay waits only on
-its owner. Buffered Opus rendering lands in Phase 3; the session engine is
-unchanged.
+its owner. Larger-than-threshold (or never-mode) tracks render to buffered
+Opus over `izci-render` instead: stereo 48 kHz Opus in WebM with ~1s
+clusters, served from an on-disk cache shared across sessions. A failed
+render falls back to a fresh source-file generation where source transfer
+is enabled at all, and cancels the generation where it is not; the session
+engine itself is unchanged.
+
+The dedicated host also implements pairing proofs, per-pair Freeplay queue
+and navigation restoration, bounded MOTD/chat/presence history, normal shared
+control policy, and bounded artwork renditions. `host.sharedControl` is `all`
+or `paired`; `host.autoPair` lets a headless deployment establish a pair for a
+new invitation-admitted browser over encrypted RTC. Existing pairs must prove
+their stored secret on every reconnect and the secret is never re-sent.
+Pairing remains an app privilege only: it does not bypass the invitation and
+does not grant the operator HTTP bearer.
 
 ```sh
 curl -X POST https://izci-server.example.com/party/v1/host/sessions \
@@ -169,10 +188,27 @@ catalog bounds (see `config.example.json`):
     "rescanInterval": "0s"
   },
   "sourceTransfer": { "mode": "always", "maxBytes": 33554432 },
+  "render": { "bitrateKbps": 128, "cacheDir": "", "cacheSizeMB": 512, "maxEncoders": 2 },
   "database": { "path": "/var/lib/izci-server/izci-server.db" },
   "catalog": { "maxItemsPerCollection": 50000, "maxTotalItems": 100000 }
 }
 ```
+
+Ordinary audio and video soundtracks decode through system FFmpeg (audio
+track kept, video discarded). Tracker modules decode through system
+libopenmpt under the canonical izci-default profile (no interpolation,
+default stereo separation, normal pitch/tempo, requested subsong, one
+finite pass) — never through FFmpeg's optional module support. AHX/HVL
+decode through the HivelyTracker replayer built into the server binary
+(`internal/media/hively-replay.wasm`, BSD 3-clause Pete Gordon). All three
+feed stereo 48 kHz float PCM to FFmpeg for Opus/WebM output.
+
+The render cache (`render.cacheDir`, default alongside the database or the
+OS temp dir) holds completed renditions keyed by source revision, subsong,
+decoder family/version, profile revision, and bitrate, bounded by
+`render.cacheSizeMB` with LRU eviction; sessions pin entries independently
+while delivering. `render.maxEncoders` caps concurrent encoder processes;
+the shared session jumps ahead of queued Freeplay renders.
 
 `include` and `exclude` are optional root-relative, case-sensitive glob lists.
 `*` and `?` match within one path segment; `**` crosses directories. A pattern
@@ -184,14 +220,14 @@ are never scanned.
 Unknown config fields are rejected; ambiguous or overlapping virtual mounts
 (`/music` vs `/music/rock`) and filesystem roots are rejected. At startup
 the server probes system FFmpeg (decode plus Opus/WebM encode support),
-system libopenmpt, and the built-in Hively replayer (`0.1.0`), logging which
-formats remain serviceable through source transfer when rendering is
-missing. Buffered Opus rendering is unavailable until Phase 3; source
-transfer covers ordinary audio, modules, Hively files, and video sources.
-Restarting with a file database preserves server identity and catalog
-stability (stable IDs, favorites, queue) without persisting live clocks,
-peers, barriers, or transfer buffers; restarting drops rooms (memory only)
-as before.
+system libopenmpt (loaded the same way the decoder uses it, so probing and
+decoding never disagree), and the built-in Hively replayer (`0.1.0`),
+logging which formats remain serviceable through source transfer when
+rendering is missing. Restarting with a file database preserves server
+identity and catalog stability (stable IDs, favorites, queue) without
+persisting live clocks, peers, barriers, or transfer buffers; restarting
+drops rooms (memory only) as before. The render cache is rebuildable and
+survives restarts; pins do not.
 
 ## Developing
 
@@ -220,7 +256,7 @@ endpoint; ordinary HTTP request logs still never contain it.
 
 ## Pairing and reconnect proofs
 
-Pairing is browser-local: each browser keeps a stable random identity and
+Each browser keeps a stable random identity and
 a per-pair secret exchanged over RTC when the host chooses Pair
 (`izci.multiplayer-server-pairings` in local storage; login bearers are
 never persisted). An operator key can be remembered per server on the local
@@ -229,7 +265,9 @@ Reconnects prove possession with HMAC-SHA-256 over `roomId`, both
 identities, and fresh nonces from
 both peers; stale nonces and wrong-peer proofs fail, and paired
 privileges (including Freeplay) stay disabled until hello and proof
-finish. Pairing restores app privileges after invitation admission only:
+finish. Browser-hosted rooms pair from the host UI; a dedicated headless host
+uses the explicit `host.autoPair` policy for first contact. Pairing restores
+app privileges after invitation admission only:
 it never grants server administration and never bypasses admission.
 Rotating the invitation (`POST /v1/rooms/{room}/rotate`) only affects
 future joins and is announced to currently paired guests over their
@@ -239,7 +277,9 @@ shared invite unless it is rotated.
 
 ## ICE, STUN, and optional TURN relay
 
-The default ICE configuration is empty: with no `iceUrls` configured,
+Configure at least one operator-chosen STUN service for normal internet
+deployments; the example's `stun.example.com` is a placeholder and must be
+replaced. With no `iceUrls` configured,
 `POST /v1/ice` returns no servers and browsers attempt direct host
 candidates. Advertise STUN/TURN URLs in `iceUrls` (shown in `GET /v1/info`
 so guests can review providers before joining); authenticated hosts and
@@ -256,8 +296,37 @@ Direct connections usually succeed on one LAN or with friendly NATs; use
 a relay for symmetric NATs and restrictive firewalls. For LAN use, serve
 the API over HTTPS (browsers gate WebRTC and microphone-adjacent
 features on secure contexts; loopback `http:` is allowed for local
-development) and make sure the browser can reach both the server
-endpoint and the STUN/TURN ports.
+development) and make sure the browser can reach both the server endpoint and
+the configured STUN/TURN ports.
+
+For a server behind a fixed one-to-one NAT, set `rtc.publicIps` to the public
+IPv4 and/or IPv6 address. `rtc.udpPortMin` and `rtc.udpPortMax` optionally
+constrain Pion to a firewall-friendly range of at least 32 ports. The dedicated
+host fetches authenticated `/v1/ice` settings after acquiring its room, so it
+uses the same expiring TURN credentials as browsers rather than advertising a
+bare relay.
+
+## Resource limits, shutdown, and backup
+
+`limits` bounds peers, Freeplay sessions, concurrent source transfers,
+commands, seeks, render requests/ranges, control frames, chat history, socket
+queues, and signaling messages. FFmpeg work is separately capped by
+`render.maxEncoders`, uses bounded runtimes, and is cancelled when abandoned or
+during shutdown. A signaling reconnect leaves healthy RTC sessions alone.
+Shutdown stops admission, cancels render subprocesses and transfers, closes
+peers, drains HTTP within `limits.shutdownGrace`, then closes SQLite.
+
+Run the container as its bundled non-root user. Persist
+`/var/lib/izci-server` (SQLite/server identity) and optionally
+`/var/cache/izci-server` (rebuildable renditions); mount music read-only. For
+systemd, `StateDirectory=izci-server` and `CacheDirectory=izci-server` create
+the writable locations. Its unit uses `LoadCredential`; set `hostKeyFile` in
+the systemd deployment config to
+`/run/credentials/izci-server.service/host-key`. Back up the SQLite database, config, host key, and
+coturn shared secret together while the service is stopped or with a SQLite
+online-backup tool. The render/artwork cache need not be backed up. Losing the
+database changes server, catalog, room, and pair continuity; losing only the
+cache causes safe regeneration.
 
 Privacy notes, stated plainly: the server is trusted for signaling. It
 sees connection metadata (rooms, timing, IPs) and processes SDP/ICE

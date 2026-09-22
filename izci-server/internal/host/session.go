@@ -237,6 +237,20 @@ func (s *Session) RepeatMode() RepeatMode {
 	return s.repeat
 }
 
+// RestorePreferences applies persisted per-pair navigation flags without
+// cycling through transient UI commands.
+func (s *Session) RestorePreferences(shuffle bool, repeat RepeatMode) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.shuffle = shuffle
+	switch repeat {
+	case RepeatOff, RepeatAll, RepeatOne:
+		s.repeat = repeat
+	default:
+		s.repeat = RepeatOff
+	}
+}
+
 // CurrentTrackID returns the current track, if any.
 func (s *Session) CurrentTrackID() *string {
 	s.mu.Lock()
@@ -274,6 +288,22 @@ func (s *Session) SeekEpoch() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.seekEpoch
+}
+
+// SetDuration records the authoritative track duration (seconds), learned
+// from a completed render manifest. Source-file generations leave the
+// duration unknown (0); render generations publish real durations so seek
+// bars and end-of-track math work without a second player.
+func (s *Session) SetDuration(seconds float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if seconds < 0 || seconds != seconds {
+		seconds = 0
+	}
+	if seconds > 604800 {
+		seconds = 604800
+	}
+	s.clock.DurationSeconds = seconds
 }
 
 func copySet(in map[string]bool) map[string]bool {
@@ -363,10 +393,10 @@ func (s *Session) Pause() (Clock, Delivery) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.clock.State == StatePlaying {
-		// Freeze position at pause time (logical clock; real duration math
-		// is owned by the delivery backend in later phases).
+		now := s.nowMs()
+		s.advancePositionLocked(now)
 		s.clock.State = StatePaused
-		s.clock.UpdatedAtMs = s.nowMs()
+		s.clock.UpdatedAtMs = now
 	}
 	return s.clock, s.delivery
 }
@@ -410,8 +440,10 @@ func (s *Session) Toggle() (Clock, Delivery) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.clock.State == StatePlaying {
+		now := s.nowMs()
+		s.advancePositionLocked(now)
 		s.clock.State = StatePaused
-		s.clock.UpdatedAtMs = s.nowMs()
+		s.clock.UpdatedAtMs = now
 	} else if s.clock.State == StatePaused {
 		s.clock.State = StatePlaying
 		s.clock.StartedAtMs = s.nowMs()
@@ -434,9 +466,28 @@ func (s *Session) Seek(seconds float64) (Clock, int) {
 		seconds = 604800
 	}
 	s.clock.PositionSeconds = seconds
-	s.clock.UpdatedAtMs = s.nowMs()
+	now := s.nowMs()
+	s.clock.UpdatedAtMs = now
+	if s.clock.State == StatePlaying {
+		// PositionSeconds is the anchor at StartedAtMs. Re-anchor a live
+		// clock on seek or playhead estimates would add all pre-seek elapsed
+		// time to the new target.
+		s.clock.StartedAtMs = now
+	}
 	s.seekEpoch++
 	return s.clock, s.seekEpoch
+}
+
+// advancePositionLocked freezes a running clock at now. Callers hold mu.
+func (s *Session) advancePositionLocked(now int64) {
+	if s.clock.State != StatePlaying || now <= s.clock.StartedAtMs {
+		return
+	}
+	s.clock.PositionSeconds += float64(now-s.clock.StartedAtMs) / 1000
+	if s.clock.DurationSeconds > 0 && s.clock.PositionSeconds > s.clock.DurationSeconds {
+		s.clock.PositionSeconds = s.clock.DurationSeconds
+	}
+	s.clock.StartedAtMs = now
 }
 
 // Next advances to the next track per repeat/shuffle/upNext rules.

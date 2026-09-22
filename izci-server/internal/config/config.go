@@ -66,13 +66,27 @@ const (
 )
 
 // Library and media defaults for Phase 2 (persistent library + source-file
-// playback). See docs/izci-server-plan.md.
+// playback) and Phase 3 (buffered Opus rendering). See
+// docs/izci-server-plan.md.
 const (
 	DefaultLibraryScanConcurrency = 8
 	DefaultSourceTransferMode     = "always"
 	DefaultSourceTransferMaxBytes = int64(32 * 1024 * 1024)
 	DefaultCatalogMaxPerCollect   = 50000
 	DefaultCatalogMaxTotal        = 100000
+	DefaultRenderBitrateKbps      = 128
+	DefaultRenderCacheSizeMB      = int64(512)
+	DefaultRenderMaxEncoders      = 2
+	DefaultMaxCommandsPerMinute   = 600
+	DefaultMaxSeeksPerMinute      = 120
+	DefaultMaxFreeplaySessions    = 8
+	DefaultMaxSourceTransfers     = 16
+	DefaultMaxRenderRanges        = 4096
+	DefaultMaxRenderNeedsPerMin   = 600
+	DefaultMaxChatHistory         = 200
+	DefaultMaxControlMessageBytes = 64 * 1024
+	DefaultMaxMediaBufferedBytes  = 512 * 1024
+	DefaultMaxRenderBufferedBytes = 512 * 1024
 )
 
 // Duration is a time.Duration encoded as a JSON string ("12h", "30s").
@@ -124,6 +138,35 @@ type Limits struct {
 	HeartbeatTimeout               Duration `json:"heartbeatTimeout"`
 	CleanupInterval                Duration `json:"cleanupInterval"`
 	ShutdownGrace                  Duration `json:"shutdownGrace"`
+	MaxCommandsPerMinute           int      `json:"maxCommandsPerMinute"`
+	MaxSeeksPerMinute              int      `json:"maxSeeksPerMinute"`
+	MaxFreeplaySessions            int      `json:"maxFreeplaySessions"`
+	MaxSourceTransfers             int      `json:"maxSourceTransfers"`
+	MaxRenderRanges                int      `json:"maxRenderRanges"`
+	MaxRenderNeedsPerMinute        int      `json:"maxRenderNeedsPerMinute"`
+	MaxChatHistory                 int      `json:"maxChatHistory"`
+	MaxControlMessageBytes         int      `json:"maxControlMessageBytes"`
+	MaxMediaBufferedBytes          int      `json:"maxMediaBufferedBytes"`
+	MaxRenderBufferedBytes         int      `json:"maxRenderBufferedBytes"`
+}
+
+// HostPolicy controls dedicated-host privileges and optional social features.
+// Pairing is an application privilege established only after invitation
+// admission; it never authorizes signaling administration.
+type HostPolicy struct {
+	SharedControl string `json:"sharedControl"` // "all" or "paired"
+	AutoPair      bool   `json:"autoPair"`
+	ChatEnabled   bool   `json:"chatEnabled"`
+	Motd          string `json:"motd"`
+}
+
+// RTCConfig controls server-side ICE gathering. PublicIPs are fixed public
+// candidate mappings for one-to-one NAT; UDPMin/UDPMax optionally constrain
+// the ephemeral UDP range for firewall rules (both zero means unrestricted).
+type RTCConfig struct {
+	PublicIPs []string `json:"publicIps"`
+	UDPMin    uint16   `json:"udpPortMin"`
+	UDPMax    uint16   `json:"udpPortMax"`
 }
 
 // Config is the server's top-level JSON configuration.
@@ -149,8 +192,11 @@ type Config struct {
 	Limits              Limits         `json:"limits"`
 	Library             LibraryConfig  `json:"library"`
 	SourceTransfer      SourceTransfer `json:"sourceTransfer"`
+	Render              RenderConfig   `json:"render"`
 	Database            DatabaseConfig `json:"database"`
 	Catalog             CatalogConfig  `json:"catalog"`
+	Host                HostPolicy     `json:"host"`
+	RTC                 RTCConfig      `json:"rtc"`
 }
 
 // LibraryRoot maps one filesystem directory to one virtual mount such as
@@ -184,6 +230,18 @@ type LibraryConfig struct {
 type SourceTransfer struct {
 	Mode     string `json:"mode"`
 	MaxBytes int64  `json:"maxBytes"`
+}
+
+// RenderConfig owns buffered-Opus rendering: encoder bitrate, on-disk
+// cache location and bound, and the encoder-process cap. An empty
+// CacheDir derives a directory (alongside the database when set,
+// otherwise the OS temp dir); rendered bytes are rebuildable cache
+// entries, never library records.
+type RenderConfig struct {
+	BitrateKbps int    `json:"bitrateKbps"`
+	CacheDir    string `json:"cacheDir"`
+	CacheSizeMB int64  `json:"cacheSizeMB"`
+	MaxEncoders int    `json:"maxEncoders"`
 }
 
 // DatabaseConfig owns the SQLite location. An empty Path keeps durable
@@ -221,11 +279,18 @@ func Default() Config {
 			Mode:     DefaultSourceTransferMode,
 			MaxBytes: DefaultSourceTransferMaxBytes,
 		},
+		Render: RenderConfig{
+			BitrateKbps: DefaultRenderBitrateKbps,
+			CacheDir:    "",
+			CacheSizeMB: DefaultRenderCacheSizeMB,
+			MaxEncoders: DefaultRenderMaxEncoders,
+		},
 		Database: DatabaseConfig{Path: ""},
 		Catalog: CatalogConfig{
 			MaxItemsPerCollection: DefaultCatalogMaxPerCollect,
 			MaxTotalItems:         DefaultCatalogMaxTotal,
 		},
+		Host: HostPolicy{SharedControl: "all", AutoPair: true, ChatEnabled: true},
 		Limits: Limits{
 			MaxRooms:                       DefaultMaxRooms,
 			MaxPeersPerRoom:                DefaultMaxPeersPerRoom,
@@ -247,6 +312,16 @@ func Default() Config {
 			HeartbeatTimeout:               DefaultHeartbeatTimeout,
 			CleanupInterval:                DefaultCleanupInterval,
 			ShutdownGrace:                  DefaultShutdownGrace,
+			MaxCommandsPerMinute:           DefaultMaxCommandsPerMinute,
+			MaxSeeksPerMinute:              DefaultMaxSeeksPerMinute,
+			MaxFreeplaySessions:            DefaultMaxFreeplaySessions,
+			MaxSourceTransfers:             DefaultMaxSourceTransfers,
+			MaxRenderRanges:                DefaultMaxRenderRanges,
+			MaxRenderNeedsPerMinute:        DefaultMaxRenderNeedsPerMin,
+			MaxChatHistory:                 DefaultMaxChatHistory,
+			MaxControlMessageBytes:         DefaultMaxControlMessageBytes,
+			MaxMediaBufferedBytes:          DefaultMaxMediaBufferedBytes,
+			MaxRenderBufferedBytes:         DefaultMaxRenderBufferedBytes,
 		},
 	}
 }
@@ -329,10 +404,19 @@ func (c *Config) Validate() error {
 	if err := c.SourceTransfer.validate(); err != nil {
 		return err
 	}
+	if err := c.Render.validate(); err != nil {
+		return err
+	}
 	if err := c.Database.validate(); err != nil {
 		return err
 	}
 	if err := c.Catalog.validate(); err != nil {
+		return err
+	}
+	if err := c.Host.validate(); err != nil {
+		return err
+	}
+	if err := c.RTC.validate(); err != nil {
 		return err
 	}
 	return nil
@@ -574,6 +658,16 @@ func (l *Limits) validate() error {
 		{"maxCandidatesPerSidePerAttempt", l.MaxCandidatesPerSidePerAttempt, 1, 4096},
 		{"maxSocketQueueMessages", l.MaxSocketQueueMessages, 1, 1024},
 		{"maxSocketQueueBytes", l.MaxSocketQueueBytes, 4096, 16 * 1024 * 1024},
+		{"maxCommandsPerMinute", l.MaxCommandsPerMinute, 1, 100000},
+		{"maxSeeksPerMinute", l.MaxSeeksPerMinute, 1, 100000},
+		{"maxFreeplaySessions", l.MaxFreeplaySessions, 1, 1024},
+		{"maxSourceTransfers", l.MaxSourceTransfers, 1, 4096},
+		{"maxRenderRanges", l.MaxRenderRanges, 1, 100000},
+		{"maxRenderNeedsPerMinute", l.MaxRenderNeedsPerMinute, 1, 100000},
+		{"maxChatHistory", l.MaxChatHistory, 1, 200},
+		{"maxControlMessageBytes", l.MaxControlMessageBytes, 1024, 1024 * 1024},
+		{"maxMediaBufferedBytes", l.MaxMediaBufferedBytes, 16 * 1024, 16 * 1024 * 1024},
+		{"maxRenderBufferedBytes", l.MaxRenderBufferedBytes, 16 * 1024, 16 * 1024 * 1024},
 	} {
 		if err := checkInt(c.name, c.v, c.min, c.max); err != nil {
 			return err
@@ -598,6 +692,42 @@ func (l *Limits) validate() error {
 		if err := checkDur(c.name, c.v, c.min, c.max); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (h *HostPolicy) validate() error {
+	switch h.SharedControl {
+	case "all", "paired":
+	default:
+		return fmt.Errorf("invalid config: host.sharedControl must be all or paired")
+	}
+	if utf8.RuneCountInString(h.Motd) > 500 {
+		return fmt.Errorf("invalid config: host.motd must be at most 500 characters")
+	}
+	for _, r := range h.Motd {
+		if unicode.IsControl(r) {
+			return fmt.Errorf("invalid config: host.motd must not contain control characters")
+		}
+	}
+	return nil
+}
+
+func (r *RTCConfig) validate() error {
+	if len(r.PublicIPs) > 16 {
+		return fmt.Errorf("invalid config: rtc.publicIps must have at most 16 entries")
+	}
+	for _, raw := range r.PublicIPs {
+		ip, err := netip.ParseAddr(raw)
+		if err != nil || ip.IsUnspecified() || ip.IsMulticast() {
+			return fmt.Errorf("invalid config: rtc.publicIps entry %q must be a unicast IP", raw)
+		}
+	}
+	if (r.UDPMin == 0) != (r.UDPMax == 0) {
+		return fmt.Errorf("invalid config: rtc.udpPortMin and rtc.udpPortMax must both be zero or both be set")
+	}
+	if r.UDPMin != 0 && (r.UDPMin > r.UDPMax || int(r.UDPMax)-int(r.UDPMin) < 31) {
+		return fmt.Errorf("invalid config: rtc UDP range must contain at least 32 ports")
 	}
 	return nil
 }
@@ -790,6 +920,29 @@ func (s *SourceTransfer) validate() error {
 	}
 	if s.Mode == "threshold" && s.MaxBytes <= 0 {
 		return fmt.Errorf("invalid config: sourceTransfer.maxBytes must be positive in threshold mode")
+	}
+	return nil
+}
+
+func (r *RenderConfig) validate() error {
+	if r.BitrateKbps < 24 || r.BitrateKbps > 512 {
+		return fmt.Errorf("invalid config: render.bitrateKbps must be between 24 and 512")
+	}
+	if r.CacheDir != "" {
+		if len(r.CacheDir) > 4096 {
+			return fmt.Errorf("invalid config: render.cacheDir is too long")
+		}
+		for _, c := range r.CacheDir {
+			if unicode.IsControl(c) {
+				return fmt.Errorf("invalid config: render.cacheDir must not contain control characters")
+			}
+		}
+	}
+	if r.CacheSizeMB < 16 || r.CacheSizeMB > 65536 {
+		return fmt.Errorf("invalid config: render.cacheSizeMB must be between 16 and 65536")
+	}
+	if r.MaxEncoders < 1 || r.MaxEncoders > 16 {
+		return fmt.Errorf("invalid config: render.maxEncoders must be between 1 and 16")
 	}
 	return nil
 }

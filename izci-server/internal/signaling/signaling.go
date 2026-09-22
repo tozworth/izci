@@ -13,11 +13,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"net/netip"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -105,6 +107,7 @@ type Server struct {
 	nextSockID    uint64
 	shuttingDown  bool
 	dedicatedRoom *dedicatedRoom
+	runtimeStatus func() RuntimeStatus
 
 	loginLimiter *limiterMap
 	joinLimiter  *limiterMap
@@ -155,6 +158,8 @@ func NewWithClock(cfg *config.Config, logger *log.Logger, hostKey [32]byte, now 
 	}
 	p := cfg.PathPrefix
 	s.mux.HandleFunc(p+"/healthz", s.handleHealth)
+	s.mux.HandleFunc(p+"/readyz", s.handleReady)
+	s.mux.HandleFunc(p+"/metrics", s.handleMetrics)
 	s.mux.HandleFunc(p+"/v1/info", s.handleInfo)
 	s.registerSignalingRoutes()
 	// JSON 404 for everything else (ServeMux's default is plain text).
@@ -166,9 +171,26 @@ func NewWithClock(cfg *config.Config, logger *log.Logger, hostKey [32]byte, now 
 		// checks can probe a fixed path without knowing the prefix.
 		// The versioned API stays strictly beneath the prefix.
 		s.mux.HandleFunc("/healthz", s.handleHealth)
+		s.mux.HandleFunc("/readyz", s.handleReady)
 	}
 	return s, nil
 }
+
+type RuntimeStatus struct {
+	Ready             bool              `json:"ready"`
+	LibraryReady      bool              `json:"libraryReady"`
+	DependenciesReady bool              `json:"dependenciesReady"`
+	CacheReady        bool              `json:"cacheReady"`
+	AdmissionReady    bool              `json:"admissionReady"`
+	Peers             int               `json:"peers"`
+	Sessions          int               `json:"sessions"`
+	CatalogTracks     int               `json:"catalogTracks"`
+	Metrics           map[string]uint64 `json:"-"`
+}
+
+// SetRuntimeStatus attaches combined-mode host readiness and counters without
+// coupling signaling to host implementation packages.
+func (s *Server) SetRuntimeStatus(provider func() RuntimeStatus) { s.runtimeStatus = provider }
 
 // Handler returns the full middleware chain. Exported for tests.
 func (s *Server) Handler() http.Handler {
@@ -455,6 +477,50 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": version.Version})
+}
+
+func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", "GET, OPTIONS")
+		writeError(w, http.StatusMethodNotAllowed, CodeMethodNotAllowed)
+		return
+	}
+	status := RuntimeStatus{Ready: !s.closed.Load(), AdmissionReady: !s.closed.Load()}
+	if s.runtimeStatus != nil {
+		status = s.runtimeStatus()
+	}
+	if s.closed.Load() {
+		status.Ready, status.AdmissionReady = false, false
+	}
+	code := http.StatusOK
+	if !status.Ready {
+		code = http.StatusServiceUnavailable
+	}
+	writeJSON(w, code, status)
+}
+
+func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", "GET, OPTIONS")
+		writeError(w, http.StatusMethodNotAllowed, CodeMethodNotAllowed)
+		return
+	}
+	s.mu.Lock()
+	rooms, sessions, sockets := len(s.rooms), len(s.sessions), len(s.sockets)
+	s.mu.Unlock()
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+	fmt.Fprintf(w, "izci_server_signaling_rooms %d\nizci_server_signaling_sessions %d\nizci_server_signaling_sockets %d\n", rooms, sessions, sockets)
+	if s.runtimeStatus != nil {
+		status := s.runtimeStatus()
+		keys := make([]string, 0, len(status.Metrics))
+		for key := range status.Metrics {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			fmt.Fprintf(w, "izci_server_%s %d\n", key, status.Metrics[key])
+		}
+	}
 }
 
 type infoLimits struct {

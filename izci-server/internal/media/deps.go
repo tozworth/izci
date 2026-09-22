@@ -28,9 +28,36 @@ type Dependencies struct {
 }
 
 // RenderAvailable reports whether native buffered Opus rendering is possible.
-// Phase 2 never renders; Phase 3 requires FFmpeg Opus/WebM plus libopenmpt.
+// Full-pipeline availability needs FFmpeg Opus/WebM plus libopenmpt;
+// per-family rendering (Hively is built in) is decided by CanRender.
 func (d Dependencies) RenderAvailable() bool {
 	return d.FFmpegVersion != "" && d.FFmpegOpus && d.FFmpegWebM && d.LibopenmptVersion != ""
+}
+
+// CanRender reports whether one track's decoder family can render right
+// now. FFmpeg needs Opus/WebM support; libopenmpt needs a loadable system
+// library; Hively is built into the server and always available.
+func (d Dependencies) CanRender(kind, extension string) bool {
+	family, err := DecoderFor(kind, extension)
+	if err != nil {
+		return false
+	}
+	// Every decoder feeds the system FFmpeg Opus/WebM encoder. The
+	// built-in Hively decoder and a loadable libopenmpt are not sufficient
+	// on their own when that common output stage is unavailable.
+	if d.FFmpegVersion == "" || !d.FFmpegOpus || !d.FFmpegWebM {
+		return false
+	}
+	switch family {
+	case DecoderFFmpeg:
+		return true
+	case DecoderOpenMPT:
+		return d.LibopenmptVersion != ""
+	case DecoderHively:
+		return true
+	default:
+		return false
+	}
 }
 
 // SourceTransferServiceable lists families still playable via source-file
@@ -59,28 +86,10 @@ func Probe() Dependencies {
 }
 
 func probeLibopenmpt() string {
-	// Preferred: pkg-config reports the dev package version.
-	if out, err := exec.Command("pkg-config", "--modversion", "libopenmpt").Output(); err == nil {
-		if v := strings.TrimSpace(string(out)); v != "" {
-			return "libopenmpt " + v
-		}
-	}
-	// Fallback: openmpt123 binary version.
-	if out, err := exec.Command("openmpt123", "--version").Output(); err == nil {
-		if v := strings.TrimSpace(string(out)); v != "" {
-			first := strings.SplitN(v, "\n", 2)[0]
-			return strings.TrimSpace(first)
-		}
-	}
-	// Last resort: dynamic linker cache presence (no version).
-	if out, err := exec.Command("ldconfig", "-p").Output(); err == nil {
-		for _, line := range strings.Split(string(out), "\n") {
-			if strings.Contains(line, "libopenmpt") {
-				return "libopenmpt (version unknown via ldconfig)"
-			}
-		}
-	}
-	return ""
+	// Load the library on the same path the decoder uses, so probing and
+	// decoding never disagree. pkg-config/openmpt123/ldconfig evidence
+	// without a loadable library would advertise renders that fail.
+	return OpenMPTVersion()
 }
 
 // Describe renders one-line startup diagnostics that clearly distinguish a
@@ -101,7 +110,7 @@ func (d Dependencies) Describe() string {
 	if d.RenderAvailable() {
 		b.WriteString("buffered Opus rendering: available; ")
 	} else {
-		b.WriteString("buffered Opus rendering: unavailable (Phase 3); ")
+		b.WriteString("buffered Opus rendering: unavailable; ")
 	}
 	b.WriteString("source transfer serves: " + strings.Join(d.SourceTransferServiceable(), ", "))
 	return b.String()

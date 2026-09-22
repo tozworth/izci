@@ -183,6 +183,33 @@ func AckMessage(commandID string, accepted bool, message string) string {
 	return marshal(msg)
 }
 
+func PairSecretMessage(hostIdentity, secret string) string {
+	return marshal(map[string]any{"kind": "pair.secret", "hostIdentity": hostIdentity, "secret": secret})
+}
+
+func PairingMessage(paired, freeplay bool, hostID, name string) string {
+	return marshal(map[string]any{"kind": "pairing", "paired": paired, "freeplayActive": freeplay, "hostId": hostID, "name": name})
+}
+
+func ChatMotdMessage(motd, hostName string) string {
+	return marshal(map[string]any{"kind": "chat.motd", "motd": motd, "hostName": hostName})
+}
+
+func ChatMessage(message chatMessage) string {
+	return marshal(map[string]any{"kind": "chat.message", "message": message})
+}
+
+func ChatHistoryMessage(messages []chatMessage) string {
+	if messages == nil {
+		messages = []chatMessage{}
+	}
+	return marshal(map[string]any{"kind": "chat.history", "messages": messages})
+}
+
+func ArtworkMessage(artwork any) string {
+	return marshal(map[string]any{"kind": "artwork", "artwork": artwork})
+}
+
 // CatalogMessage builds a stub catalog (Phase 1: empty collections with
 // revision and shuffle/repeat state; real library lands in Phase 2).
 func CatalogMessage(revision int, shuffle bool, repeat RepeatMode) string {
@@ -242,7 +269,7 @@ func DeliveryMessage(delivery Delivery) string {
 	})
 }
 
-// PlaybackMessage builds a minimal playback snapshot (Phase 1 stub).
+// PlaybackMessage builds a playback snapshot for tests without a catalog item.
 func PlaybackMessage(clock Clock, trackID *string, sentAt int64) string {
 	var track any
 	if trackID != nil {
@@ -312,4 +339,11 @@ func StartMessage(generationID, trackID string, positionSeconds float64, startAt
 			"positionSeconds": positionSeconds, "startAt": startAt,
 		},
 	})
+}
+
+// RenderManifestMessage emits a render.manifest binding a cached render to
+// one delivery generation. The manifest's generationId is the delivery
+// generation; renderId/trackId/sourceRevision describe the cached bytes.
+func RenderManifestMessage(manifest map[string]any) string {
+	return marshal(map[string]any{"kind": "render.manifest", "manifest": manifest})
 }

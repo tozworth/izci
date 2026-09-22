@@ -102,6 +102,13 @@ func marshal(v any) string {
 // mtime, or file-key change) aborts with *ErrReplaced. Context cancellation
 // (new generation, disconnect, retry supersede) aborts silently with ctx.Err.
 func TransferFile(ctx context.Context, ch Channel, absPath string, facts FileFacts, trackID, generationID, name, mimeType string, lastModifiedMs int64) (string, error) {
+	return TransferFileWithLimit(ctx, ch, absPath, facts, trackID, generationID, name, mimeType, lastModifiedMs, SourceFlushUnder)
+}
+
+func TransferFileWithLimit(ctx context.Context, ch Channel, absPath string, facts FileFacts, trackID, generationID, name, mimeType string, lastModifiedMs int64, maxBuffered uint64) (string, error) {
+	if maxBuffered < SourceChunkSize {
+		maxBuffered = SourceFlushUnder
+	}
 	transferID := newTransferID()
 	// Open after statting the path: the FD pins the pre-replacement inode
 	// on Unix while path stats detect the replacement.
@@ -158,7 +165,7 @@ func TransferFile(ctx context.Context, ch Channel, absPath string, facts FileFac
 			return transferID, ctx.Err()
 		default:
 		}
-		if err := waitForQueue(ctx, ch); err != nil {
+		if err := waitForQueue(ctx, ch, maxBuffered); err != nil {
 			return transferID, err
 		}
 		// Replacement check before each chunk.
@@ -205,8 +212,8 @@ func TransferFile(ctx context.Context, ch Channel, absPath string, facts FileFac
 	return transferID, nil
 }
 
-func waitForQueue(ctx context.Context, ch Channel) error {
-	for ch.BufferedAmount() >= SourceFlushUnder {
+func waitForQueue(ctx context.Context, ch Channel, maxBuffered uint64) error {
+	for ch.BufferedAmount() >= maxBuffered {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()

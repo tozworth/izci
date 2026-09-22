@@ -166,6 +166,20 @@ func runCombined(ctx context.Context, cfg *config.Config, key [32]byte, logger *
 	if err != nil {
 		return err
 	}
+	srv.SetRuntimeStatus(func() signaling.RuntimeStatus {
+		status := h.Status()
+		return signaling.RuntimeStatus{
+			Ready:             status.Ready && !status.ShuttingDown,
+			LibraryReady:      true,
+			DependenciesReady: status.RendererAvailable,
+			CacheReady:        status.RendererAvailable,
+			AdmissionReady:    !status.ShuttingDown && status.Peers < cfg.Limits.MaxPeersPerRoom,
+			Peers:             status.Peers,
+			Sessions:          1 + status.FreeplaySessions,
+			CatalogTracks:     status.CatalogTracks,
+			Metrics:           h.MetricsSnapshot(),
+		}
+	})
 	defer func() {
 		stopRescan()
 		_ = store.Close()
@@ -274,10 +288,11 @@ func runCheckConfig(args []string) error {
 			return err
 		}
 	}
-	fmt.Printf("config ok: listen=%s public=%s prefix=%q rooms=%d peers/room=%d library=%d roots transfer=%s db=%q catalog=%d/%d\n",
+	fmt.Printf("config ok: listen=%s public=%s prefix=%q rooms=%d peers/room=%d library=%d roots transfer=%s render=%dkbps/%dMiB/%denc db=%q catalog=%d/%d\n",
 		cfg.Listen, cfg.PublicBaseURL, cfg.PathPrefix,
 		cfg.Limits.MaxRooms, cfg.Limits.MaxPeersPerRoom,
 		len(cfg.Library.Roots), cfg.SourceTransfer.Mode,
+		cfg.Render.BitrateKbps, cfg.Render.CacheSizeMB, cfg.Render.MaxEncoders,
 		cfg.Database.Path, cfg.Catalog.MaxItemsPerCollection, cfg.Catalog.MaxTotalItems)
 	return nil
 }
