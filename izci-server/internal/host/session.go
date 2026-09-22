@@ -128,7 +128,7 @@ func NewSession(cfg SessionConfig) *Session {
 	if backend == nil {
 		backend = FakeDelivery{}
 	}
-	return &Session{
+	session := &Session{
 		id:              cfg.ID,
 		kind:            cfg.Kind,
 		controller:      cfg.Controller,
@@ -137,9 +137,12 @@ func NewSession(cfg SessionConfig) *Session {
 		nowMs:           now,
 		startLeadMs:     lead,
 		deliveryBackend: backend,
-		clock:           Clock{State: StateIdle},
-		delivery:        Delivery{Mode: DeliveryNone},
 	}
+	generation := session.nextGenerationLocked()
+	noTrack := "no-track"
+	session.clock = Clock{GenerationID: generation, State: StateIdle}
+	session.delivery = Delivery{GenerationID: generation, Mode: DeliveryNone, Reason: &noTrack}
+	return session
 }
 
 // ID returns the session ID.

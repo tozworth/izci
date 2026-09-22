@@ -3,7 +3,6 @@ package library
 import (
 	"fmt"
 	"os"
-	"syscall"
 )
 
 // FileKeyFor returns a stable file identity for reconciliation: device and
@@ -14,9 +13,10 @@ func FileKeyFor(absPath string, fi os.FileInfo) string {
 	if fi == nil {
 		return "unknown:" + absPath
 	}
-	if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
-		return fmt.Sprintf("%d:%d", stat.Dev, stat.Ino)
+	if key := platformFileKey(absPath, fi); key != "" {
+		return key
 	}
-	// Fallback for non-Unix: virtual-path-scoped size/mtime.
-	return fmt.Sprintf("fallback:%d:%d", fi.Size(), fi.ModTime().UnixNano())
+	// Include the path so distinct files with equal size and mtime cannot
+	// accidentally reconcile as a rename when platform identity is unavailable.
+	return fmt.Sprintf("fallback:%s:%d:%d", absPath, fi.Size(), fi.ModTime().UnixNano())
 }
