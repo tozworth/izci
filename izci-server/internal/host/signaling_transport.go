@@ -45,7 +45,10 @@ type HostSignalingEvents interface {
 // direct registry access.
 type HostSignalingTransport interface {
 	// Acquire logs in with the operator key and creates (or resumes) a room.
-	Acquire(ctx context.Context, capacity int) (roomID string, err error)
+	Acquire(ctx context.Context, capacity int) (RoomCredentials, error)
+	// Maintain refreshes the operator session and room lease before either
+	// expires. It blocks until ctx ends or maintenance fails.
+	Maintain(ctx context.Context) error
 	// Connect opens the host socket and blocks until the ready frame
 	// arrives or ctx ends. A pre-ready error frame fails the dial.
 	Connect(ctx context.Context, events HostSignalingEvents) error
@@ -61,6 +64,22 @@ type HostSignalingTransport interface {
 	Close() error
 }
 
+// RoomCredentials are the stable coordinates for the dedicated host room.
+// They are deliberately returned only to trusted operator surfaces.
+type RoomCredentials struct {
+	RoomID           string `json:"roomId"`
+	OwnerSecret      string `json:"ownerSecret"`
+	InvitationSecret string `json:"invitationSecret"`
+	ExpiresAt        string `json:"expiresAt"`
+}
+
+// RoomCredentialStore persists the dedicated room without coupling the host
+// transport to a particular database package.
+type RoomCredentialStore interface {
+	LoadDedicatedRoom() (RoomCredentials, bool)
+	SaveDedicatedRoom(RoomCredentials) error
+}
+
 // SignalClientConfig configures a host transport against one signal endpoint.
 type SignalClientConfig struct {
 	// BaseURL is the signal HTTP(S) base including any path prefix.
@@ -69,6 +88,8 @@ type SignalClientConfig struct {
 	HostKey string
 	// HTTPClient may be overridden in tests.
 	HTTPClient *http.Client
+	// RoomStore preserves the dedicated room across process restarts.
+	RoomStore RoomCredentialStore
 }
 
 // SignalTransport dials a signal endpoint (embedded loopback or remote)
@@ -77,13 +98,15 @@ type SignalTransport struct {
 	cfg SignalClientConfig
 	mu  sync.Mutex
 
-	client     *http.Client
-	session    string
-	roomID     string
-	socket     *websocket.Conn
-	socketDone chan struct{}
-	sendMu     sync.Mutex
-	reqCounter int64
+	client           *http.Client
+	session          string
+	roomID           string
+	socket           *websocket.Conn
+	socketDone       chan struct{}
+	sendMu           sync.Mutex
+	reqCounter       int64
+	credentials      RoomCredentials
+	sessionExpiresAt time.Time
 }
 
 // NewSignalTransport builds a transport for an embedded or remote endpoint.
@@ -140,27 +163,93 @@ func (t *SignalTransport) post(ctx context.Context, path, bearer string, body an
 }
 
 // Acquire implements HostSignalingTransport.
-func (t *SignalTransport) Acquire(ctx context.Context, capacity int) (string, error) {
+func (t *SignalTransport) Acquire(ctx context.Context, capacity int) (RoomCredentials, error) {
 	var session struct {
 		SessionToken string `json:"sessionToken"`
+		ExpiresAt    string `json:"expiresAt"`
 	}
 	if err := t.post(ctx, "/v1/host/sessions", "", map[string]any{"hostKey": t.cfg.HostKey}, &session); err != nil {
-		return "", err
+		return RoomCredentials{}, err
 	}
 	if session.SessionToken == "" {
-		return "", fmt.Errorf("signal: empty session token")
+		return RoomCredentials{}, fmt.Errorf("signal: empty session token")
 	}
-	var room struct {
-		RoomID string `json:"roomId"`
+	var room RoomCredentials
+	body := map[string]any{"capacity": capacity}
+	if t.cfg.RoomStore != nil {
+		if saved, ok := t.cfg.RoomStore.LoadDedicatedRoom(); ok {
+			body["roomId"] = saved.RoomID
+			body["ownerSecret"] = saved.OwnerSecret
+			body["invitationSecret"] = saved.InvitationSecret
+		}
 	}
-	if err := t.post(ctx, "/v1/rooms", session.SessionToken, map[string]any{"capacity": capacity}, &room); err != nil {
-		return "", err
+	if err := t.post(ctx, "/v1/rooms", session.SessionToken, body, &room); err != nil {
+		return RoomCredentials{}, err
+	}
+	if room.RoomID == "" || room.OwnerSecret == "" || room.InvitationSecret == "" {
+		return RoomCredentials{}, fmt.Errorf("signal: incomplete room credentials")
+	}
+	if t.cfg.RoomStore != nil {
+		if err := t.cfg.RoomStore.SaveDedicatedRoom(room); err != nil {
+			return RoomCredentials{}, fmt.Errorf("signal: persist dedicated room: %w", err)
+		}
+	}
+	if err := t.post(ctx, "/v1/dedicated-room", session.SessionToken, room, nil); err != nil {
+		return RoomCredentials{}, err
 	}
 	t.mu.Lock()
 	t.session = session.SessionToken
 	t.roomID = room.RoomID
+	t.credentials = room
+	t.sessionExpiresAt, _ = time.Parse(time.RFC3339, session.ExpiresAt)
 	t.mu.Unlock()
-	return room.RoomID, nil
+	return room, nil
+}
+
+// Maintain refreshes the same session and room well before the shorter of
+// their current expiries. Session renewal preserves socket ownership.
+func (t *SignalTransport) Maintain(ctx context.Context) error {
+	for {
+		t.mu.Lock()
+		session := t.session
+		credentials := t.credentials
+		sessionExpiry := t.sessionExpiresAt
+		t.mu.Unlock()
+		roomExpiry, _ := time.Parse(time.RFC3339, credentials.ExpiresAt)
+		next := sessionExpiry
+		if next.IsZero() || (!roomExpiry.IsZero() && roomExpiry.Before(next)) {
+			next = roomExpiry
+		}
+		wait := time.Until(next) / 2
+		if wait < time.Minute {
+			wait = time.Minute
+		}
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil
+		case <-timer.C:
+		}
+		var renewedSession struct {
+			ExpiresAt string `json:"expiresAt"`
+		}
+		if err := t.post(ctx, "/v1/host/session", session, map[string]any{}, &renewedSession); err != nil {
+			return err
+		}
+		var renewedRoom struct {
+			RoomID    string `json:"roomId"`
+			ExpiresAt string `json:"expiresAt"`
+		}
+		if err := t.post(ctx, "/v1/rooms/"+credentials.RoomID+"/renew", session, map[string]any{}, &renewedRoom); err != nil {
+			return err
+		}
+		credentials.ExpiresAt = renewedRoom.ExpiresAt
+		t.mu.Lock()
+		t.credentials = credentials
+		t.sessionExpiresAt, _ = time.Parse(time.RFC3339, renewedSession.ExpiresAt)
+		t.mu.Unlock()
+	}
 }
 
 // RoomID returns the acquired room.

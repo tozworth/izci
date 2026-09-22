@@ -209,3 +209,30 @@ func TestPairingsCRUD(t *testing.T) {
 		t.Fatalf("delete failed: %v", list)
 	}
 }
+
+func TestDedicatedRoomCredentialsPersist(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "state.db")
+	first, err := Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := DedicatedRoomCredentials{
+		RoomID:           "0123456789abcdef0123456789abcdef",
+		OwnerSecret:      "owner-secret",
+		InvitationSecret: "invitation-secret",
+	}
+	if err := first.SetDedicatedRoomCredentials(want); err != nil {
+		t.Fatal(err)
+	}
+	_ = first.Close()
+
+	second, err := Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close()
+	got, ok := second.DedicatedRoomCredentials()
+	if !ok || got != want {
+		t.Fatalf("dedicated credentials = %+v, %v; want %+v", got, ok, want)
+	}
+}

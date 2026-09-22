@@ -6,13 +6,14 @@
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createServerSession,
+  fetchDedicatedServerRoom,
   fetchServerInfo,
   fetchServerIce,
   createServerRoom,
@@ -61,6 +62,7 @@ async function waitForHealth(base: string, timeoutMs = 20_000): Promise<void> {
 let child: ChildProcess | null = null;
 let endpoint = '';
 let hostKeyHex = '';
+let operatorSessionToken = '';
 
 beforeAll(async () => {
   const port = await freePort();
@@ -68,6 +70,9 @@ beforeAll(async () => {
   hostKeyHex = randomBytes(32).toString('hex');
   const keyPath = join(dir, 'host-key');
   writeFileSync(keyPath, `${hostKeyHex}\n`);
+  const musicPath = join(dir, 'music');
+  mkdirSync(musicPath);
+  writeFileSync(join(musicPath, 'source.mp3'), Buffer.from('source-file-test-bytes'));
   const configPath = join(dir, 'config.json');
   writeFileSync(
     configPath,
@@ -81,6 +86,9 @@ beforeAll(async () => {
       description: 'test',
       contact: 'test@example.com',
       iceUrls: [],
+      library: { roots: [{ name: 'music', path: musicPath, include: ['**/*.mp3'] }] },
+      sourceTransfer: { mode: 'always', maxBytes: 33554432 },
+      database: { path: join(dir, 'state.db') },
       limits: {
         maxRooms: 32,
         maxPeersPerRoom: 8,
@@ -88,7 +96,7 @@ beforeAll(async () => {
       }
     })
   );
-  child = spawn('go', ['run', './cmd/izci-server', 'signal', '--config', configPath], {
+  child = spawn('go', ['run', './cmd/izci-server', 'serve', '--config', configPath], {
     cwd: join(process.cwd(), 'izci-server'),
     stdio: ['ignore', 'pipe', 'pipe']
   });
@@ -96,6 +104,7 @@ beforeAll(async () => {
   child.stdout?.on('data', () => undefined);
   endpoint = `http://127.0.0.1:${port}`;
   await waitForHealth(endpoint);
+  operatorSessionToken = (await createServerSession(endpoint, hostKeyHex)).sessionToken;
 }, 60_000);
 
 afterAll(async () => {
@@ -162,7 +171,26 @@ describe('server integration through production helpers', () => {
   });
 
   it('rejects wrong invitations indistinguishably and admits a valid join', async () => {
-    const session = await createServerSession(endpoint, hostKeyHex);
+    const session = { sessionToken: operatorSessionToken };
+    let dedicated: Awaited<ReturnType<typeof fetchDedicatedServerRoom>> | null = null;
+    for (let attempt = 0; attempt < 40 && !dedicated; attempt += 1) {
+      try {
+        dedicated = await fetchDedicatedServerRoom(endpoint, session.sessionToken);
+      } catch (error) {
+        if (!(error instanceof ServerError && error.code === 'room-unavailable')) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    }
+    expect(dedicated?.roomId).toMatch(/^[0-9a-f]{32}$/);
+    expect(dedicated?.invitationSecret.length).toBeGreaterThan(20);
+    const dedicatedJoin = await joinServerRoom(
+      endpoint,
+      dedicated!.roomId,
+      dedicated!.invitationSecret,
+      'dedicated-client-1'
+    );
+    expect(dedicatedJoin.attemptId).toMatch(/^[0-9a-f]{32}$/);
+
     const room = await createServerRoom(endpoint, session.sessionToken, 4);
     const badSecret = Buffer.from(randomBytes(32)).toString('base64url');
     await expect(
@@ -173,7 +201,7 @@ describe('server integration through production helpers', () => {
   });
 
   it('walks offer/answer/candidates/release between host and guest', async () => {
-    const session = await createServerSession(endpoint, hostKeyHex);
+    const session = { sessionToken: operatorSessionToken };
     const room = await createServerRoom(endpoint, session.sessionToken, 4);
     const hostTicket = await mintServerSocketTicket(endpoint, session.sessionToken, room.roomId);
     const { handle: host, messages: hostMessages } = await openSocket(hostTicket.ticket);
@@ -234,7 +262,7 @@ describe('server integration through production helpers', () => {
   });
 
   it('issues empty default ICE to hosts and admitted connections', async () => {
-    const session = await createServerSession(endpoint, hostKeyHex);
+    const session = { sessionToken: operatorSessionToken };
     const room = await createServerRoom(endpoint, session.sessionToken, 4);
     const hostIce = await fetchServerIce(endpoint, session.sessionToken, room.roomId);
     expect(hostIce.iceServers).toEqual([]);
@@ -254,7 +282,7 @@ describe('server integration through production helpers', () => {
   });
 
   it('recreates a dropped room with its saved IDs', async () => {
-    const session = await createServerSession(endpoint, hostKeyHex);
+    const session = { sessionToken: operatorSessionToken };
     const room = await createServerRoom(endpoint, session.sessionToken, 4);
     // A server restart drops the room; the host rebuilds it atomically.
     await deleteServerRoom(endpoint, session.sessionToken, room.roomId);
@@ -274,7 +302,7 @@ describe('server integration through production helpers', () => {
   });
 
   it('supports cancellation and server switch disposal', async () => {
-    const session = await createServerSession(endpoint, hostKeyHex);
+    const session = { sessionToken: operatorSessionToken };
     const room = await createServerRoom(endpoint, session.sessionToken, 4);
     const controller = new AbortController();
     const joinPromise = joinServerRoom(endpoint, room.roomId, room.invitationSecret, 'cancel-1', controller.signal);

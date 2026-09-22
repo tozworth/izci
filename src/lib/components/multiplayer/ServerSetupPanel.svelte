@@ -88,6 +88,22 @@
     }, 2_000);
   }
 
+  async function copyDedicatedInvite(): Promise<void> {
+    const link = setup.dedicatedInviteLink;
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      window.prompt($t('options.multiplayer.server.copyDedicatedInvite', { default: 'Copy dedicated-server invite' }), link);
+      return;
+    }
+    copied = true;
+    if (copyTimer !== null) window.clearTimeout(copyTimer);
+    copyTimer = window.setTimeout(() => {
+      copied = false;
+    }, 2_000);
+  }
+
   async function join(): Promise<void> {
     await serverSetup.joinPending().catch(() => undefined);
   }
@@ -226,6 +242,19 @@
       </section>
     {:else if setup.hasLogin}
       <section aria-label={$t('options.multiplayer.server.loginTitle', { default: 'Host login' })}>
+          {#if setup.dedicatedInviteLink}
+            <h4>{$t('options.multiplayer.server.dedicatedTitle', { default: 'Dedicated izci-server' })}</h4>
+            <p class="hint">{$t('options.multiplayer.server.dedicatedHint', { default: 'This invitation joins the always-on izci-server host and its configured library.' })}</p>
+            <div class="row">
+              <input class="mono" type="text" readonly value={setup.dedicatedInviteLink} aria-label={$t('options.multiplayer.server.copyDedicatedInvite', { default: 'Copy dedicated-server invite' })} />
+              <button type="button" disabled={setup.busy !== null} on:click={copyDedicatedInvite}>
+                {copied
+                  ? $t('options.multiplayer.server.copied', { default: 'Copied' })
+                  : $t('options.multiplayer.server.copyDedicatedInvite', { default: 'Copy dedicated-server invite' })}
+              </button>
+            </div>
+            <h4>{$t('options.multiplayer.server.browserHostTitle', { default: 'Host from this izci' })}</h4>
+          {/if}
           <p class="hint">{$t('options.multiplayer.server.loggedIn', { default: '' })}</p>
           <label class="check">
             <input

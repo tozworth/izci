@@ -230,11 +230,11 @@ func TestSignalingTransportAgainstRealRouter(t *testing.T) {
 	transport := NewSignalTransport(SignalClientConfig{BaseURL: httpSrv.URL, HostKey: hostKeyHex})
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	roomID, err := transport.Acquire(ctx, 8)
+	credentials, err := transport.Acquire(ctx, 8)
 	if err != nil {
 		t.Fatalf("acquire: %v", err)
 	}
-	if roomID == "" {
+	if credentials.RoomID == "" || credentials.InvitationSecret == "" {
 		t.Fatalf("empty room")
 	}
 	events := &recordingEvents{requested: make(chan [2]string, 4), errors: make(chan string, 4), closed: make(chan struct{}, 1)}
@@ -255,15 +255,9 @@ func TestSignalingTransportAgainstRealRouter(t *testing.T) {
 	// unsupported-version (never an exact-integer comparison).
 	join := func(major int) (int, string) {
 		body, _ := json.Marshal(map[string]any{
-			"roomId": roomID, "invitationSecret": fetchInvite(t, ctx, httpSrv.URL, hostKeyHex),
+			"roomId": credentials.RoomID, "invitationSecret": credentials.InvitationSecret,
 			"attemptNonce": "0123456789abcdef", "appProtocolMajor": major,
 		})
-		// Note: invitationSecret must match the created room; fetchInvite
-		// recreates it deterministically is impossible, so instead create a
-		// fresh room below for the negative case. Here we only assert the
-		// version gate fires before invitation checks by using a bogus
-		// secret: wrong major must still be unsupported-version.
-		_ = body
 		req, _ := http.NewRequestWithContext(ctx, http.MethodPost, httpSrv.URL+"/v1/join", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		resp, err := http.DefaultClient.Do(req)

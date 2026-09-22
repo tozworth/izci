@@ -62,7 +62,8 @@ type Host struct {
 
 	rtc *RTCHost
 
-	transport HostSignalingTransport
+	transport   HostSignalingTransport
+	onRoomReady func(RoomCredentials)
 
 	catalog  *Catalog
 	policy   media.Policy
@@ -257,6 +258,12 @@ func (h *Host) AttachTransport(t HostSignalingTransport) {
 	h.transport = t
 }
 
+// SetRoomReadyHandler receives the actionable dedicated-room credentials once
+// signaling and the host socket are both ready.
+func (h *Host) SetRoomReadyHandler(handler func(RoomCredentials)) {
+	h.onRoomReady = handler
+}
+
 // Run acquires a room, connects the host socket, and supervises it until ctx
 // ends. A socket drop fails fast so the operator restarts from a known
 // state; established RTC peers keep their media until the process exits.
@@ -265,20 +272,32 @@ func (h *Host) Run(ctx context.Context, capacity int) error {
 	if h.transport == nil {
 		return errNoTransport
 	}
-	roomID, err := h.transport.Acquire(ctx, capacity)
+	credentials, err := h.transport.Acquire(ctx, capacity)
 	if err != nil {
 		return err
 	}
-	h.log.Printf("izci-server host acquired room %s", redactRoom(roomID))
+	h.log.Printf("izci-server host acquired room %s", redactRoom(credentials.RoomID))
 	if err := h.transport.Connect(ctx, h); err != nil {
 		return err
 	}
+	if h.onRoomReady != nil {
+		h.onRoomReady(credentials)
+	}
+	maintainCtx, stopMaintain := context.WithCancel(ctx)
+	defer stopMaintain()
+	maintainErr := make(chan error, 1)
+	go func() { maintainErr <- h.transport.Maintain(maintainCtx) }()
 	select {
 	case <-ctx.Done():
 		_ = h.transport.Close()
 		return nil
 	case <-h.transport.Done():
 		return fmt.Errorf("host: signaling socket closed")
+	case err := <-maintainErr:
+		if err != nil {
+			return fmt.Errorf("host: signaling maintenance: %w", err)
+		}
+		return nil
 	}
 }
 

@@ -16,6 +16,7 @@ func (s *Server) registerSignalingRoutes() {
 	p := s.cfg.PathPrefix
 	s.mux.HandleFunc(p+"/v1/host/sessions", s.handleCreateSession)
 	s.mux.HandleFunc(p+"/v1/host/session", s.handleDeleteSession)
+	s.mux.HandleFunc(p+"/v1/dedicated-room", s.handleDedicatedRoom)
 	s.mux.HandleFunc(p+"/v1/rooms", s.handleCreateRoom)
 	s.mux.HandleFunc(p+"/v1/rooms/", s.handleRoomSub)
 	s.mux.HandleFunc(p+"/v1/join", s.handleJoin)
@@ -145,7 +146,11 @@ func (s *Server) joinLimiterAllow(ip string, now time.Time) (bool, int) {
 }
 
 func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
-	if !methodOnly(w, r, "DELETE, OPTIONS", http.MethodDelete) {
+	if r.Method == http.MethodPost {
+		s.handleRenewSession(w, r)
+		return
+	}
+	if !methodOnly(w, r, "POST, DELETE, OPTIONS", http.MethodDelete) {
 		return
 	}
 	digest, ok := bearerDigest(r)
@@ -174,6 +179,113 @@ func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	}
 	s.logCode("logout", "ok")
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleRenewSession(w http.ResponseWriter, r *http.Request) {
+	digest, ok := bearerDigest(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, CodeUnauthorized)
+		return
+	}
+	var body struct{}
+	if err := decodeStrictBody(r, &body); err != nil {
+		writeError(w, http.StatusBadRequest, CodeBadRequest)
+		return
+	}
+	now := s.now()
+	exp := now.Add(time.Duration(s.cfg.Limits.HostSessionTTL))
+	s.mu.Lock()
+	sess := s.sessionValidLocked(digest, now)
+	if sess == nil {
+		s.mu.Unlock()
+		writeError(w, http.StatusUnauthorized, CodeUnauthorized)
+		return
+	}
+	sess.expiresAt = exp
+	s.mu.Unlock()
+	writeJSON(w, http.StatusOK, sessionResponse{ExpiresAt: timeJSON(exp)})
+}
+
+type dedicatedRoomResponse struct {
+	RoomID           string `json:"roomId"`
+	OwnerSecret      string `json:"ownerSecret,omitempty"`
+	InvitationSecret string `json:"invitationSecret"`
+	ExpiresAt        string `json:"expiresAt"`
+}
+
+// handleDedicatedRoom keeps browser-host room creation and headless hosting
+// separate. The dedicated host registers its own actionable invitation; any
+// operator login may retrieve it without taking ownership of that room.
+func (s *Server) handleDedicatedRoom(w http.ResponseWriter, r *http.Request) {
+	if !methodOnly(w, r, "GET, POST, OPTIONS", http.MethodGet, http.MethodPost) {
+		return
+	}
+	digest, ok := bearerDigest(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, CodeUnauthorized)
+		return
+	}
+	now := s.now()
+	s.mu.Lock()
+	if s.sessionValidLocked(digest, now) == nil {
+		s.mu.Unlock()
+		writeError(w, http.StatusUnauthorized, CodeUnauthorized)
+		return
+	}
+	if r.Method == http.MethodGet {
+		registered := s.dedicatedRoom
+		if registered == nil {
+			s.mu.Unlock()
+			writeError(w, http.StatusNotFound, CodeRoomUnavailable)
+			return
+		}
+		rm := s.getRoomLocked(registered.roomID, now)
+		if rm == nil || !digestsEqual(rm.inviteDigest, mustSecretDigest(registered.invitationSecret)) {
+			s.mu.Unlock()
+			writeError(w, http.StatusNotFound, CodeRoomUnavailable)
+			return
+		}
+		response := dedicatedRoomResponse{
+			RoomID: registered.roomID, InvitationSecret: registered.invitationSecret,
+			ExpiresAt: timeJSON(rm.leaseUntil),
+		}
+		s.mu.Unlock()
+		writeJSON(w, http.StatusOK, response)
+		return
+	}
+	s.mu.Unlock()
+
+	var req dedicatedRoomResponse
+	if err := decodeStrictBody(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, CodeBadRequest)
+		return
+	}
+	ownerDigest, ownerOK := parseSecretToken(strings.TrimSpace(req.OwnerSecret))
+	inviteDigest, inviteOK := parseSecretToken(strings.TrimSpace(req.InvitationSecret))
+	if !validHexID(req.RoomID) || !ownerOK || !inviteOK {
+		writeError(w, http.StatusBadRequest, CodeBadRequest)
+		return
+	}
+	s.mu.Lock()
+	rm := s.getRoomLocked(req.RoomID, now)
+	if rm == nil || rm.ownerDigest != digest || !digestsEqual(rm.ownerSecretDigest, ownerDigest) || !digestsEqual(rm.inviteDigest, inviteDigest) {
+		s.mu.Unlock()
+		writeError(w, http.StatusUnauthorized, CodeUnauthorized)
+		return
+	}
+	s.dedicatedRoom = &dedicatedRoom{
+		roomID: req.RoomID, invitationSecret: strings.TrimSpace(req.InvitationSecret),
+	}
+	expiresAt := rm.leaseUntil
+	s.mu.Unlock()
+	writeJSON(w, http.StatusOK, dedicatedRoomResponse{
+		RoomID: req.RoomID, InvitationSecret: req.InvitationSecret, ExpiresAt: timeJSON(expiresAt),
+	})
+}
+
+func mustSecretDigest(secret string) [32]byte {
+	digest, _ := parseSecretToken(secret)
+	return digest
 }
 
 // --- Rooms ---

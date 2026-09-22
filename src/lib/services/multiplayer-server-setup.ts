@@ -36,19 +36,21 @@ import {
   createServerSession,
   deleteServerSession,
   deleteServerRoom,
+  fetchDedicatedServerRoom,
   fetchServerInfo,
   recreateServerRoom,
   renewServerRoom,
   resumeServerRoom,
   rotateServerInvitation,
   ServerError,
+  type DedicatedServerRoom,
   type ServerRoom,
   type ServerServerInfo,
   type ServerSession
 } from './multiplayer-server-http';
 import { errorMessage } from './multiplayer-utils';
 
-export const SERVER_SETUP_GUIDE_URL = 'https://github.com/dunsparce9/izci/blob/main/server/README.md';
+export const SERVER_SETUP_GUIDE_URL = 'https://github.com/dunsparce9/izci/blob/main/izci-server/README.md';
 export const SERVER_PROVIDER_NOTICE_VERSION = 1;
 
 export interface ServerLoginState {
@@ -78,6 +80,7 @@ export interface ServerSetupSnapshot {
   loginEndpoint: string | null;
   hosted: ServerHostedState | null;
   inviteLink: string | null;
+  dedicatedInviteLink: string | null;
   pendingInvitation: ServerInvitation | null;
   pendingRemember: boolean;
   hostRemember: boolean;
@@ -138,6 +141,7 @@ export interface ServerSetupNetwork {
     signal?: AbortSignal
   ): Promise<{ roomId: string; invitationSecret: string }>;
   deleteRoom(endpoint: string, sessionToken: string, roomId: string, signal?: AbortSignal): Promise<void>;
+  fetchDedicatedRoom?(endpoint: string, sessionToken: string, signal?: AbortSignal): Promise<DedicatedServerRoom>;
 }
 
 const DEFAULT_NETWORK: ServerSetupNetwork = {
@@ -151,7 +155,8 @@ const DEFAULT_NETWORK: ServerSetupNetwork = {
     recreateServerRoom(endpoint, token, saved, capacity, signal),
   renewRoom: (endpoint, token, roomId, signal) => renewServerRoom(endpoint, token, roomId, signal),
   rotateRoom: (endpoint, token, roomId, signal) => rotateServerInvitation(endpoint, token, roomId, signal),
-  deleteRoom: (endpoint, token, roomId, signal) => deleteServerRoom(endpoint, token, roomId, signal)
+  deleteRoom: (endpoint, token, roomId, signal) => deleteServerRoom(endpoint, token, roomId, signal),
+  fetchDedicatedRoom: (endpoint, token, signal) => fetchDedicatedServerRoom(endpoint, token, signal)
 };
 
 function initialSnapshot(): ServerSetupSnapshot {
@@ -167,6 +172,7 @@ function initialSnapshot(): ServerSetupSnapshot {
     loginEndpoint: null,
     hosted: null,
     inviteLink: null,
+    dedicatedInviteLink: null,
     pendingInvitation: null,
     pendingRemember: false,
     hostRemember: false,
@@ -289,9 +295,25 @@ export function createServerSetupController(
         forgetServerHostKey(endpoint);
       }
       loginState = { endpoint, sessionToken: session.sessionToken, expiresAt: session.expiresAt };
+      let dedicatedInviteLink: string | null = null;
+      try {
+        const dedicated = await network.fetchDedicatedRoom?.(endpoint, session.sessionToken, signal);
+        if (!dedicated) throw new ServerError('room-unavailable', 404);
+        dedicatedInviteLink = buildServerInviteLink({
+          endpoint,
+          roomId: dedicated.roomId,
+          secret: dedicated.invitationSecret,
+          title: multiplayerSettings.getSnapshot().multiplayerServerLabel || null
+        }, typeof window !== 'undefined' ? window.location.origin : '');
+      } catch {
+        if (signal.aborted) return;
+        // Dedicated-room discovery is additive. A signaling-only server (or
+        // an older deployment) must still allow this browser to host a room.
+      }
       set({
         hasLogin: true,
         loginEndpoint: endpoint,
+        dedicatedInviteLink,
         hasSavedHostKey: getRememberedServerHostKey(endpoint) !== null
       });
     } catch (error) {
@@ -319,7 +341,7 @@ export function createServerSetupController(
       }
     } finally {
       loginState = null;
-      set({ hasLogin: false, loginEndpoint: null, hosted: null, inviteLink: null });
+      set({ hasLogin: false, loginEndpoint: null, hosted: null, inviteLink: null, dedicatedInviteLink: null });
       clearBusy();
       publish();
     }

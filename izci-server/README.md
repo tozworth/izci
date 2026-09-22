@@ -52,6 +52,21 @@ containers use `0.0.0.0:8787`):
 go run ./cmd/izci-server serve --config config.json
 ```
 
+Once the dedicated host has connected, `serve` prints a pasteable invitation
+payload:
+
+```text
+izci-server dedicated invite (paste into izci):
+party=https://izci-server.example.com/party&code=<room>.<invitation>
+```
+
+Paste that entire `party=...` line into izci's Multiplayer join prompt. An
+operator may also connect to the server in Options, log in with the operator
+key, and copy the dedicated-server invitation there. The credentials are
+stored in the configured SQLite database so restarts recreate the same room
+and existing invitation links continue to work. The process renews its host
+session and room lease while it remains healthy.
+
 Signaling only (browser hosts provide playback, as before):
 
 ```sh
@@ -80,8 +95,10 @@ probes; the versioned API lives strictly beneath it.
 
 ## Signaling
 
-A host logs in with the operator key, creates a room, and shares the
-invitation secret out of band. Guests join with that secret plus the
+A browser izci may log in with the operator key, create a room, and use this
+server only for signaling; that remains separate from the always-on dedicated
+room owned by `izci-server serve` or `izci-server host`. Guests join either
+kind of room with its invitation secret plus the
 matching app protocol version; the slot reservation is atomic, so the last
 slot admits exactly one guest. Both sides then open `GET /v1/socket`
 (authenticating with a one-use ticket in the first frame, never in the
@@ -185,8 +202,8 @@ go test -race ./...
 CGO_ENABLED=0 go build ./...   # linux amd64/arm64 binaries
 ```
 
-Restarting the server drops rooms (memory only). A newly logged-in host
-resumes its remembered room from izci's setup panel; when the room is
+Restarting signaling drops its in-memory rooms. A browser host resumes its
+remembered room from izci's setup panel; when the room is
 absent after a restart, the panel recreates the same room ID and
 invitation atomically with host authentication (`POST /v1/rooms` with
 `roomId`, `ownerSecret`, and `invitationSecret`), so saved invite links
@@ -195,6 +212,11 @@ matches, so another tab cannot take over a running room. A connected RTC
 session may keep playing until it is renegotiated. Logs record method,
 path, status, and client IP only: never keys, tokens, invitations, SDP,
 candidates, or request bodies.
+
+The dedicated host follows the same recreate contract automatically using
+credentials in its SQLite state. Its invitation is intentionally emitted as
+operator output and returned only from the authenticated dedicated-room
+endpoint; ordinary HTTP request logs still never contain it.
 
 ## Pairing and reconnect proofs
 

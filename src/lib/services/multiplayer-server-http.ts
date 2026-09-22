@@ -36,6 +36,12 @@ export interface ServerRoom {
   expiresAt: string;
 }
 
+export interface DedicatedServerRoom {
+  roomId: string;
+  invitationSecret: string;
+  expiresAt: string;
+}
+
 export interface ServerJoinResult {
   connectionId: string;
   connectionToken: string;
@@ -193,6 +199,17 @@ export async function deleteServerSession(
   signal?: AbortSignal
 ): Promise<void> {
   await requestJson<void>('DELETE', endpoint, '/v1/host/session', {
+    signal,
+    bearer: sessionToken
+  });
+}
+
+export async function fetchDedicatedServerRoom(
+  endpoint: string,
+  sessionToken: string,
+  signal?: AbortSignal
+): Promise<DedicatedServerRoom> {
+  return requestJson<DedicatedServerRoom>('GET', endpoint, '/v1/dedicated-room', {
     signal,
     bearer: sessionToken
   });

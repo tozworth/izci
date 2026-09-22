@@ -18,6 +18,11 @@ type hostSession struct {
 	expiresAt time.Time
 }
 
+type dedicatedRoom struct {
+	roomID           string
+	invitationSecret string
+}
+
 type room struct {
 	id                string
 	ownerDigest       [32]byte
