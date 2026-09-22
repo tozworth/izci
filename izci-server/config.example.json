@@ -13,8 +13,13 @@
   "maxIcePerConnection": 16,
   "library": {
     "roots": [
-      { "name": "music", "path": "/srv/izci-server/music" },
-      { "name": "modules", "path": "/srv/izci-server/modules" }
+      {
+        "name": "music",
+        "path": "/srv/izci-server/music",
+        "include": ["**"],
+        "exclude": ["drafts/**", "*.part"]
+      },
+      { "name": "modules", "path": "/srv/izci-server/modules", "include": ["**/*.mod", "**/*.xm", "**/*.s3m", "**/*.it", "**/*.mo3", "**/*.ahx", "**/*.hvl"] }
     ],
     "scanConcurrency": 8,
     "rescanInterval": "0s"

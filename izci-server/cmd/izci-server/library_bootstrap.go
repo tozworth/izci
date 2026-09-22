@@ -82,7 +82,11 @@ func buildDedicatedHost(cfg *config.Config, logger *log.Logger, hostName string)
 func resolveLibraryRoots(cfg *config.Config) ([]library.Root, error) {
 	configured := make([]library.Root, 0, len(cfg.Library.Roots))
 	for _, r := range cfg.Library.Roots {
-		configured = append(configured, library.Root{Mount: "/" + r.Name, Path: r.Path})
+		configured = append(configured, library.Root{
+			Mount: "/" + r.Name, Path: r.Path,
+			Include: append([]string(nil), r.Include...),
+			Exclude: append([]string(nil), r.Exclude...),
+		})
 	}
 	return library.ResolveRoots(configured)
 }

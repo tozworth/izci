@@ -142,7 +142,12 @@ catalog bounds (see `config.example.json`):
 ```json
 {
   "library": {
-    "roots": [{ "name": "music", "path": "/srv/izci-server/music" }],
+    "roots": [{
+      "name": "music",
+      "path": "/srv/izci-server/music",
+      "include": ["**"],
+      "exclude": ["drafts/**", "*.part"]
+    }],
     "scanConcurrency": 8,
     "rescanInterval": "0s"
   },
@@ -151,6 +156,13 @@ catalog bounds (see `config.example.json`):
   "catalog": { "maxItemsPerCollection": 50000, "maxTotalItems": 100000 }
 }
 ```
+
+`include` and `exclude` are optional root-relative, case-sensitive glob lists.
+`*` and `?` match within one path segment; `**` crosses directories. A pattern
+without `/` matches a basename at any depth. Empty `include` means all supported
+media, and `exclude` always wins. Absolute patterns, dot segments, character
+classes, and backslash separators are rejected. Hidden files and directories
+are never scanned.
 
 Unknown config fields are rejected; ambiguous or overlapping virtual mounts
 (`/music` vs `/music/rock`) and filesystem roots are rejected. At startup

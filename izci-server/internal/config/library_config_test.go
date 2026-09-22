@@ -5,7 +5,7 @@ import (
 )
 
 func TestLibraryRootsValidation(t *testing.T) {
-	valid := `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","library":{"roots":[{"name":"music","path":"/data/music"}],"scanConcurrency":4}}`
+	valid := `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","library":{"roots":[{"name":"music","path":"/data/music","include":["**/*.mp3","*.flac"],"exclude":["drafts/**"]}],"scanConcurrency":4}}`
 	if _, err := Load([]byte(valid)); err != nil {
 		t.Fatalf("valid roots: %v", err)
 	}
@@ -20,6 +20,9 @@ func TestLibraryRootsValidation(t *testing.T) {
 		{"fs-overlap", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","library":{"roots":[{"name":"a","path":"/data/music"},{"name":"b","path":"/data/music/sub"}]}}`},
 		{"bad-name", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","library":{"roots":[{"name":"bad name!","path":"/a"}]}}`},
 		{"empty-path", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","library":{"roots":[{"name":"music","path":""}]}}`},
+		{"absolute-include", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","library":{"roots":[{"name":"music","path":"/a","include":["/music/**"]}]}}`},
+		{"dot-exclude", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","library":{"roots":[{"name":"music","path":"/a","exclude":["../secret/**"]}]}}`},
+		{"duplicate-pattern", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","library":{"roots":[{"name":"music","path":"/a","include":["**","**"]}]}}`},
 		{"bad-concurrency", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","library":{"scanConcurrency":0}}`},
 		{"too-many-roots", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","library":{"roots":[` + repeatRoot(65) + `]}}`},
 	}

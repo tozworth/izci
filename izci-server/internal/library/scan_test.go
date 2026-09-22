@@ -95,6 +95,7 @@ func TestScanSkipsUnsupportedAndDotfiles(t *testing.T) {
 	writeFile(t, filepath.Join(root, "song.mp3"), "audio")
 	writeFile(t, filepath.Join(root, "notes.txt"), "text")
 	writeFile(t, filepath.Join(root, ".hidden.mp3"), "audio")
+	writeFile(t, filepath.Join(root, ".hidden", "nested.mp3"), "audio")
 	writeFile(t, filepath.Join(root, "track.mod"), "module")
 	writeFile(t, filepath.Join(root, "tune.ahx"), "hively")
 	writeFile(t, filepath.Join(root, "clip.mp4"), "video")
@@ -115,8 +116,49 @@ func TestScanSkipsUnsupportedAndDotfiles(t *testing.T) {
 			t.Errorf("missing %s in %v", want, got)
 		}
 	}
-	if got["/music/notes.txt"] || got["/music/.hidden.mp3"] {
+	if got["/music/notes.txt"] || got["/music/.hidden.mp3"] || got["/music/.hidden/nested.mp3"] {
 		t.Errorf("unsupported/dotfiles must be skipped: %v", got)
+	}
+}
+
+func TestScanInclusionRules(t *testing.T) {
+	dir := t.TempDir()
+	root := filepath.Join(dir, "music")
+	writeFile(t, filepath.Join(root, "root.mp3"), "audio")
+	writeFile(t, filepath.Join(root, "album", "keep.flac"), "audio")
+	writeFile(t, filepath.Join(root, "album", "skip.mp3"), "audio")
+	writeFile(t, filepath.Join(root, "drafts", "keep.flac"), "audio")
+	resolved, err := ResolveRoots([]Root{{
+		Mount: "/music", Path: root,
+		Include: []string{"**/*.flac", "root.mp3"},
+		Exclude: []string{"drafts/**"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := Scan(resolved, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, file := range files {
+		got[file.VirtualPath] = true
+	}
+	if !got["/music/root.mp3"] || !got["/music/album/keep.flac"] || len(got) != 2 {
+		t.Fatalf("filtered files = %v", got)
+	}
+}
+
+func TestValidateGlob(t *testing.T) {
+	for _, pattern := range []string{"**", "**/*.mp3", "album/?rack.flac", "*.mod"} {
+		if err := ValidateGlob(pattern); err != nil {
+			t.Errorf("ValidateGlob(%q): %v", pattern, err)
+		}
+	}
+	for _, pattern := range []string{"", "/music/**", "../secret/**", "a//b", `a\b`, "[ab].mp3"} {
+		if err := ValidateGlob(pattern); err == nil {
+			t.Errorf("ValidateGlob(%q) succeeded", pattern)
+		}
 	}
 }
 
