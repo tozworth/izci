@@ -95,6 +95,7 @@
   import { odaSettings } from '$lib/stores/oda-settings';
   import { windowFullscreen } from '$lib/services/window-fullscreen';
   import { appLocale } from '$lib/i18n';
+  import { multiplayerDisplayNow } from '$lib/services/multiplayer-display-clock';
   import {
     resolveClientCollections,
     resolveClientPlayback,
@@ -245,6 +246,9 @@
 
   const runtime = createMainWindowRuntime({
     mobileMode,
+    getQueueItems: () => queueItems,
+    getLibraryItems: () => libraryItems,
+    getFavoriteItems: () => favoriteItems,
     getRemoteSelections,
     setRemoteSelections,
     setVideoSeekFeedback: (feedback) => (videoSeekFeedback = feedback),
@@ -550,6 +554,11 @@
   } = resolveClientPlayback(
     {
       snapshot: multiplayerState.remotePlayback.snapshot,
+      sentAt: multiplayerState.remotePlayback.sentAt,
+      sourceFileDuration: multiplayerState.remoteDelivery.mode === 'source-file'
+        && localPlayingTrack?.id === multiplayerState.remotePlayback.track?.id
+        ? localPlaybackSnapshot.duration
+        : undefined,
       shuffleEnabled: multiplayerState.remoteCatalog.shuffleEnabled,
       repeatMode: multiplayerState.remoteCatalog.repeatMode
     },
@@ -563,7 +572,8 @@
     isSourceFileFreeplayClient,
     isRenderDeliveryClient,
     renderPipelineBuffering,
-    renderBufferedRanges
+    renderBufferedRanges,
+    $multiplayerDisplayNow
   ));
   $: displayPlaybackSnapshotStore.set(playbackSnapshot);
   $: multiplayerClientMediaSessionStore.set(isMultiplayerClient);
@@ -573,6 +583,8 @@
       ? $libraryViewSettings.activeView === 'favorites' ? selectedFavoriteItem : selectedLibraryItem
       : selectedTrackItem;
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, queueItems, libraryItems);
+  $: if (isMultiplayerClient && multiplayerState.hostProtocol && livePlayingTrack) multiplayerSession.requestTrackInfo(livePlayingTrack.id);
+  $: if (isMultiplayerClient && multiplayerState.hostProtocol && selectedItem) multiplayerSession.requestTrackInfo(selectedItem.id);
   $: chatNowPlayingTrack = resolveMultiplayerChatTrackLink(livePlayingTrack, [
     { collection: 'queue', items: queueItems },
     { collection: 'library', items: libraryItems },

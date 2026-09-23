@@ -429,6 +429,8 @@ export function buildCoopQueueContextActions(
 
   return [
     { id: 'play-next', label: 'Play next', icon: 'queue_play_next' },
+    { id: 'remove', label: 'Remove from queue', icon: 'delete', shortcut: 'Delete' },
+    { id: 'randomize-queue', label: 'Randomize', icon: 'shuffle', separatorBefore: true },
     ...(goToLibrary ? [goToLibrary] : []),
     { id: 'track-details', label: 'Track details', icon: 'info' },
     ...(sendToChatAction ? [sendToChatAction] : []),
@@ -449,6 +451,9 @@ export function buildCoopLibraryContextActions(
   const sendToChatAction = buildSendToChatAction(tracks, sendToChat);
 
   return [
+    { id: 'add-to-queue', label: 'Add to queue', icon: 'playlist_add' },
+    { id: 'replace-queue', label: 'Replace queue', icon: 'playlist_play' },
+    { id: 'play-next', label: 'Play next', icon: 'queue_play_next' },
     ...(goToLibrary ? [goToLibrary] : []),
     { id: 'track-details', label: 'Track details', icon: 'info' },
     ...(sendToChatAction ? [sendToChatAction] : []),

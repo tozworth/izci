@@ -3,6 +3,7 @@ import type { TrackItem } from '$lib/types';
 import type { MultiplayerArtwork } from './multiplayer-protocol';
 import {
   getMultiplayerArtworkTrackKey,
+  getRemoteDetailsLoadKey,
   getRemoteArtworkLoadKey
 } from './multiplayer-artwork';
 
@@ -49,5 +50,15 @@ describe('multiplayer artwork presentation', () => {
       .toBe(`${nextResolvedKey}:asset-two`);
     expect(getRemoteArtworkLoadKey(nextTrack, null, nextResolvedKey))
       .toBe(`${nextResolvedKey}:no-artwork`);
+  });
+
+  it('keeps Details keyed to the selected track instead of the playing artwork', () => {
+    const selectedTrack = item('selected');
+    const selectedKey = getMultiplayerArtworkTrackKey(selectedTrack);
+
+    expect(getRemoteDetailsLoadKey(selectedTrack, artwork('playing', 'asset-one')))
+      .toBe(`${selectedKey}:no-artwork`);
+    expect(getRemoteDetailsLoadKey(selectedTrack, artwork('selected', 'asset-two')))
+      .toBe(`${selectedKey}:asset-two`);
   });
 });

@@ -23,6 +23,7 @@ var SupportedCommands = map[string]bool{
 	"transport.stop": true, "transport.previous": true, "transport.next": true,
 	"queue.shuffle": true, "queue.repeat": true,
 	"transport.seek": true, "queue.play-next": true, "collection.activate": true,
+	"queue.add": true, "queue.replace": true, "queue.remove": true, "queue.randomize": true,
 }
 
 // IsSupportedCommand reports whether a command type executes.

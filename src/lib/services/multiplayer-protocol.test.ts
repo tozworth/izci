@@ -119,6 +119,18 @@ describe('multiplayer protocol', () => {
     })).toBe(false);
   });
 
+  it('accepts bounded track info and requests', () => {
+    expect(isClientMessage({ kind: 'track.info.request', trackId: 'song' })).toBe(true);
+    expect(isClientMessage({ kind: 'track.info.request', trackId: '' })).toBe(false);
+    expect(isHostMessage({
+      kind: 'track.info',
+      info: { trackId: 'song', metadata: { title: 'Tagged', replayGain: { trackGainDb: -5 } }, lyrics: '[00:01.00]Line' }
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'track.info', info: { trackId: 'song', metadata: {}, lyrics: 'x'.repeat(70_000) }
+    })).toBe(false);
+  });
+
   it('accepts bounded Oda backgrounds', () => {
     expect(isHostMessage({
       kind: 'oda.background',
@@ -356,6 +368,14 @@ describe('multiplayer protocol', () => {
       collection: 'library',
       itemIds: []
     })).toBe(false);
+  });
+
+  it('accepts bounded shared queue edits', () => {
+    expect(isMultiplayerCommand({ type: 'queue.randomize', commandId: 'randomize' })).toBe(true);
+    for (const type of ['queue.add', 'queue.replace', 'queue.remove']) {
+      expect(isMultiplayerCommand({ type, commandId: 'edit', itemIds: ['one'] })).toBe(true);
+      expect(isMultiplayerCommand({ type, commandId: 'edit', itemIds: [] })).toBe(false);
+    }
   });
 
   it('accepts bounded host MOTD messages', () => {

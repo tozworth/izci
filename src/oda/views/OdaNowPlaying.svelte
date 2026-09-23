@@ -5,6 +5,7 @@
   import {
     buildTheaterLyricRows,
     findActiveTimelineIndex,
+    getTrackLyricsLoadKey,
     loadTrackLyrics,
     stripLrcTimestamps,
     type LoadedLyrics
@@ -171,7 +172,7 @@
     onSeek(((event.clientX - rect.left) / rect.width) * duration);
   }
 
-  $: trackLyricsKey = track ? `${track.id}:${track.lastModified}:${track.size}` : '';
+  $: trackLyricsKey = getTrackLyricsLoadKey(track);
   $: loadLyricsForTrack(trackLyricsKey, track);
   $: lyricLines = lyrics?.lines ?? [];
   $: theaterRows = buildTheaterLyricRows(lyricLines, duration, true, 10);

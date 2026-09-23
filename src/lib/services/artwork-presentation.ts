@@ -32,6 +32,7 @@ interface CreateArtworkPresentationControllerOptions {
   isPlaybackDetailsPending: (trackId: string) => boolean;
   loadArtwork?: typeof loadTrackArtwork;
   getArtworkLoadKey?: typeof getTrackArtworkLoadKey;
+  getDetailsLoadKey?: typeof getTrackArtworkLoadKey;
 }
 
 const ARTWORK_BACKGROUND_TRANSITION_MS = 320;
@@ -147,7 +148,8 @@ export function createArtworkPresentationController({
   resolveTrackSnapshot,
   isPlaybackDetailsPending,
   loadArtwork = loadTrackArtwork,
-  getArtworkLoadKey = getTrackArtworkLoadKey
+  getArtworkLoadKey = getTrackArtworkLoadKey,
+  getDetailsLoadKey = getArtworkLoadKey
 }: CreateArtworkPresentationControllerOptions) {
   let state = createInitialState();
   let detailsTargetTrack: TrackItem | null = null;
@@ -393,7 +395,7 @@ export function createArtworkPresentationController({
     },
     async syncDetailsDisplay(): Promise<void> {
       const track = detailsTargetTrack;
-      const nextDetailsKey = getArtworkLoadKey(track);
+      const nextDetailsKey = getDetailsLoadKey(track);
 
       if (nextDetailsKey === detailsDisplayRequestKey) {
         return;

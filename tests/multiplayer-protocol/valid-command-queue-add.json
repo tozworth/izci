@@ -1,0 +1,8 @@
+{
+  "kind": "command",
+  "command": {
+    "type": "queue.add",
+    "commandId": "queue-add-1",
+    "itemIds": ["one", "two"]
+  }
+}

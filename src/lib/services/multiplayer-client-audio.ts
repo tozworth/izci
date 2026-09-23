@@ -1,5 +1,6 @@
 import { logDebug, logInfo } from '$lib/services/logging';
 import { multiplayerAudioService } from './multiplayer-audio';
+import { applyRemoteTrackInfo } from './multiplayer-client-track-info';
 import { resolveMultiplayerConnectionRoute } from './multiplayer-ice';
 import { sendToPeer } from './multiplayer-peer';
 import type { MultiplayerSynchronizedStart } from './multiplayer-protocol';
@@ -7,6 +8,7 @@ import { setMultiplayerReceiverBuffer } from './multiplayer-receiver';
 import { multiplayerRenderPlaybackService } from './multiplayer-render-playback';
 import { decodeRenderFrame } from './multiplayer-render-transfer';
 import { multiplayerSourcePlaybackService } from './multiplayer-source-playback';
+import { readLoadedTrackInfo } from './multiplayer-track-info';
 import { parseSourceFileFrame } from './multiplayer-source-transfer';
 import { writeReceiveAudioPreference } from './multiplayer-utils';
 import type { PeerConnection, SourceFileBeginFrame } from './multiplayer-types';
@@ -246,6 +248,11 @@ export function loadPendingClientSourceFile(ctx: MultiplayerClientContext, peer:
     const generationStillCurrent = core.state.remoteDelivery.mode === 'source-file'
       && core.state.remoteDelivery.generationId === pending.generationId;
     if (!generationStillCurrent) return;
+    if (loaded) {
+      void readLoadedTrackInfo({ ...remoteTrack, file: pending.file }).then((info) => {
+        if (core.clientPeer === peer) applyRemoteTrackInfo(ctx, info);
+      }).catch(() => undefined);
+    }
     const audioReady = loaded && core.state.receiveAudio
       ? await multiplayerSourcePlaybackService.resume()
       : false;

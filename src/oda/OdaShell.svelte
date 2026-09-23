@@ -18,7 +18,7 @@
   import OdaVideoTheater from './views/OdaVideoTheater.svelte';
   import type { OdaCommands, OdaMediaHost } from './oda-commands';
   import type { OdaTranslate } from './oda-translate';
-  import { loadTrackLyrics } from '$lib/services/lyrics';
+  import { getTrackLyricsLoadKey, loadTrackLyrics } from '$lib/services/lyrics';
   import type { OdaCardModel } from './oda-destinations';
   import {
     buildOdaHomeSections,
@@ -265,7 +265,7 @@
       });
   }
 
-  $: lyricsTrackKey = playingTrack ? `${playingTrack.id}:${playingTrack.lastModified}:${playingTrack.size}` : '';
+  $: lyricsTrackKey = getTrackLyricsLoadKey(playingTrack);
   $: refreshLyricsAvailability(lyricsTrackKey, playingTrack);
   $: lyricsOpen = lyricsVisible && lyricsAvailable;
 

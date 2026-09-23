@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   forgetServerInvitation,
   forgetServerServer,
+  getRememberedServerInvitation,
   rememberServerRecent,
   rememberServerServer,
   serverRecents,
@@ -59,8 +60,11 @@ describe('server recents', () => {
       invitationSecret: 'secret-1',
       ownerSecret: 'owner-1'
     });
+    expect(getRememberedServerInvitation('https://one.example/', ROOM)).toBe('secret-1');
+    expect(getRememberedServerInvitation('https://other.example', ROOM)).toBeNull();
     forgetServerInvitation('https://one.example', ROOM);
     expect(serverRecents.getSnapshot()).toHaveLength(0);
+    expect(getRememberedServerInvitation('https://one.example', ROOM)).toBeNull();
   });
 
   it('drops invalid entries and caps the list', () => {

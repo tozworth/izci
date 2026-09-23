@@ -2,6 +2,8 @@ package host
 
 import (
 	"fmt"
+	"math/rand/v2"
+	"slices"
 	"sync"
 )
 
@@ -83,11 +85,12 @@ type Session struct {
 	kind       SessionKind
 	controller string // "shared" or owning peer ID
 
-	subscribers map[string]bool
-	queue       []string
-	upNext      []string
-	shuffle     bool
-	repeat      RepeatMode
+	subscribers  map[string]bool
+	queue        []string
+	upNext       []string
+	shuffle      bool
+	shuffleOrder []string
+	repeat       RepeatMode
 
 	currentTrackID *string
 	clock          Clock
@@ -209,7 +212,75 @@ func (s *Session) Subscribers() []string {
 func (s *Session) SetQueue(ids []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if slices.Equal(s.queue, ids) {
+		return
+	}
 	s.queue = append([]string(nil), ids...)
+	if s.shuffle {
+		s.shuffleQueueLocked()
+	}
+}
+
+// MoveNext makes selected catalog tracks visibly follow the current track.
+// It updates the active shuffle order as well, so the next step agrees with
+// the queue shown to clients.
+func (s *Session) MoveNext(ids []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.queue = moveAfterCurrent(s.queue, ids, s.currentTrackID)
+	if s.shuffle {
+		s.shuffleOrder = moveAfterCurrent(s.shuffleOrder, ids, s.currentTrackID)
+	}
+	s.upNext = nil
+}
+
+func moveAfterCurrent(queue, ids []string, current *string) []string {
+	moving := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		moving[id] = true
+	}
+	base := make([]string, 0, len(queue)+len(ids))
+	for _, id := range queue {
+		if !moving[id] {
+			base = append(base, id)
+		}
+	}
+	insert := 0
+	if current != nil {
+		for i, id := range base {
+			if id == *current {
+				insert = i + 1
+				break
+			}
+		}
+	}
+	return append(append(append([]string(nil), base[:insert]...), ids...), base[insert:]...)
+}
+
+// RandomizeQueue changes the visible order, keeping the current track first.
+func (s *Session) RandomizeQueue() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	order := append([]string(nil), s.queue...)
+	start := 0
+	if s.currentTrackID != nil {
+		for i, id := range order {
+			if id == *s.currentTrackID {
+				order[0], order[i] = order[i], order[0]
+				start = 1
+				break
+			}
+		}
+	}
+	for i := len(order) - 1; i > start; i-- {
+		j := start + rand.IntN(i-start+1)
+		order[i], order[j] = order[j], order[i]
+	}
+	s.queue = order
+	if s.shuffle {
+		s.shuffleOrder = append([]string(nil), order...)
+	}
+	return append([]string(nil), order...)
 }
 
 // Queue returns a copy of the queue.
@@ -245,7 +316,13 @@ func (s *Session) RepeatMode() RepeatMode {
 func (s *Session) RestorePreferences(shuffle bool, repeat RepeatMode) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if shuffle && (!s.shuffle || len(s.shuffleOrder) != len(s.queue)) {
+		s.shuffleQueueLocked()
+	}
 	s.shuffle = shuffle
+	if !shuffle {
+		s.shuffleOrder = nil
+	}
 	switch repeat {
 	case RepeatOff, RepeatAll, RepeatOne:
 		s.repeat = repeat
@@ -309,6 +386,36 @@ func (s *Session) SetDuration(seconds float64) {
 	s.clock.DurationSeconds = seconds
 }
 
+// SetDurationForGeneration ignores a probe that finished after navigation.
+func (s *Session) SetDurationForGeneration(generationID string, seconds float64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if generationID == "" || s.delivery.GenerationID != generationID ||
+		seconds <= 0 || seconds != seconds || seconds > 604800 {
+		return false
+	}
+	s.clock.DurationSeconds = seconds
+	return true
+}
+
+// TimedOutTrack reports an elapsed track using the host clock. Client ended
+// reports remain useful when a source format has no probeable duration.
+func (s *Session) TimedOutTrack(nowMs int64) (string, string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.clock.State != StatePlaying || s.clock.DurationSeconds <= 0 || s.delivery.TrackID == nil {
+		return "", "", false
+	}
+	position := s.clock.PositionSeconds
+	if nowMs > s.clock.StartedAtMs {
+		position += float64(nowMs-s.clock.StartedAtMs) / 1000
+	}
+	if position < s.clock.DurationSeconds+0.25 {
+		return "", "", false
+	}
+	return s.delivery.GenerationID, *s.delivery.TrackID, true
+}
+
 func copySet(in map[string]bool) map[string]bool {
 	out := make(map[string]bool, len(in))
 	for k, v := range in {
@@ -323,13 +430,17 @@ func (s *Session) nextGenerationLocked() string {
 	return fmt.Sprintf("%s-g%d", s.id, s.generationCounter)
 }
 
-// ToggleShuffle flips the shuffle flag. Shuffled order is deterministic
-// (reverse of queue order) so tests stay deterministic while proving
-// per-session isolation.
+// ToggleShuffle flips the shuffle flag and creates a fresh randomized play
+// order, beginning with the currently playing track when there is one.
 func (s *Session) ToggleShuffle() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.shuffle = !s.shuffle
+	if s.shuffle {
+		s.shuffleQueueLocked()
+	} else {
+		s.shuffleOrder = nil
+	}
 	return s.shuffle
 }
 
@@ -507,6 +618,9 @@ func (s *Session) Next() (Clock, Delivery, *Preparation, *string) {
 	}
 	idx := s.indexOfCurrentLocked()
 	ordered := s.orderedQueueLocked()
+	if idx < 0 && len(ordered) > 0 && s.currentTrackID != nil {
+		return s.tripleLocked(ordered[0])
+	}
 	if idx >= 0 && idx+1 < len(ordered) {
 		return s.tripleLocked(ordered[idx+1])
 	}
@@ -603,6 +717,10 @@ func (s *Session) HandleEnded(generationID, trackID string) (Clock, Delivery, *P
 	}
 	idx := s.indexOfCurrentLocked()
 	ordered := s.orderedQueueLocked()
+	if idx < 0 && len(ordered) > 0 && s.currentTrackID != nil {
+		c, d, p, cancelled := s.tripleLocked(ordered[0])
+		return c, d, p, cancelled, true
+	}
 	if idx >= 0 && idx+1 < len(ordered) {
 		c, d, p, cancelled := s.tripleLocked(ordered[idx+1])
 		return c, d, p, cancelled, true
@@ -691,10 +809,30 @@ func (s *Session) orderedQueueLocked() []string {
 	if !s.shuffle {
 		return s.queue
 	}
-	// Deterministic shuffle: reverse order.
-	out := make([]string, len(s.queue))
-	for i, id := range s.queue {
-		out[len(s.queue)-1-i] = id
+	return s.shuffleOrder
+}
+
+func (s *Session) shuffleQueueLocked() {
+	order := append([]string(nil), s.queue...)
+	current := ""
+	if s.currentTrackID != nil {
+		current = *s.currentTrackID
 	}
-	return out
+	if current != "" {
+		for i, id := range order {
+			if id == current {
+				order[0], order[i] = order[i], order[0]
+				break
+			}
+		}
+	}
+	start := 0
+	if len(order) > 0 && order[0] == current && current != "" {
+		start = 1
+	}
+	for i := len(order) - 1; i > start; i-- {
+		j := start + rand.IntN(i-start+1)
+		order[i], order[j] = order[j], order[i]
+	}
+	s.shuffleOrder = order
 }

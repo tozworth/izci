@@ -61,14 +61,15 @@ func (h *RTCHost) SetICEServers(servers []ICEServer) {
 
 // AnswerConfig describes one answer operation.
 type AnswerConfig struct {
-	PeerID        string
-	OfferSDP      string
-	OnControl     func(ch DataChannel)
-	OnControlText func(text string)
-	OnMedia       func(ch DataChannel)
-	OnRender      func(ch DataChannel)
-	OnConnected   func()
-	OnFailed      func()
+	PeerID         string
+	OfferSDP       string
+	OnControl      func(ch DataChannel)
+	OnControlText  func(text string)
+	OnControlClose func()
+	OnMedia        func(ch DataChannel)
+	OnRender       func(ch DataChannel)
+	OnConnected    func()
+	OnFailed       func()
 }
 
 // pionChannel adapts a Pion data channel to the host DataChannel surface.
@@ -134,6 +135,11 @@ func (h *RTCHost) Answer(ctx context.Context, cfg AnswerConfig) (string, error) 
 		wrapped := &pionChannel{ch: ch}
 		switch ch.Label() {
 		case ChannelControl:
+			ch.OnClose(func() {
+				if cfg.OnControlClose != nil {
+					cfg.OnControlClose()
+				}
+			})
 			ch.OnMessage(func(msg webrtc.DataChannelMessage) {
 				if msg.IsString && cfg.OnControlText != nil {
 					cfg.OnControlText(string(msg.Data))

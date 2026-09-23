@@ -507,6 +507,7 @@ export async function handleFreeplayCommand(
     case 'collection.activate':
       return activateFreeplayTrack(ctx, peer, command.collection, command.itemId);
   }
+  return false;
 }
 
 async function activateFreeplayTrack(

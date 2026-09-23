@@ -798,7 +798,7 @@
       },
       "restoreSession": {
         "title": "Restore last session",
-        "hint": "Reconnects to the previous host or resumes hosting after relaunch."
+        "hint": "Reconnects to the previous host or resumes hosting after relaunch. For izci-server guests, saves the invitation on this device."
       },
       "turnUrl": {
         "title": "TURN server",

@@ -70,6 +70,7 @@ func TestPionThreeChannelsHello(t *testing.T) {
 	// Host answers.
 	hostControlOpened := make(chan DataChannel, 1)
 	hostControlText := make(chan string, 1)
+	hostControlClosed := make(chan struct{}, 1)
 	answerCtx, answerCancel := context.WithTimeout(ctx, 15*time.Second)
 	defer answerCancel()
 	answerSDP, err := rtcHost.Answer(answerCtx, AnswerConfig{
@@ -86,6 +87,9 @@ func TestPionThreeChannelsHello(t *testing.T) {
 			case hostControlText <- text:
 			default:
 			}
+		},
+		OnControlClose: func() {
+			hostControlClosed <- struct{}{}
 		},
 		OnMedia:     func(ch DataChannel) {},
 		OnRender:    func(ch DataChannel) {},
@@ -160,6 +164,14 @@ func TestPionThreeChannelsHello(t *testing.T) {
 		}
 	case <-ctx.Done():
 		t.Fatalf("host did not receive control text")
+	}
+	if err := controlDC.Close(); err != nil {
+		t.Fatalf("close client control channel: %v", err)
+	}
+	select {
+	case <-hostControlClosed:
+	case <-ctx.Done():
+		t.Fatalf("host did not see control channel close")
 	}
 	rtcHost.ClosePeer("interop-peer")
 }

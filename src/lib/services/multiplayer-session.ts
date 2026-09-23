@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 import type { MultiplayerSettings, TrackItem } from '$lib/types';
 import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
 import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
+import { getRememberedServerInvitation } from '$lib/stores/multiplayer-server-recents';
 import { logDebug, logWarning } from '$lib/services/logging';
 import { multiplayerAudioService } from './multiplayer-audio';
 import { multiplayerSourcePlaybackService } from './multiplayer-source-playback';
@@ -440,9 +441,8 @@ export function createMultiplayerSession({
     const last = multiplayerLastSession.getSnapshot();
     if (!last) return null;
     // Explicit transport routing: server records never fall back to RTDB.
-    // Hosting stops at login after reload. A remembered operator key avoids
-    // re-entry there; server guests without a remembered invitation still
-    // require user action.
+    // Hosting stops at login after reload. Guests restore only when the
+    // invitation was explicitly retained on this device.
     if (last.transport === 'server') {
       if (last.mode === 'hosting') {
         core.publish({
@@ -453,13 +453,20 @@ export function createMultiplayerSession({
         });
         return 'idle' as const;
       }
-      core.publish({
-        mode: 'idle',
-        connectionStatus: 'idle',
-        connectionDetail: 'That server invitation needs to be opened again.',
-        message: 'That server invitation needs to be opened again.'
-      });
-      return 'idle' as const;
+      const secret = last.serverEndpoint && last.serverRoomId
+        ? getRememberedServerInvitation(last.serverEndpoint, last.serverRoomId)
+        : null;
+      if (!secret || !last.serverEndpoint || !last.serverRoomId) {
+        core.publish({
+          mode: 'idle',
+          connectionStatus: 'idle',
+          connectionDetail: 'That server invitation needs to be opened again.',
+          message: 'That server invitation needs to be opened again.'
+        });
+        return 'idle' as const;
+      }
+      await joinServer(last.serverEndpoint, last.serverRoomId, secret);
+      return 'client' as const;
     }
     if (last.mode === 'hosting') {
       await host.startHosting({ silent: true });
@@ -518,6 +525,7 @@ export function createMultiplayerSession({
     kick: (clientId) => host.kick(clientId),
     togglePairing: (clientId) => host.togglePairing(clientId),
     sendCommand: (command) => client.sendCommand(command),
+    requestTrackInfo: (trackId: string) => client.requestTrackInfo(trackId),
     sendChatMessage,
     sendChatNowPlaying,
     sendChatTrack,
