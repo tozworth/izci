@@ -1,14 +1,22 @@
+<script lang="ts" context="module">
+  let instanceCounter = 0;
+  const VIEWPORT_PADDING = 6;
+
+  export interface ThemedSelectOption {
+    value: string;
+    label: string;
+    disabled?: boolean;
+  }
+</script>
+
 <script lang="ts">
   import { createEventDispatcher, onMount, tick } from 'svelte';
 
-  interface FontFamilyOption {
-    value: string;
-    label: string;
-  }
-
   export let value: string;
-  export let options: FontFamilyOption[] = [];
+  export let options: readonly ThemedSelectOption[] = [];
   export let label: string;
+  export let disabled = false;
+  export let id = `themed-select-${(instanceCounter += 1)}`;
 
   const dispatch = createEventDispatcher<{ change: string }>();
 
@@ -24,10 +32,43 @@
   $: selectedIndex = Math.max(0, options.findIndex((option) => option.value === value));
   $: selectedLabel = options[selectedIndex]?.label ?? value;
 
+  let triggerMinWidth = 0;
+
+  // Size like a native select: fit the longest option so the trigger never
+  // stretches the row and never shifts when the selection changes.
+  $: {
+    void options;
+    void triggerElement;
+    fitToLongestOption();
+  }
+
+  function fitToLongestOption() {
+    if (!triggerElement || typeof document === 'undefined' || options.length === 0) return;
+    const style = getComputedStyle(triggerElement);
+    let textWidth = 0;
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (context) {
+      context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      for (const option of options) textWidth = Math.max(textWidth, context.measureText(option.label).width);
+    } else {
+      for (const option of options) textWidth = Math.max(textWidth, option.label.length * 8);
+    }
+    const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
+    const paddingRight = Number.parseFloat(style.paddingRight) || 0;
+    const gap = Number.parseFloat(style.columnGap || style.gap) || 0;
+    const iconWidth = triggerElement.querySelector('.material-symbols-outlined')?.getBoundingClientRect().width ?? 16;
+    triggerMinWidth = Math.ceil(textWidth + paddingLeft + paddingRight + gap + iconWidth + 2);
+  }
+
+  function isSelectable(index: number): boolean {
+    return index >= 0 && index < options.length && !options[index].disabled;
+  }
+
   function updateMenuPosition() {
     if (!triggerElement) return;
 
-    const viewportPadding = 6;
+    const viewportPadding = VIEWPORT_PADDING;
     const gap = 3;
     const preferredHeight = 190;
     const rect = triggerElement.getBoundingClientRect();
@@ -36,23 +77,35 @@
     const opensAbove = spaceBelow < 120 && spaceAbove > spaceBelow;
     const availableHeight = Math.max(64, opensAbove ? spaceAbove : spaceBelow);
     const maxHeight = Math.min(preferredHeight, availableHeight);
-    const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
-    const left = Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - viewportPadding - width));
-    const verticalPosition = opensAbove
-      ? `bottom: ${window.innerHeight - rect.top + gap}px;`
-      : `top: ${rect.bottom + gap}px;`;
+    const triggerWidth = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
+    const maxWidth = window.innerWidth - viewportPadding * 2;
+    const left = Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - viewportPadding - triggerWidth));
 
-    menuStyle = `left: ${left}px; ${verticalPosition} width: ${width}px; max-height: ${maxHeight}px;`;
+    menuStyle = `left: ${left}px; ${opensAbove
+      ? `bottom: ${window.innerHeight - rect.top + gap}px;`
+      : `top: ${rect.bottom + gap}px;`} min-width: ${triggerWidth}px; max-width: ${maxWidth}px; max-height: ${maxHeight}px;`;
   }
 
   async function revealActiveOption() {
     await tick();
     menuElement?.querySelector<HTMLElement>(`[data-option-index="${activeIndex}"]`)?.scrollIntoView({ block: 'nearest' });
+    correctMenuOverflow();
+  }
+
+  /** Keep a content-sized menu inside the viewport after it paints. */
+  function correctMenuOverflow() {
+    if (!menuElement) return;
+    const overhang = menuElement.getBoundingClientRect().right - (window.innerWidth - VIEWPORT_PADDING);
+    if (overhang > 0) {
+      const currentLeft = Number.parseFloat(menuElement.style.left) || 0;
+      menuElement.style.left = `${Math.max(VIEWPORT_PADDING, currentLeft - overhang)}px`;
+    }
   }
 
   async function openMenu(initialIndex = selectedIndex) {
-    if (open || options.length === 0) return;
-    activeIndex = initialIndex;
+    if (open || disabled || options.length === 0) return;
+    activeIndex = isSelectable(initialIndex) ? initialIndex : options.findIndex((option) => !option.disabled);
+    if (activeIndex < 0) activeIndex = selectedIndex;
     updateMenuPosition();
     open = true;
     await revealActiveOption();
@@ -65,6 +118,7 @@
   }
 
   function selectOption(index: number) {
+    if (!isSelectable(index)) return;
     const option = options[index];
     if (!option) return;
     dispatch('change', option.value);
@@ -74,8 +128,15 @@
 
   function moveActive(offset: number) {
     if (options.length === 0) return;
-    activeIndex = (activeIndex + offset + options.length) % options.length;
-    void revealActiveOption();
+    let index = activeIndex;
+    for (let step = 0; step < options.length; step += 1) {
+      index = (index + offset + options.length) % options.length;
+      if (!options[index].disabled) break;
+    }
+    if (!options[index].disabled) {
+      activeIndex = index;
+      void revealActiveOption();
+    }
   }
 
   function findByTypeahead(character: string) {
@@ -86,6 +147,7 @@
     const start = open ? activeIndex + 1 : selectedIndex + 1;
     for (let offset = 0; offset < options.length; offset += 1) {
       const index = (start + offset) % options.length;
+      if (options[index].disabled) continue;
       if (options[index].label.toLocaleLowerCase().startsWith(typeahead)) {
         if (!open) void openMenu(index);
         else {
@@ -107,8 +169,13 @@
 
     if (open && (event.key === 'Home' || event.key === 'End')) {
       event.preventDefault();
-      activeIndex = event.key === 'Home' ? 0 : options.length - 1;
-      void revealActiveOption();
+      const edge = event.key === 'Home' ? 0 : options.length - 1;
+      if (!options[edge].disabled) {
+        activeIndex = edge;
+        void revealActiveOption();
+      } else {
+        moveActive(event.key === 'Home' ? 1 : -1);
+      }
       return;
     }
 
@@ -161,16 +228,18 @@
   });
 </script>
 
-<div class="font-picker" bind:this={rootElement}>
+<div class="themed-select" bind:this={rootElement}>
   <button
-    class="font-picker-trigger"
+    class="themed-select-trigger"
     type="button"
     role="combobox"
     aria-label={label}
     aria-haspopup="listbox"
     aria-expanded={open}
-    aria-controls="font-family-options"
-    aria-activedescendant={open ? `font-family-option-${activeIndex}` : undefined}
+    aria-controls={id}
+    aria-activedescendant={open ? `${id}-option-${activeIndex}` : undefined}
+    disabled={disabled}
+    style:min-width={triggerMinWidth ? `${triggerMinWidth}px` : undefined}
     bind:this={triggerElement}
     on:click={() => (open ? closeMenu() : void openMenu())}
     on:keydown={handleKeydown}
@@ -181,8 +250,8 @@
 
   {#if open}
     <div
-      class="font-picker-menu"
-      id="font-family-options"
+      class="themed-select-menu"
+      id={id}
       role="listbox"
       aria-label={label}
       style={menuStyle}
@@ -190,16 +259,20 @@
     >
       {#each options as option, index (option.value)}
         <button
-          class="font-picker-option"
+          class="themed-select-option"
           class:active={index === activeIndex}
           class:selected={option.value === value}
-          id={`font-family-option-${index}`}
+          class:option-disabled={option.disabled}
+          id={`${id}-option-${index}`}
           type="button"
           role="option"
           tabindex="-1"
           aria-selected={option.value === value}
+          aria-disabled={option.disabled}
           data-option-index={index}
-          on:mouseenter={() => (activeIndex = index)}
+          on:mouseenter={() => {
+            if (!option.disabled) activeIndex = index;
+          }}
           on:pointerdown={(event) => event.preventDefault()}
           on:click={() => selectOption(index)}
         >
@@ -212,13 +285,15 @@
 </div>
 
 <style>
-  .font-picker {
+  .themed-select {
     width: 100%;
   }
 
-  .font-picker-trigger {
-    width: 100%;
+  .themed-select-trigger {
+    width: fit-content;
+    max-width: 100%;
     min-width: 0;
+    margin-left: auto;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -228,31 +303,37 @@
     border-radius: 6px;
     background: var(--bg-input);
     color: var(--text);
+    font: inherit;
     text-align: left;
   }
 
-  .font-picker-trigger > span:first-child,
-  .font-picker-option > span:last-child {
+  .themed-select-trigger:disabled {
+    opacity: 0.55;
+  }
+
+  .themed-select-trigger > span:first-child,
+  .themed-select-option > span:last-child {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .font-picker-trigger .material-symbols-outlined {
+  .themed-select-trigger .material-symbols-outlined {
     flex: 0 0 auto;
     color: var(--muted-strong);
     font-size: 16px;
   }
 
-  .font-picker-trigger:focus-visible {
+  .themed-select-trigger:focus-visible {
     outline: 1px solid var(--accent-strong);
     outline-offset: 1px;
   }
 
-  .font-picker-menu {
+  .themed-select-menu {
     position: fixed;
     z-index: 1000;
+    width: max-content;
     overflow-x: hidden;
     overflow-y: auto;
     padding: 3px;
@@ -263,7 +344,7 @@
     box-shadow: 0 5px 14px rgba(0, 0, 0, 0.22);
   }
 
-  .font-picker-option {
+  .themed-select-option {
     width: 100%;
     min-height: 25px;
     display: flex;
@@ -279,14 +360,18 @@
     text-align: left;
   }
 
-  .font-picker-option.active {
+  .themed-select-option.active {
     background: var(--hover-surface);
     color: var(--text-strong);
   }
 
-  .font-picker-option.selected {
+  .themed-select-option.selected {
     background: var(--selection-strong);
     color: var(--text-strong);
+  }
+
+  .themed-select-option.option-disabled {
+    opacity: 0.45;
   }
 
   .option-check {
@@ -297,7 +382,7 @@
     font-size: 14px;
   }
 
-  .font-picker-option.selected .option-check {
+  .themed-select-option.selected .option-check {
     visibility: visible;
   }
 </style>

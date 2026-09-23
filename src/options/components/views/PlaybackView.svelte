@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import {
     PLAYBACK_RATE_MAX,
     PLAYBACK_RATE_MIN,
@@ -28,7 +29,7 @@
   import type { PlaybackRestoreMode, PlaybackTransitionMode, ReplayGainMode } from '$lib/types';
 
   function checked(event: Event) { return (event.currentTarget as HTMLInputElement).checked; }
-  function handlePlaybackRestoreModeChange(event: Event) { playbackSettings.update({ restoreMode: (event.currentTarget as HTMLSelectElement).value as PlaybackRestoreMode }); }
+  function handlePlaybackRestoreModeChange(event: CustomEvent<string>) { playbackSettings.update({ restoreMode: event.detail as PlaybackRestoreMode }); }
   function handleRememberProgressDurationChange(event: Event) {
     playbackSettings.update({
       rememberProgressDurationIndex: normalizeRememberProgressDurationIndex(
@@ -45,7 +46,7 @@
   }
   function handleTrueSpeedToggle(event: Event) { playbackSettings.update({ trueSpeed: checked(event) }); }
   function handleRestartCurrentTrackOnPreviousToggle(event: Event) { playbackSettings.update({ restartCurrentTrackOnPrevious: checked(event) }); }
-  function handleTransitionModeChange(event: Event) { playbackSettings.update({ transitionMode: (event.currentTarget as HTMLSelectElement).value as PlaybackTransitionMode }); }
+  function handleTransitionModeChange(event: CustomEvent<string>) { playbackSettings.update({ transitionMode: event.detail as PlaybackTransitionMode }); }
   function handleGaplessPlaybackToggle(event: Event) {
     const gaplessPlayback = checked(event);
     playbackSettings.update({
@@ -58,7 +59,7 @@
   function handleFadeDurationChange(event: Event) { playbackSettings.update({ fadeDurationSeconds: normalizeFadeDurationSeconds((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
   function handleManualTrackChangeFadePercentChange(event: Event) { playbackSettings.update({ manualTrackChangeFadePercent: normalizeManualTrackChangeFadePercent((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
   function handleLogarithmicVolumeToggle(event: Event) { playbackSettings.update({ logarithmicVolume: checked(event) }); }
-  function handleReplayGainModeChange(event: Event) { playbackSettings.update({ replayGainMode: (event.currentTarget as HTMLSelectElement).value as ReplayGainMode }); }
+  function handleReplayGainModeChange(event: CustomEvent<string>) { playbackSettings.update({ replayGainMode: event.detail as ReplayGainMode }); }
   function handleReplayGainPreampChange(event: Event) {
     playbackSettings.update({
       replayGainPreampDb: normalizeReplayGainPreampDb(
@@ -123,11 +124,12 @@
         title={$t('options.playback.restore.title', { default: 'Restore playback' })}
         hint={$t('options.playback.restore.hint', { default: 'Restores the current track and position after a reload. Position and state also resumes playback when Chromium allows it.' })}
       >
-          <select value={$playbackSettings.restoreMode} on:change={handlePlaybackRestoreModeChange}>
-            {#each PLAYBACK_RESTORE_MODE_OPTIONS as option}
-              <option value={option.value}>{restoreModeLabel(option.value)}</option>
-            {/each}
-          </select>
+          <ThemedSelect
+            value={$playbackSettings.restoreMode}
+            options={PLAYBACK_RESTORE_MODE_OPTIONS.map((option) => ({ value: option.value, label: restoreModeLabel(option.value) }))}
+            label={$t('options.playback.restore.title', { default: 'Restore playback' })}
+            on:change={handlePlaybackRestoreModeChange}
+          />
       </SettingsField>
     </div>
   </div>
@@ -156,13 +158,16 @@
         title={$t('options.playback.transitions.mode.title', { default: 'Track transition' })}
         hint={$t('options.playback.transitions.mode.hint', { default: 'Cuts directly, fades the outgoing track to silence, or overlaps adjacent tracks.' })}
       >
-          <select value={$playbackSettings.transitionMode} on:change={handleTransitionModeChange}>
-            {#each PLAYBACK_TRANSITION_MODE_OPTIONS as option}
-              <option value={option.value} disabled={option.value === 'crossfade' && !$playbackSettings.gaplessPlayback}>
-                {transitionModeLabel(option.value)}
-              </option>
-            {/each}
-          </select>
+          <ThemedSelect
+            value={$playbackSettings.transitionMode}
+            options={PLAYBACK_TRANSITION_MODE_OPTIONS.map((option) => ({
+              value: option.value,
+              label: transitionModeLabel(option.value),
+              disabled: option.value === 'crossfade' && !$playbackSettings.gaplessPlayback
+            }))}
+            label={$t('options.playback.transitions.mode.title', { default: 'Track transition' })}
+            on:change={handleTransitionModeChange}
+          />
       </SettingsField>
 
       <SettingsField
@@ -285,11 +290,12 @@
         hint={$t('options.playback.replayGain.hint', { default: 'Applies streamed-file ReplayGain tags, preferring track or album gain when both are available.' })}
         controlClass="rg-preamp-control"
       >
-          <select value={$playbackSettings.replayGainMode} on:change={handleReplayGainModeChange}>
-            {#each REPLAY_GAIN_MODE_OPTIONS as option}
-              <option value={option.value}>{replayGainModeLabel(option.value)}</option>
-            {/each}
-          </select>
+          <ThemedSelect
+            value={$playbackSettings.replayGainMode}
+            options={REPLAY_GAIN_MODE_OPTIONS.map((option) => ({ value: option.value, label: replayGainModeLabel(option.value) }))}
+            label={$t('options.playback.replayGain.title', { default: 'ReplayGain' })}
+            on:change={handleReplayGainModeChange}
+          />
           <span
             class="rg-preamp"
             title={$t('options.playback.replayGainPreamp.hint', { default: 'Shifts the applied ReplayGain in dB before peak limiting.' })}

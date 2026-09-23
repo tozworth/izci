@@ -8,9 +8,10 @@
     normalizeBackdropZoneArtworkBlur, normalizeBackdropZoneArtworkBrightness
   } from '$lib/stores/appearance-settings';
   import type { BackdropZoneEffect, BackdropZoneId } from '$lib/types';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
 
-  function handleBackdropZoneChange(event: Event, zone: BackdropZoneId) {
-    appearanceSettings.update({ backdropZones: { ...appearanceSettings.getSnapshot().backdropZones, [zone]: (event.currentTarget as HTMLSelectElement).value as BackdropZoneEffect } });
+  function handleBackdropZoneChange(event: CustomEvent<string>, zone: BackdropZoneId) {
+    appearanceSettings.update({ backdropZones: { ...appearanceSettings.getSnapshot().backdropZones, [zone]: event.detail as BackdropZoneEffect } });
   }
   function updateArtwork(zone: BackdropZoneId, key: 'blur' | 'brightness', value: number) {
     const settings = appearanceSettings.getSnapshot();
@@ -48,14 +49,12 @@
               <span class="field-title">{zoneLabel(zone)}</span>
             </div>
             <div class="field-control">
-              <select
+              <ThemedSelect
                 value={$appearanceSettings.backdropZones[zone]}
+                options={BACKDROP_EFFECT_OPTIONS.map((option) => ({ value: option.value, label: effectLabel(option.value) }))}
+                label={zoneLabel(zone)}
                 on:change={(event) => handleBackdropZoneChange(event, zone)}
-              >
-                {#each BACKDROP_EFFECT_OPTIONS as option}
-                  <option value={option.value}>{effectLabel(option.value)}</option>
-                {/each}
-              </select>
+              />
             </div>
           </label>
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import MultiplayerMark from '$lib/components/multiplayer/MultiplayerMark.svelte';
   import {
     deriveMultiplayerMode,
@@ -23,8 +24,8 @@
     });
   }
 
-  function handleTransportChange(event: Event) {
-    const value = (event.currentTarget as HTMLSelectElement).value;
+  function handleTransportChange(event: CustomEvent<string>) {
+    const value = event.detail;
     multiplayerSettings.update({
       multiplayerTransport: value === 'server' ? 'server' : 'rtdb'
     });
@@ -125,10 +126,15 @@
           ? `${$t('options.multiplayer.transport.hint', { default: 'Firebase is the legacy invite-code path. Server uses a self-hosted server.' })} ${$t('options.multiplayer.hostingHint', { default: 'Server connection details live under Hosting.' })}`
           : $t('options.multiplayer.transport.hint', { default: 'Firebase is the legacy invite-code path. Server uses a self-hosted server.' })}
       >
-        <select value={$multiplayerSettings.multiplayerTransport} on:change={handleTransportChange}>
-          <option value="rtdb">{$t('options.multiplayer.transport.rtdb', { default: 'Firebase (legacy invites)' })}</option>
-          <option value="server">{$t('options.multiplayer.transport.server', { default: 'Server server' })}</option>
-        </select>
+        <ThemedSelect
+          value={$multiplayerSettings.multiplayerTransport}
+          options={[
+            { value: 'rtdb', label: $t('options.multiplayer.transport.rtdb', { default: 'Firebase (legacy invites)' }) },
+            { value: 'server', label: $t('options.multiplayer.transport.server', { default: 'izci-server' }) }
+          ]}
+          label={$t('options.multiplayer.transport.title', { default: 'Connection method' })}
+          on:change={handleTransportChange}
+        />
       </SettingsField>
       <SettingsField
         title={$t('options.multiplayer.name', { default: 'Name this izci' })}

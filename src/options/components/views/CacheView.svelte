@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import {
     MULTIPLAYER_RENDER_DISK_CACHE_LIMITS_MIB,
     multiplayerSettings
@@ -23,9 +24,9 @@
     multiplayerSettings.update({ multiplayerRenderDiskCacheEnabled: checked(event) });
   }
 
-  function handleLimitChange(event: Event) {
+  function handleLimitChange(event: CustomEvent<string>) {
     multiplayerSettings.update({
-      multiplayerRenderDiskCacheLimitMiB: Number((event.currentTarget as HTMLSelectElement).value)
+      multiplayerRenderDiskCacheLimitMiB: Number(event.detail)
     });
   }
 
@@ -97,15 +98,13 @@
         title={$t('options.cache.limit.title', { default: 'Size limit' })}
         hint={$t('options.cache.limit.hint', { default: 'How much disk space the client render cache may use. The least-recently-heard renders are evicted first.' })}
       >
-        <select
-          value={$multiplayerSettings.multiplayerRenderDiskCacheLimitMiB}
+        <ThemedSelect
+          value={String($multiplayerSettings.multiplayerRenderDiskCacheLimitMiB)}
+          options={MULTIPLAYER_RENDER_DISK_CACHE_LIMITS_MIB.map((limit) => ({ value: String(limit), label: `${limit} MiB` }))}
+          label={$t('options.cache.limit.title', { default: 'Size limit' })}
           disabled={!$multiplayerSettings.multiplayerRenderDiskCacheEnabled}
           on:change={handleLimitChange}
-        >
-          {#each MULTIPLAYER_RENDER_DISK_CACHE_LIMITS_MIB as limit}
-            <option value={limit}>{limit} MiB</option>
-          {/each}
-        </select>
+        />
       </SettingsField>
     </div>
   </div>

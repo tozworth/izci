@@ -98,20 +98,7 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       hasHints: true,
       hasAdvancedTweaks: true,
       resettable: true
-    }
-  ],
-  [
-    {
-      id: 'oda',
-      label: 'Oda',
-      icon: 'tv',
-      parentLabel: '',
-      hasHints: true,
-      hasAdvancedTweaks: true,
-      resettable: true
-    }
-  ],
-  [
+    },
     {
       id: 'video',
       label: 'Video',
@@ -135,7 +122,18 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       parentLabel: 'Playback',
       hasHints: true,
       resettable: true
-    },
+    }
+  ],
+  [
+    {
+      id: 'oda',
+      label: 'Oda',
+      icon: 'tv',
+      parentLabel: '',
+      hasHints: true,
+      hasAdvancedTweaks: true,
+      resettable: true
+    }
   ],
   [
     {

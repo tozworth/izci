@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
-  import FontFamilyPicker from '../FontFamilyPicker.svelte';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import { COLOR_THEME_DEFINITIONS, systemColorScheme } from '$lib/services/theme';
   import { t } from 'svelte-i18n';
   import { APP_LOCALE_OPTIONS, appLocale } from '$lib/i18n';
@@ -57,24 +57,24 @@
     : $appearanceSettings.darkColorTheme;
   $: availableColorThemes = COLOR_THEME_DEFINITIONS.filter((theme) => theme.variants[effectiveColorScheme]);
 
-  function handleColorThemeChange(event: Event) {
-    const value = (event.currentTarget as HTMLSelectElement).value;
+  function handleColorThemeChange(event: CustomEvent<string>) {
+    const value = event.detail;
     appearanceSettings.update(effectiveColorScheme === 'light'
       ? { lightColorTheme: value as ColorTheme }
       : { darkColorTheme: value as ColorTheme });
   }
-  function handleColorThemeModeChange(event: Event) { appearanceSettings.update({ colorThemeMode: (event.currentTarget as HTMLSelectElement).value as ColorThemeMode }); }
-  function handleLanguageChange(event: Event) { appLocale.set((event.currentTarget as HTMLSelectElement).value); }
+  function handleColorThemeModeChange(event: CustomEvent<string>) { appearanceSettings.update({ colorThemeMode: event.detail as ColorThemeMode }); }
+  function handleLanguageChange(event: CustomEvent<string>) { appLocale.set(event.detail); }
   function handleChameleonHueInput(event: Event) { appearanceSettings.update({ chameleonHue: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleChameleonSaturationInput(event: Event) { appearanceSettings.update({ chameleonSaturation: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleSynthwaveBackgroundBrightnessInput(event: Event) { appearanceSettings.update({ synthwaveBackgroundBrightness: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleAppearanceToggle(event: Event, key: BooleanAppearanceSetting) { appearanceSettings.update({ [key]: checked(event) }); }
   function handleFontFamilyChange(event: CustomEvent<string>) { appearanceSettings.update({ fontFamily: event.detail }); }
-  function handleContextualTabChange(event: Event, tab: ContextualWorkspaceTab) {
+  function handleContextualTabChange(event: CustomEvent<string>, tab: ContextualWorkspaceTab) {
     appearanceSettings.update({
       contextualTabs: {
         ...appearanceSettings.getSnapshot().contextualTabs,
-        [tab]: (event.currentTarget as HTMLSelectElement).value as ContextualTabAutomation
+        [tab]: event.detail as ContextualTabAutomation
       }
     });
   }
@@ -165,11 +165,12 @@
         title={$t('options.appearance.language.title', { default: 'Interface language' })}
         hint={$t('options.appearance.language.hint', { default: 'Changes the language in izci and its Options window.' })}
       >
-        <select value={$appLocale} on:change={handleLanguageChange}>
-          {#each APP_LOCALE_OPTIONS as option}
-            <option value={option.value}>{option.label}</option>
-          {/each}
-        </select>
+        <ThemedSelect
+          value={$appLocale}
+          options={APP_LOCALE_OPTIONS}
+          label={$t('options.appearance.language.title', { default: 'Interface language' })}
+          on:change={handleLanguageChange}
+        />
       </SettingsField>
     </div>
   </div>
@@ -178,19 +179,25 @@
     <h2>{$t('options.appearance.theme.heading', { default: 'Window Theme' })}</h2>
     <div class="field-grid">
       <SettingsField title={$t('options.appearance.theme.title', { default: 'Color theme' })} hint={$t('options.appearance.theme.hint', { default: 'Sets the global color theme.' })}>
-          <select value={activeColorTheme} on:change={handleColorThemeChange}>
-            {#each availableColorThemes as theme}
-              <option value={theme.value}>{themeLabel(theme.value)}</option>
-            {/each}
-          </select>
+          <ThemedSelect
+            value={activeColorTheme}
+            options={availableColorThemes.map((theme) => ({ value: theme.value, label: themeLabel(theme.value) }))}
+            label={$t('options.appearance.theme.title', { default: 'Color theme' })}
+            on:change={handleColorThemeChange}
+          />
       </SettingsField>
 
       <SettingsField title={$t('options.appearance.themeMode.title', { default: 'Appearance' })} hint={$t('options.appearance.themeMode.hint', { default: 'Follows the system color preference or keeps the selected appearance.' })}>
-        <select value={$appearanceSettings.colorThemeMode} on:change={handleColorThemeModeChange}>
-          <option value="system">{$t('options.appearance.themeMode.system', { default: 'Follow system' })}</option>
-          <option value="light">{$t('options.appearance.themeMode.light', { default: 'Light' })}</option>
-          <option value="dark">{$t('options.appearance.themeMode.dark', { default: 'Dark' })}</option>
-        </select>
+        <ThemedSelect
+          value={$appearanceSettings.colorThemeMode}
+          options={[
+            { value: 'system', label: $t('options.appearance.themeMode.system', { default: 'Follow system' }) },
+            { value: 'light', label: $t('options.appearance.themeMode.light', { default: 'Light' }) },
+            { value: 'dark', label: $t('options.appearance.themeMode.dark', { default: 'Dark' }) }
+          ]}
+          label={$t('options.appearance.themeMode.title', { default: 'Appearance' })}
+          on:change={handleColorThemeModeChange}
+        />
       </SettingsField>
 
       {#if activeColorTheme === 'chameleon'}
@@ -281,7 +288,7 @@
     <h2>{$t('options.appearance.interface.heading', { default: 'Interface' })}</h2>
     <div class="field-grid">
       <SettingsField title={$t('options.appearance.font.title', { default: 'Font' })} fieldClass="font-field" controlClass="font-control">
-          <FontFamilyPicker
+          <ThemedSelect
             value={$appearanceSettings.fontFamily}
             options={fontFamilyOptions}
             label={$t('options.appearance.font.title', { default: 'Font' })}
@@ -331,28 +338,24 @@
         title={$t('options.appearance.contextualTabs.lyrics.title', { default: 'Lyrics' })}
         hint={$t('options.appearance.contextualTabs.lyrics.hint', { default: 'Controls whether the Lyrics tab follows embedded lyrics availability for the playing track.' })}
       >
-        <select
+        <ThemedSelect
           value={$appearanceSettings.contextualTabs.lyrics}
+          options={CONTEXTUAL_TAB_AUTOMATION_OPTIONS.map((option) => ({ value: option.value, label: automationLabel(option.value) }))}
+          label={$t('options.appearance.contextualTabs.lyrics.title', { default: 'Lyrics' })}
           on:change={(event) => handleContextualTabChange(event, 'lyrics')}
-        >
-          {#each CONTEXTUAL_TAB_AUTOMATION_OPTIONS as option}
-            <option value={option.value}>{automationLabel(option.value)}</option>
-          {/each}
-        </select>
+        />
       </SettingsField>
 
       <SettingsField
         title={$t('options.appearance.contextualTabs.patterns.title', { default: 'Patterns' })}
         hint={$t('options.appearance.contextualTabs.patterns.hint', { default: 'Controls whether the Patterns tab follows module pattern availability for the playing track.' })}
       >
-        <select
+        <ThemedSelect
           value={$appearanceSettings.contextualTabs.patterns}
+          options={CONTEXTUAL_TAB_AUTOMATION_OPTIONS.map((option) => ({ value: option.value, label: automationLabel(option.value) }))}
+          label={$t('options.appearance.contextualTabs.patterns.title', { default: 'Patterns' })}
           on:change={(event) => handleContextualTabChange(event, 'patterns')}
-        >
-          {#each CONTEXTUAL_TAB_AUTOMATION_OPTIONS as option}
-            <option value={option.value}>{automationLabel(option.value)}</option>
-          {/each}
-        </select>
+        />
       </SettingsField>
     </div>
   </div>

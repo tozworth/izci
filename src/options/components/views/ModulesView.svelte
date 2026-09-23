@@ -1,14 +1,15 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import { DEFAULT_MODULE_PLAYBACK_SETTINGS, MODULE_INTERPOLATION_OPTIONS, modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 
   let pendingStereoSeparation: number | null = null;
   let pendingPanStrength: number | null = null;
   function formatFactor(value: number) { return `${Math.round(value * 100)}% (${value.toFixed(2)}x)`; }
-  function handleRepeatCountChange(event: Event) { modulePlaybackSettings.update({ repeatCount: Number((event.currentTarget as HTMLSelectElement).value) }); }
-  function handleInterpolationChange(event: Event) {
-    const value = Number((event.currentTarget as HTMLSelectElement).value);
+  function handleRepeatCountChange(event: CustomEvent<string>) { modulePlaybackSettings.update({ repeatCount: Number(event.detail) }); }
+  function handleInterpolationChange(event: CustomEvent<string>) {
+    const value = Number(event.detail);
     modulePlaybackSettings.update({ interpolationFilter: value === 1 || value === 2 || value === 4 || value === 8 ? value : DEFAULT_MODULE_PLAYBACK_SETTINGS.interpolationFilter });
   }
   function handleRangeSettingChange(event: Event, key: 'tempoFactor' | 'pitchFactor') {
@@ -75,11 +76,12 @@
       </SettingsField>
 
       <SettingsField title={$t('options.modules.interpolation.title', { default: 'Interpolation' })} hint={interpolationHint(interpolationOption.value)}>
-          <select value={$modulePlaybackSettings.interpolationFilter} on:change={handleInterpolationChange}>
-            {#each MODULE_INTERPOLATION_OPTIONS as option}
-              <option value={option.value}>{interpolationLabel(option.value)}</option>
-            {/each}
-          </select>
+          <ThemedSelect
+            value={String($modulePlaybackSettings.interpolationFilter)}
+            options={MODULE_INTERPOLATION_OPTIONS.map((option) => ({ value: String(option.value), label: interpolationLabel(option.value) }))}
+            label={$t('options.modules.interpolation.title', { default: 'Interpolation' })}
+            on:change={handleInterpolationChange}
+          />
       </SettingsField>
     </div>
   </div>
@@ -88,10 +90,15 @@
     <h2>{$t('options.modules.playback.heading', { default: 'Playback' })}</h2>
     <div class="field-grid">
       <SettingsField title={$t('options.modules.looping.title', { default: 'Looping' })} hint={$t('options.modules.looping.hint', { default: 'Maps to libopenmpt repeat count.' })}>
-          <select value={repeatCountSelectValue} on:change={handleRepeatCountChange}>
-            <option value="0">{$t('options.modules.looping.once', { default: 'Play once' })}</option>
-            <option value="-1">{$t('options.modules.looping.forever', { default: 'Loop forever' })}</option>
-          </select>
+          <ThemedSelect
+            value={repeatCountSelectValue}
+            options={[
+              { value: '0', label: $t('options.modules.looping.once', { default: 'Play once' }) },
+              { value: '-1', label: $t('options.modules.looping.forever', { default: 'Loop forever' }) }
+            ]}
+            label={$t('options.modules.looping.title', { default: 'Looping' })}
+            on:change={handleRepeatCountChange}
+          />
       </SettingsField>
 
       <SettingsField title={$t('options.modules.tempoFactor.title', { default: 'Tempo factor' })} hint={$t('options.modules.tempoFactor.hint', { default: 'Changes module playback speed without changing pitch.' })}>
