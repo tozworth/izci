@@ -491,17 +491,25 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
 
   function handleDeepLinkJoin(): void {
     if (handleServerDeepLink()) return;
+    // Legacy invite codes join without confirmation, so they stay behind
+    // the Multiplayer switch. Server invitations always confirm first.
+    if (!deps.getMultiplayerSettings().multiplayer) return;
     const code = consumeInviteLinkHash();
     if (code) void join(code);
   }
 
   async function startLaunch(): Promise<void> {
-    const settings = deps.getMultiplayerSettings();
-    if (!settings.multiplayer) return;
+    // Server invitation links are captured even with Multiplayer switched
+    // off: capture is local-only and joining stays an explicit dialog
+    // choice, so fresh clients can accept deeplinks without gaining the
+    // menu section.
     if (handleServerDeepLink()) {
       ensureInviteLinkListener();
       return;
     }
+    ensureInviteLinkListener();
+    const settings = deps.getMultiplayerSettings();
+    if (!settings.multiplayer) return;
     const inviteCode = consumeInviteLinkHash();
     if (inviteCode) {
       await join(inviteCode);

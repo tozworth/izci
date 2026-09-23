@@ -328,6 +328,27 @@ describe('server setup controller', () => {
     expect(serverRecents.getSnapshot()[0]).toMatchObject({ invitationSecret: null });
   });
 
+  it('joins co-op or freeplay by setting the advertised freeplay flag', async () => {
+    multiplayerSettings.update({ multiplayer: false, multiplayerFreeplay: true });
+    const connector = stubConnector();
+    const controller = createServerSetupController(stubNetwork());
+    controller.setSessionConnector(connector);
+    try {
+      controller.captureInvitation(invitation());
+      await controller.joinPendingAs('coop');
+      expect(multiplayerSettings.getSnapshot().multiplayerFreeplay).toBe(false);
+      expect(multiplayerSettings.getSnapshot().multiplayer).toBe(false);
+      expect(connector.calls).toEqual(['join']);
+
+      controller.captureInvitation(invitation());
+      await controller.joinPendingAs('freeplay');
+      expect(multiplayerSettings.getSnapshot().multiplayerFreeplay).toBe(true);
+      expect(connector.calls).toEqual(['join', 'join']);
+    } finally {
+      multiplayerSettings.update({ multiplayerFreeplay: false });
+    }
+  });
+
   it('remembers a joined guest invitation when last-session restore is enabled', async () => {
     multiplayerSettings.update({ multiplayerRestoreLastSession: true });
     const connector = stubConnector();

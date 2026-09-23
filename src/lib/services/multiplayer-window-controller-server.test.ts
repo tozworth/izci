@@ -107,7 +107,7 @@ afterEach(() => {
   delete (globalThis as Record<string, unknown>)['window'];
 });
 
-function stubWindow(hash: string, promptAnswer: string | null = null): { prompted: string[] } {
+function stubWindow(hash: string, promptAnswer: string | null = null): { prompted: string[]; fire: (event: string) => void } {
   const prompted: string[] = [];
   const listeners: Record<string, () => void> = {};
   (globalThis as Record<string, unknown>)['window'] = {
@@ -128,7 +128,7 @@ function stubWindow(hash: string, promptAnswer: string | null = null): { prompte
     clearTimeout: (id: number) => clearTimeout(id),
     setTimeout: (fn: () => void, ms: number) => setTimeout(fn, ms)
   };
-  return { prompted };
+  return { prompted, fire: (event: string) => listeners[event]?.() };
 }
 
 describe('multiplayer window controller server routing', () => {
@@ -194,6 +194,62 @@ describe('multiplayer window controller server routing', () => {
     expect(snapshot.pendingInvitation).toMatchObject({ roomId: ROOM });
     expect(snapshot.guestStatus).toBe('idle');
     expect(snapshot.guestInfo).toBeNull();
+  });
+
+  it('captures party deep links for fresh clients with multiplayer disabled', async () => {
+    const raw = buildServerInvitationPayload({
+      endpoint: 'https://server.example.com',
+      roomId: ROOM,
+      secret: 'invite-secret-7',
+      title: 'Friday'
+    });
+    stubWindow(`#party=${raw}`);
+    const { session, controller } = deps({
+      multiplayerSettings: settings({ multiplayer: false, multiplayerTransport: 'server' })
+    });
+    await controller.startLaunch();
+    expect(session.startHosting).not.toHaveBeenCalled();
+    expect(session.join).not.toHaveBeenCalled();
+    const snapshot = serverSetup.getSnapshot();
+    expect(snapshot.dialogOpen).toBe(true);
+    expect(snapshot.pendingInvitation).toMatchObject({ roomId: ROOM });
+    expect(snapshot.guestStatus).toBe('idle');
+  });
+
+  it('leaves legacy invite codes alone for fresh clients with multiplayer disabled', async () => {
+    const stub = stubWindow('#join=abcd1234');
+    const { session, controller } = deps({
+      multiplayerSettings: settings({ multiplayer: false, multiplayerTransport: 'rtdb' })
+    });
+    await controller.startLaunch();
+    expect(session.join).not.toHaveBeenCalled();
+    expect(session.startHosting).not.toHaveBeenCalled();
+    expect(serverSetup.getSnapshot().dialogOpen).toBe(false);
+    expect(
+      ((globalThis as Record<string, unknown>)['window'] as { location: { hash: string } }).location.hash
+    ).toBe('#join=abcd1234');
+    stub.fire('hashchange');
+    expect(session.join).not.toHaveBeenCalled();
+  });
+
+  it('picks up party deep links arriving after launch while multiplayer is disabled', async () => {
+    const raw = buildServerInvitationPayload({
+      endpoint: 'https://server.example.com',
+      roomId: ROOM,
+      secret: 'invite-secret-7',
+      title: null
+    });
+    const stub = stubWindow('');
+    const { session, controller } = deps({
+      multiplayerSettings: settings({ multiplayer: false, multiplayerTransport: 'server' })
+    });
+    await controller.startLaunch();
+    expect(serverSetup.getSnapshot().dialogOpen).toBe(false);
+    ((globalThis as Record<string, unknown>)['window'] as { location: { hash: string } }).location.hash = `#party=${raw}`;
+    stub.fire('hashchange');
+    expect(session.join).not.toHaveBeenCalled();
+    expect(serverSetup.getSnapshot().dialogOpen).toBe(true);
+    expect(serverSetup.getSnapshot().pendingInvitation).toMatchObject({ roomId: ROOM });
   });
 
   it('leaves the launch dialog alone for server restores', () => {

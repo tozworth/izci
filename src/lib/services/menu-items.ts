@@ -272,16 +272,6 @@ function buildMultiplayerMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
         : undefined,
       disabled: true
     },
-    {
-      id: 'multiplayerFreeplayStatus',
-      label: deps.translate('main.multiplayer.freeplay.label', { default: 'Freeplay' }),
-      description: deps.multiplayerFreeplay
-        ? deps.translate('main.multiplayer.freeplay.active', { default: 'Independent host library playback' })
-        : deps.translate('main.multiplayer.freeplay.inactive', { default: 'Available when both devices enable it' }),
-      icon: deps.multiplayerFreeplay ? 'queue_music' : 'music_off',
-      disabled: true,
-      separatorBefore: true
-    },
     ...(deps.multiplayerAudioStatus === 'blocked'
       ? [{
           id: 'multiplayerResumeAudio',
