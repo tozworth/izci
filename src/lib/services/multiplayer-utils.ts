@@ -189,6 +189,11 @@ export function isClientMessage(value: unknown): value is ClientMessage {
       && message.generationId.length > 0
       && message.generationId.length <= 80;
   }
+  if (message.kind === 'track.info.request') {
+    return typeof message.trackId === 'string'
+      && message.trackId.length > 0
+      && message.trackId.length <= 200;
+  }
   if (message.kind === 'render.need') {
     return isRenderNeed(message.need);
   }

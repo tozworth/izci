@@ -16,7 +16,7 @@ import (
 
 const (
 	Major = 1
-	Minor = 0
+	Minor = 2
 )
 
 var Capabilities = []string{
@@ -26,6 +26,7 @@ var Capabilities = []string{
 	"pairing-proof",
 	"freeplay",
 	"chat",
+	"track-info",
 }
 
 // RequiredBaseline is empty in Phase 0: any same-major hello admits.
@@ -187,6 +188,7 @@ var SupportedCommands = map[string]bool{
 	"transport.stop": true, "transport.previous": true, "transport.next": true,
 	"queue.shuffle": true, "queue.repeat": true,
 	"transport.seek": true, "queue.play-next": true, "collection.activate": true,
+	"queue.add": true, "queue.replace": true, "queue.remove": true, "queue.randomize": true,
 }
 
 // ValidateCommandEnvelope accepts any well-formed envelope so unsupported
@@ -288,7 +290,7 @@ func ValidateMessage(raw []byte) (ok bool, ignored bool, critical bool, kind str
 			if cmd.Seconds == nil || *cmd.Seconds < 0 || *cmd.Seconds > 604800 {
 				return false, false, critical, kind
 			}
-		case "queue.play-next":
+		case "queue.play-next", "queue.add", "queue.replace", "queue.remove":
 			if len(cmd.ItemIDs) == 0 || len(cmd.ItemIDs) > 50000 {
 				return false, false, critical, kind
 			}
@@ -297,7 +299,7 @@ func ValidateMessage(raw []byte) (ok bool, ignored bool, critical bool, kind str
 					return false, false, critical, kind
 				}
 			}
-			if cmd.Collection != "queue" && cmd.Collection != "library" && cmd.Collection != "favorites" {
+			if cmd.Type == "queue.play-next" && cmd.Collection != "queue" && cmd.Collection != "library" && cmd.Collection != "favorites" {
 				return false, false, critical, kind
 			}
 		case "collection.activate":
@@ -316,7 +318,7 @@ func ValidateMessage(raw []byte) (ok bool, ignored bool, critical bool, kind str
 		"oda.background.preference", "chat.motd", "chat.message", "chat.history",
 		"chat.clear", "chat.send", "freeplay.preference", "freeplay.queue",
 		"pair.secret", "pair.proof", "pairing", "invitation",
-		"clock.ping", "clock.pong", "source.retry", "ack", "kicked":
+		"clock.ping", "clock.pong", "source.retry", "track.info.request", "track.info", "ack", "kicked":
 		if !validateKnownKind(base.Kind, msg) {
 			return false, false, critical, kind
 		}
@@ -389,6 +391,27 @@ func validateKnownKind(kind string, msg map[string]json.RawMessage) bool {
 		return s, true
 	}
 	switch kind {
+	case "track.info.request":
+		trackID, ok := str("trackId")
+		return ok && len(trackID) > 0 && len(trackID) <= 200
+	case "track.info":
+		raw, ok := msg["info"]
+		if !ok || len(raw) > 100*1024 {
+			return false
+		}
+		var info struct {
+			TrackID  string          `json:"trackId"`
+			Metadata json.RawMessage `json:"metadata"`
+			Lyrics   *string         `json:"lyrics"`
+		}
+		if json.Unmarshal(raw, &info) != nil || len(info.TrackID) == 0 || len(info.TrackID) > 200 || len(info.Metadata) == 0 || len(info.Metadata) > 32*1024 {
+			return false
+		}
+		if info.Lyrics != nil && len(*info.Lyrics) > 64*1024 {
+			return false
+		}
+		var metadata map[string]any
+		return json.Unmarshal(info.Metadata, &metadata) == nil && metadata != nil
 	case "pair.secret":
 		var m struct {
 			HostIdentity string `json:"hostIdentity"`

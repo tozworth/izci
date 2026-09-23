@@ -83,18 +83,14 @@ export async function join(
   core.reconnectAttempts = 0;
   if (!options.preserveHostId) core.clientHostId = null;
   multiplayerSourcePlaybackService.beginClientSession((trackId, generationId) => {
-    if (core.clientPeer && core.state.mode === 'client' && core.state.freeplay) {
-      if (!ctx.transition.isCurrent(generationId, trackId, 'source-file')) return;
-      if (core.state.remoteDelivery.mode === 'source-file'
-        && core.state.remoteCatalog.repeatMode === 'one') {
-        multiplayerSourcePlaybackService.replay();
-      } else {
-        sendToPeer(core.clientPeer, {
-          kind: 'playback.ended',
-          generationId,
-          trackId
-        });
-      }
+    if (!core.clientPeer || core.state.mode !== 'client'
+      || !ctx.transition.isCurrent(generationId, trackId, 'source-file')) return;
+    if (core.state.freeplay && core.state.remoteCatalog.repeatMode === 'one') {
+      multiplayerSourcePlaybackService.replay();
+      return;
+    }
+    if (core.state.freeplay || core.state.hostImplementation?.product === 'izci-server') {
+      sendToPeer(core.clientPeer, { kind: 'playback.ended', generationId, trackId });
     }
   });
   multiplayerSourcePlaybackService.setEnabled(core.state.receiveAudio);

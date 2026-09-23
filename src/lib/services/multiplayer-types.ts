@@ -305,6 +305,7 @@ export interface MultiplayerSessionController extends Readable<MultiplayerSessio
   kick(clientId: string): Promise<void>;
   togglePairing(clientId: string): Promise<void>;
   sendCommand(command: MultiplayerCommandInput): boolean;
+  requestTrackInfo(trackId: string): void;
   sendChatMessage(text: string): boolean;
   sendChatNowPlaying(track: MultiplayerChatTrackLink): boolean;
   sendChatTrack(track: MultiplayerChatTrackLink): boolean;

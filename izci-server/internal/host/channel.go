@@ -296,12 +296,19 @@ func PlaybackMessageWithTrack(clock Clock, track map[string]any, sentAt int64) s
 	if track != nil {
 		trackAny = track
 	}
+	position := clock.PositionSeconds
+	if clock.State == StatePlaying && sentAt > clock.StartedAtMs {
+		position += float64(sentAt-clock.StartedAtMs) / 1000
+	}
+	if clock.DurationSeconds > 0 && position > clock.DurationSeconds {
+		position = clock.DurationSeconds
+	}
 	return marshal(map[string]any{
 		"kind": "playback",
 		"playback": map[string]any{
 			"generationId": clock.GenerationID,
 			"snapshot": map[string]any{
-				"state": string(clock.State), "currentTime": clock.PositionSeconds,
+				"state": string(clock.State), "currentTime": position,
 				"duration": clock.DurationSeconds, "volume": 1.0, "muted": false, "backend": nil,
 			},
 			"track":  trackAny,

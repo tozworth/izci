@@ -54,6 +54,16 @@ export function getRemoteArtworkLoadKey(
     : `${trackKey}:no-artwork`;
 }
 
+/** Details follows the selected track even while the playing track's artwork is unresolved. */
+export function getRemoteDetailsLoadKey(
+  track: TrackItem | null,
+  artwork: MultiplayerArtwork | null
+): string {
+  if (!track) return '';
+  const trackKey = getMultiplayerArtworkTrackKey(track);
+  return `${trackKey}:${artwork?.trackId === track.id ? artwork.assetId : 'no-artwork'}`;
+}
+
 export function toLoadedMultiplayerArtwork(
   track: TrackItem | null,
   artwork: MultiplayerArtwork | null

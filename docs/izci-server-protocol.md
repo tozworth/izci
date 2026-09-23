@@ -9,7 +9,7 @@ representative fixtures live under `tests/multiplayer-protocol/` and are
 consumed by both TypeScript and Go. The signaling socket protocol is specified
 separately and keeps its own version.
 
-Status: Phase 0 baseline. Protocol major `1`, minor `0`.
+Status: Phase 0 baseline. Protocol major `1`, minor `1`.
 
 ## 1. Transports and channels
 
@@ -53,7 +53,7 @@ Every `hello` carries both protocol identity and implementation identity.
 hello = {
   kind: 'hello',
   protocolMajor: 1,
-  protocolMinor: 0,        // any non-negative integer; minor skew admits
+  protocolMinor: 1,        // any non-negative integer; minor skew admits
   capabilities: string[],  // e.g. ['source-file','buffered-opus',...]
   impl: { product: string, productVersion: string, build?: string },
   // host adds: name, identity?, pairNonce?
@@ -67,7 +67,7 @@ hello = {
   matches.
 - `capabilities`: independently meaningful facilities. Canonical names:
   `source-file`, `buffered-opus`, `synchronized-start`, `pairing-proof`,
-  `freeplay`, `chat`. Absence means unavailable. Unknown optional capabilities
+  `freeplay`, `chat`, `track-info`. Absence means unavailable. Unknown optional capabilities
   and unknown JSON fields are ignored.
 - `impl`: product identity separate from protocol identity. Browser izci sends
   `{product:'izci', productVersion:<package version>}`. A dedicated server
@@ -87,7 +87,7 @@ integer:
   `isCompatibleHelloIdentity({protocolMajor, capabilities: []})` before RTC.
   Rules enforce `protocolMajor === 1`.
 - Server HTTP: `GET /v1/info` returns `{signalingVersion:1,
-  appProtocolMajor:1, appProtocolMinor:0, appCapabilities:[...]}`.
+  appProtocolMajor:1, appProtocolMinor:1, appCapabilities:[...]}`.
   `POST /v1/join` requires `{appProtocolMajor:1, appProtocolMinor?:n,
   appCapabilities?:[...]}` and returns `unsupported-version` on major
   mismatch. Minor skew admits. Unknown capabilities ignored. Signaling socket
@@ -149,6 +149,11 @@ All control messages are JSON over `izci-control`. `H→C` = host to client,
   `mode==='none' ⟺ reason!==null`.
 - `H→C buffer {bufferMs:0..30000}` (host-authoritative listener buffer).
 - `C→H source.retry {generationId}` (≤2 retries per generation).
+- `C→H track.info.request {trackId:1..200}` requests embedded tags and lyrics
+  for one catalog track. Hosts answer with `H→C track.info
+  {info:{trackId, metadata:TrackMetadata, lyrics:string|null}}`. Metadata is
+  bounded to 32 KiB and lyrics to 64 KiB. Clients keep this enrichment in
+  session memory; source-file clients can also read their transferred file.
 
 `TrackItem = {id, name, extension, kind:'stream'|'module'|'video'|'image',
 size, lastModified, path?, metadata?, rating?, subsong?}`. Unknown extensions
@@ -208,6 +213,8 @@ String frames over `izci-media` plus raw bytes between them:
 - `collection.activate {collection:'queue'|'library'|'favorites',
   itemId:1..200}`
 - `queue.play-next {collection, itemIds:1..50000 each 1..200}`
+- `queue.add|replace|remove {itemIds:1..50000 each 1..200}` and
+  `queue.randomize` edit the shared queue; Freeplay keeps its private queue path.
 
 `H→C ack {commandId, accepted:bool, message?}`. Unsupported types nack with
 `accepted:false`. Permissions are host-side and separate from

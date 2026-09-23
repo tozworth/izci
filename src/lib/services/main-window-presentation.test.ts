@@ -298,7 +298,7 @@ describe('resolveClientPlayback', () => {
   } as const;
 
   it('passes local values through when not a client', () => {
-    const remote = { snapshot: EMPTY_PLAYBACK, shuffleEnabled: true, repeatMode: 'all' as const };
+    const remote = { snapshot: EMPTY_PLAYBACK, sentAt: 0, shuffleEnabled: true, repeatMode: 'all' as const };
     const result = resolveClientPlayback(remote, local, false, false, false, false, null);
     expect(result.playbackSnapshot).toBe(local.snapshot);
     expect(result.playbackStatus).toBe(local.status);
@@ -307,7 +307,7 @@ describe('resolveClientPlayback', () => {
   });
 
   it('keeps the local snapshot for source-file freeplay clients but still remote shuffle/repeat', () => {
-    const remote = { snapshot: EMPTY_PLAYBACK, shuffleEnabled: true, repeatMode: 'all' as const };
+    const remote = { snapshot: EMPTY_PLAYBACK, sentAt: 0, shuffleEnabled: true, repeatMode: 'all' as const };
     const result = resolveClientPlayback(remote, local, true, true, false, false, null);
     expect(result.playbackSnapshot).toBe(local.snapshot);
     expect(result.playbackStatus).toBe(local.status);
@@ -325,6 +325,7 @@ describe('resolveClientPlayback', () => {
         backend: 'video' as const,
         buffered: [[0, 3]] as Array<[number, number]>
       },
+      sentAt: 0,
       shuffleEnabled: true,
       repeatMode: 'all' as const
     };
@@ -349,6 +350,7 @@ describe('resolveClientPlayback', () => {
   it('surfaces render-pipeline buffering as loading unless the host reported an error', () => {
     const remote = {
       snapshot: { ...EMPTY_PLAYBACK, state: 'playing' as const },
+      sentAt: 0,
       shuffleEnabled: false,
       repeatMode: 'off' as const
     };
@@ -374,6 +376,7 @@ describe('resolveClientPlayback', () => {
   it('keeps remote buffered ranges only for render clients', () => {
     const remote = {
       snapshot: { ...EMPTY_PLAYBACK, state: 'playing' as const },
+      sentAt: 0,
       shuffleEnabled: false,
       repeatMode: 'off' as const
     };
@@ -388,6 +391,38 @@ describe('resolveClientPlayback', () => {
       resolveClientPlayback(remote, local, true, false, false, false, [[1, 2]]).playbackSnapshot
         .buffered
     ).toBeUndefined();
+  });
+
+  it('advances a playing host snapshot without advancing loading or paused snapshots', () => {
+    const remote = {
+      snapshot: { ...EMPTY_PLAYBACK, state: 'playing' as const, currentTime: 4, duration: 10 },
+      sentAt: 1_000,
+      shuffleEnabled: false,
+      repeatMode: 'off' as const
+    };
+    const displayTime = (state: 'playing' | 'loading' | 'paused', now: number) =>
+      resolveClientPlayback(
+        { ...remote, snapshot: { ...remote.snapshot, state } },
+        local, true, false, false, false, null, now
+      ).playbackSnapshot.currentTime;
+
+    expect(displayTime('playing', 3_500)).toBe(6.5);
+    expect(displayTime('playing', 20_000)).toBe(10);
+    expect(displayTime('loading', 3_500)).toBe(4);
+    expect(displayTime('paused', 3_500)).toBe(4);
+  });
+
+  it('uses a loaded source file duration when the host has none', () => {
+    const remote = {
+      snapshot: { ...EMPTY_PLAYBACK, state: 'playing' as const, currentTime: 8 },
+      sentAt: 1_000,
+      sourceFileDuration: 12,
+      shuffleEnabled: false,
+      repeatMode: 'off' as const
+    };
+    const result = resolveClientPlayback(remote, local, true, false, false, false, null, 10_000);
+    expect(result.playbackSnapshot.duration).toBe(12);
+    expect(result.playbackSnapshot.currentTime).toBe(12);
   });
 });
 

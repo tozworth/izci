@@ -24,6 +24,27 @@ const VORBIS_LYRICS_KEYS = ['LYRICS', 'SYNCEDLYRICS', 'SYNCED LYRICS'];
 const LRC_TIMESTAMP_PATTERN = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
 const DEFAULT_DOWNTIME_THRESHOLD_SECONDS = 10;
 const lyricsLoadCache = new Map<string, Promise<LoadedLyrics | null>>();
+const remoteLyrics = new Map<string, { loaded: LoadedLyrics; revision: number }>();
+let remoteLyricsRevision = 0;
+
+function baseTrackLyricsKey(track: TrackItem): string {
+  return `${track.id}:${track.extension}:${track.lastModified}:${track.size}`;
+}
+
+export function registerRemoteTrackLyrics(track: TrackItem, raw: string): void {
+  if (track.kind !== 'stream' || raw.length > 64 * 1024) return;
+  const lines = parseLrcLyrics(raw);
+  if (!hasRenderableLyrics(raw, lines)) return;
+  const key = baseTrackLyricsKey(track);
+  if (remoteLyrics.get(key)?.loaded.raw === raw) return;
+  remoteLyrics.set(key, { loaded: { raw, lines, source: 'embedded-metadata' }, revision: ++remoteLyricsRevision });
+  if (remoteLyrics.size > 128) remoteLyrics.delete(remoteLyrics.keys().next().value!);
+}
+
+export function clearRemoteTrackLyrics(): void {
+  remoteLyrics.clear();
+  remoteLyricsRevision += 1;
+}
 
 async function resolveTrackFile(track: TrackItem): Promise<File | null> {
   if (track.fileHandle) {
@@ -196,7 +217,9 @@ export function hasRenderableLyrics(raw: string, lines = parseLrcLyrics(raw)): b
 }
 
 export function getTrackLyricsLoadKey(track: TrackItem | null): string {
-  return track ? `${track.id}:${track.extension}:${track.lastModified}:${track.size}` : '';
+  if (!track) return '';
+  const key = baseTrackLyricsKey(track);
+  return `${key}:${remoteLyrics.get(key)?.revision ?? 0}`;
 }
 
 function findVorbisLyricsComment(comments: Array<{ key: string; value: string }>): string {
@@ -261,6 +284,9 @@ export async function loadTrackLyrics(track: TrackItem | null): Promise<LoadedLy
   if (!cacheKey) {
     return null;
   }
+
+  const enriched = remoteLyrics.get(baseTrackLyricsKey(track));
+  if (enriched) return enriched.loaded;
 
   const cachedLyrics = lyricsLoadCache.get(cacheKey);
 

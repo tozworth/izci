@@ -164,7 +164,7 @@ export class MultiplayerSourcePlaybackService {
           if (objectUrl) URL.revokeObjectURL(objectUrl);
           return false;
         }
-        if (!ready || !playerController.commitPrepared(track.id)) {
+        if (!ready || !playerController.commitPrepared(track.id, 0, snapshot.state === 'playing')) {
           throw new Error('Could not prepare the transferred track.');
         }
         const latestPosition = this.#latestPlayback?.track?.id === track.id
@@ -242,6 +242,14 @@ export class MultiplayerSourcePlaybackService {
     if (playback.snapshot.state === 'playing') {
       if (this.#synchronizedGenerationId === playback.generationId
         && Date.now() < this.#synchronizedStartAt) return;
+      // A late host clock can still describe this generation as playing after
+      // the media element ended. Replaying it at its last sample makes a loud
+      // loop while the next source file is in transit.
+      if (playback.snapshot.duration > 0 && target >= playback.snapshot.duration - 0.05) {
+        if (local.state === 'playing') playerController.pause();
+        return;
+      }
+      if (local.state === 'ended' && !forceSeek) return;
       if (drift > 1 && canCorrectDrift) playerController.seek(target);
       if (local.state !== 'playing') playerController.play();
       return;

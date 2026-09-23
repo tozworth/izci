@@ -111,7 +111,8 @@ beforeEach(() => {
     multiplayerServerEndpoint: '',
     multiplayerServerLabel: '',
     multiplayerServerNoticeVersion: SERVER_PROVIDER_NOTICE_VERSION,
-    multiplayerServerIceAck: ''
+    multiplayerServerIceAck: '',
+    multiplayerRestoreLastSession: false
   });
 });
 
@@ -325,6 +326,18 @@ describe('server setup controller', () => {
     expect(connector.calls).toEqual(['join']);
     // No Remember means no invitation is stored.
     expect(serverRecents.getSnapshot()[0]).toMatchObject({ invitationSecret: null });
+  });
+
+  it('remembers a joined guest invitation when last-session restore is enabled', async () => {
+    multiplayerSettings.update({ multiplayerRestoreLastSession: true });
+    const connector = stubConnector();
+    const controller = createServerSetupController(stubNetwork());
+    controller.setSessionConnector(connector);
+    controller.captureInvitation(invitation());
+    await controller.joinPending();
+
+    expect(connector.calls).toEqual(['join']);
+    expect(serverRecents.getSnapshot()[0]).toMatchObject({ invitationSecret: 'invite-secret-9' });
   });
 
   it('redacts invitation material from guest errors', async () => {

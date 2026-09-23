@@ -48,13 +48,13 @@ describe('workspace actions', () => {
       .toEqual(['add-to-queue', 'play-next', 'go-to-library', 'track-details', 'copy-filename']);
   });
 
-  it('offers Co-op playback and inspection actions without collection mutations', () => {
+  it('offers shared queue edits from queue and library context menus', () => {
     const track = item('track', { path: '/Music/Track.flac', metadata: { artist: 'Artist' } });
 
     expect(buildCoopQueueContextActions([track], [track], ['track']).map(({ id }) => id))
-      .toEqual(['play-next', 'go-to-library', 'track-details', 'copy-filename']);
+      .toEqual(['play-next', 'remove', 'randomize-queue', 'go-to-library', 'track-details', 'copy-filename']);
     expect(buildCoopLibraryContextActions([track], [track], ['track']).map(({ id }) => id))
-      .toEqual(['go-to-library', 'track-details', 'copy-filename']);
+      .toEqual(['add-to-queue', 'replace-queue', 'play-next', 'go-to-library', 'track-details', 'copy-filename']);
   });
 
   it('only offers Freeplay Replace queue for multi-track selections', () => {

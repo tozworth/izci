@@ -18,6 +18,7 @@ import { getLocalServerIdentity, isValidServerIdentity } from './multiplayer-ser
 import { computePairProof, createPairNonce } from './multiplayer-server-pairing';
 import { rememberMultiplayerHost } from '$lib/stores/multiplayer-recents';
 import { getMultiplayerArtworkTrackKey } from './multiplayer-artwork';
+import { applyRemoteTrackInfo, enrichCatalog, enrichPlayback } from './multiplayer-client-track-info';
 import { multiplayerAudioService } from './multiplayer-audio';
 import {
   clearPeerConnectionTimer,
@@ -123,7 +124,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
       }
       return;
     }
-    if (message.kind === 'catalog') core.publish({ remoteCatalog: message.catalog });
+    if (message.kind === 'catalog') core.publish({ remoteCatalog: enrichCatalog(message.catalog, ctx.trackInfoById) });
     if (message.kind === 'state') {
       core.publish({
         remoteCatalog: {
@@ -142,7 +143,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
         });
         return;
       }
-      core.publish({ remotePlayback: message.playback });
+      core.publish({ remotePlayback: enrichPlayback({ ...message.playback, sentAt: Date.now() }, ctx.trackInfoById) });
       multiplayerSourcePlaybackService.syncPlayback(message.playback);
       if (core.state.remoteDelivery.mode === 'stream') {
         multiplayerAudioService.setRemoteAudible(
@@ -194,6 +195,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
         remoteArtworkResolvedTrackKey: getMultiplayerArtworkTrackKey(core.state.remotePlayback.track)
       });
     }
+    if (message.kind === 'track.info') applyRemoteTrackInfo(ctx, message.info);
     if (message.kind === 'oda.background') {
       core.publish({ remoteOdaBackground: message.background });
     }

@@ -129,6 +129,20 @@ describe('MultiplayerSourcePlaybackService', () => {
     expect(controllerHarness.play).toHaveBeenCalledTimes(1);
   });
 
+  it('does not restart an ended source from its last sample while the host advances', async () => {
+    const service = new MultiplayerSourcePlaybackService();
+    service.syncPlayback(playback('paused'));
+    await service.loadFile(track, {} as File);
+    controllerHarness.snapshot = { ...controllerHarness.snapshot, state: 'ended', currentTime: 180 };
+    const lastFrame = playback('playing');
+    lastFrame.snapshot.currentTime = 180;
+
+    service.syncPlayback(lastFrame);
+
+    expect(controllerHarness.play).not.toHaveBeenCalled();
+    expect(controllerHarness.seek).not.toHaveBeenCalled();
+  });
+
   it('prepares a loading replacement before releasing the active transferred file', async () => {
     const service = new MultiplayerSourcePlaybackService();
     service.syncPlayback(playback('playing'));
@@ -143,7 +157,8 @@ describe('MultiplayerSourcePlaybackService', () => {
       id: 'track-2',
       objectUrl: 'blob:replacement-track'
     }));
-    expect(controllerHarness.commitPrepared).toHaveBeenCalledWith('track-2');
+    expect(controllerHarness.commitPrepared).toHaveBeenCalledWith('track-2', 0, false);
+    expect(controllerHarness.play).not.toHaveBeenCalled();
     expect(controllerHarness.unload).not.toHaveBeenCalled();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:transferred-track');
   });

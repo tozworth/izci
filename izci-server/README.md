@@ -52,6 +52,18 @@ containers use `0.0.0.0:8787`):
 go run ./cmd/izci-server serve --config config.json
 ```
 
+On Windows, use a stable executable path during local development. `go run`
+places each build under a new temporary path, which can trigger a fresh Windows
+Firewall prompt on every restart. From `izci-server/` in PowerShell:
+
+```powershell
+go build -o ..\.local\izci-server\izci-server.exe .\cmd\izci-server
+..\.local\izci-server\izci-server.exe serve --config ..\.local\izci-server\config.json
+```
+
+Stop the server before rebuilding the executable. The example keeps the build
+under the repository's ignored `.local/` directory.
+
 Once the dedicated host has connected, `serve` prints a pasteable invitation
 payload:
 

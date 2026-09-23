@@ -4,11 +4,24 @@ import {
   findActiveLyricIndex,
   findActiveTimelineIndex,
   hasRenderableLyrics,
+  getTrackLyricsLoadKey,
+  loadTrackLyrics,
+  registerRemoteTrackLyrics,
+  clearRemoteTrackLyrics,
   parseLrcLyrics,
   stripLrcTimestamps
 } from './lyrics';
 
 describe('lyrics helpers', () => {
+  it('makes late multiplayer lyrics visible without a local file', async () => {
+    const track = { id: 'remote-song', name: 'Remote song.opus', extension: 'opus', kind: 'stream' as const, size: 123, lastModified: 1 };
+    const before = getTrackLyricsLoadKey(track);
+    registerRemoteTrackLyrics(track, '[00:01.00]First line\n[00:02.00]Second line');
+    expect(getTrackLyricsLoadKey(track)).not.toBe(before);
+    expect((await loadTrackLyrics(track))?.lines).toHaveLength(2);
+    clearRemoteTrackLyrics();
+    expect(await loadTrackLyrics(track)).toBeNull();
+  });
   it('parses LRC timestamps and sorts repeated timestamp lines', () => {
     const lines = parseLrcLyrics('[00:05.25] Five\n[00:01.5][00:03.050] Shared\n[00:07] Seven');
 

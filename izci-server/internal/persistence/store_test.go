@@ -231,8 +231,15 @@ func TestSharedStateRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Queue) != 2 || !got.Shuffle || got.Repeat != "all" || got.CurrentID != "a" {
+	if !got.Initialized || len(got.Queue) != 2 || !got.Shuffle || got.Repeat != "all" || got.CurrentID != "a" {
 		t.Fatalf("round trip = %+v", got)
+	}
+	if err := s.SetSharedState(SharedState{Queue: []string{}, Repeat: "off"}); err != nil {
+		t.Fatal(err)
+	}
+	empty, err := s.GetSharedState()
+	if err != nil || !empty.Initialized || len(empty.Queue) != 0 {
+		t.Fatalf("empty queue round trip = %+v, %v", empty, err)
 	}
 	// Transient clocks are never stored: only queue/shuffle/repeat/current.
 	if _, err := os.Stat("transient"); err == nil {

@@ -49,6 +49,7 @@ import {
 } from '$lib/services/workspace-collections';
 import { windowManager } from '$lib/services/window-manager';
 import { favoritesStore, libraryStore, queueStore } from '$lib/stores/queue';
+import { cloneTrackItems } from '$lib/utils/files';
 import { libraryViewSettings } from '$lib/stores/library-view-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { videoSettings } from '$lib/stores/video-settings';
@@ -72,6 +73,7 @@ import {
 import type { MultiplayerSessionController } from '$lib/services/multiplayer-types';
 import type { MultiplayerCollection } from '$lib/services/multiplayer-protocol';
 import {
+  getRemoteDetailsLoadKey,
   getRemoteArtworkLoadKey,
   toLoadedMultiplayerArtwork
 } from '$lib/services/multiplayer-artwork';
@@ -142,6 +144,9 @@ interface MainWindowRuntime {
 
 interface MainWindowRuntimeDeps {
   mobileMode: boolean;
+  getQueueItems(): TrackItem[];
+  getLibraryItems(): TrackItem[];
+  getFavoriteItems(): TrackItem[];
   getRemoteSelections(): RemoteSelectionSnapshot;
   setRemoteSelections(selections: RemoteSelectionSnapshot): void;
   setVideoSeekFeedback(feedback: VideoSeekFeedback | null): void;
@@ -191,9 +196,9 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
 
   const windowSelection = createWindowSelectionController({
     getIsMultiplayerClient: () => state.isMultiplayerClient,
-    getQueueItems: () => state.queueItems,
-    getLibraryItems: () => state.libraryItems,
-    getFavoriteItems: () => state.favoriteItems,
+    getQueueItems: deps.getQueueItems,
+    getLibraryItems: deps.getLibraryItems,
+    getFavoriteItems: deps.getFavoriteItems,
     getRemoteSelections: deps.getRemoteSelections,
     setRemoteSelections: deps.setRemoteSelections,
     getActiveView: () => libraryViewSettings.getSnapshot().activeView,
@@ -315,6 +320,32 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
       const selected = state.queueItems.filter((item) => ids.includes(item.id));
       upNext.add(selected, 'front');
     },
+    playCollectionItemsNext: (collection, ids) => {
+      const source = collection === 'favorites' ? state.favoriteItems : state.libraryItems;
+      if (!ids.every((id) => source.some((item) => item.id === id))) return false;
+      if (collection === 'favorites') workspaceCollections.handleFavoriteContextAction('play-next', ids);
+      else workspaceCollections.handleLibraryContextAction('play-next', ids);
+      return true;
+    },
+    editSharedQueue: (type, ids) => {
+      if (type === 'queue.randomize') {
+        queueStore.randomize();
+        return true;
+      }
+      const source = type === 'queue.remove' ? state.queueItems : [...state.libraryItems, ...state.favoriteItems];
+      if (!ids.length || !ids.every((id) => source.some((item) => item.id === id))) return false;
+      if (type === 'queue.remove') workspaceCollections.removeTrackItems(ids);
+      else {
+        const selected = ids.map((id) => source.find((item) => item.id === id)!);
+        if (type === 'queue.add') queueStore.add(cloneTrackItems(selected));
+        else {
+          const { removedItems } = queueStore.replaceAll(cloneTrackItems(selected));
+          workspaceCollections.cleanupRemovedItems(removedItems);
+          playerController.unload();
+        }
+      }
+      return true;
+    },
     getMultiplayerSettings: () => multiplayerSettings.getSnapshot(),
     getLastSession: () => multiplayerLastSession.getSnapshot(),
     getPairings: () => multiplayerPairings.getSnapshot(),
@@ -354,6 +385,9 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
       isMultiplayerClient: isClient,
       isFreeplayClient: isClient && value.freeplay,
       isSourceFileFreeplayClient: isClient && value.freeplay && value.remoteDelivery.mode === 'source-file',
+      queueItems: isClient ? value.remoteCatalog.queue : get(queueItemsStore),
+      libraryItems: isClient ? value.remoteCatalog.library : get(libraryItemsStore),
+      favoriteItems: isClient ? value.remoteCatalog.favorites : get(favoriteItemsStore),
       videoTrackActive: !isClient && state.playingTrack?.kind === 'video',
       visualMediaActive: !isClient && (state.playingTrack?.kind === 'video' || state.playingTrack?.kind === 'image')
     });
@@ -498,6 +532,9 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
           state.multiplayerState.remoteArtwork,
           state.multiplayerState.remoteArtworkResolvedTrackKey
         )
+      : getTrackArtworkLoadKey(track),
+    getDetailsLoadKey: (track) => state.multiplayerState.mode === 'client'
+      ? getRemoteDetailsLoadKey(track, state.multiplayerState.remoteArtwork)
       : getTrackArtworkLoadKey(track)
   });
   const appShortcuts = createAppShortcuts({
@@ -579,16 +616,16 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
 
   const unsubscribeTrackItems = queueItemsStore.subscribe((value) => {
     viewSet({ trackItems: value });
-    publish({ queueItems: value });
+    if (!state.isMultiplayerClient) publish({ queueItems: value });
     if (!state.isMultiplayerClient) workspaceShell.syncQueueItems(value);
   });
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => {
     viewSet({ libraryItems: value });
-    publish({ libraryItems: value });
+    if (!state.isMultiplayerClient) publish({ libraryItems: value });
   });
   const unsubscribeFavoriteItems = favoriteItemsStore.subscribe((value) => {
     viewSet({ favoriteItems: value });
-    publish({ favoriteItems: value });
+    if (!state.isMultiplayerClient) publish({ favoriteItems: value });
   });
   void Promise.all([queueStore.ready(), libraryStore.ready(), favoritesStore.ready()]).then(async () => {
     viewSet({ collectionsReady: true });

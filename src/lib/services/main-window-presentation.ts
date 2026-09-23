@@ -213,6 +213,8 @@ interface ClientPlaybackLocal {
 
 interface ClientPlaybackRemote {
   snapshot: PlaybackSnapshot;
+  sentAt: number;
+  sourceFileDuration?: number;
   shuffleEnabled: boolean;
   repeatMode: RepeatMode;
 }
@@ -241,12 +243,23 @@ export function resolveClientPlayback(
   isSourceFileClient: boolean,
   isRenderClient: boolean,
   buffering: boolean,
-  ranges: Array<[number, number]> | null
+  ranges: Array<[number, number]> | null,
+  now = remote.sentAt
 ): ClientPlaybackPresentation {
   const useRemotePlayback = isClient && !isSourceFileClient;
+  const remoteDuration = remote.snapshot.duration > 0
+    ? remote.snapshot.duration
+    : remote.sourceFileDuration ?? remote.snapshot.duration;
   const playbackSnapshot = useRemotePlayback
     ? {
         ...remote.snapshot,
+        duration: remoteDuration,
+        currentTime: remote.snapshot.state === 'playing'
+          ? Math.min(
+              remoteDuration > 0 ? remoteDuration : Number.POSITIVE_INFINITY,
+              remote.snapshot.currentTime + Math.max(0, (now - remote.sentAt) / 1_000)
+            )
+          : remote.snapshot.currentTime,
         state:
           isRenderClient && buffering && remote.snapshot.state !== 'error'
             ? 'loading'

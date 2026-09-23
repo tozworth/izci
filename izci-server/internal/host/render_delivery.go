@@ -416,6 +416,7 @@ func (h *Host) maybeRenderForNewPeer(peer *Peer, freeplay bool) {
 func (h *Host) startSessionDelivery(sess *Session, delivery Delivery, freeplay bool, peer *Peer) {
 	switch delivery.Mode {
 	case DeliverySourceFile:
+		h.probeSessionSourceDuration(sess, delivery, freeplay, peer)
 		if freeplay {
 			h.startFreeplayTransfer(peer, delivery)
 		} else {

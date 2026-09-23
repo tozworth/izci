@@ -19,7 +19,7 @@ import (
 // source-file transfer, buffered Opus rendering, and the session engine.
 // Pairing-proof and chat land in later phases and are omitted so clients
 // degrade through capabilities instead of product-name checks.
-var phase5Capabilities = []string{"source-file", "buffered-opus", "synchronized-start", "pairing-proof", "freeplay", "chat"}
+var phase5Capabilities = []string{"source-file", "buffered-opus", "synchronized-start", "pairing-proof", "freeplay", "chat", "track-info"}
 
 // HostConfig configures the dedicated host.
 type HostConfig struct {
@@ -96,20 +96,24 @@ type Host struct {
 	transport   HostSignalingTransport
 	onRoomReady func(RoomCredentials)
 
-	catalog       *Catalog
-	policy        media.Policy
-	store         *persistence.Store
-	serverID      string
-	roomID        string
-	permissions   *PolicyPermissions
-	chatMu        sync.Mutex
-	chatHistory   []chatMessage
-	pairMu        sync.Mutex
-	pairings      map[string]persistence.PairingRecord
-	transferSlots chan struct{}
-	shuttingDown  atomic.Bool
-	metrics       HostMetrics
-	artwork       ArtworkProvider
+	catalog          *Catalog
+	queueCommandMu   sync.Mutex
+	policy           media.Policy
+	store            *persistence.Store
+	serverID         string
+	roomID           string
+	permissions      *PolicyPermissions
+	chatMu           sync.Mutex
+	chatHistory      []chatMessage
+	pairMu           sync.Mutex
+	pairings         map[string]persistence.PairingRecord
+	transferSlots    chan struct{}
+	shuttingDown     atomic.Bool
+	metrics          HostMetrics
+	artwork          ArtworkProvider
+	trackInfoSlots   chan struct{}
+	trackInfoMu      sync.Mutex
+	trackInfoPending map[string]bool
 
 	// Render delivery: coordinator deduplicates and bounds encoder work,
 	// the cache serves completed bytes, and policyBackend carries the
@@ -194,28 +198,30 @@ func NewHost(cfg HostConfig) *Host {
 		serverID = "izci-server-host"
 	}
 	h := &Host{
-		cfg:             cfg,
-		log:             logger,
-		nowMs:           nowMs,
-		sessions:        NewRoomSessions(shared, perms, newFreeplay),
-		peers:           make(map[string]*Peer),
-		rtc:             NewRTCHost(cfg.RTC),
-		catalog:         catalog,
-		policy:          policy,
-		store:           cfg.Store,
-		serverID:        serverID,
-		permissions:     policyPerms,
-		artwork:         cfg.ArtworkProvider,
-		pairings:        make(map[string]persistence.PairingRecord),
-		attempts:        make(map[string]string),
-		transferCancels: make(map[string]context.CancelFunc),
-		transferTokens:  make(map[string]int),
-		renderCancels:   make(map[string]context.CancelFunc),
-		renderTokens:    make(map[string]int),
-		renderCoord:     cfg.RenderCoordinator,
-		renderCache:     cfg.RenderCache,
-		renderFFmpeg:    cfg.RenderFFmpeg,
-		renderBitrate:   cfg.RenderBitrate,
+		cfg:              cfg,
+		log:              logger,
+		nowMs:            nowMs,
+		sessions:         NewRoomSessions(shared, perms, newFreeplay),
+		peers:            make(map[string]*Peer),
+		rtc:              NewRTCHost(cfg.RTC),
+		catalog:          catalog,
+		policy:           policy,
+		store:            cfg.Store,
+		serverID:         serverID,
+		permissions:      policyPerms,
+		artwork:          cfg.ArtworkProvider,
+		trackInfoSlots:   make(chan struct{}, 2),
+		trackInfoPending: make(map[string]bool),
+		pairings:         make(map[string]persistence.PairingRecord),
+		attempts:         make(map[string]string),
+		transferCancels:  make(map[string]context.CancelFunc),
+		transferTokens:   make(map[string]int),
+		renderCancels:    make(map[string]context.CancelFunc),
+		renderTokens:     make(map[string]int),
+		renderCoord:      cfg.RenderCoordinator,
+		renderCache:      cfg.RenderCache,
+		renderFFmpeg:     cfg.RenderFFmpeg,
+		renderBitrate:    cfg.RenderBitrate,
 	}
 	if cfg.MaxPeers <= 0 {
 		h.cfg.MaxPeers = 8
@@ -288,17 +294,15 @@ func (h *Host) restoreSharedState() {
 	if err != nil {
 		return
 	}
-	if len(st.Queue) > 0 {
+	if st.Initialized {
 		filtered := make([]string, 0, len(st.Queue))
 		for _, id := range st.Queue {
 			if h.catalog.HasTrack(id) {
 				filtered = append(filtered, id)
 			}
 		}
-		if len(filtered) > 0 {
-			h.catalog.SetQueue(filtered)
-			h.sessions.Shared().SetQueue(filtered)
-		}
+		h.catalog.SetQueue(filtered)
+		h.sessions.Shared().SetQueue(filtered)
 	}
 	// Shuffle/repeat restore through session toggles to keep the single
 	// mutation owner (sessions) authoritative.
@@ -350,8 +354,8 @@ func (h *Host) persistSharedState() {
 func (h *Host) SetLibraryTracks(tracks []*library.Track, revision int64) {
 	persistedQueue := h.catalog.QueueIDs()
 	if h.store != nil {
-		if st, err := h.store.GetSharedState(); err == nil && len(st.Queue) > 0 {
-			persistedQueue = st.Queue
+		if st, err := h.store.GetSharedState(); err == nil && st.Initialized {
+			persistedQueue = append([]string{}, st.Queue...)
 		}
 	}
 	h.catalog.Load(tracks, persistedQueue, revision)
@@ -421,9 +425,13 @@ func (h *Host) Run(ctx context.Context, capacity int) error {
 	defer stopMaintain()
 	maintainErr := make(chan error, 1)
 	go func() { maintainErr <- h.transport.Maintain(maintainCtx) }()
+	endTicker := time.NewTicker(250 * time.Millisecond)
+	defer endTicker.Stop()
 	backoff := []time.Duration{500 * time.Millisecond, time.Second, 2 * time.Second, 5 * time.Second, 10 * time.Second}
 	for attempt := 0; ; {
 		select {
+		case <-endTicker.C:
+			h.advanceElapsedSharedTrack()
 		case <-ctx.Done():
 			h.shuttingDown.Store(true)
 			h.ClosePeers()
@@ -535,6 +543,9 @@ func (h *Host) OnOffer(attemptID, sdp string) {
 		},
 		OnControlText: func(text string) {
 			h.HandleControlText(peerID, text)
+		},
+		OnControlClose: func() {
+			h.removePeer(peerID, attemptID, "control-closed")
 		},
 		OnMedia: func(ch DataChannel) {
 			h.attachMediaChannel(peerID, ch)
@@ -832,6 +843,12 @@ func (h *Host) HandleControlText(peerID, text string) {
 		h.handleClientHello(peer, []byte(text))
 	case "command":
 		h.handleClientCommand(peer, msg)
+	case "track.info.request":
+		var body struct {
+			TrackID string `json:"trackId"`
+		}
+		_ = json.Unmarshal([]byte(text), &body)
+		h.handleTrackInfoRequest(peer, body.TrackID)
 	case "playback.ready":
 		var body struct {
 			GenerationID string `json:"generationId"`
@@ -1016,6 +1033,11 @@ func (h *Host) handleClientCommand(peer *Peer, msg map[string]json.RawMessage) {
 		h.sendToPeer(peer, AckMessage(cmd.CommandID, false, "Track not found."))
 		return
 	}
+	if !freeplay && isSharedQueueCommand(cmd.Type) {
+		accepted := h.applySharedQueueCommand(peer.ID, cmd.Type, cmd.ItemIDs)
+		h.sendToPeer(peer, AckMessage(cmd.CommandID, accepted, ""))
+		return
+	}
 	result := h.sessions.Dispatch(Command{
 		Type: cmd.Type, CommandID: cmd.CommandID, PeerID: peer.ID,
 		Seconds: cmd.Seconds, Collection: cmd.Collection, ItemID: cmd.ItemID, ItemIDs: cmd.ItemIDs,
@@ -1128,9 +1150,24 @@ func (h *Host) validateCommand(peer *Peer, typ, collection, itemID string, itemI
 			}
 			return true
 		}
-		// Shared mirrors the browser host: only queue items can be queued
-		// next, and every ID must already be in the shared queue.
-		if collection != "queue" {
+		for _, id := range itemIDs {
+			if !h.catalog.HasInCollection(collection, id) {
+				return false
+			}
+		}
+		return true
+	case "queue.add", "queue.replace":
+		if freeplay || len(itemIDs) == 0 || len(itemIDs) > 50000 {
+			return false
+		}
+		for _, id := range itemIDs {
+			if !h.catalog.HasInCollection("library", id) {
+				return false
+			}
+		}
+		return true
+	case "queue.remove":
+		if freeplay || len(itemIDs) == 0 || len(itemIDs) > 50000 {
 			return false
 		}
 		for _, id := range itemIDs {
@@ -1194,6 +1231,17 @@ func (h *Host) handleEnded(peer *Peer, generationID, trackID string) {
 	} else {
 		target = h.sessions.Shared()
 	}
+	h.finishEnded(target, peer, freeplay, generationID, trackID)
+}
+
+func (h *Host) advanceElapsedSharedTrack() {
+	generationID, trackID, elapsed := h.sessions.Shared().TimedOutTrack(h.nowMs())
+	if elapsed {
+		h.finishEnded(h.sessions.Shared(), nil, false, generationID, trackID)
+	}
+}
+
+func (h *Host) finishEnded(target *Session, peer *Peer, freeplay bool, generationID, trackID string) {
 	_, _, prep, cancelled, advanced := target.HandleEnded(generationID, trackID)
 	if !advanced {
 		return
@@ -1227,6 +1275,13 @@ func (h *Host) handleEnded(peer *Peer, generationID, trackID string) {
 		}
 	}
 	h.persistSharedState()
+	// The client must learn the new generation before preparation or source
+	// delivery arrives, just as it does for an explicit transport command.
+	if freeplay {
+		h.sendDeliveryPlayback(peer, true)
+	} else {
+		h.broadcastShared()
+	}
 	if cancelled != nil {
 		if freeplay {
 			h.sendToPeer(peer, CancelMessage(*cancelled))
@@ -1247,11 +1302,6 @@ func (h *Host) handleEnded(peer *Peer, generationID, trackID string) {
 			h.startSessionDelivery(target, delivery, false, nil)
 		}
 	}
-	if freeplay {
-		h.sendDeliveryPlayback(peer, true)
-		return
-	}
-	h.broadcastShared()
 }
 
 func (h *Host) handleFreeplayPreference(peer *Peer, enabled bool) {

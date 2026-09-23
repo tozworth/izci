@@ -1,7 +1,10 @@
 package host
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/dunsparce9/izci/izci-server/internal/library"
@@ -45,11 +48,20 @@ func (c *Catalog) Load(tracks []*library.Track, persistedQueue []string, revisio
 	byID := c.tracks
 	var q []string
 	for _, id := range persistedQueue {
+		if _, ok := byID[id]; !ok {
+			if source, valid := queueCopySourceID(id); valid {
+				if original, exists := byID[source]; exists {
+					copy := *original
+					copy.ID = id
+					byID[id] = &copy
+				}
+			}
+		}
 		if _, ok := byID[id]; ok {
 			q = append(q, id)
 		}
 	}
-	if len(q) == 0 && len(tracks) > 0 {
+	if len(q) == 0 && persistedQueue == nil && len(tracks) > 0 {
 		sorted := append([]*library.Track(nil), tracks...)
 		sort.Slice(sorted, func(i, j int) bool { return sorted[i].VirtualPath < sorted[j].VirtualPath })
 		for _, t := range sorted {
@@ -106,6 +118,44 @@ func (c *Catalog) SetQueue(ids []string) {
 	c.queue = q
 }
 
+// CopyForQueue gives an added library track its own queue identity. The
+// source ID is encoded so copies can be rebuilt from the persistent queue
+// after a restart without adding duplicate library records.
+func (c *Catalog) CopyForQueue(sourceID string) (string, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	original, ok := c.tracks[sourceID]
+	if !ok || isQueueCopyID(sourceID) || len(sourceID) > 150 {
+		return "", false
+	}
+	var nonce [12]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return "", false
+	}
+	id := "queue-copy:" + sourceID + ":" + hex.EncodeToString(nonce[:])
+	copy := *original
+	copy.ID = id
+	c.tracks[id] = &copy
+	return id, true
+}
+
+func queueCopySourceID(id string) (string, bool) {
+	if !strings.HasPrefix(id, "queue-copy:") {
+		return "", false
+	}
+	rest := strings.TrimPrefix(id, "queue-copy:")
+	end := strings.LastIndexByte(rest, ':')
+	if end <= 0 || len(rest[end+1:]) != 24 {
+		return "", false
+	}
+	if _, err := hex.DecodeString(rest[end+1:]); err != nil {
+		return "", false
+	}
+	return rest[:end], true
+}
+
+func isQueueCopyID(id string) bool { _, ok := queueCopySourceID(id); return ok }
+
 // Snapshot renders queue/library/favorites TrackItems with limits applied
 // before encoding. Queue preserves persisted order; library sorts by virtual
 // path; favorites filter Favorite tracks sorted by virtual path.
@@ -126,7 +176,9 @@ func (c *Catalog) Snapshot() (queue, lib, favs []map[string]any) {
 	}
 	var all []*library.Track
 	for _, t := range c.tracks {
-		all = append(all, t)
+		if !isQueueCopyID(t.ID) {
+			all = append(all, t)
+		}
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].VirtualPath < all[j].VirtualPath })
 	var lItems []map[string]any
@@ -185,9 +237,9 @@ func (c *Catalog) HasInCollection(collection, id string) bool {
 		}
 		return false
 	case "library":
-		return true
+		return !isQueueCopyID(id)
 	case "favorites":
-		return t.Favorite
+		return !isQueueCopyID(id) && t.Favorite
 	default:
 		return false
 	}
@@ -205,7 +257,13 @@ func (c *Catalog) HasTrack(id string) bool {
 func (c *Catalog) Count() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return len(c.tracks)
+	count := 0
+	for id := range c.tracks {
+		if !isQueueCopyID(id) {
+			count++
+		}
+	}
+	return count
 }
 
 func min(a, b int) int {

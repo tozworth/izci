@@ -1,8 +1,10 @@
 import { MultiplayerClientTransition } from './multiplayer-client-transition';
+import { clearRemoteTrackLyrics } from './lyrics';
 import type { MultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { multiplayerRenderPlaybackService } from './multiplayer-render-playback';
 import { createReceiverBitrateMonitor } from './multiplayer-receiver-monitor';
 import { sendToPeer } from './multiplayer-peer';
+import { requestRemoteTrackInfo } from './multiplayer-client-track-info';
 import {
   join,
   joinPaired,
@@ -53,6 +55,8 @@ export interface MultiplayerClientContext {
   renderReadySentGeneration: string | null;
   renderReadySentEpoch: number;
   useHostOdaBackground: boolean;
+  trackInfoById: Map<string, import('./multiplayer-protocol').MultiplayerTrackInfo>;
+  requestedTrackInfo: Set<string>;
   connectClient: (rawInviteCode: string, reconnecting: boolean, silent?: boolean) => Promise<void>;
   resolveDirectoryRoomCode: (hostId: string) => Promise<string | null>;
   sendCommand: (command: MultiplayerCommandInput) => boolean;
@@ -81,6 +85,8 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore) {
     renderReadySentGeneration: null,
     renderReadySentEpoch: -1,
     useHostOdaBackground: true,
+    trackInfoById: new Map(),
+    requestedTrackInfo: new Set(),
     connectClient: (rawInviteCode, reconnecting, silent = false): Promise<void> =>
       connectClient(ctx, rawInviteCode, reconnecting, silent),
     resolveDirectoryRoomCode: (hostId): Promise<string | null> => resolveDirectoryRoomCode(ctx, hostId),
@@ -139,6 +145,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore) {
     restoreClientJoin: (last: MultiplayerLastSession) => restoreClientJoin(ctx, last),
     leave: () => leave(ctx),
     sendCommand: (command: MultiplayerCommandInput) => sendCommand(command),
+    requestTrackInfo: (trackId: string) => requestRemoteTrackInfo(ctx, trackId),
     setFreeplayQueue: (itemIds: string[]) => setFreeplayQueue(ctx, itemIds),
     setReceiveAudio: (enabled: boolean) => setReceiveAudio(ctx, enabled),
     setUseHostOdaBackground,
@@ -148,6 +155,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore) {
     clearReceiverMonitor: () => receiverMonitor.clear(),
     clearReconnectTimer: () => clearReconnectTimer(ctx),
     resetTransitions: () => {
+      clearRemoteTrackLyrics();
       cancelSynchronizedStart(ctx);
       transition.reset();
       transition.setReceiveAudio(core.state.receiveAudio);
@@ -156,6 +164,8 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore) {
       ctx.pendingFreeplayResumeTrackId = null;
       ctx.renderReadySentGeneration = null;
       ctx.renderReadySentEpoch = -1;
+      ctx.trackInfoById.clear();
+      ctx.requestedTrackInfo.clear();
     }
   };
 }

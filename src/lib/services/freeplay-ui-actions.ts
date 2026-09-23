@@ -61,6 +61,10 @@ export function createFreeplayUiActions(deps: FreeplayUiActionsDeps) {
     }
     const tracks = buildSelectedWorkspaceTracks(deps.getQueueItems(), ids);
     if (handleNavigationAction(actionId, tracks)) return;
+    if (!deps.getIsFreeplayClient()) {
+      if (actionId === 'randomize-queue') deps.sendCommand({ type: 'queue.randomize' });
+      else if (actionId === 'remove' && tracks.length) deps.sendCommand({ type: 'queue.remove', itemIds: tracks.map((track) => track.id) });
+    }
     if (actionId === 'track-details') {
       deps.showTrackDetails();
     } else if (actionId === 'copy-filename') {
@@ -82,7 +86,19 @@ export function createFreeplayUiActions(deps: FreeplayUiActionsDeps) {
       void deps.copyTrackFilenames(tracks);
       return;
     }
-    if (!deps.getIsFreeplayClient()) return;
+    if (!deps.getIsFreeplayClient()) {
+      if (tracks.length === 0) return;
+      const itemIds = tracks.map((track) => track.id);
+      if (actionId === 'add-to-queue') deps.sendCommand({ type: 'queue.add', itemIds });
+      else if (actionId === 'replace-queue') deps.sendCommand({ type: 'queue.replace', itemIds });
+      else if (actionId === 'play-next') deps.sendCommand({ type: 'queue.play-next', collection: deps.getActiveView() === 'favorites' ? 'favorites' : 'library', itemIds });
+      else if (actionId === 'shuffle-play') {
+        deps.sendCommand({ type: 'queue.replace', itemIds });
+        if (!deps.getShuffleEnabled()) deps.sendCommand({ type: 'queue.shuffle' });
+        deps.activateTrack(deps.getActiveView() === 'favorites' ? 'favorites' : 'library', itemIds[0]);
+      }
+      return;
+    }
     if (actionId === 'add-to-queue') {
       addToFreeplayQueue(ids);
       return;

@@ -516,7 +516,7 @@ function createPlayerController() {
     return true;
   }
 
-  function commitPrepared(trackId: string, crossfadeSeconds = 0): boolean {
+  function commitPrepared(trackId: string, crossfadeSeconds = 0, autoPlay = true): boolean {
     if (!preparedBundle?.ready || !preparedBundle.track || preparedBundle.track.id !== trackId) return false;
     operationSequence += 1;
     logInfo('playback', 'Prepared track committed', { id: trackId, crossfadeSeconds });
@@ -527,11 +527,11 @@ function createPlayerController() {
     activeBundle = incoming;
     publishActiveMediaElements();
     outgoingBundle = previous;
-    desiredPlaybackState = 'playing';
+    desiredPlaybackState = autoPlay ? 'playing' : 'paused';
     currentTrack.set(incoming.track);
     setBundleTransitionGain(incoming, crossfadeSeconds > 0 ? 0 : 1);
-    bundleService(incoming)?.play();
-    publishActiveBundle('playing');
+    if (autoPlay) bundleService(incoming)?.play();
+    publishActiveBundle(autoPlay ? 'playing' : 'paused');
 
     if (crossfadeSeconds > 0) {
       setBundleTransitionGain(previous, 0, crossfadeSeconds);

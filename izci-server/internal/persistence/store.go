@@ -200,10 +200,11 @@ func (s *Store) SetCatalogRevision(n int64) error {
 // membership, shuffle, repeat, current track). Clocks and barriers stay
 // transient and are never stored here.
 type SharedState struct {
-	Queue     []string
-	Shuffle   bool
-	Repeat    string // "off"|"one"|"all"
-	CurrentID string
+	Queue       []string
+	Initialized bool
+	Shuffle     bool
+	Repeat      string // "off"|"one"|"all"
+	CurrentID   string
 }
 
 // GetSharedState loads queue order plus shuffle/repeat/current.
@@ -228,7 +229,7 @@ func (s *Store) GetSharedState() (SharedState, error) {
 	}
 	var shuffle, repeat, current string
 	_ = s.db.QueryRow(`SELECT value FROM kv WHERE key='shared_shuffle'`).Scan(&shuffle)
-	_ = s.db.QueryRow(`SELECT value FROM kv WHERE key='shared_repeat'`).Scan(&repeat)
+	st.Initialized = s.db.QueryRow(`SELECT value FROM kv WHERE key='shared_repeat'`).Scan(&repeat) == nil
 	_ = s.db.QueryRow(`SELECT value FROM kv WHERE key='shared_current'`).Scan(&current)
 	st.Shuffle = shuffle == "1"
 	if repeat == "" {

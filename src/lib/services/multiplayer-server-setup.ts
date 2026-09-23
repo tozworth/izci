@@ -6,7 +6,7 @@
  *
  * Login bearers live in memory only. Operator keys may be remembered in a
  * separate device-local store when the user opts in; remembered rooms keep
- * owner/invitation secrets only when Remember was chosen. All surfaced
+ * owner/invitation secrets when room remembering or session restore is enabled. All surfaced
  * errors pass through `redactServerSecrets` so invitations never reach
  * UI text, errors, or diagnostics.
  */
@@ -613,7 +613,7 @@ export function createServerSetupController(
     set({
       dialogOpen: openDialog,
       pendingInvitation: invitation,
-      pendingRemember: false,
+      pendingRemember: multiplayerSettings.getSnapshot().multiplayerRestoreLastSession,
       guestStatus: 'idle',
       guestInfo: null,
       guestError: null,

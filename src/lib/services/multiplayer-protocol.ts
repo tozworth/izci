@@ -30,7 +30,7 @@ export interface MultiplayerChatMessage {
 // admission failure. Capabilities advertise independently meaningful
 // facilities; absence means unavailable, unknown entries are ignored.
 export const MULTIPLAYER_PROTOCOL_MAJOR = 1;
-export const MULTIPLAYER_PROTOCOL_MINOR = 0;
+export const MULTIPLAYER_PROTOCOL_MINOR = 2;
 
 export const MULTIPLAYER_PROTOCOL_CAPABILITIES = [
   'source-file',
@@ -38,7 +38,8 @@ export const MULTIPLAYER_PROTOCOL_CAPABILITIES = [
   'synchronized-start',
   'pairing-proof',
   'freeplay',
-  'chat'
+  'chat',
+  'track-info'
 ] as const;
 
 export type MultiplayerCapability = (typeof MULTIPLAYER_PROTOCOL_CAPABILITIES)[number];
@@ -80,6 +81,8 @@ export type MultiplayerCommand =
   | { type: 'transport.seek'; commandId: string; seconds: number }
   | { type: 'queue.shuffle'; commandId: string }
   | { type: 'queue.repeat'; commandId: string }
+  | { type: 'queue.randomize'; commandId: string }
+  | { type: 'queue.add' | 'queue.replace' | 'queue.remove'; commandId: string; itemIds: string[] }
   | {
       type: 'queue.play-next';
       commandId: string;
@@ -122,6 +125,12 @@ export interface MultiplayerArtwork {
   mimeType: string;
   width: number;
   height: number;
+}
+
+export interface MultiplayerTrackInfo {
+  trackId: string;
+  metadata: TrackMetadata;
+  lyrics: string | null;
 }
 
 export interface MultiplayerOdaBackground {
@@ -217,6 +226,7 @@ export type HostMessage =
   | { kind: 'buffer'; bufferMs: number }
   | { kind: 'render.manifest'; manifest: MultiplayerRenderManifest }
   | { kind: 'artwork'; artwork: MultiplayerArtwork | null }
+  | { kind: 'track.info'; info: MultiplayerTrackInfo }
   | { kind: 'oda.background'; background: MultiplayerOdaBackground | null }
   | { kind: 'oda.background.opacity'; opacity: number }
   | { kind: 'chat.motd'; motd: string; hostName: string }
@@ -271,6 +281,7 @@ export type ClientMessage =
     }
   | { kind: 'playback.ended'; generationId: string; trackId: string }
   | { kind: 'source.retry'; generationId: string }
+  | { kind: 'track.info.request'; trackId: string }
   | { kind: 'render.need'; need: MultiplayerRenderNeed }
   | { kind: 'render.ready'; generationId: string; renderId: string; epoch: number; positionMs: number };
 
@@ -317,7 +328,15 @@ export function isMultiplayerCommand(value: unknown): value is MultiplayerComman
     case 'transport.next':
     case 'queue.shuffle':
     case 'queue.repeat':
+    case 'queue.randomize':
       return true;
+    case 'queue.add':
+    case 'queue.replace':
+    case 'queue.remove':
+      return Array.isArray(command.itemIds)
+        && command.itemIds.length > 0
+        && command.itemIds.length <= MULTIPLAYER_QUEUE_MAX_ITEMS
+        && command.itemIds.every((id) => typeof id === 'string' && id.length > 0 && id.length <= 200);
     case 'queue.play-next':
       return (command.collection === 'queue'
         || command.collection === 'library'
@@ -626,6 +645,13 @@ export function isHostMessage(value: unknown): value is HostMessage {
   }
   if (message.kind === 'artwork') {
     return message.artwork === null || isMultiplayerArtwork(message.artwork);
+  }
+  if (message.kind === 'track.info') {
+    const info = message.info as Partial<MultiplayerTrackInfo> | undefined;
+    if (!info || typeof info.trackId !== 'string' || info.trackId.length < 1 || info.trackId.length > 200) return false;
+    if (!info.metadata || typeof info.metadata !== 'object' || Array.isArray(info.metadata)) return false;
+    if (info.lyrics !== null && (typeof info.lyrics !== 'string' || info.lyrics.length > 64 * 1024)) return false;
+    return JSON.stringify(info.metadata).length <= 32 * 1024;
   }
   if (message.kind === 'oda.background') {
     return message.background === null || isMultiplayerOdaBackground(message.background);

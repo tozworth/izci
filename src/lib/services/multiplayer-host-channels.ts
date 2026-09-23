@@ -13,6 +13,7 @@ import { flushPeerMedia } from './multiplayer-source-transfer';
 import { flushPeerRender, resetPeerRenderQueue, schedulePeerRender } from './multiplayer-render-transfer';
 import { multiplayerRenderCoordinator } from './multiplayer-render-coordinator';
 import { multiplayerChat } from './multiplayer-chat';
+import { sendBrowserHostTrackInfo } from './multiplayer-track-info';
 import {
   handleFreeplayCommand,
   handleFreeplayTrackEnded,
@@ -146,6 +147,10 @@ export function attachHostChannel(
     }
     if (message.kind === 'chat.send') {
       ctx.handleChatMessage(message.text, peer, message.track, message.action);
+      return;
+    }
+    if (message.kind === 'track.info.request') {
+      sendBrowserHostTrackInfo(ctx, peer, message.trackId);
       return;
     }
     if (message.kind === 'freeplay.preference') {

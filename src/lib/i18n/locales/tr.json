@@ -798,7 +798,7 @@
       },
       "restoreSession": {
         "title": "Son oturumu geri yükle",
-        "hint": "Yeniden başlatıldıktan sonra önceki sunucuya bağlanır veya sunuculuğu sürdürür."
+        "hint": "Yeniden başlatıldıktan sonra önceki sunucuya bağlanır veya sunuculuğu sürdürür. izci-server konukları için daveti bu cihazda saklar."
       },
       "turnUrl": {
         "title": "TURN server",

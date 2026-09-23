@@ -83,6 +83,8 @@ function deps(overrides: {
       getLibraryItems: () => [],
       getFavoriteItems: () => [],
       playQueueItemsNext: () => undefined,
+      playCollectionItemsNext: () => false,
+      editSharedQueue: () => false,
       seek: () => undefined,
       toggleQueueShuffle: () => undefined,
       cycleQueueRepeat: () => undefined,

@@ -7,6 +7,7 @@
     buildTheaterLyricRows,
     findActiveLyricIndex,
     findActiveTimelineIndex,
+    getTrackLyricsLoadKey,
     loadTrackLyrics,
     stripLrcTimestamps,
     type LoadedLyrics
@@ -428,7 +429,7 @@
   $: normalizedFontSize = clamp(fontSize, 0.72, 2.8);
   $: panelStyle = `--lyrics-font-size: ${normalizedFontSize}em; --lyrics-scroller-height: ${scrollerHeight}px;`;
   $: effectiveSnapshot = playbackSnapshot ?? snapshot;
-  $: trackLoadKey = track ? `${track.id}:${track.lastModified}:${track.size}` : '';
+  $: trackLoadKey = getTrackLyricsLoadKey(track);
   $: loadLyricsForTrack(trackLoadKey, track);
   $: lyricLines = lyrics?.lines ?? [];
   $: theaterRows = buildTheaterLyricRows(

@@ -121,6 +121,14 @@ export const serverRecents = createPersistentStore({
   normalize: normalizeRecents
 });
 
+export function getRememberedServerInvitation(endpoint: string, roomId: string): string | null {
+  const clean = cleanEndpoint(endpoint);
+  if (!clean || !SERVER_ROOM_ID_PATTERN.test(roomId)) return null;
+  return serverRecents.getSnapshot().find(
+    (entry) => entry.endpoint === clean && entry.roomId === roomId
+  )?.invitationSecret ?? null;
+}
+
 export function rememberServerServer(endpoint: string, label = ''): void {
   const clean = cleanEndpoint(endpoint);
   if (!clean) return;
