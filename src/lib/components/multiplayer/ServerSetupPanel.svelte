@@ -11,6 +11,7 @@
     serverSetup
   } from '$lib/services/multiplayer-server-setup';
   import { describeServerEndpoint } from '$lib/services/multiplayer-server-invite';
+import ServerJoinChoices from './ServerJoinChoices.svelte';
 
   export let mode: 'full' | 'config' = 'full';
 
@@ -102,10 +103,6 @@
     copyTimer = window.setTimeout(() => {
       copied = false;
     }, 2_000);
-  }
-
-  async function join(): Promise<void> {
-    await serverSetup.joinPending().catch(() => undefined);
   }
 
 </script>
@@ -313,14 +310,8 @@
             </p>
           {/if}
           <p class="hint">{$t('options.multiplayer.server.pendingHint', { default: '' })}</p>
-          <div class="row">
-            <button
-              type="button"
-              disabled={setup.busy !== null || setup.guestStatus === 'connecting'}
-              on:click={join}
-            >
-              {$t('options.multiplayer.server.join', { default: 'Join' })}
-            </button>
+          <ServerJoinChoices />
+          <div class="row cancel-row">
             <button type="button" class="quiet" on:click={() => serverSetup.dismissPending()}>
               {$t('options.multiplayer.server.cancel', { default: 'Cancel' })}
             </button>
@@ -332,17 +323,6 @@
       </section>
     {/if}
   {/if}
-
-  {#if mode === 'config'}
-  <section aria-label={$t('options.multiplayer.server.noticeTitle', { default: 'Server and provider notice' })}>
-    <h4>{$t('options.multiplayer.server.noticeTitle', { default: 'Server and provider notice' })}</h4>
-    <p class="hint">{$t('options.multiplayer.server.noticeText', { default: '' })}</p>
-    <p>
-      <a href={SERVER_SETUP_GUIDE_URL} target="_blank" rel="noreferrer">
-        {$t('options.multiplayer.server.guideLink', { default: 'Server setup guide' })}
-      </a>
-    </p>
-  </section>
 
   <section aria-label={$t('options.multiplayer.server.labelTitle', { default: 'Server label' })}>
     <h4>{$t('options.multiplayer.server.labelTitle', { default: 'Server label' })}</h4>
@@ -475,6 +455,10 @@
   .row input {
     flex: 1;
     min-width: 0;
+  }
+
+  .row.cancel-row {
+    justify-content: flex-end;
   }
 
   input[type='text'],

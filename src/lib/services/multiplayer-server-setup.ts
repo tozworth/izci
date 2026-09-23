@@ -68,6 +68,9 @@ export interface ServerHostedState {
 
 export type ServerGuestStatus = 'idle' | 'loading-info' | 'awaiting-providers' | 'connecting' | 'error';
 
+/** Guest join mode: shared co-op session or independent freeplay playback. */
+export type ServerJoinMode = 'coop' | 'freeplay';
+
 export interface ServerSetupSnapshot {
   dialogOpen: boolean;
   serverInput: string;
@@ -666,6 +669,17 @@ export function createServerSetupController(
     }
   }
 
+  /**
+   * Join the pending invitation in the chosen mode. The freeplay flag is
+   * what the guest advertises in its hello, mirroring the Options mode
+   * cards; co-op clears it. The master multiplayer switch is untouched so
+   * deeplink guests stay free of the menu section.
+   */
+  async function joinPendingAs(mode: ServerJoinMode): Promise<void> {
+    multiplayerSettings.update({ multiplayerFreeplay: mode === 'freeplay' });
+    await joinPending();
+  }
+
   async function connectGuestWithSignal(signal: AbortSignal): Promise<void> {
     const invitation = state.pendingInvitation;
     if (!invitation) throw new Error('No invitation to join.');
@@ -791,6 +805,7 @@ export function createServerSetupController(
     captureInvitation,
     dismissPending,
     joinPending,
+    joinPendingAs,
     joinInvitation,
     acknowledgeProvidersAndConnect,
     cancelCurrent,

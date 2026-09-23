@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import MultiplayerMark from '$lib/components/multiplayer/MultiplayerMark.svelte';
+  import ServerJoinChoices from '$lib/components/multiplayer/ServerJoinChoices.svelte';
   import ServerSetupPanel from '$lib/components/multiplayer/ServerSetupPanel.svelte';
   import { describeServerEndpoint } from '$lib/services/multiplayer-server-invite';
   import { serverSetup } from '$lib/services/multiplayer-server-setup';
@@ -21,9 +22,6 @@
   $: setup = $serverSetup;
   $: pending = setup.pendingInvitation;
   $: serverOpen = setup.dialogOpen;
-  $: serverBusy = setup.busy !== null
-    || setup.guestStatus === 'loading-info'
-    || setup.guestStatus === 'connecting';
 
   function closeServer(): void {
     serverSetup.closeSetup();
@@ -32,10 +30,6 @@
   function cancelInvitation(): void {
     serverSetup.dismissPending();
     serverSetup.closeSetup();
-  }
-
-  function joinInvitation(): void {
-    void serverSetup.joinPending().catch(() => undefined);
   }
 
   function endpointLabel(endpoint: string): string {
@@ -78,7 +72,10 @@
           </div>
         {/if}
       </div>
-      <p class="hint">{$t('options.multiplayer.server.pendingHint', { default: 'Confirm the destination, then Join. Server details load only after Join.' })}</p>
+      <p class="hint">{$t('options.multiplayer.server.pendingHint', { default: 'Confirm the destination, then choose how to join. Server details load only after joining.' })}</p>
+      <div class="join-choices-block">
+        <ServerJoinChoices />
+      </div>
       {#if setup.guestError}
         <p class="error" role="alert">{setup.guestError}</p>
       {/if}
@@ -91,17 +88,6 @@
       {#if pending}
         <button type="button" on:click={cancelInvitation}>
           {$t('options.multiplayer.server.cancel', { default: 'Cancel' })}
-        </button>
-        <button
-          type="button"
-          class="primary"
-          data-oda-default
-          disabled={serverBusy}
-          on:click={joinInvitation}
-        >
-          {serverBusy
-            ? $t('main.multiplayer.connecting', { default: 'Connecting...' })
-            : $t('options.multiplayer.server.join', { default: 'Join' })}
         </button>
       {:else}
         <button type="button" data-oda-default on:click={closeServer}>
@@ -186,6 +172,10 @@
   .connection-status,
   .error {
     margin: 0.9rem 0 0;
+  }
+
+  .join-choices-block {
+    margin-top: 0.9rem;
   }
 
   .error,

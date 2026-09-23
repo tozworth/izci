@@ -170,6 +170,10 @@
   let isFreeplayClient = false;
   let isSourceFileFreeplayClient = false;
   let multiplayerShutdownRequested = false;
+  // Tracks the last seen master switch so the watchdog below only tears
+  // down a session when Multiplayer is switched off, not when a fresh
+  // client joins a room via an invitation deeplink while switched off.
+  let previousMultiplayerEnabled = false;
   let patternAvailability: import('$lib/services/contextual-tab-presentation').ContextualTabAvailability = 'unavailable';
   let playbackProgressState: import('$lib/services/playback-progress').PlaybackProgressState = { notice: null };
   let miniPlayerState: import('$lib/services/mini-player').MiniPlayerState = {
@@ -750,13 +754,17 @@
   $: multiplayerSession.setUseHostOdaBackground($odaSettings.odaUseHostBackground);
   $: if ($multiplayerSettings.multiplayer || multiplayerState.mode === 'idle') {
     multiplayerShutdownRequested = false;
-  } else if (!multiplayerShutdownRequested) {
+  } else if (!multiplayerShutdownRequested && previousMultiplayerEnabled) {
+    // The switch was just turned off with an active session: tear it down.
+    // A steady off state must not kill anything, or invitation-deeplink
+    // guests could never finish joining.
     multiplayerShutdownRequested = true;
     workspaceShell.closeWorkspaceTab('chat');
     void (multiplayerState.mode === 'hosting'
       ? multiplayerSession.stopHosting()
       : multiplayerSession.leave());
   }
+  $: previousMultiplayerEnabled = $multiplayerSettings.multiplayer;
 
   function closeChatTab(): void {
     workspaceShell.closeWorkspaceTab('chat');
