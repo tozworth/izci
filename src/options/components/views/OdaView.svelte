@@ -1,6 +1,8 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
+  import ThemedImageSelect from '$lib/components/options/ThemedImageSelect.svelte';
   import {
     ODA_ARROW_REPEAT_INITIAL_DELAY_MAX_MS,
     ODA_ARROW_REPEAT_INITIAL_DELAY_MIN_MS,
@@ -23,14 +25,14 @@
   import { tick } from 'svelte';
 
   function checked(event: Event) { return (event.currentTarget as HTMLInputElement).checked; }
-  function handleLayoutChange(event: Event) {
-    odaSettings.update({ odaLayout: (event.currentTarget as HTMLSelectElement).value as OdaLayout });
+  function handleLayoutChange(event: CustomEvent<string>) {
+    odaSettings.update({ odaLayout: event.detail as OdaLayout });
   }
   function handleEnterFullscreenToggle(event: Event) {
     odaSettings.update({ odaEnterFullscreen: checked(event) });
   }
-  function handleSongsLayoutChange(event: Event) {
-    const music = (event.currentTarget as HTMLSelectElement).value as OdaBrowserLayout;
+  function handleSongsLayoutChange(event: CustomEvent<string>) {
+    const music = event.detail as OdaBrowserLayout;
     odaSettings.update({
       odaBrowserLayouts: { ...$odaSettings.odaBrowserLayouts, music }
     });
@@ -41,24 +43,17 @@
   function handleOverscanChange(event: Event) {
     odaSettings.update({ odaOverscanPercent: (event.currentTarget as HTMLInputElement).valueAsNumber });
   }
-  let backgroundFileInput: HTMLInputElement | null = null;
-  function handleBackgroundChange(event: Event) {
-    const next = (event.currentTarget as HTMLSelectElement).value as OdaBackground;
+  let backgroundPicker: { open: () => void } | null = null;
+  function handleBackgroundChange(event: CustomEvent<string>) {
+    const next = event.detail as OdaBackground;
     odaSettings.update({ odaBackground: next });
     if (next === 'custom') {
-      // Let the select paint before opening the picker.
-      void tick().then(() => backgroundFileInput?.click());
+      // Let the picker mount before opening the dialog.
+      void tick().then(() => backgroundPicker?.open());
     }
   }
-  async function handleBackgroundFileChange(event: Event) {
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0] ?? null;
-    input.value = '';
-    if (!file) {
-      // A dismissed picker with no stored image strands Custom on nothing.
-      if (!odaSettings.getSnapshot().odaBackgroundImage) odaSettings.update({ odaBackground: 'none' });
-      return;
-    }
+  async function handleBackgroundFileChange(event: CustomEvent<File>) {
+    const file = event.detail;
     const dataUrl = await readOdaBackgroundImage(file);
     if (dataUrl) odaSettings.update({ odaBackground: 'custom', odaBackgroundImage: dataUrl });
     else if (!odaSettings.getSnapshot().odaBackgroundImage) odaSettings.update({ odaBackground: 'none' });
@@ -101,9 +96,9 @@
       odaArrowRepeatIntervalMs: (event.currentTarget as HTMLInputElement).valueAsNumber
     });
   }
-  function handleHoldBackActionChange(event: Event) {
+  function handleHoldBackActionChange(event: CustomEvent<string>) {
     odaSettings.update({
-      odaHoldBackAction: (event.currentTarget as HTMLSelectElement).value as OdaHoldBackAction
+      odaHoldBackAction: event.detail as OdaHoldBackAction
     });
   }
   function handleHoldBackThresholdChange(event: Event) {
@@ -126,19 +121,29 @@
         title={$t('options.oda.layout.title', { default: 'Layout' })}
         hint={$t('options.oda.layout.hint', { default: 'Selects the ten-foot home layout. Waterfall is the only layout today.' })}
       >
-        <select value={$odaSettings.odaLayout} on:change={handleLayoutChange}>
-          <option value="waterfall">{$t('options.oda.layout.options.waterfall', { default: 'Waterfall' })}</option>
-        </select>
+        <ThemedSelect
+          value={$odaSettings.odaLayout}
+          options={[
+            { value: 'waterfall', label: $t('options.oda.layout.options.waterfall', { default: 'Waterfall' }) }
+          ]}
+          label={$t('options.oda.layout.title', { default: 'Layout' })}
+          on:change={handleLayoutChange}
+        />
       </SettingsField>
 
       <SettingsField
         title={$t('options.oda.songsLayout.title', { default: 'Song browser layout' })}
         hint={$t('options.oda.songsLayout.hint', { default: 'Shows songs as a compact list or as an artwork grid in Oda.' })}
       >
-        <select value={$odaSettings.odaBrowserLayouts.music} on:change={handleSongsLayoutChange}>
-          <option value="list">{$t('options.oda.songsLayout.options.list', { default: 'List' })}</option>
-          <option value="grid">{$t('options.oda.songsLayout.options.grid', { default: 'Artwork grid' })}</option>
-        </select>
+        <ThemedSelect
+          value={$odaSettings.odaBrowserLayouts.music}
+          options={[
+            { value: 'list', label: $t('options.oda.songsLayout.options.list', { default: 'List' }) },
+            { value: 'grid', label: $t('options.oda.songsLayout.options.grid', { default: 'Artwork grid' }) }
+          ]}
+          label={$t('options.oda.songsLayout.title', { default: 'Song browser layout' })}
+          on:change={handleSongsLayoutChange}
+        />
       </SettingsField>
 
       <SettingsField
@@ -184,46 +189,30 @@
         title={$t('options.oda.background.title', { default: 'Background' })}
         hint={$t('options.oda.background.hint', { default: 'Shows a custom image behind the Oda layout.' })}
       >
-        <select value={$odaSettings.odaBackground} on:change={handleBackgroundChange}>
-          <option value="none">{backgroundActionLabel('none')}</option>
-          <option value="custom">{backgroundActionLabel('custom')}</option>
-        </select>
-        <input
-          bind:this={backgroundFileInput}
-          class="oda-background-file"
-          type="file"
-          accept="image/*"
-          tabindex="-1"
-          aria-hidden="true"
-          on:change={(event) => void handleBackgroundFileChange(event)}
+        <ThemedSelect
+          value={$odaSettings.odaBackground}
+          options={[
+            { value: 'none', label: backgroundActionLabel('none') },
+            { value: 'custom', label: backgroundActionLabel('custom') }
+          ]}
+          label={$t('options.oda.background.title', { default: 'Background' })}
+          on:change={handleBackgroundChange}
         />
       </SettingsField>
 
       {#if $odaSettings.odaBackground === 'custom'}
-        {#if $odaSettings.odaBackgroundImage}
-          <SettingsField
-            title={$t('options.oda.backgroundImage.title', { default: 'Background image' })}
-            hint={$t('options.oda.backgroundImage.hint', { default: 'The image shown behind the Oda layout.' })}
-          >
-            <img
-              class="oda-background-preview"
-              src={$odaSettings.odaBackgroundImage}
-              alt=""
-            />
-            <button type="button" on:click={() => backgroundFileInput?.click()}>
-              {$t('options.oda.background.chooseImage', { default: 'Choose image…' })}
-            </button>
-          </SettingsField>
-        {:else}
-          <SettingsField
-            title={$t('options.oda.backgroundImage.title', { default: 'Background image' })}
-            hint={$t('options.oda.backgroundImage.hint', { default: 'The image shown behind the Oda layout.' })}
-          >
-            <button type="button" on:click={() => backgroundFileInput?.click()}>
-              {$t('options.oda.background.chooseImage', { default: 'Choose image…' })}
-            </button>
-          </SettingsField>
-        {/if}
+        <SettingsField
+          title={$t('options.oda.backgroundImage.title', { default: 'Background image' })}
+          hint={$t('options.oda.backgroundImage.hint', { default: 'The image shown behind the Oda layout.' })}
+        >
+          <ThemedImageSelect
+            bind:this={backgroundPicker}
+            src={$odaSettings.odaBackgroundImage}
+            label={$t('options.oda.backgroundImage.title', { default: 'Background image' })}
+            chooseLabel={$t('options.oda.background.chooseImage', { default: 'Choose image…' })}
+            on:change={(event) => void handleBackgroundFileChange(event)}
+          />
+        </SettingsField>
         <SettingsField
           title={$t('options.oda.backgroundOpacity.title', { default: 'Background opacity' })}
           hint={$t('options.oda.backgroundOpacity.hint', { default: 'How opaque the custom background image is.' })}
@@ -325,10 +314,15 @@
         hint={$t('options.oda.holdBack.hint', { default: 'What holding Back does. Exiting Oda stays an explicit Options command.' })}
         advanced
       >
-        <select value={$odaSettings.odaHoldBackAction} on:change={handleHoldBackActionChange}>
-          <option value="none">{holdBackActionLabel('none')}</option>
-          <option value="return-home">{holdBackActionLabel('return-home')}</option>
-        </select>
+        <ThemedSelect
+          value={$odaSettings.odaHoldBackAction}
+          options={[
+            { value: 'none', label: holdBackActionLabel('none') },
+            { value: 'return-home', label: holdBackActionLabel('return-home') }
+          ]}
+          label={$t('options.oda.holdBack.title', { default: 'Hold Back action' })}
+          on:change={handleHoldBackActionChange}
+        />
       </SettingsField>
 
       <SettingsField
@@ -349,18 +343,3 @@
     </div>
   </div>
 </article>
-
-<style>
-  /* Entry-independent hiding: the Options window never loads app/base.css,
-     so the global .sr-only helper is unavailable there. */
-  .oda-background-file {
-    display: none;
-  }
-  .oda-background-preview {
-    display: block;
-    max-width: 12rem;
-    max-height: 7rem;
-    border: 1px solid var(--border);
-    object-fit: cover;
-  }
-</style>

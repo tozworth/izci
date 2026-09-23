@@ -10,6 +10,7 @@
     PITCH_WINDOW_SIZES
   } from '$lib/services/raf-effects/pitch';
   import { rafSettings } from '$lib/stores/raf-settings';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import type { RafPitchEngine, RafPitchSettings } from '$lib/types';
 
   export let settings: RafPitchSettings;
@@ -22,6 +23,10 @@
 
   function updateNumber(event: Event, key: PitchKey) {
     update({ [key]: (event.currentTarget as HTMLInputElement).valueAsNumber });
+  }
+
+  function updatePick(key: PitchKey, value: string) {
+    update({ [key]: Number(value) });
   }
 
   function updateEngine(engine: RafPitchEngine) {
@@ -53,27 +58,30 @@
     <div class="knob-grid">
       <label>
         <span>{$t('options.raf.pitch.windowSize', { default: 'Window size' })}</span>
-        <select value={settings.windowSize} on:change={(event) => updateNumber(event, 'windowSize')}>
-          {#each PITCH_WINDOW_SIZES as size}
-            <option value={size}>{windowSizeLabel(size)}</option>
-          {/each}
-        </select>
+        <ThemedSelect
+          value={String(settings.windowSize)}
+          options={PITCH_WINDOW_SIZES.map((size) => ({ value: String(size), label: windowSizeLabel(size) }))}
+          label={$t('options.raf.pitch.windowSize', { default: 'Window size' })}
+          on:change={(event) => updatePick('windowSize', event.detail)}
+        />
       </label>
       <label>
         <span>{$t('options.raf.pitch.maxPeaks', { default: 'Max oscillators' })}</span>
-        <select value={settings.maxPeaks} on:change={(event) => updateNumber(event, 'maxPeaks')}>
-          {#each PITCH_MAX_PEAKS_OPTIONS as count}
-            <option value={count}>{count}</option>
-          {/each}
-        </select>
+        <ThemedSelect
+          value={String(settings.maxPeaks)}
+          options={PITCH_MAX_PEAKS_OPTIONS.map((count) => ({ value: String(count), label: String(count) }))}
+          label={$t('options.raf.pitch.maxPeaks', { default: 'Max oscillators' })}
+          on:change={(event) => updatePick('maxPeaks', event.detail)}
+        />
       </label>
       <label>
         <span>{$t('options.raf.pitch.peakFloor', { default: 'Peak floor' })}</span>
-        <select value={settings.peakFloorDb} on:change={(event) => updateNumber(event, 'peakFloorDb')}>
-          {#each PITCH_PEAK_FLOOR_OPTIONS as floor}
-            <option value={floor}>{floor} dB</option>
-          {/each}
-        </select>
+        <ThemedSelect
+          value={String(settings.peakFloorDb)}
+          options={PITCH_PEAK_FLOOR_OPTIONS.map((floor) => ({ value: String(floor), label: `${floor} dB` }))}
+          label={$t('options.raf.pitch.peakFloor', { default: 'Peak floor' })}
+          on:change={(event) => updatePick('peakFloorDb', event.detail)}
+        />
       </label>
     </div>
     <p class="pitch-note">{$t('options.raf.pitch.note', { default: 'Realtime phase-vocoder pitch shift; adds about 45 ms of latency.' })}</p>
@@ -81,19 +89,21 @@
     <div class="knob-grid">
       <label>
         <span>{$t('options.raf.pitch.grainSize', { default: 'Grain size' })}</span>
-        <select value={settings.grainSize} on:change={(event) => updateNumber(event, 'grainSize')}>
-          {#each PITCH_GRAIN_SIZES as size}
-            <option value={size}>{size}</option>
-          {/each}
-        </select>
+        <ThemedSelect
+          value={String(settings.grainSize)}
+          options={PITCH_GRAIN_SIZES.map((size) => ({ value: String(size), label: String(size) }))}
+          label={$t('options.raf.pitch.grainSize', { default: 'Grain size' })}
+          on:change={(event) => updatePick('grainSize', event.detail)}
+        />
       </label>
       <label>
         <span>{$t('options.raf.pitch.alignmentWindow', { default: 'Alignment window' })}</span>
-        <select value={settings.alignmentWindow} on:change={(event) => updateNumber(event, 'alignmentWindow')}>
-          {#each PITCH_ALIGNMENT_OPTIONS as window}
-            <option value={window}>{window}</option>
-          {/each}
-        </select>
+        <ThemedSelect
+          value={String(settings.alignmentWindow)}
+          options={PITCH_ALIGNMENT_OPTIONS.map((window) => ({ value: String(window), label: String(window) }))}
+          label={$t('options.raf.pitch.alignmentWindow', { default: 'Alignment window' })}
+          on:change={(event) => updatePick('alignmentWindow', event.detail)}
+        />
       </label>
     </div>
     <p class="pitch-note">{$t('options.raf.pitch.granularNote', { default: 'Realtime granular pitch shift; adds about 85 ms of latency.' })}</p>
@@ -113,7 +123,6 @@
   .pitch-control { width: 100%; min-width: 0; display: grid; grid-template-columns: auto minmax(90px, 1fr) auto 54px; align-items: center; gap: 7px; }
   .knob-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 14px; padding-top: 9px; border-top: 1px solid var(--border-faint); }
   .knob-grid label { min-width: 0; display: grid; grid-template-columns: minmax(70px, 1fr) 110px; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; }
-  .knob-grid select { min-width: 0; border-radius: 6px; border: 1px solid var(--menu-bar-border); padding: 3px 6px; color: var(--text); background: var(--bg-input); font-size: 10px; }
   input[type='range'] { width: 100%; accent-color: var(--accent-strong); }
   output { color: var(--text-strong); text-align: right; font-variant-numeric: tabular-nums; }
   .pitch-note { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.4; }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import { MAX_FOLDER_NESTING_LIMIT, MIN_FOLDER_NESTING_LIMIT, normalizeFolderNestingLimit, trackSettings } from '$lib/stores/track-settings';
 
   function handleFolderNestingLimitChange(event: Event) {
@@ -12,8 +13,8 @@
   function handleQueueDeduplicationToggle(event: Event) {
     trackSettings.update({ deduplicateQueue: (event.currentTarget as HTMLInputElement).checked });
   }
-  function handleAssociatedFileActionChange(event: Event) {
-    const associatedFileAction = (event.currentTarget as HTMLSelectElement).value;
+  function handleAssociatedFileActionChange(event: CustomEvent<string>) {
+    const associatedFileAction = event.detail;
 
     if (associatedFileAction === 'add' || associatedFileAction === 'replace') {
       trackSettings.update({ associatedFileAction });
@@ -80,10 +81,15 @@
         title={$t('options.tracks.associatedFiles.title', { default: 'Files opened with izci' })}
         hint={$t('options.tracks.associatedFiles.hint', { default: 'Choose how files opened through operating-system file associations affect the current queue.' })}
       >
-          <select value={$trackSettings.associatedFileAction} on:change={handleAssociatedFileActionChange}>
-            <option value="add">{$t('options.tracks.associatedFiles.add', { default: 'Add to queue' })}</option>
-            <option value="replace">{$t('options.tracks.associatedFiles.replace', { default: 'Replace queue' })}</option>
-          </select>
+          <ThemedSelect
+            value={$trackSettings.associatedFileAction}
+            options={[
+              { value: 'add', label: $t('options.tracks.associatedFiles.add', { default: 'Add to queue' }) },
+              { value: 'replace', label: $t('options.tracks.associatedFiles.replace', { default: 'Replace queue' }) }
+            ]}
+            label={$t('options.tracks.associatedFiles.title', { default: 'Files opened with izci' })}
+            on:change={handleAssociatedFileActionChange}
+          />
       </SettingsField>
     </div>
   </div>

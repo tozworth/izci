@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import { portal } from '$lib/components/track-list-panel/actions/portal';
   import { windowDismiss } from '$lib/components/track-list-panel/actions/window-dismiss';
   import { translate } from '$lib/i18n';
@@ -186,8 +187,8 @@
     loadoutUiSettings.update({ captureCategories: [...next] });
   }
 
-  function handleTypeChange(event: Event): void {
-    loadoutType = (event.currentTarget as HTMLSelectElement).value as LoadoutType;
+  function handleTypeChange(event: CustomEvent<string>): void {
+    loadoutType = event.detail as LoadoutType;
     manualText = '';
   }
 
@@ -325,12 +326,12 @@
 
     <div class="capture-bar">
       <span class="capture-type-select">
-        <select aria-label={$t('options.loadouts.capture.type', { default: 'Loadout type' })} value={loadoutType} on:change={handleTypeChange}>
-          {#each LOADOUT_TYPES as type}
-            <option value={type}>{typeLabel(type)}</option>
-          {/each}
-        </select>
-        <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
+        <ThemedSelect
+          value={loadoutType}
+          options={LOADOUT_TYPES.map((type) => ({ value: type, label: typeLabel(type) }))}
+          label={$t('options.loadouts.capture.type', { default: 'Loadout type' })}
+          on:change={handleTypeChange}
+        />
       </span>
 
       <input
@@ -567,7 +568,6 @@
     background: var(--bg-input);
   }
 
-  .capture-bar select,
   .capture-bar input[type='text'] {
     min-width: 0;
     height: 27px;
@@ -582,32 +582,12 @@
   }
 
   .capture-type-select {
-    position: relative;
     display: block;
+    min-width: 0;
   }
 
-  .capture-type-select select {
-    width: 100%;
-    padding-right: 25px;
-  }
-
-  .capture-type-select > .material-symbols-outlined {
-    position: absolute;
-    top: 50%;
-    right: 6px;
-    color: var(--muted-strong);
-    pointer-events: none;
-    transform: translateY(-50%);
-  }
-
-  .capture-bar select:focus-visible,
   .capture-bar input[type='text']:focus-visible {
     border-color: var(--accent);
-  }
-
-  .capture-bar select option {
-    background: var(--menu-popover-bg);
-    color: var(--menu-popover-text, var(--text-strong));
   }
 
   .capture-bar input[readonly] {

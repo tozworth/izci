@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import {
     LYRICS_FONT_SIZE_LIMITS, LYRICS_STYLE_OPTIONS,
     MAX_LYRICS_DOWNTIME_THRESHOLD_SECONDS, MIN_LYRICS_DOWNTIME_THRESHOLD_SECONDS,
@@ -12,7 +13,7 @@
   function updateLyrics(patch: Partial<typeof $appearanceSettings.lyrics>) {
     appearanceSettings.update({ lyrics: { ...appearanceSettings.getSnapshot().lyrics, ...patch } });
   }
-  function handleLyricsStyleChange(event: Event) { updateLyrics({ displayStyle: (event.currentTarget as HTMLSelectElement).value as LyricsDisplayStyle }); }
+  function handleLyricsStyleChange(event: CustomEvent<string>) { updateLyrics({ displayStyle: event.detail as LyricsDisplayStyle }); }
   function handleLyricsAutoScrollToggle(event: Event) { updateLyrics({ autoScroll: checked(event) }); }
   function handleLyricsTheaterDotsToggle(event: Event) { updateLyrics({ theaterDowntimeDots: checked(event) }); }
   function handleLyricsTheaterSmoothScrollToggle(event: Event) { updateLyrics({ theaterSmoothScroll: checked(event) }); }
@@ -38,11 +39,12 @@
     <h2>{$t('options.lyrics.heading', { default: 'Lyrics' })}</h2>
     <div class="field-grid">
       <SettingsField title={$t('options.lyrics.displayStyle.title', { default: 'Display style' })} hint={$t('options.lyrics.displayStyle.hint', { default: 'Chooses how embedded synced lyrics render in the Lyrics panel.' })}>
-          <select value={$appearanceSettings.lyrics.displayStyle} on:change={handleLyricsStyleChange}>
-            {#each LYRICS_STYLE_OPTIONS as option}
-              <option value={option.value}>{lyricsStyleLabel(option.value)}</option>
-            {/each}
-          </select>
+          <ThemedSelect
+            value={$appearanceSettings.lyrics.displayStyle}
+            options={LYRICS_STYLE_OPTIONS.map((option) => ({ value: option.value, label: lyricsStyleLabel(option.value) }))}
+            label={$t('options.lyrics.displayStyle.title', { default: 'Display style' })}
+            on:change={handleLyricsStyleChange}
+          />
       </SettingsField>
 
       <SettingsField title={$t('options.lyrics.fontSize.title', { default: 'Font size' })} hint={$t('options.lyrics.fontSize.hint', { default: 'Saves a separate size for Plain text, Timestamped rows, and Theater.' })}>

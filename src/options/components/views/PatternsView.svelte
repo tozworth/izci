@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import { isPatternCellEmpty, splitPatternCell } from '$lib/services/pattern-presentation';
   import {
     MAX_PATTERN_CHANNEL_WIDTH,
@@ -104,15 +105,15 @@
     } as Partial<PatternViewerSettings>);
   }
 
-  function updateRowNumberBase(event: Event) {
+  function updateRowNumberBase(event: CustomEvent<string>) {
     patternViewerSettings.update({
-      rowNumberBase: (event.currentTarget as HTMLSelectElement).value as PatternViewerSettings['rowNumberBase']
+      rowNumberBase: event.detail as PatternViewerSettings['rowNumberBase']
     });
   }
 
-  function updateColorScheme(event: Event) {
+  function updateColorScheme(event: CustomEvent<string>) {
     patternViewerSettings.update({
-      colorScheme: (event.currentTarget as HTMLSelectElement).value as PatternViewerSettings['colorScheme']
+      colorScheme: event.detail as PatternViewerSettings['colorScheme']
     });
   }
 
@@ -195,18 +196,28 @@
       {/each}
 
       <SettingsField title={$t('options.patterns.rowNumbers.title', { default: 'Row numbers' })} hint={$t('options.patterns.rowNumbers.hint', { default: 'Uses familiar hexadecimal tracker numbering or ordinary decimal values.' })}>
-        <select value={$patternViewerSettings.rowNumberBase} on:change={updateRowNumberBase}>
-          <option value="hex">{$t('options.patterns.rowNumbers.hex', { default: 'Hexadecimal (0A)' })}</option>
-          <option value="decimal">{$t('options.patterns.rowNumbers.decimal', { default: 'Decimal (10)' })}</option>
-        </select>
+        <ThemedSelect
+          value={$patternViewerSettings.rowNumberBase}
+          options={[
+            { value: 'hex', label: $t('options.patterns.rowNumbers.hex', { default: 'Hexadecimal (0A)' }) },
+            { value: 'decimal', label: $t('options.patterns.rowNumbers.decimal', { default: 'Decimal (10)' }) }
+          ]}
+          label={$t('options.patterns.rowNumbers.title', { default: 'Row numbers' })}
+          on:change={updateRowNumberBase}
+        />
       </SettingsField>
 
       <SettingsField title={$t('options.patterns.colors.title', { default: 'Pattern colors' })} hint={$t('options.patterns.colors.hint', { default: 'Colors notes, instruments, volume commands, and effects for easier scanning.' })}>
-        <select value={$patternViewerSettings.colorScheme} on:change={updateColorScheme}>
-          <option value="conventional">{$t('options.patterns.colors.conventional', { default: 'Conventional tracker colors' })}</option>
-          <option value="theme">{$t('options.patterns.colors.theme', { default: 'Theme colors' })}</option>
-          <option value="monochrome">{$t('options.patterns.colors.monochrome', { default: 'Monochrome' })}</option>
-        </select>
+        <ThemedSelect
+          value={$patternViewerSettings.colorScheme}
+          options={[
+            { value: 'conventional', label: $t('options.patterns.colors.conventional', { default: 'Conventional tracker colors' }) },
+            { value: 'theme', label: $t('options.patterns.colors.theme', { default: 'Theme colors' }) },
+            { value: 'monochrome', label: $t('options.patterns.colors.monochrome', { default: 'Monochrome' }) }
+          ]}
+          label={$t('options.patterns.colors.title', { default: 'Pattern colors' })}
+          on:change={updateColorScheme}
+        />
       </SettingsField>
 
       {#each TOGGLE_SETTINGS as setting (setting.key)}

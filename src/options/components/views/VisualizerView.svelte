@@ -5,6 +5,7 @@
     VISUALIZER_COLOR_SOURCE_OPTIONS, VISUALIZER_STYLE_OPTIONS, visualizerSettings
   } from '$lib/stores/visualizer-settings';
   import type { VisualizerSettings } from '$lib/types';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
 
   type SelectSetting = 'style' | 'colorSource';
   type RangeSetting = Exclude<keyof VisualizerSettings, SelectSetting>;
@@ -95,8 +96,8 @@
   ];
 
   function formatFactor(value: number) { return `${Math.round(value * 100)}% (${value.toFixed(2)}x)`; }
-  function handleSelectChange(event: Event, key: SelectSetting) {
-    visualizerSettings.update({ [key]: (event.currentTarget as HTMLSelectElement).value } as Partial<VisualizerSettings>);
+  function handleSelectChange(event: CustomEvent<string>, key: SelectSetting) {
+    visualizerSettings.update({ [key]: event.detail } as Partial<VisualizerSettings>);
   }
   function handleRangeChange(event: Event, setting: RangeDescriptor) {
     visualizerSettings.update({
@@ -167,11 +168,12 @@
             <span class="field-title">{descriptorTitle(setting)}</span>
           </div>
           <div class="field-control">
-            <select value={$visualizerSettings[setting.key]} on:change={(event) => handleSelectChange(event, setting.key)}>
-              {#each setting.options as option}
-                <option value={option.value}>{optionLabel(option.value)}</option>
-              {/each}
-            </select>
+            <ThemedSelect
+              value={String($visualizerSettings[setting.key])}
+              options={setting.options.map((option) => ({ value: String(option.value), label: optionLabel(option.value) }))}
+              label={descriptorTitle(setting)}
+              on:change={(event) => handleSelectChange(event, setting.key)}
+            />
           </div>
           <p class="field-hint">{descriptorHint(setting)}</p>
         </label>

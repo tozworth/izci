@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import ServerSetupPanel from '$lib/components/multiplayer/ServerSetupPanel.svelte';
   import {
     MULTIPLAYER_AUDIO_BUFFER_MAX_MS,
@@ -40,9 +41,9 @@
     });
   }
 
-  function handleRenderCacheLimitChange(event: Event) {
+  function handleRenderCacheLimitChange(event: CustomEvent<string>) {
     multiplayerSettings.update({
-      multiplayerRenderCacheLimitMiB: Number((event.currentTarget as HTMLSelectElement).value)
+      multiplayerRenderCacheLimitMiB: Number(event.detail)
     });
   }
 
@@ -310,14 +311,12 @@
         title={$t('options.multiplayer.renderCache.title', { default: 'Pre-render memory limit' })}
         hint={$t('options.multiplayer.renderCache.hint', { default: 'How much host memory the compressed render cache may use. Active tracks stay pinned; older renders are evicted by least-recent use.' })}
       >
-        <select
-          value={$multiplayerSettings.multiplayerRenderCacheLimitMiB}
+        <ThemedSelect
+          value={String($multiplayerSettings.multiplayerRenderCacheLimitMiB)}
+          options={MULTIPLAYER_RENDER_CACHE_LIMITS_MIB.map((limit) => ({ value: String(limit), label: renderCacheLimitLabel(limit) }))}
+          label={$t('options.multiplayer.renderCache.title', { default: 'Pre-render memory limit' })}
           on:change={handleRenderCacheLimitChange}
-        >
-          {#each MULTIPLAYER_RENDER_CACHE_LIMITS_MIB as limit}
-            <option value={limit}>{renderCacheLimitLabel(limit)}</option>
-          {/each}
-        </select>
+        />
       </SettingsField>
     </div>
   </div>
