@@ -109,7 +109,6 @@ beforeEach(() => {
   serverHostKeys.set([]);
   multiplayerSettings.update({
     multiplayerServerEndpoint: '',
-    multiplayerServerLabel: '',
     multiplayerServerNoticeVersion: SERVER_PROVIDER_NOTICE_VERSION,
     multiplayerServerIceAck: '',
     multiplayerRestoreLastSession: false

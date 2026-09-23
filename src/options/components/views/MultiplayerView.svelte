@@ -2,23 +2,7 @@
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
   import MultiplayerMark from '$lib/components/multiplayer/MultiplayerMark.svelte';
-  import ServerSetupPanel from '$lib/components/multiplayer/ServerSetupPanel.svelte';
   import {
-    MULTIPLAYER_AUDIO_BUFFER_MAX_MS,
-    MULTIPLAYER_AUDIO_BUFFER_MIN_MS,
-    MULTIPLAYER_AUDIO_BUFFER_STEP_MS,
-    MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB,
-    MULTIPLAYER_MAX_LISTENERS_MAX,
-    MULTIPLAYER_MAX_LISTENERS_MIN,
-    MULTIPLAYER_OPUS_BITRATE_MAX_KBPS,
-    MULTIPLAYER_OPUS_BITRATE_MIN_KBPS,
-    MULTIPLAYER_OPUS_BITRATE_STEP_KBPS,
-    MULTIPLAYER_RENDER_CACHE_LIMITS_MIB,
-    MULTIPLAYER_SYNC_LEAD_TIME_MAX_MS,
-    MULTIPLAYER_SYNC_LEAD_TIME_MIN_MS,
-    MULTIPLAYER_SYNC_LEAD_TIME_STEP_MS,
-    MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX,
-    MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN,
     deriveMultiplayerMode,
     multiplayerSettings,
     multiplayerModePatch,
@@ -46,103 +30,12 @@
     });
   }
 
-  function handleWaitForClientsToggle(event: Event) {
-    multiplayerSettings.update({ multiplayerWaitForClients: checked(event) });
-  }
-
-  function handleSynchronizedPlaybackToggle(event: Event) {
-    multiplayerSettings.update({ multiplayerSynchronizedPlayback: checked(event) });
-  }
-
-  function handleSyncLeadTimeChange(event: Event) {
-    multiplayerSettings.update({
-      multiplayerSyncLeadTimeMs: (event.currentTarget as HTMLInputElement).valueAsNumber
-    });
-  }
-
-  function handleRenderCacheLimitChange(event: Event) {
-    multiplayerSettings.update({
-      multiplayerRenderCacheLimitMiB: Number((event.currentTarget as HTMLSelectElement).value)
-    });
-  }
-
-  function renderCacheLimitLabel(limit: number): string {
-    if (limit === 0) return $t('options.multiplayer.renderCache.off', { default: 'Off' });
-    return `${limit} MiB`;
-  }
-
-  function handleFileTransferLimitChange(event: Event) {
-    const index = (event.currentTarget as HTMLInputElement).valueAsNumber;
-    multiplayerSettings.update({
-      multiplayerFileTransferLimitMiB: MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB[index] ?? 0
-    });
-  }
-
-  function fileTransferLimitIndex(limit: number): number {
-    const index = MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB.indexOf(
-      limit as (typeof MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB)[number]
-    );
-    return index < 0 ? 0 : index;
-  }
-
-  function fileTransferLimitLabel(limit: number): string {
-    if (limit < 0) return $t('options.multiplayer.fileTransfer.every', { default: 'Every file' });
-    if (limit === 0) return $t('options.multiplayer.fileTransfer.never', { default: 'Buffered Opus only' });
-    return `${limit} MiB`;
-  }
-
-  function handleTurnUrlChange(event: Event) {
-    multiplayerSettings.update({
-      multiplayerTurnUrl: (event.currentTarget as HTMLInputElement).value
-    });
-  }
-
-  function handleTurnSecretChange(event: Event) {
-    multiplayerSettings.update({
-      multiplayerTurnSecret: (event.currentTarget as HTMLInputElement).value
-    });
-  }
-
-  function handleTurnCredentialHoursChange(event: Event) {
-    multiplayerSettings.update({
-      multiplayerTurnCredentialHours: (event.currentTarget as HTMLInputElement).valueAsNumber
-    });
-  }
-
-  function handleForceTurnToggle(event: Event) {
-    multiplayerSettings.update({ multiplayerForceTurn: checked(event) });
-  }
-
-  function handleOpusBitrateChange(event: Event) {
-    multiplayerSettings.update({
-      multiplayerOpusBitrateKbps: (event.currentTarget as HTMLInputElement).valueAsNumber
-    });
-  }
-
-  function handleAudioBufferChange(event: Event) {
-    multiplayerSettings.update({
-      multiplayerAudioBufferMs: (event.currentTarget as HTMLInputElement).valueAsNumber
-    });
-  }
-
-  function handleMaxListenersChange(event: Event) {
-    multiplayerSettings.update({
-      multiplayerMaxListeners: (event.currentTarget as HTMLInputElement).valueAsNumber
-    });
-  }
-
-  function handleAutoHostToggle(event: Event) {
-    multiplayerSettings.update({ multiplayerAutoHost: checked(event) });
-  }
-
   function handleRestoreSessionToggle(event: Event) {
     multiplayerSettings.update({ multiplayerRestoreLastSession: checked(event) });
   }
 
   $: multiplayerMode = deriveMultiplayerMode($multiplayerSettings);
   $: multiplayerEnabled = multiplayerMode !== 'singleplayer';
-  $: multiplayerAudioEnabled = multiplayerMode === 'coopAudio' || multiplayerMode === 'freeplay';
-  $: coopAudioEnabled = multiplayerMode === 'coopAudio';
 </script>
 
 <article class="view">
@@ -217,7 +110,7 @@
             {$t('options.multiplayer.modes.freeplay.title', { default: 'Freeplay' })}
           </span>
           <span class="multiplayer-mode-badge">
-            {$t('options.multiplayer.modes.freeplayBadge', { default: 'Highly experimental' })}
+            {$t('options.multiplayer.modes.freeplayBadge', { default: 'Experimental' })}
           </span>
         </span>
         <span class="multiplayer-mode-description">
@@ -227,19 +120,16 @@
     </div>
     <div class="field-grid">
       <SettingsField
-        title={$t('options.multiplayer.transport.title', { default: 'Signaling transport' })}
-        hint={$t('options.multiplayer.transport.hint', { default: 'Firebase is the legacy invite-code path. Server uses a self-hosted server.' })}
+        title={$t('options.multiplayer.transport.title', { default: 'Connection method' })}
+        hint={$multiplayerSettings.multiplayerTransport === 'server'
+          ? `${$t('options.multiplayer.transport.hint', { default: 'Firebase is the legacy invite-code path. Server uses a self-hosted server.' })} ${$t('options.multiplayer.hostingHint', { default: 'Server connection details live under Hosting.' })}`
+          : $t('options.multiplayer.transport.hint', { default: 'Firebase is the legacy invite-code path. Server uses a self-hosted server.' })}
       >
         <select value={$multiplayerSettings.multiplayerTransport} on:change={handleTransportChange}>
           <option value="rtdb">{$t('options.multiplayer.transport.rtdb', { default: 'Firebase (legacy invites)' })}</option>
           <option value="server">{$t('options.multiplayer.transport.server', { default: 'Server server' })}</option>
         </select>
       </SettingsField>
-      {#if $multiplayerSettings.multiplayerTransport === 'server'}
-        <div class="server-config">
-          <ServerSetupPanel mode="config" />
-        </div>
-      {/if}
       <SettingsField
         title={$t('options.multiplayer.name', { default: 'Name this izci' })}
         hint={$t('options.multiplayer.nameHint', { default: 'Shown to hosts and clients in multiplayer sessions.' })}
@@ -253,29 +143,6 @@
         />
       </SettingsField>
       <SettingsField
-        title={$t('options.multiplayer.waitForClients.title', { default: 'Wait for clients' })}
-        hint={$t('options.multiplayer.waitForClients.hint', { default: 'Before starting a track, waits until every connected listener has loaded its transferred file or tuned to the audio stream.' })}
-        checkbox
-      >
-        <input
-          type="checkbox"
-          checked={$multiplayerSettings.multiplayerWaitForClients}
-          on:change={handleWaitForClientsToggle}
-        />
-      </SettingsField>
-      <SettingsField
-        title={$t('options.multiplayer.autoHost.title', { default: 'Always host for peers' })}
-        hint={$t('options.multiplayer.autoHost.hint', { default: 'Silently hosts on launch so paired devices can join without an invite code.' })}
-        checkbox
-      >
-        <input
-          type="checkbox"
-          checked={$multiplayerSettings.multiplayerAutoHost}
-          disabled={!multiplayerEnabled}
-          on:change={handleAutoHostToggle}
-        />
-      </SettingsField>
-      <SettingsField
         title={$t('options.multiplayer.restoreSession.title', { default: 'Restore last session' })}
         hint={$t('options.multiplayer.restoreSession.hint', { default: 'Reconnects to the previous host or resumes hosting after relaunch.' })}
         checkbox
@@ -286,166 +153,6 @@
           disabled={!multiplayerEnabled}
           on:change={handleRestoreSessionToggle}
         />
-      </SettingsField>
-      {#if $multiplayerSettings.multiplayerTransport === 'rtdb'}
-      <SettingsField
-        title={$t('options.multiplayer.turnUrl.title', { default: 'TURN server' })}
-        hint={$t('options.multiplayer.turnUrl.hint', { default: 'Host-only relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. Listeners receive it with temporary credentials.' })}
-      >
-        <input
-          class="multiplayer-text-input multiplayer-endpoint-input"
-          type="text"
-          spellcheck="false"
-          autocomplete="off"
-          placeholder="turn:host:3478"
-          value={$multiplayerSettings.multiplayerTurnUrl}
-          on:change={handleTurnUrlChange}
-        />
-      </SettingsField>
-      <SettingsField
-        title={$t('options.multiplayer.turnSecret.title', { default: 'TURN authentication secret' })}
-        hint={$t('options.multiplayer.turnSecret.hint', { default: 'Host-only shared secret configured on the relay. Listeners receive encrypted temporary credentials and do not need this setting.' })}
-      >
-        <input
-          class="multiplayer-text-input"
-          type="password"
-          autocomplete="current-password"
-          value={$multiplayerSettings.multiplayerTurnSecret}
-          on:change={handleTurnSecretChange}
-        />
-      </SettingsField>
-      <SettingsField
-        title={$t('options.multiplayer.turnLifetime.title', { default: 'TURN credential lifetime' })}
-        hint={$t('options.multiplayer.turnLifetime.hint', { default: 'Sets the expiry of credentials minted for each listener. Longer values better tolerate long sessions and reconnects.' })}
-      >
-        <input
-          type="range"
-          min={MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN}
-          max={MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX}
-          step="1"
-          value={$multiplayerSettings.multiplayerTurnCredentialHours}
-          disabled={!$multiplayerSettings.multiplayerTurnUrl || !$multiplayerSettings.multiplayerTurnSecret}
-          on:input={handleTurnCredentialHoursChange}
-        />
-        <span class="field-output">{$multiplayerSettings.multiplayerTurnCredentialHours} h</span>
-      </SettingsField>
-      <SettingsField
-        title={$t('options.multiplayer.forceTurn.title', { default: 'Force TURN relay' })}
-        hint={$t('options.multiplayer.forceTurn.hint', { default: 'Uses relay candidates only on the host and listeners. Enable temporarily to verify the relay or keep enabled when direct routes must never be used.' })}
-        checkbox
-      >
-        <input
-          type="checkbox"
-          checked={$multiplayerSettings.multiplayerForceTurn}
-          disabled={!$multiplayerSettings.multiplayerTurnUrl || !$multiplayerSettings.multiplayerTurnSecret}
-          on:change={handleForceTurnToggle}
-        />
-      </SettingsField>
-      {/if}
-      <SettingsField
-        title={$t('options.multiplayer.maxListeners.title', { default: 'Maximum guests' })}
-        hint={$t('options.multiplayer.maxListeners.hint', { default: 'Limits how many guests can connect to the host at once, whether or not audio streaming is enabled.' })}
-      >
-        <input
-          type="range"
-          min={MULTIPLAYER_MAX_LISTENERS_MIN}
-          max={MULTIPLAYER_MAX_LISTENERS_MAX}
-          step="1"
-          value={$multiplayerSettings.multiplayerMaxListeners}
-          on:input={handleMaxListenersChange}
-        />
-        <span class="field-output">{$multiplayerSettings.multiplayerMaxListeners}</span>
-      </SettingsField>
-    </div>
-  </div>
-  <div class="section">
-    <h2>{$t('options.multiplayer.audioCategory', { default: 'Multiplayer Audio' })}</h2>
-    <div class="field-grid">
-      <SettingsField
-        title={$t('options.multiplayer.synchronizedPlayback.title', { default: 'Synchronized playback' })}
-        hint={$t('options.multiplayer.synchronizedPlayback.hint', { default: 'Coordinates a shared start time across the host and listeners. Works best with sent files; streamed audio remains best effort because browser buffers vary.' })}
-        checkbox
-      >
-        <input
-          type="checkbox"
-          checked={$multiplayerSettings.multiplayerSynchronizedPlayback}
-          disabled={!coopAudioEnabled}
-          on:change={handleSynchronizedPlaybackToggle}
-        />
-      </SettingsField>
-      <SettingsField
-        title={$t('options.multiplayer.syncLeadTime.title', { default: 'Start lead time' })}
-        hint={$t('options.multiplayer.syncLeadTime.hint', { default: 'How far ahead the host schedules a synchronized start after every listener is ready. Increase it when devices miss the opening beat.' })}
-      >
-        <input
-          type="range"
-          min={MULTIPLAYER_SYNC_LEAD_TIME_MIN_MS}
-          max={MULTIPLAYER_SYNC_LEAD_TIME_MAX_MS}
-          step={MULTIPLAYER_SYNC_LEAD_TIME_STEP_MS}
-          value={$multiplayerSettings.multiplayerSyncLeadTimeMs}
-          disabled={!coopAudioEnabled || !$multiplayerSettings.multiplayerSynchronizedPlayback}
-          on:input={handleSyncLeadTimeChange}
-        />
-        <span class="field-output">{$multiplayerSettings.multiplayerSyncLeadTimeMs} ms</span>
-      </SettingsField>
-      <SettingsField
-        title={$t('options.multiplayer.fileTransfer.title', { default: 'Send files under' })}
-        hint={$t('options.multiplayer.fileTransfer.hint', { default: 'Sends smaller audio and module files whole, then plays them on each listener. Larger files are pre-rendered to buffered Opus by the host. Modules are usually small, so they transfer directly.' })}
-      >
-        <input
-          type="range"
-          min="0"
-          max={MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB.length - 1}
-          step="1"
-          value={fileTransferLimitIndex($multiplayerSettings.multiplayerFileTransferLimitMiB)}
-          disabled={!multiplayerAudioEnabled}
-          on:input={handleFileTransferLimitChange}
-        />
-        <span class="field-output">{fileTransferLimitLabel($multiplayerSettings.multiplayerFileTransferLimitMiB)}</span>
-      </SettingsField>
-      <SettingsField
-        title={$t('options.multiplayer.opusBitrate.title', { default: 'Opus VBR bitrate' })}
-        hint={$t('options.multiplayer.opusBitrate.hint', { default: 'Controls the bitrate of the pre-rendered Opus stream each listener downloads. Higher rates use more host bandwidth and encoding work.' })}
-      >
-        <input
-          type="range"
-          min={MULTIPLAYER_OPUS_BITRATE_MIN_KBPS}
-          max={MULTIPLAYER_OPUS_BITRATE_MAX_KBPS}
-          step={MULTIPLAYER_OPUS_BITRATE_STEP_KBPS}
-          value={$multiplayerSettings.multiplayerOpusBitrateKbps}
-          disabled={!multiplayerAudioEnabled || $multiplayerSettings.multiplayerFileTransferLimitMiB < 0}
-          on:input={handleOpusBitrateChange}
-        />
-        <span class="field-output">{$multiplayerSettings.multiplayerOpusBitrateKbps} kbps</span>
-      </SettingsField>
-      <SettingsField
-        title={$t('options.multiplayer.audioBuffer.title', { default: 'Start/rebuffer after' })}
-        hint={$t('options.multiplayer.audioBuffer.hint', { default: 'How much audio each listener buffers before playback starts and after a rebuffer. Download keeps running ahead while paused.' })}
-      >
-        <input
-          type="range"
-          min={MULTIPLAYER_AUDIO_BUFFER_MIN_MS}
-          max={MULTIPLAYER_AUDIO_BUFFER_MAX_MS}
-          step={MULTIPLAYER_AUDIO_BUFFER_STEP_MS}
-          value={$multiplayerSettings.multiplayerAudioBufferMs}
-          disabled={!multiplayerAudioEnabled}
-          on:input={handleAudioBufferChange}
-        />
-        <span class="field-output">{$multiplayerSettings.multiplayerAudioBufferMs} ms</span>
-      </SettingsField>
-      <SettingsField
-        title={$t('options.multiplayer.renderCache.title', { default: 'Pre-render memory limit' })}
-        hint={$t('options.multiplayer.renderCache.hint', { default: 'How much host memory the compressed render cache may use. Active tracks stay pinned; older renders are evicted by least-recent use.' })}
-      >
-        <select
-          value={$multiplayerSettings.multiplayerRenderCacheLimitMiB}
-          disabled={!multiplayerAudioEnabled}
-          on:change={handleRenderCacheLimitChange}
-        >
-          {#each MULTIPLAYER_RENDER_CACHE_LIMITS_MIB as limit}
-            <option value={limit}>{renderCacheLimitLabel(limit)}</option>
-          {/each}
-        </select>
       </SettingsField>
     </div>
   </div>
@@ -470,19 +177,16 @@
     {/if}
     <p>
       {#if $multiplayerSettings.multiplayerTransport === 'server'}
-        {$t('options.multiplayer.server.iceManaged', { default: 'STUN and TURN are supplied by the Server operator. This client does not configure relay credentials.' })}
+        {$t('options.multiplayer.server.iceManaged', { default: 'STUN and TURN are supplied by the izci-server operator. This client does not configure relay credentials.' })}
       {:else}
-        {$t('options.multiplayer.diagnostics.direct', { default: 'izci asks Cloudflare and Google STUN servers for public ICE candidates, then tries direct routes. When configured above, TURN adds a relay path for restrictive NAT or firewall combinations.' })}
+        {$t('options.multiplayer.diagnostics.direct', { default: 'izci asks Cloudflare and Google STUN servers for public candidates, then tries direct routes. A TURN relay configured under Hosting adds a fallback path for restrictive NAT or firewalls.' })}
       {/if}
     </p>
     <p>
-      {$t('options.multiplayer.diagnostics.upnp', { default: 'A static public IP or router UPnP does not guarantee success: Chromium chooses its own ICE ports and izci does not request a UPnP port mapping.' })}
+      {$t('options.multiplayer.diagnostics.upnp', { default: 'A static public IP or router UPnP is no guarantee: Chromium picks its own ICE ports and izci never requests a UPnP mapping.' })}
     </p>
     <p>
-      {$t('options.multiplayer.diagnostics.messages', { default: 'Failure to gather candidates points to browser or network policy; local-only candidates point to STUN failure; candidates on both sides with no connection point to NAT or firewall filtering.' })}
-    </p>
-    <p>
-      {$t('options.multiplayer.diagnostics.tailnet', { default: 'A successful Tailscale connection may use tailnet addresses, router port mapping, or DERP. It does not prove that the same devices have a usable direct route with Tailscale off.' })}
+      {$t('options.multiplayer.diagnostics.messages', { default: 'No candidates at all points to browser or network policy; local-only candidates point to STUN failure; candidates on both sides with no connection point to NAT or firewall filtering.' })}
     </p>
   </aside>
 </article>
@@ -490,19 +194,6 @@
 <style>
   :global(html:not([data-izci-mobile='true'])) input.multiplayer-text-input {
     width: min(12rem, 32vw);
-  }
-
-  input.multiplayer-endpoint-input {
-    font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
-    font-size: 0.74rem;
-  }
-
-  .server-config {
-    grid-column: 1 / -1;
-    padding: 0.6rem 0.7rem;
-    border: 1px solid var(--border-faint);
-    border-radius: 0.4rem;
-    background: color-mix(in srgb, var(--bg-input) 55%, transparent);
   }
 
   .multiplayer-mode-cards {
@@ -575,9 +266,9 @@
     flex: 0 0 auto;
     margin-left: auto;
     padding: 0.1rem 0.42rem;
-    border: 1px solid color-mix(in srgb, var(--danger) 42%, transparent);
-    background: color-mix(in srgb, var(--danger) 9%, transparent);
-    color: var(--danger);
+    border: 1px solid color-mix(in srgb, #e08a1e 48%, transparent);
+    background: color-mix(in srgb, #e08a1e 12%, transparent);
+    color: #e08a1e;
     font-size: 0.55rem;
     font-weight: 700;
     letter-spacing: 0.09em;

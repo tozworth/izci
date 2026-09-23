@@ -81,10 +81,23 @@ export function resetOptionsView(view: OptionsViewName): void {
     case 'multiplayer':
       multiplayerSettings.reset();
       break;
-    case 'chat':
+    case 'hosting':
       multiplayerSettings.update({
         multiplayerMotd: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerMotd,
-        multiplayerChatHistoryLines: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerChatHistoryLines
+        multiplayerChatHistoryLines: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerChatHistoryLines,
+        multiplayerWaitForClients: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerWaitForClients,
+        multiplayerAutoHost: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerAutoHost,
+        multiplayerMaxListeners: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerMaxListeners,
+        multiplayerTurnUrl: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerTurnUrl,
+        multiplayerTurnSecret: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerTurnSecret,
+        multiplayerTurnCredentialHours: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerTurnCredentialHours,
+        multiplayerForceTurn: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerForceTurn,
+        multiplayerSynchronizedPlayback: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerSynchronizedPlayback,
+        multiplayerSyncLeadTimeMs: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerSyncLeadTimeMs,
+        multiplayerFileTransferLimitMiB: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerFileTransferLimitMiB,
+        multiplayerOpusBitrateKbps: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerOpusBitrateKbps,
+        multiplayerAudioBufferMs: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerAudioBufferMs,
+        multiplayerRenderCacheLimitMiB: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRenderCacheLimitMiB
       });
       break;
     case 'cache':

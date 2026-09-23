@@ -284,7 +284,7 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-ove
 }
 
 .menu-item-icon {
-  font-size: 0.78rem;
+  font-size: 16px;
   color: var(--menu-popover-muted);
 }
 

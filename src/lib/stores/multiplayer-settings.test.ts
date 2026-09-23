@@ -86,9 +86,7 @@ describe('multiplayer settings', () => {
     expect(normalizeMultiplayerSettings({})).toMatchObject({
       multiplayerTransport: 'rtdb',
       multiplayerServerEndpoint: '',
-      multiplayerServerLabel: '',
       multiplayerServerNoticeVersion: 0,
-      multiplayerServerAutoReconnect: false,
       multiplayerServerForceRelay: false,
       multiplayerServerIceAck: ''
     });
@@ -96,24 +94,18 @@ describe('multiplayer settings', () => {
 
   it('normalizes server setup fields across windows', () => {
     expect(normalizeMultiplayerSettings({
-      multiplayerServerLabel: `  ${'y'.repeat(200)}  `,
       multiplayerServerNoticeVersion: 2.7,
-      multiplayerServerAutoReconnect: true,
       multiplayerServerForceRelay: true,
       multiplayerServerIceAck: 'x'.repeat(3_000)
     })).toMatchObject({
-      multiplayerServerLabel: 'y'.repeat(120),
       multiplayerServerNoticeVersion: 2,
-      multiplayerServerAutoReconnect: true,
       multiplayerServerForceRelay: true,
       multiplayerServerIceAck: 'x'.repeat(2_048)
     });
     expect(normalizeMultiplayerSettings({
-      multiplayerServerNoticeVersion: Number.NaN,
-      multiplayerServerAutoReconnect: 'yes'
+      multiplayerServerNoticeVersion: Number.NaN
     })).toMatchObject({
-      multiplayerServerNoticeVersion: 0,
-      multiplayerServerAutoReconnect: false
+      multiplayerServerNoticeVersion: 0
     });
   });
 

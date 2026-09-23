@@ -753,6 +753,7 @@
     },
     "multiplayer": {
       "category": "Çok oyunculu",
+      "hostingHint": "Sunucu bağlantı bilgileri Barındırma altındadır.",
       "modes": {
         "label": "Çok oyunculu mod",
         "singleplayer": {
@@ -771,7 +772,7 @@
           "title": "Freeplay",
           "hint": "İstemciler, sunucunun kitaplığındaki müziğe kendi sıraları, oynatmaları ve sesleriyle bağımsız olarak göz atıp çalabilir."
         },
-        "freeplayBadge": "Oldukça deneysel"
+        "freeplayBadge": "Deneysel"
       },
       "name": "Bu izci'yi adlandır",
       "nameHint": "Çok oyunculu oturumlarda sunucu ve istemcilere gösterilir.",
@@ -820,7 +821,10 @@
         "title": "Azami konuk",
         "hint": "Ses aktarımı etkin olsun veya olmasın, sunucuya aynı anda kaç konuğun bağlanabileceğini sınırlar."
       },
-      "audioCategory": "Çok Oyunculu Ses",
+      "audioCategory": "Ses",
+      "hosting": {
+        "category": "Barındırma"
+      },
       "synchronizedPlayback": {
         "title": "Eşzamanlı oynatma",
         "hint": "Sunucu ve dinleyiciler için ortak bir başlangıç zamanı ayarlar. En iyi gönderilen dosyalarla çalışır; tarayıcı tamponları değişebildiği için aktarılan ses yaklaşık olarak eşzamanlanır."
@@ -851,13 +855,12 @@
       "diagnostics": {
         "heading": "Bağlantı tanılama",
         "signaling": "Firebase yalnızca daveti, oturum açıklamalarını ve ICE adaylarını iletir. Oynatma kontrolleri, katalog verileri, görseller ve ses, kurulan eş bağlantısını kullanır.",
-        "direct": "izci, genel ICE adayları için Cloudflare ve Google STUN sunucularına başvurur ve ardından doğrudan yolları dener. TURN aktarıcısı yapılandırılmadığından kısıtlayıcı NAT veya güvenlik duvarı birleşimleri bağlantıyı yine de engelleyebilir.",
-        "upnp": "Sabit genel IP veya yönlendiricide UPnP başarıyı garanti etmez: Chromium kendi ICE portlarını seçer ve izci UPnP port eşlemesi istemez.",
-        "messages": "Hiç aday toplanamaması tarayıcı ya da ağ ilkesine; yalnızca yerel aday bulunması STUN arızasına; iki tarafta da aday olup bağlantı kurulamaması NAT ya da güvenlik duvarı filtrelemesine işaret eder.",
-        "tailnet": "Başarılı bir Tailscale bağlantısı tailnet adreslerini, yönlendirici port eşlemesini veya DERP'i kullanabilir. Bu, Tailscale kapalıyken aynı aygıtlar arasında kullanılabilir bir doğrudan yol bulunduğunu kanıtlamaz."
+        "direct": "izci, genel adaylar için Cloudflare ve Google STUN sunucularına başvurur, sonra doğrudan yolları dener. Barındırma altında yapılandırılan TURN aktarıcısı, kısıtlayıcı NAT ya da güvenlik duvarları için yedek yol sağlar.",
+        "upnp": "Sabit genel IP ya da yönlendirici UPnP'si garanti vermez: Chromium kendi ICE portlarını seçer, izci UPnP eşlemesi istemez.",
+        "messages": "Hiç aday toplanamaması tarayıcı ya da ağ ilkesine; yalnızca yerel aday bulunması STUN arızasına; iki tarafta da aday olup bağlantı kurulamaması NAT ya da güvenlik duvarı filtrelemesine işaret eder."
       },
       "transport": {
-        "title": "Sinyalleşme taşıyıcısı",
+        "title": "Bağlantı yöntemi",
         "hint": "Firebase eski davet kodu yoludur. izci-server kendi sunucunu kullanır; sunuculuk için operatör anahtarı, katılım için izci-server daveti gerekir.",
         "rtdb": "Firebase (eski davetler)",
         "server": "izci-server"
@@ -871,7 +874,6 @@
         "serverLabel": "Sunucu adresi",
         "serverHint": "izci-server sunucusunun HTTPS adresi; alt yoldan sunuluyorsa yol önekiyle. Bağlan'a basmadan hiçbir istek yapılmaz.",
         "connect": "Bağlan",
-        "useSameOrigin": "Bu izci'nin adresini kullan",
         "useServer": "Kullan",
         "noDirectory": "Sunucu adresi herkese açık oda listelemez; yalnızca işletmecinin açıklamasını gösterir.",
         "serverDescription": "Sunucu açıklaması",
@@ -921,10 +923,6 @@
         "providersHint": "Beklenen görünüyorsa devam et. Seçim sunucu başına hatırlanır.",
         "continue": "Devam et",
         "cancel": "Vazgeç",
-        "labelTitle": "Sunucu etiketi",
-        "labelHint": "Bu sunucu için aygıtlarındaki özel ad.",
-        "autoReconnect": "Kopan izci-server bağlantılarını kurtar",
-        "autoReconnectHint": "Yalnızca sinyalleşme bağlantısını yeniden dener; kesintisiz eş sesi çalmayı sürdürür.",
         "forceRelay": "Aktarmalı yolları tercih et",
         "forceRelayHint": "Sunucu aktarıcı bildirdiğinde kullanılır. Operatör aksini istemedikçe önce doğrudan yollar denenir.",
         "iceManaged": "STUN ve TURN, izci-server işletmecisi tarafından sağlanır. Bu istemci aktarıcı kimlik bilgilerini yapılandırmaz.",
@@ -1497,7 +1495,7 @@
       "metadata": "Metaveri",
       "backups": "Yedekler",
       "multiplayer": "Çok oyunculu",
-      "chat": "Sohbet",
+      "hosting": "Barındırma",
       "experimental": "Experimental",
       "cache": "Önbellek",
       "about": "Hakkında",

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createMultiplayerWindowController } from './multiplayer-window-controller';
 import { serverSetup } from './multiplayer-server-setup';
+import { serverHostKeys } from '$lib/stores/multiplayer-server-host-keys';
 import { buildServerInvitationPayload } from './multiplayer-server-invite';
 import type { MultiplayerSettings } from '$lib/types';
 
@@ -12,9 +13,7 @@ function settings(overrides: Partial<MultiplayerSettings> = {}): MultiplayerSett
     izciName: 'Test',
     multiplayerTransport: 'rtdb',
     multiplayerServerEndpoint: '',
-    multiplayerServerLabel: '',
     multiplayerServerNoticeVersion: 1,
-    multiplayerServerAutoReconnect: false,
     multiplayerServerForceRelay: false,
     multiplayerServerIceAck: '',
     multiplayerMotd: '',
@@ -44,6 +43,7 @@ function settings(overrides: Partial<MultiplayerSettings> = {}): MultiplayerSett
 function deps(overrides: {
   multiplayerSettings?: MultiplayerSettings;
   session?: Record<string, ReturnType<typeof vi.fn>>;
+  openMultiplayerOptions?: () => void;
 } = {}) {
   const session = {
     getSnapshot: vi.fn(() => ({ mode: 'idle' })),
@@ -93,6 +93,7 @@ function deps(overrides: {
       getPairings: () => [],
       pausePlayer: () => undefined,
       setActiveWorkspaceTab: () => undefined,
+      openMultiplayerOptions: overrides.openMultiplayerOptions ?? (() => undefined),
       getRemoteSelections: () => ({ track: { ids: [], anchorId: null, focusId: null }, library: { ids: [], anchorId: null, focusId: null }, favorites: { ids: [], anchorId: null, focusId: null } }) as never,
       setRemoteSelections: () => undefined,
       translate: ((id: string) => id) as never
@@ -104,14 +105,26 @@ afterEach(() => {
   vi.restoreAllMocks();
   serverSetup.dismissPending();
   serverSetup.closeSetup();
+  serverHostKeys.set([]);
   delete (globalThis as Record<string, unknown>)['window'];
 });
 
 function stubWindow(hash: string, promptAnswer: string | null = null): { prompted: string[]; fire: (event: string) => void } {
   const prompted: string[] = [];
   const listeners: Record<string, () => void> = {};
+  const storage = new Map<string, string>();
   (globalThis as Record<string, unknown>)['window'] = {
     location: { hash, pathname: '/', search: '' },
+    localStorage: {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        storage.set(key, value);
+      },
+      removeItem: (key: string) => {
+        storage.delete(key);
+      },
+      clear: () => storage.clear()
+    },
     history: {
       replaceState: (_a: unknown, _b: string, url: string) => {
         ((globalThis as Record<string, unknown>)['window'] as { location: { hash: string } }).location.hash = '';
@@ -161,8 +174,14 @@ describe('multiplayer window controller server routing', () => {
     const { prompted } = stubWindow('', `https://izci.example/#party=${raw}`);
     const hostConfigured = vi.spyOn(serverSetup, 'hostConfigured').mockResolvedValueOnce();
     const joinInvitation = vi.spyOn(serverSetup, 'joinInvitation').mockResolvedValueOnce();
+    serverHostKeys.set([
+      { endpoint: 'https://server.example.com', hostKey: 'a'.repeat(64), lastUsed: Date.now() }
+    ]);
     const { session, controller } = deps({
-      multiplayerSettings: settings({ multiplayerTransport: 'server' })
+      multiplayerSettings: settings({
+        multiplayerTransport: 'server',
+        multiplayerServerEndpoint: 'https://server.example.com'
+      })
     });
     await controller.host();
     expect(hostConfigured).toHaveBeenCalledOnce();
@@ -172,6 +191,41 @@ describe('multiplayer window controller server routing', () => {
     expect(prompted).toEqual(['main.multiplayer.server.enterInvite']);
     expect(session.join).not.toHaveBeenCalled();
     expect(joinInvitation).toHaveBeenCalledWith(expect.objectContaining({ roomId: ROOM }));
+    expect(serverSetup.getSnapshot().dialogOpen).toBe(false);
+  });
+
+  it('sends server hosts without a configured endpoint to Options instead of a dialog', async () => {
+    const openMultiplayerOptions = vi.fn();
+    const hostConfigured = vi.spyOn(serverSetup, 'hostConfigured');
+    const { controller } = deps({
+      multiplayerSettings: settings({ multiplayerTransport: 'server' }),
+      openMultiplayerOptions
+    });
+    let open = false;
+    const unsubscribe = controller.subscribe((ui) => {
+      open = ui.dialog.open;
+    });
+    await controller.host();
+    expect(openMultiplayerOptions).toHaveBeenCalledOnce();
+    expect(hostConfigured).not.toHaveBeenCalled();
+    expect(open).toBe(false);
+    expect(serverSetup.getSnapshot().dialogOpen).toBe(false);
+    unsubscribe();
+  });
+
+  it('sends server hosts without a saved operator key to Options instead of a dialog', async () => {
+    const openMultiplayerOptions = vi.fn();
+    const hostConfigured = vi.spyOn(serverSetup, 'hostConfigured');
+    const { controller } = deps({
+      multiplayerSettings: settings({
+        multiplayerTransport: 'server',
+        multiplayerServerEndpoint: 'https://server.example.com'
+      }),
+      openMultiplayerOptions
+    });
+    await controller.host();
+    expect(openMultiplayerOptions).toHaveBeenCalledOnce();
+    expect(hostConfigured).not.toHaveBeenCalled();
     expect(serverSetup.getSnapshot().dialogOpen).toBe(false);
   });
 

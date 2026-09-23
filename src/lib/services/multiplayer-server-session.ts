@@ -516,11 +516,7 @@ export async function joinServer(
         onSocketClose() {
           if (!checkGeneration(core, owned)) return;
           if (core.state.mode !== 'client') return;
-          // Explicit opt-in only: healthy RTC playback continues either way.
-          if (!core.multiplayerSettings.multiplayerServerAutoReconnect) {
-            core.publish({ serverSignaling: 'dropped' });
-            return;
-          }
+          // Signaling reconnects automatically; healthy RTC playback continues either way.
           const guest = core.serverGuest;
           if (!guest) return;
           void (async () => {

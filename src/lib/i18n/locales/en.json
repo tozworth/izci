@@ -745,6 +745,7 @@
     },
     "multiplayer": {
       "category": "Multiplayer",
+      "hostingHint": "Server connection details live under Hosting.",
       "modes": {
         "label": "Multiplayer mode",
         "singleplayer": {
@@ -763,7 +764,7 @@
           "title": "Freeplay",
           "hint": "Clients can browse and play music from the host’s library independently, with their own queue, playback, and audio."
         },
-        "freeplayBadge": "Highly experimental"
+        "freeplayBadge": "Experimental"
       },
       "name": "Name this izci",
       "nameHint": "Shown to hosts and clients in multiplayer sessions.",
@@ -812,7 +813,10 @@
         "title": "Maximum guests",
         "hint": "Limits how many guests can connect to the host at once, whether or not audio streaming is enabled."
       },
-      "audioCategory": "Multiplayer Audio",
+      "audioCategory": "Audio",
+      "hosting": {
+        "category": "Hosting"
+      },
       "synchronizedPlayback": {
         "title": "Synchronized playback",
         "hint": "Coordinates a shared start time across the host and listeners. Works best with sent files; streamed audio remains best effort because browser buffers vary."
@@ -843,13 +847,12 @@
       "diagnostics": {
         "heading": "Connection diagnostics",
         "signaling": "Firebase only exchanges the invite, session descriptions, and ICE candidates. Playback controls, catalog data, artwork, and audio use the resulting peer connection.",
-        "direct": "izci asks Cloudflare and Google STUN servers for public ICE candidates, then tries direct routes. When configured above, TURN adds a relay path for restrictive NAT or firewall combinations.",
-        "upnp": "A static public IP or router UPnP does not guarantee success: Chromium chooses its own ICE ports and izci does not request a UPnP port mapping.",
-        "messages": "Failure to gather candidates points to browser or network policy; local-only candidates point to STUN failure; candidates on both sides with no connection point to NAT or firewall filtering.",
-        "tailnet": "A successful Tailscale connection may use tailnet addresses, router port mapping, or DERP. It does not prove that the same devices have a usable direct route with Tailscale off."
+        "direct": "izci asks Cloudflare and Google STUN servers for public candidates, then tries direct routes. A TURN relay configured under Hosting adds a fallback path for restrictive NAT or firewalls.",
+        "upnp": "A static public IP or router UPnP is no guarantee: Chromium picks its own ICE ports and izci never requests a UPnP mapping.",
+        "messages": "No candidates at all points to browser or network policy; local-only candidates point to STUN failure; candidates on both sides with no connection point to NAT or firewall filtering."
       },
       "transport": {
-        "title": "Signaling transport",
+        "title": "Connection method",
         "hint": "Firebase is the legacy invite-code path. izci-server uses a self-hosted server; hosting needs its operator key and guests need an izci-server invitation.",
         "rtdb": "Firebase (legacy invites)",
         "server": "izci-server"
@@ -863,7 +866,6 @@
         "serverLabel": "Server address",
         "serverHint": "HTTPS address of the izci-server server, with its path prefix when it serves one. Nothing is contacted until Connect is pressed.",
         "connect": "Connect",
-        "useSameOrigin": "Use this izci's address",
         "useServer": "Use",
         "noDirectory": "A server address never lists public rooms; it only shows the operator's description.",
         "serverDescription": "Server description",
@@ -913,10 +915,6 @@
         "providersHint": "Continue only if these look expected. The choice is remembered per server.",
         "continue": "Continue",
         "cancel": "Cancel",
-        "labelTitle": "Server label",
-        "labelHint": "A private name for this server on your devices.",
-        "autoReconnect": "Recover dropped izci-server connections",
-        "autoReconnectHint": "Retries only the signaling connection; uninterrupted peer audio keeps playing.",
         "forceRelay": "Prefer relayed routes",
         "forceRelayHint": "Used when the server advertises a relay. Direct routes are still tried first unless the operator requires otherwise.",
         "iceManaged": "STUN and TURN are supplied by the izci-server operator. This client does not configure relay credentials.",
@@ -1489,7 +1487,7 @@
       "metadata": "Metadata",
       "backups": "Backups",
       "multiplayer": "Multiplayer",
-      "chat": "Chat",
+      "hosting": "Hosting",
       "experimental": "Experimental",
       "cache": "Cache",
       "about": "About",

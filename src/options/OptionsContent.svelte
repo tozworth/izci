@@ -4,7 +4,7 @@
   import BackdropsView from './components/views/BackdropsView.svelte';
   import BackupsView from './components/views/BackupsView.svelte';
   import CacheView from './components/views/CacheView.svelte';
-  import ChatView from './components/views/ChatView.svelte';
+  import HostingView from './components/views/HostingView.svelte';
   import MultiplayerView from './components/views/MultiplayerView.svelte';
   import ExperimentalView from './components/views/ExperimentalView.svelte';
   import LyricsView from './components/views/LyricsView.svelte';
@@ -61,8 +61,8 @@
   <BackupsView onOpenFolders={() => onSelectView('folders')} />
 {:else if activeView === 'multiplayer'}
   <MultiplayerView />
-{:else if activeView === 'chat'}
-  <ChatView />
+{:else if activeView === 'hosting'}
+  <HostingView />
 {:else if activeView === 'experimental'}
   <ExperimentalView />
 {:else if activeView === 'cache'}

@@ -351,6 +351,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     getPairings: () => multiplayerPairings.getSnapshot(),
     pausePlayer: () => playerController.pause(),
     setActiveWorkspaceTab: (tab) => workspaceShell.setActiveWorkspaceTab(tab),
+    openMultiplayerOptions: () => deps.openOptions('multiplayer'),
     getRemoteSelections: deps.getRemoteSelections,
     setRemoteSelections: deps.setRemoteSelections,
     translate
