@@ -21,7 +21,7 @@ const VIEW_LABEL_KEYS: Record<OptionsViewName, string> = {
   metadata: 'options.views.metadata',
   backups: 'options.views.backups',
   multiplayer: 'options.views.multiplayer',
-  chat: 'options.views.chat',
+  hosting: 'options.views.hosting',
   experimental: 'options.views.experimental',
   cache: 'options.views.cache',
   about: 'options.views.about',
@@ -32,7 +32,7 @@ function parentViewId(view: OptionsViewName): OptionsViewName | null {
   if (view === 'backdrops' || view === 'now-playing' || view === 'visualizer' || view === 'patterns' || view === 'lyrics') return 'appearance';
   if (view === 'video' || view === 'raf' || view === 'modules') return 'playback';
   if (view === 'folders' || view === 'metadata') return 'tracks';
-  if (view === 'chat' || view === 'cache') return 'multiplayer';
+  if (view === 'hosting' || view === 'cache') return 'multiplayer';
   if (view === 'licenses') return 'about';
   return null;
 }

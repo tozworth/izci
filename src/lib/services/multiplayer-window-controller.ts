@@ -15,6 +15,7 @@ import {
   ServerInviteError
 } from '$lib/services/multiplayer-server-invite';
 import { serverSetup } from '$lib/services/multiplayer-server-setup';
+import { getRememberedServerHostKey } from '$lib/stores/multiplayer-server-host-keys';
 import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
 import type {
   MultiplayerSettings,
@@ -78,6 +79,7 @@ interface MultiplayerWindowControllerDeps {
   getPairings(): MultiplayerPairing[];
   pausePlayer(): void;
   setActiveWorkspaceTab(tab: WorkspaceTab): void;
+  openMultiplayerOptions(): void;
   getRemoteSelections(): RemoteSelectionSnapshot;
   setRemoteSelections(selections: RemoteSelectionSnapshot): void;
   translate: Translate;
@@ -364,10 +366,23 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
     return deps.getMultiplayerSettings().multiplayerTransport === 'server';
   }
 
+  function isServerHostConfigured(): boolean {
+    const endpoint = deps.getMultiplayerSettings().multiplayerServerEndpoint;
+    if (!endpoint) return false;
+    return getRememberedServerHostKey(endpoint) !== null;
+  }
+
   async function host(): Promise<void> {
     if (isServerTransport()) {
       if (deps.getSession().getSnapshot().mode === 'hosting') {
         await copyInvite();
+        return;
+      }
+      // No configuration popup: an unconfigured server goes straight to
+      // Options > Multiplayer instead of opening a connection dialog that
+      // only reports the missing setup.
+      if (!isServerHostConfigured()) {
+        deps.openMultiplayerOptions();
         return;
       }
       beginConnection('hosting');

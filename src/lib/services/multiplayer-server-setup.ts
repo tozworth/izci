@@ -253,7 +253,7 @@ export function createServerSetupController(
       const info = await network.fetchInfo(endpoint, signal);
       if (signal.aborted) return;
       const display = describeServerEndpoint(endpoint).authorityWithPrefix;
-      rememberServerServer(endpoint, multiplayerSettings.getSnapshot().multiplayerServerLabel);
+      rememberServerServer(endpoint);
       multiplayerSettings.update({ multiplayerServerEndpoint: endpoint });
       set({
         endpoint,
@@ -272,13 +272,6 @@ export function createServerSetupController(
       clearBusy();
       publish();
     }
-  }
-
-  function useSameOrigin(): void {
-    if (typeof window === 'undefined') return;
-    // Suggest only; the summary still requires an explicit Connect press,
-    // and no request is made here.
-    set({ serverInput: window.location.origin });
   }
 
   async function login(hostKey: string): Promise<void> {
@@ -306,7 +299,7 @@ export function createServerSetupController(
           endpoint,
           roomId: dedicated.roomId,
           secret: dedicated.invitationSecret,
-          title: multiplayerSettings.getSnapshot().multiplayerServerLabel || null
+          title: null
         }, typeof window !== 'undefined' ? window.location.origin : '');
       } catch {
         if (signal.aborted) return;
@@ -372,7 +365,7 @@ export function createServerSetupController(
           endpoint: invitation.endpoint,
           roomId: invitation.roomId,
           secret: invitation.secret,
-          title: multiplayerSettings.getSnapshot().multiplayerServerLabel || null
+          title: null
         },
         typeof window !== 'undefined' ? window.location.origin : ''
       );
@@ -390,7 +383,7 @@ export function createServerSetupController(
       rememberServerRecent({
         endpoint: invitation.endpoint,
         roomId: invitation.roomId,
-        displayName: multiplayerSettings.getSnapshot().multiplayerServerLabel || invitation.roomId.slice(0, 8),
+        displayName: invitation.roomId.slice(0, 8),
         invitationSecret: invitation.secret,
         ownerSecret: invitation.ownerSecret
       }, { rememberInvitation: state.hostRemember });
@@ -457,7 +450,7 @@ export function createServerSetupController(
         rememberServerRecent({
           endpoint: invitation.endpoint,
           roomId: invitation.roomId,
-          displayName: multiplayerSettings.getSnapshot().multiplayerServerLabel || invitation.roomId.slice(0, 8),
+          displayName: invitation.roomId.slice(0, 8),
           invitationSecret: invitation.secret || previous?.invitationSecret || null,
           ownerSecret: invitation.ownerSecret || ownerSecret
         }, { rememberInvitation: true });
@@ -477,7 +470,7 @@ export function createServerSetupController(
               endpoint: invitation.endpoint,
               roomId: invitation.roomId,
               secret: invitation.secret,
-              title: multiplayerSettings.getSnapshot().multiplayerServerLabel || null
+              title: null
             },
             typeof window !== 'undefined' ? window.location.origin : ''
           )
@@ -544,7 +537,7 @@ export function createServerSetupController(
             endpoint: state.endpoint,
             roomId,
             secret: invitationSecret,
-            title: multiplayerSettings.getSnapshot().multiplayerServerLabel || null
+            title: null
           },
           typeof window !== 'undefined' ? window.location.origin : ''
         )
@@ -581,7 +574,7 @@ export function createServerSetupController(
             endpoint: hosted.endpoint,
             roomId: hosted.roomId,
             secret,
-            title: multiplayerSettings.getSnapshot().multiplayerServerLabel || null
+            title: null
           },
           typeof window !== 'undefined' ? window.location.origin : ''
         )
@@ -793,7 +786,6 @@ export function createServerSetupController(
       set({ pendingRemember: value });
     },
     connectServer,
-    useSameOrigin,
     login,
     logout,
     createRoom,

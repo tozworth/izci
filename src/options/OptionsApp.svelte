@@ -65,7 +65,7 @@
       case 'metadata': return $t('options.views.metadata', { default: 'Metadata' });
       case 'backups': return $t('options.views.backups', { default: 'Backups' });
       case 'multiplayer': return $t('options.views.multiplayer', { default: 'Multiplayer' });
-      case 'chat': return $t('options.views.chat', { default: 'Chat' });
+      case 'hosting': return $t('options.views.hosting', { default: 'Hosting' });
       case 'experimental': return $t('options.views.experimental', { default: 'Experimental' });
       case 'cache': return $t('options.views.cache', { default: 'Cache' });
       case 'about': return $t('options.views.about', { default: 'About' });
@@ -77,7 +77,7 @@
     if (view === 'backdrops' || view === 'now-playing' || view === 'visualizer' || view === 'patterns' || view === 'lyrics') return 'appearance';
     if (view === 'video' || view === 'raf' || view === 'modules') return 'playback';
     if (view === 'folders' || view === 'metadata') return 'tracks';
-    if (view === 'chat' || view === 'cache') return 'multiplayer';
+    if (view === 'hosting' || view === 'cache') return 'multiplayer';
     if (view === 'licenses') return 'about';
     return null;
   }

@@ -2,16 +2,14 @@
   import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
-  import {
-    serverRecents,
-    serverServers
-  } from '$lib/stores/multiplayer-server-recents';
+  import { serverRecents } from '$lib/stores/multiplayer-server-recents';
   import {
     SERVER_SETUP_GUIDE_URL,
     serverSetup
   } from '$lib/services/multiplayer-server-setup';
   import { describeServerEndpoint } from '$lib/services/multiplayer-server-invite';
 import ServerJoinChoices from './ServerJoinChoices.svelte';
+import SettingsField from '$lib/components/options/SettingsField.svelte';
 
   export let mode: 'full' | 'config' = 'full';
 
@@ -107,114 +105,133 @@ import ServerJoinChoices from './ServerJoinChoices.svelte';
 
 </script>
 
-<div class="server-setup">
+<div class="server-setup" class:config={mode === 'config'}>
   {#if mode === 'config'}
-    <section aria-label={$t('options.multiplayer.server.serverLabel', { default: 'Server address' })}>
-      <label class="field-title" for="server-server-input">
-        {$t('options.multiplayer.server.serverLabel', { default: 'Server address' })}
-      </label>
-      <div class="row">
-        <input
-          id="server-server-input"
-          class="mono"
-          type="text"
-          spellcheck="false"
-          autocomplete="off"
-          placeholder="https://server.example.com"
-          value={setup.serverInput}
-          disabled={setup.busy !== null}
-          on:input={(event) => serverSetup.setServerInput(event.currentTarget.value)}
-        />
-        <button type="button" disabled={setup.busy !== null || !setup.serverInput.trim()} on:click={connect}>
-          {$t('options.multiplayer.server.connect', { default: 'Connect' })}
-        </button>
-      </div>
-      <p class="hint">{$t('options.multiplayer.server.serverHint', { default: '' })}</p>
-      <div class="row">
-        <button type="button" class="quiet" disabled={setup.busy !== null} on:click={() => serverSetup.useSameOrigin()}>
-          {$t('options.multiplayer.server.useSameOrigin', { default: "Use this izci's address" })}
-        </button>
-      </div>
-      <p class="hint">{$t('options.multiplayer.server.noDirectory', { default: '' })}</p>
-      {#if setup.infoStatus === 'error'}
-        <p class="error" role="alert">{setup.infoError}</p>
-      {/if}
-      {#if setup.serverInfo}
-        <dl class="server-info">
-          <div>
-            <dt>{$t('options.multiplayer.server.serverLabel', { default: 'Server address' })}</dt>
-            <dd class="mono">{setup.endpointDisplay}</dd>
-          </div>
-          <div>
-            <dt>{$t('options.multiplayer.server.serverDescription', { default: 'Server description' })}</dt>
-            <dd>{setup.serverInfo.description || '—'}</dd>
-          </div>
-          <div>
-            <dt>{$t('options.multiplayer.server.serverContact', { default: 'Operator contact' })}</dt>
-            <dd>{setup.serverInfo.contact || '—'}</dd>
-          </div>
-          <div>
-            <dt>{$t('options.multiplayer.server.serverIce', { default: 'Declared ICE providers' })}</dt>
-            <dd>
-              {#if setup.serverInfo.iceUrls.length === 0}
-                {$t('options.multiplayer.server.serverIceNone', { default: 'None declared' })}
-              {:else}
-                {setup.serverInfo.iceUrls.join(', ')}
-              {/if}
-            </dd>
-          </div>
-          <div>
-            <dt>{$t('options.multiplayer.server.serverLimits', { default: 'Room limits' })}</dt>
-            <dd>
-              {setup.serverInfo.limits.maxRooms}/{setup.serverInfo.limits.maxPeersPerRoom}/{setup.serverInfo.limits.maxPendingAttemptsPerRoom}
-            </dd>
-          </div>
-        </dl>
-      {/if}
-    </section>
+    <SettingsField
+      title={$t('options.multiplayer.server.serverLabel', { default: 'Server address' })}
+      controlClass="server-address-control"
+    >
+      <svelte:fragment slot="hint">
+        {$t('options.multiplayer.server.serverHint', { default: '' })}{" "}
+        {$t('options.multiplayer.server.noDirectory', { default: '' })}
+      </svelte:fragment>
+      <input
+        class="server-address-input"
+        type="text"
+        spellcheck="false"
+        autocomplete="off"
+        placeholder="https://server.example.com"
+        value={setup.serverInput}
+        disabled={setup.busy !== null}
+        on:input={(event) => serverSetup.setServerInput(event.currentTarget.value)}
+      />
+      <button
+        type="button"
+        disabled={setup.busy !== null || !setup.serverInput.trim()}
+        on:click={connect}
+      >
+        {$t('options.multiplayer.server.connect', { default: 'Connect' })}
+      </button>
+    </SettingsField>
+    {#if setup.infoStatus === 'error'}
+      <p class="error" role="alert">{setup.infoError}</p>
+    {/if}
+    {#if setup.serverInfo}
+      <SettingsField
+        title={$t('options.multiplayer.server.serverDescription', { default: 'Server description' })}
+      >
+        <span class="server-value">{setup.serverInfo.description || '—'}</span>
+      </SettingsField>
+      <SettingsField
+        title={$t('options.multiplayer.server.serverContact', { default: 'Operator contact' })}
+      >
+        <span class="server-value">{setup.serverInfo.contact || '—'}</span>
+      </SettingsField>
+      <SettingsField
+        title={$t('options.multiplayer.server.serverIce', { default: 'Declared ICE providers' })}
+      >
+        <span class="server-value">
+          {#if setup.serverInfo.iceUrls.length === 0}
+            {$t('options.multiplayer.server.serverIceNone', { default: 'None declared' })}
+          {:else}
+            {setup.serverInfo.iceUrls.join(', ')}
+          {/if}
+        </span>
+      </SettingsField>
+      <SettingsField
+        title={$t('options.multiplayer.server.serverLimits', { default: 'Room limits' })}
+      >
+        <span class="server-value">
+          {setup.serverInfo.limits.maxRooms}/{setup.serverInfo.limits.maxPeersPerRoom}/{setup.serverInfo.limits.maxPendingAttemptsPerRoom}
+        </span>
+      </SettingsField>
+    {/if}
 
     {#if setup.endpoint}
-      <section aria-label={$t('options.multiplayer.server.loginTitle', { default: 'Host login' })}>
-        <h4>{$t('options.multiplayer.server.loginTitle', { default: 'Host login' })}</h4>
-        {#if setup.hasLogin}
-          <p class="hint">{$t('options.multiplayer.server.configured', { default: 'Operator key verified and saved. Host is ready to use from the main window.' })}</p>
-          <button type="button" class="quiet" disabled={setup.busy !== null} on:click={logout}>
+      {#if setup.hasLogin}
+        <SettingsField
+          useLabel={false}
+          title={$t('options.multiplayer.server.loginTitle', { default: 'Host login' })}
+          hint={$t('options.multiplayer.server.configured', { default: 'Operator key verified and saved. Host is ready to use from the main window.' })}
+        >
+          <button
+            type="button"
+            class="quiet"
+            disabled={setup.busy !== null}
+            on:click={logout}
+          >
             {$t('options.multiplayer.server.verifyAgain', { default: 'Enter a different key' })}
           </button>
-        {:else}
-          <label class="field-title" for="server-host-key">
-            {$t('options.multiplayer.server.keyLabel', { default: 'Operator key' })}
-          </label>
-          <div class="row">
-            <input
-              id="server-host-key"
-              type="password"
-              autocomplete="off"
-              placeholder={setup.hasSavedHostKey
-                ? $t('options.multiplayer.server.savedKeyPlaceholder', { default: 'Saved on this device' })
-                : ''}
-              value={hostKey}
-              disabled={setup.busy !== null}
-              on:input={(event) => (hostKey = event.currentTarget.value)}
-              on:keydown={(event) => {
-                if (event.key === 'Enter') void login();
-              }}
-            />
-            <button type="button" disabled={setup.busy !== null || (!hostKey.trim() && !setup.hasSavedHostKey)} on:click={login}>
-              {$t('options.multiplayer.server.verify', { default: 'Verify and save' })}
-            </button>
-          </div>
-          <p class="hint">{$t('options.multiplayer.server.keyHint', { default: '' })}</p>
-        {/if}
-        {#if setup.error}
-          <p class="error" role="alert">{setup.error}</p>
-        {/if}
-      </section>
+        </SettingsField>
+      {:else}
+        <SettingsField
+          title={$t('options.multiplayer.server.keyLabel', { default: 'Operator key' })}
+          hint={$t('options.multiplayer.server.keyHint', { default: '' })}
+        >
+          <input
+            class="server-compact-input"
+            type="password"
+            autocomplete="off"
+            placeholder={setup.hasSavedHostKey
+              ? $t('options.multiplayer.server.savedKeyPlaceholder', { default: 'Saved on this device' })
+              : ''}
+            value={hostKey}
+            disabled={setup.busy !== null}
+            on:input={(event) => (hostKey = event.currentTarget.value)}
+            on:keydown={(event) => {
+              if (event.key === 'Enter') void login();
+            }}
+          />
+          <button
+            type="button"
+            disabled={setup.busy !== null || (!hostKey.trim() && !setup.hasSavedHostKey)}
+            on:click={login}
+          >
+            {$t('options.multiplayer.server.verify', { default: 'Verify and save' })}
+          </button>
+        </SettingsField>
+      {/if}
+      {#if setup.error}
+        <p class="error" role="alert">{setup.error}</p>
+      {/if}
     {/if}
+    <SettingsField
+      title={$t('options.multiplayer.server.forceRelay', { default: 'Prefer relayed routes' })}
+      hint={$t('options.multiplayer.server.forceRelayHint', { default: '' })}
+      checkbox
+    >
+      <input
+        type="checkbox"
+        checked={$multiplayerSettings.multiplayerServerForceRelay}
+        on:change={(event) => multiplayerSettings.update({
+          multiplayerServerForceRelay: event.currentTarget.checked
+        })}
+      />
+    </SettingsField>
   {:else}
     {#if setup.hosted}
       <section aria-label={$t('options.multiplayer.server.loginTitle', { default: 'Host login' })}>
-          <p class="hint">{$t('options.multiplayer.server.hostInviteHint', { default: '' })}</p>
+          <p class="field-hint">{$t('options.multiplayer.server.hostInviteHint', { default: '' })}</p>
           {#if setup.inviteLink}
             <div class="row">
               <input class="mono" type="text" readonly value={setup.inviteLink} aria-label={$t('options.multiplayer.server.copyInvite', { default: 'Copy invite' })} />
@@ -241,7 +258,7 @@ import ServerJoinChoices from './ServerJoinChoices.svelte';
       <section aria-label={$t('options.multiplayer.server.loginTitle', { default: 'Host login' })}>
           {#if setup.dedicatedInviteLink}
             <h4>{$t('options.multiplayer.server.dedicatedTitle', { default: 'Dedicated izci-server' })}</h4>
-            <p class="hint">{$t('options.multiplayer.server.dedicatedHint', { default: 'This invitation joins the always-on izci-server host and its configured library.' })}</p>
+            <p class="field-hint">{$t('options.multiplayer.server.dedicatedHint', { default: 'This invitation joins the always-on izci-server host and its configured library.' })}</p>
             <div class="row">
               <input class="mono" type="text" readonly value={setup.dedicatedInviteLink} aria-label={$t('options.multiplayer.server.copyDedicatedInvite', { default: 'Copy dedicated-server invite' })} />
               <button type="button" disabled={setup.busy !== null} on:click={copyDedicatedInvite}>
@@ -252,7 +269,7 @@ import ServerJoinChoices from './ServerJoinChoices.svelte';
             </div>
             <h4>{$t('options.multiplayer.server.browserHostTitle', { default: 'Host from this izci' })}</h4>
           {/if}
-          <p class="hint">{$t('options.multiplayer.server.loggedIn', { default: '' })}</p>
+          <p class="field-hint">{$t('options.multiplayer.server.loggedIn', { default: '' })}</p>
           <label class="check">
             <input
               type="checkbox"
@@ -261,7 +278,7 @@ import ServerJoinChoices from './ServerJoinChoices.svelte';
             />
             {$t('options.multiplayer.server.rememberHost', { default: 'Remember this room on this device' })}
           </label>
-          <p class="hint">{$t('options.multiplayer.server.rememberHostHint', { default: '' })}</p>
+          <p class="field-hint">{$t('options.multiplayer.server.rememberHostHint', { default: '' })}</p>
           <div class="row">
             <button type="button" disabled={setup.busy !== null} on:click={createRoom}>
               {$t('options.multiplayer.server.createRoom', { default: 'Create room' })}
@@ -271,7 +288,7 @@ import ServerJoinChoices from './ServerJoinChoices.svelte';
             </button>
           </div>
           {#if resumeCandidates.length > 0}
-            <p class="hint">{$t('options.multiplayer.server.resumeHint', { default: '' })}</p>
+            <p class="field-hint">{$t('options.multiplayer.server.resumeHint', { default: '' })}</p>
             <ul class="recents">
               {#each resumeCandidates as recent (recent.roomId)}
                 <li>
@@ -309,7 +326,7 @@ import ServerJoinChoices from './ServerJoinChoices.svelte';
               <span>{pending.title}</span>
             </p>
           {/if}
-          <p class="hint">{$t('options.multiplayer.server.pendingHint', { default: '' })}</p>
+          <p class="field-hint">{$t('options.multiplayer.server.pendingHint', { default: '' })}</p>
           <ServerJoinChoices />
           <div class="row cancel-row">
             <button type="button" class="quiet" on:click={() => serverSetup.dismissPending()}>
@@ -322,28 +339,8 @@ import ServerJoinChoices from './ServerJoinChoices.svelte';
         {/if}
       </section>
     {/if}
-  {/if}
 
-  <section aria-label={$t('options.multiplayer.server.labelTitle', { default: 'Server label' })}>
-    <h4>{$t('options.multiplayer.server.labelTitle', { default: 'Server label' })}</h4>
-    <input
-      type="text"
-      maxlength="120"
-      value={$multiplayerSettings.multiplayerServerLabel}
-      on:change={(event) => multiplayerSettings.update({ multiplayerServerLabel: event.currentTarget.value })}
-    />
-    <p class="hint">{$t('options.multiplayer.server.labelHint', { default: '' })}</p>
-    <label class="check">
-      <input
-        type="checkbox"
-        checked={$multiplayerSettings.multiplayerServerAutoReconnect}
-        on:change={(event) => multiplayerSettings.update({
-          multiplayerServerAutoReconnect: event.currentTarget.checked
-        })}
-      />
-      {$t('options.multiplayer.server.autoReconnect', { default: 'Reconnect signaling automatically' })}
-    </label>
-    <p class="hint">{$t('options.multiplayer.server.autoReconnectHint', { default: '' })}</p>
+  <section aria-label={$t('options.multiplayer.server.forceRelay', { default: 'Prefer relayed routes' })}>
     <label class="check">
       <input
         type="checkbox"
@@ -354,50 +351,9 @@ import ServerJoinChoices from './ServerJoinChoices.svelte';
       />
       {$t('options.multiplayer.server.forceRelay', { default: 'Prefer relayed routes' })}
     </label>
-    <p class="hint">{$t('options.multiplayer.server.forceRelayHint', { default: '' })}</p>
+    <p class="field-hint">{$t('options.multiplayer.server.forceRelayHint', { default: '' })}</p>
   </section>
 
-  <section aria-label={$t('options.multiplayer.server.serversTitle', { default: 'Remembered servers' })}>
-    <h4>{$t('options.multiplayer.server.serversTitle', { default: 'Remembered servers' })}</h4>
-    {#if $serverServers.length === 0}
-      <p class="hint">{$t('options.multiplayer.server.serversEmpty', { default: '' })}</p>
-    {:else}
-      <ul class="recents">
-        {#each $serverServers as server (server.endpoint)}
-          <li>
-            <span class="mono">{describeEndpoint(server.endpoint)}</span>
-            {#if server.label}<span class="recent-name">{server.label}</span>{/if}
-            <button type="button" class="quiet" on:click={() => serverSetup.setServerInput(server.endpoint)}>
-              {$t('options.multiplayer.server.useServer', { default: 'Use' })}
-            </button>
-            <button type="button" class="quiet danger" on:click={() => serverSetup.forgetServer(server.endpoint)}>
-              {$t('options.multiplayer.server.forgetServer', { default: 'Forget server' })}
-            </button>
-          </li>
-        {/each}
-      </ul>
-    {/if}
-    <h4>{$t('options.multiplayer.server.recentsTitle', { default: 'Remembered invitations' })}</h4>
-    {#if $serverRecents.length === 0}
-      <p class="hint">{$t('options.multiplayer.server.recentsEmpty', { default: '' })}</p>
-    {:else}
-      <ul class="recents">
-        {#each $serverRecents as recent (`${recent.endpoint}::${recent.roomId}`)}
-          <li>
-            <span class="recent-name">{recent.displayName}</span>
-            <span class="mono">{describeEndpoint(recent.endpoint)}</span>
-            <button
-              type="button"
-              class="quiet danger"
-              on:click={() => serverSetup.forgetInvitation(recent.endpoint, recent.roomId)}
-            >
-              {$t('options.multiplayer.server.forgetInvite', { default: 'Forget invitation' })}
-            </button>
-          </li>
-        {/each}
-      </ul>
-    {/if}
-  </section>
   {/if}
 </div>
 
@@ -407,6 +363,35 @@ import ServerJoinChoices from './ServerJoinChoices.svelte';
     flex-direction: column;
     gap: 0.9rem;
     font-size: 0.74rem;
+  }
+
+  /* Config mode renders plain SettingsField rows into the Options
+     field-grid, so the wrapper vanishes and rows flow with the rest. */
+  .server-setup.config {
+    display: contents;
+  }
+
+  .server-setup.config > :global(.field):first-child {
+    border-top: 0;
+  }
+
+  .server-setup :global(.server-address-control) {
+    flex-wrap: wrap;
+  }
+
+  .server-setup input.server-compact-input {
+    width: min(12rem, 26vw);
+  }
+
+  .server-setup input.server-address-input {
+    flex: 1 1 12rem;
+    min-width: 0;
+  }
+
+  .server-value {
+    overflow-wrap: anywhere;
+    text-align: right;
+    font-size: 0.8rem;
   }
 
   section {
@@ -432,13 +417,6 @@ import ServerJoinChoices from './ServerJoinChoices.svelte';
     color: var(--muted-strong);
     font-size: 0.68rem;
     font-weight: 650;
-  }
-
-  .hint {
-    margin: 0;
-    color: var(--muted);
-    font-size: 0.68rem;
-    line-height: 1.45;
   }
 
   .error {
@@ -501,40 +479,11 @@ import ServerJoinChoices from './ServerJoinChoices.svelte';
     color: var(--muted-strong);
   }
 
-  button.danger {
-    color: var(--danger);
-  }
-
   .check {
     display: flex;
     align-items: center;
     gap: 0.4rem;
     color: var(--text-strong);
-  }
-
-  .server-info {
-    display: grid;
-    gap: 0.25rem;
-    margin: 0.25rem 0 0;
-    padding: 0.45rem 0.55rem;
-    border: 1px solid var(--border-faint);
-    border-radius: 0.35rem;
-    background: color-mix(in srgb, var(--bg-input) 72%, transparent);
-  }
-
-  .server-info > div {
-    display: grid;
-    grid-template-columns: 9rem minmax(0, 1fr);
-    gap: 0.5rem;
-  }
-
-  .server-info dt {
-    color: var(--muted-strong);
-  }
-
-  .server-info dd {
-    margin: 0;
-    overflow-wrap: anywhere;
   }
 
   .invite-destination,
@@ -565,9 +514,5 @@ import ServerJoinChoices from './ServerJoinChoices.svelte';
   .recent-name {
     color: var(--text-strong);
     font-weight: 650;
-  }
-
-  a {
-    color: var(--accent-strong);
   }
 </style>

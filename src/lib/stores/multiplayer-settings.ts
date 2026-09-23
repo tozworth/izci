@@ -59,9 +59,7 @@ export const DEFAULT_MULTIPLAYER_SETTINGS: MultiplayerSettings = {
   izciName: defaultIzciName,
   multiplayerTransport: 'rtdb',
   multiplayerServerEndpoint: '',
-  multiplayerServerLabel: '',
   multiplayerServerNoticeVersion: 0,
-  multiplayerServerAutoReconnect: false,
   multiplayerServerForceRelay: false,
   multiplayerServerIceAck: '',
   multiplayerMotd: '',
@@ -138,15 +136,10 @@ export function normalizeMultiplayerSettings(value: unknown): MultiplayerSetting
     multiplayerServerEndpoint: typeof source.multiplayerServerEndpoint === 'string'
       ? source.multiplayerServerEndpoint.trim().slice(0, 512)
       : '',
-    multiplayerServerLabel: normalizeSingleLine(source.multiplayerServerLabel, 120),
     multiplayerServerNoticeVersion: typeof source.multiplayerServerNoticeVersion === 'number'
       && Number.isFinite(source.multiplayerServerNoticeVersion)
       ? Math.max(0, Math.floor(source.multiplayerServerNoticeVersion))
       : DEFAULT_MULTIPLAYER_SETTINGS.multiplayerServerNoticeVersion,
-    multiplayerServerAutoReconnect: normalizeBoolean(
-      source.multiplayerServerAutoReconnect,
-      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerServerAutoReconnect
-    ),
     multiplayerServerForceRelay: normalizeBoolean(
       source.multiplayerServerForceRelay,
       DEFAULT_MULTIPLAYER_SETTINGS.multiplayerServerForceRelay

@@ -375,9 +375,7 @@ export interface MultiplayerSettings {
   izciName: string;
   multiplayerTransport: 'rtdb' | 'server';
   multiplayerServerEndpoint: string;
-  multiplayerServerLabel: string;
   multiplayerServerNoticeVersion: number;
-  multiplayerServerAutoReconnect: boolean;
   multiplayerServerForceRelay: boolean;
   multiplayerServerIceAck: string;
   multiplayerMotd: string;
