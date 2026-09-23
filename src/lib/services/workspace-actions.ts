@@ -428,13 +428,13 @@ export function buildCoopQueueContextActions(
   const sendToChatAction = buildSendToChatAction(tracks, sendToChat);
 
   return [
-    { id: 'play-next', label: 'Play next', icon: 'queue_play_next' },
-    { id: 'remove', label: 'Remove from queue', icon: 'delete', shortcut: 'Delete' },
-    { id: 'randomize-queue', label: 'Randomize', icon: 'shuffle', separatorBefore: true },
     ...(goToLibrary ? [goToLibrary] : []),
     { id: 'track-details', label: 'Track details', icon: 'info' },
     ...(sendToChatAction ? [sendToChatAction] : []),
-    { id: 'copy-filename', label: 'Copy filename', icon: 'content_copy' }
+    { id: 'play-next', label: 'Play next', icon: 'queue_play_next' },
+    { id: 'copy-filename', label: 'Copy filename', icon: 'content_copy' },
+    { id: 'remove', label: 'Remove from queue', icon: 'delete', shortcut: 'Delete', separatorBefore: true },
+    { id: 'randomize-queue', label: 'Randomize', icon: 'shuffle', separatorBefore: true }
   ];
 }
 

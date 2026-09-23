@@ -52,7 +52,7 @@ describe('workspace actions', () => {
     const track = item('track', { path: '/Music/Track.flac', metadata: { artist: 'Artist' } });
 
     expect(buildCoopQueueContextActions([track], [track], ['track']).map(({ id }) => id))
-      .toEqual(['play-next', 'remove', 'randomize-queue', 'go-to-library', 'track-details', 'copy-filename']);
+      .toEqual(['go-to-library', 'track-details', 'play-next', 'copy-filename', 'remove', 'randomize-queue']);
     expect(buildCoopLibraryContextActions([track], [track], ['track']).map(({ id }) => id))
       .toEqual(['add-to-queue', 'replace-queue', 'play-next', 'go-to-library', 'track-details', 'copy-filename']);
   });

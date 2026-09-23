@@ -303,7 +303,7 @@ function buildSessionMenuItems(deps: MenuItemsDeps, multiplayerMenuItems: MenuAc
     {
       id: 'multiplayerToggleAudio',
       label: deps.translate('main.multiplayer.receiveAudio', { default: 'Receive audio' }),
-      icon: deps.multiplayerReceiveAudio ? 'check' : 'volume_off',
+      icon: deps.multiplayerReceiveAudio ? 'volume_up' : 'volume_off',
       checked: deps.multiplayerReceiveAudio,
       separatorBefore: true
     },
