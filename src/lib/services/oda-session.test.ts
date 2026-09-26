@@ -95,6 +95,53 @@ describe('createOdaSession', () => {
     expect(fullscreen.fullscreen).toBe(false);
   });
 
+  it('exits fullscreen on exit even when ownership was lost mid-session', async () => {
+    const fullscreen = createFullscreenAdapter(false);
+    const session = createOdaSession({ fullscreen });
+    await session.enter({ fullscreen: false });
+    expect(session.getSnapshot().ownsFullscreen).toBe(false);
+
+    // Fullscreen became active after entry (browser shortcut, competing
+    // controller): exiting Oda must still restore the windowed shell.
+    fullscreen.fullscreen = true;
+    await session.exit();
+
+    expect(fullscreen.exitCalls).toBe(1);
+    expect(fullscreen.fullscreen).toBe(false);
+  });
+
+  it('releases a late fullscreen grant when exit lands during a pending enter', async () => {
+    let resolveEnter!: (owned: boolean) => void;
+    const gate = new Promise<boolean>((resolve) => {
+      resolveEnter = resolve;
+    });
+    const adapter = createFullscreenAdapter(false);
+    const fullscreen: OdaFullscreenAdapter = {
+      isFullscreen: () => adapter.fullscreen,
+      enter: vi.fn(async () => {
+        const owned = await gate;
+        adapter.enterCalls += 1;
+        adapter.fullscreen = owned;
+        return owned;
+      }),
+      exit: vi.fn(async () => {
+        adapter.exitCalls += 1;
+        adapter.fullscreen = false;
+        return true;
+      })
+    };
+    const session = createOdaSession({ fullscreen });
+
+    const entering = session.enter({ fullscreen: true });
+    await session.exit();
+    resolveEnter(true);
+    await entering;
+
+    expect(session.getSnapshot()).toMatchObject({ active: false, ownsFullscreen: false });
+    expect(adapter.fullscreen).toBe(false);
+    expect(adapter.exitCalls).toBe(1);
+  });
+
   it('respects the fullscreen preference', async () => {
     const fullscreen = createFullscreenAdapter(false);
     const session = createOdaSession({ fullscreen });

@@ -18,8 +18,8 @@
   } from '../oda-browse';
   import { buildOdaGroupDisplayRows, buildOdaTrackDisplayRows } from '../oda-rows';
   import type { OdaTranslate } from '../oda-translate';
-  import OdaArtworkThumb from './OdaArtworkThumb.svelte';
   import OdaRouteList from './OdaRouteList.svelte';
+  import OdaTrackGrid from './OdaTrackGrid.svelte';
   import OdaVisualPreview from './OdaVisualPreview.svelte';
 
   export let medium: OdaMedium = 'music';
@@ -76,9 +76,9 @@
 
   function ensureGridFocusVisible(id: string): void {
     if (!gridViewport) return;
-    const tile = gridViewport.querySelector(
-      `[data-focus-id="${CSS.escape(id)}"]`
-    ) as HTMLElement | null;
+    // Group keys can contain a NUL separator, which CSS.escape() replaces.
+    const tile = Array.from(gridViewport.querySelectorAll<HTMLElement>('[data-focus-id]'))
+      .find((element) => element.dataset.focusId === id);
     if (!tile) return;
 
     const viewportRect = gridViewport.getBoundingClientRect();
@@ -131,11 +131,6 @@
     if (trackId) onActivateTrack(trackId);
   }
 
-  function trackMeta(track: TrackItem): string {
-    return [track.metadata?.artist?.trim(), track.metadata?.album?.trim()]
-      .filter(Boolean)
-      .join(' · ') || track.extension.toUpperCase();
-  }
 </script>
 
 <div
@@ -272,35 +267,25 @@
           </button>
         {/each}
       </div>
+    {:else if medium === 'music'}
+      <OdaTrackGrid
+        items={trackItems}
+        {groups}
+        groupIcon={filterIcon(view)}
+        {focusId}
+        {playingId}
+        {columns}
+        {listKey}
+        {onFocus}
+        {onActivateTrack}
+        {onOpenGroup}
+      />
     {:else}
       <div
         class="oda-browser-grid"
         bind:this={gridViewport}
         style={`--oda-browser-columns: ${columns}`}
       >
-        {#if groups.length > 0}
-          {#each groups as groupRow (groupRow.focusId)}
-            <button
-              type="button"
-              class="oda-library-tile is-group"
-              class:is-focused={focusId === groupRow.focusId}
-              data-focus-id={groupRow.focusId}
-              on:click={() => { onFocus(groupRow.focusId); onOpenGroup(groupRow.key); }}
-            >
-              <span class="oda-tile-visual">
-                <OdaArtworkThumb
-                  tracks={groupRow.items}
-                  icon={filterIcon(view)}
-                />
-                <span class="oda-tile-count">{groupRow.count}</span>
-              </span>
-              <span class="oda-tile-copy">
-                <strong>{groupRow.label}</strong>
-                {#if groupRow.secondary}<span>{groupRow.secondary}</span>{/if}
-              </span>
-            </button>
-          {/each}
-        {:else}
           {#each trackItems as track (track.id)}
             {@const trackFocusId = `item:${track.id}`}
             <button
@@ -312,22 +297,17 @@
               on:click={() => { onFocus(trackFocusId); onActivateTrack(track.id); }}
             >
               <span class="oda-tile-visual">
-                {#if medium === 'music'}
-                  <OdaArtworkThumb tracks={[track]} icon={track.kind === 'module' ? 'equalizer' : 'music_note'} />
-                {:else}
-                  <OdaVisualPreview {track} />
-                {/if}
+                <OdaVisualPreview {track} />
                 {#if playingId === track.id}
                   <span class="oda-playing-badge material-symbols-outlined" aria-hidden="true">graphic_eq</span>
                 {/if}
               </span>
               <span class="oda-tile-copy">
                 <strong>{track.metadata?.title || track.name}</strong>
-                <span>{trackMeta(track)}</span>
+                <span>{[track.metadata?.artist?.trim(), track.metadata?.album?.trim()].filter(Boolean).join(' · ') || track.extension.toUpperCase()}</span>
               </span>
             </button>
           {/each}
-        {/if}
       </div>
     {/if}
   </main>

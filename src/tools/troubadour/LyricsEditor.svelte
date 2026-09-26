@@ -82,12 +82,12 @@
     commit(lines.map((line, lineIndex) => lineIndex === index ? { ...line, ...patch } : line));
   }
 
-  async function focusLine(index: number): Promise<void> {
+  async function focusLine(index: number, control = '.lyric-text-input'): Promise<void> {
     selectedIndex = Math.max(0, Math.min(index, lines.length - 1));
     await tick();
-    const input = editorElement?.querySelector<HTMLInputElement>(`[data-line-index="${selectedIndex}"] .lyric-text-input`);
+    const input = editorElement?.querySelector<HTMLInputElement | HTMLButtonElement>(`[data-line-index="${selectedIndex}"] ${control}`);
     input?.focus();
-    input?.select();
+    if (input instanceof HTMLInputElement) input.select();
     input?.scrollIntoView({ block: 'nearest' });
   }
 
@@ -149,10 +149,24 @@
   }
 
   function handleTextKeydown(index: number, event: KeyboardEvent): void {
+    handleLineKeydown(index, event);
     if (event.key !== 'Enter') return;
     event.preventDefault();
     if (event.ctrlKey || event.metaKey) stamp(true);
     else insertLine(index);
+  }
+
+  function handleLineKeydown(index: number, event: KeyboardEvent): void {
+    if (disabled || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    const nextIndex = Math.max(0, Math.min(index + (event.key === 'ArrowUp' ? -1 : 1), lines.length - 1));
+    if (nextIndex === index) return;
+    const target = event.target as HTMLElement;
+    const control = target.classList.contains('lyric-time-input')
+      ? '.lyric-time-input'
+      : target.classList.contains('line-number') ? '.line-number' : '.lyric-text-input';
+    void focusLine(nextIndex, control);
   }
 
   function selectAndSeek(index: number): void {
@@ -203,8 +217,8 @@
     </div>
     {#each lines as line, index}
       <div class="lyric-editor-row" class:selected={selectedIndex === index} class:active={activeIndex === index} data-line-index={index} role="row">
-        <button class="line-number" type="button" disabled={disabled} aria-label={line.time === null ? $t('troubadour.lyrics.selectLine', { default: 'Select line {number}', values: { number: index + 1 } }) : $t('troubadour.lyrics.seekToLine', { default: 'Seek to line {number}', values: { number: index + 1 } })} on:click={() => selectAndSeek(index)}>{index + 1}</button>
-        <input class="lyric-time-input" type="text" inputmode="decimal" value={line.time === null ? '' : formatLyricsTimestamp(line.time)} placeholder="--:--.---" disabled={disabled} aria-label={$t('troubadour.lyrics.timestampForLine', { default: 'Timestamp for line {number}', values: { number: index + 1 } })} on:focus={() => (selectedIndex = index)} on:change={(event) => handleTimestampChange(index, event)} />
+        <button class="line-number" type="button" disabled={disabled} aria-label={line.time === null ? $t('troubadour.lyrics.selectLine', { default: 'Select line {number}', values: { number: index + 1 } }) : $t('troubadour.lyrics.seekToLine', { default: 'Seek to line {number}', values: { number: index + 1 } })} on:keydown={(event) => handleLineKeydown(index, event)} on:click={() => selectAndSeek(index)}>{index + 1}</button>
+        <input class="lyric-time-input" type="text" inputmode="decimal" value={line.time === null ? '' : formatLyricsTimestamp(line.time)} placeholder="--:--.---" disabled={disabled} aria-label={$t('troubadour.lyrics.timestampForLine', { default: 'Timestamp for line {number}', values: { number: index + 1 } })} on:focus={() => (selectedIndex = index)} on:keydown={(event) => handleLineKeydown(index, event)} on:change={(event) => handleTimestampChange(index, event)} />
         <input class="lyric-text-input" type="text" value={line.text} placeholder={$t('troubadour.lyrics.linePlaceholder', { default: 'Enter lyric line' })} disabled={disabled} aria-label={$t('troubadour.lyrics.textForLine', { default: 'Lyrics for line {number}', values: { number: index + 1 } })} on:focus={() => (selectedIndex = index)} on:input={(event) => updateLine(index, { text: event.currentTarget.value })} on:keydown={(event) => handleTextKeydown(index, event)} />
       </div>
     {/each}
