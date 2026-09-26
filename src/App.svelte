@@ -833,13 +833,15 @@
     if (track) await playbackCommands.activateFavoriteTrack(track);
   }
 
-  async function enterOda(): Promise<void> {
+  async function enterOda(options: { retryFullscreenOnGesture?: boolean } = {}): Promise<void> {
     if (mobileMode) return;
     await odaSession.enter({
       fullscreen: odaSettings.getSnapshot().odaEnterFullscreen,
       // A URL launch carries no user activation, so a refused fullscreen
-      // request is retried by the first input instead of being given up on.
-      retryFullscreenOnGesture: true
+      // request is retried by the first pointer input instead of being given up on.
+      // Menu entries already have activation, so only deeplinks arm the retry:
+      // a genuinely refused menu request must not fullscreen on a later key.
+      retryFullscreenOnGesture: options.retryFullscreenOnGesture ?? false
     });
     // Eat Escape while Oda owns fullscreen (Chromium Keyboard Lock): the
     // browser otherwise reserves Esc to leave fullscreen, so an Escape from
@@ -869,15 +871,15 @@
     return track;
   }
 
+  function retryPendingOdaFullscreen(): void {
+    if (!odaSessionSnapshot.active || !odaSessionSnapshot.pendingFullscreenGesture) return;
+    void odaSession.completeFullscreenOnGesture().then((owned) => {
+      if (owned) lockOdaEscapeKey();
+    });
+  }
+
   function handleWindowKeydown(event: KeyboardEvent): void {
     if (odaSessionSnapshot.active) {
-      // A deep-link entry reaches fullscreen from the first input instead of
-      // the boot-time request that had no user activation.
-      if (odaSessionSnapshot.pendingFullscreenGesture) {
-        void odaSession.completeFullscreenOnGesture().then((owned) => {
-          if (owned) lockOdaEscapeKey();
-        });
-      }
       odaScreensaverActivityToken += 1;
       if (odaScreensaverActive) {
         odaScreensaverActive = false;
@@ -894,6 +896,12 @@
     if (odaSessionSnapshot.active) {
       odaFocus.handleKeyup(event);
     }
+  }
+
+  function handleWindowPointerDown(): void {
+    // Pointer-first users would otherwise never complete a deep-link entry:
+    // the boot-time request had no activation, and keydown alone never fires.
+    if (odaSessionSnapshot.active) retryPendingOdaFullscreen();
   }
 
   $: odaCommands = {
@@ -956,8 +964,8 @@
   });
 
   onMount(() => {
-    if (odaLaunchRequested) void enterOda();
-    return watchOdaDeeplink(() => void enterOda());
+    if (odaLaunchRequested) void enterOda({ retryFullscreenOnGesture: true });
+    return watchOdaDeeplink(() => void enterOda({ retryFullscreenOnGesture: true }));
   });
 
   onMount(() => {
@@ -998,6 +1006,7 @@
   on:contextmenu={appShortcuts.handleContextMenu}
   on:keydown={handleWindowKeydown}
   on:keyup={handleWindowKeyup}
+  on:pointerdown={handleWindowPointerDown}
   on:pointermove={(event) => workspaceShell.handlePanelResizeMove(event)}
   on:pointerup={() => workspaceShell.endPanelResize()}
   on:pointercancel={() => workspaceShell.endPanelResize()}
@@ -1122,7 +1131,7 @@
     playingTrack={livePlayingTrack}
     playbackTime={playbackSnapshot.currentTime}
     {...multiplayerBarProps}
-    on:enterOda={enterOda}
+    on:enterOda={() => void enterOda()}
     on:openFiles={() => void importController.openFiles($workspaceShellStore.activeCollection)}
     on:openFolder={() => void importController.openFolder($workspaceShellStore.activeCollection)}
     on:installApp={() => void appInstallService.prompt()}

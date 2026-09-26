@@ -1222,6 +1222,26 @@ html.oda-theater-cursor-hidden .oda-theater * {
   overflow-x: hidden;
 }
 
+.oda-browser-grid-virtual {
+  display: block;
+  padding: 0;
+}
+
+.oda-browser-grid-inner {
+  position: relative;
+  min-height: 100%;
+}
+
+.oda-browser-grid-window {
+  position: absolute;
+  left: 0.2rem;
+  right: 0.2rem;
+  display: grid;
+  grid-template-columns: repeat(var(--oda-browser-columns, 4), minmax(0, 1fr));
+  gap: clamp(0.75rem, 1.4vw, 1.35rem);
+  align-content: start;
+}
+
 .oda-library-browser[data-layout='list'] .oda-row {
   padding-block: calc(0.6rem * var(--oda-browser-zoom-scale));
 }
