@@ -1,13 +1,11 @@
-import type { MultiplayerIceSettings } from './multiplayer-ice';
 import { logWarning } from '$lib/services/logging';
-import { createMultiplayerRtcConfiguration } from './multiplayer-ice';
 import {
   createMultiplayerMessageDecoder,
   encodeMultiplayerMessage,
   type ClientMessage,
   type HostMessage
 } from './multiplayer-protocol';
-import type { PeerConnection, SignalCandidate, SignalCandidates } from './multiplayer-types';
+import type { PeerConnection, SignalCandidate } from './multiplayer-types';
 import { errorMessage, isClientMessage } from './multiplayer-utils';
 
 const ICE_CONNECTION_TIMEOUT_MS = 15_000;
@@ -15,13 +13,12 @@ const ICE_CONNECTION_TIMEOUT_MS = 15_000;
 export function createPeer(
   id: string,
   name: string,
-  settings: MultiplayerIceSettings,
-  rtcConfig?: RTCConfiguration
+  rtcConfig: RTCConfiguration
 ): PeerConnection {
   return {
     id,
     name,
-    pc: new RTCPeerConnection(rtcConfig ?? createMultiplayerRtcConfiguration(settings)),
+    pc: new RTCPeerConnection(rtcConfig),
     channel: null,
     outgoing: [],
     flushing: false,
@@ -139,7 +136,7 @@ export async function applyAudioBitrate(peer: PeerConnection, bitrateKbps: numbe
 
 /**
  * ICE publisher with an injected candidate sender. The sender numbers
- * candidates per peer (Firebase path suffix or server per-attempt index)
+ * candidates per peer (server per-attempt index)
  * and performs the actual transport write; this module owns gathering,
  * queuing until the answer/offer is published, and failure reporting.
  */
@@ -197,17 +194,6 @@ function toSignalCandidate(candidate: RTCIceCandidate): SignalCandidate {
     sdpMid: candidate.sdpMid ?? '',
     sdpMLineIndex: candidate.sdpMLineIndex ?? 0
   };
-}
-
-export function stageRemoteCandidates(peer: PeerConnection, candidates: SignalCandidates): void {
-  for (const [id, candidate] of Object.entries(candidates)) {
-    if (peer.appliedRemoteCandidateIds.has(id)
-      || peer.pendingRemoteCandidates.has(id)
-      || !isSignalCandidate(candidate)) continue;
-    peer.pendingRemoteCandidates.set(id, candidate);
-    noteCandidateType(peer.remoteCandidateTypes, candidate.candidate);
-  }
-  void flushRemoteCandidates(peer);
 }
 
 /**
@@ -303,7 +289,7 @@ export function describeIceFailure(peer: PeerConnection, peerName?: string): str
   const remote = [...peer.remoteCandidateTypes];
   const rejected = peer.candidateErrors.length;
   if (peer.candidateErrors.some((error) => /permission|signaling|rules/i.test(error))) {
-    return `${subject} failed because ICE candidates could not be written to Firebase. The deployed multiplayer rules may be out of date.`;
+    return `${subject} failed because ICE candidates could not be sent to izci-server.`;
   }
   if (local.length === 0) {
     return `${subject} failed because this device gathered no ICE candidates. Check browser WebRTC policy and network access.`;

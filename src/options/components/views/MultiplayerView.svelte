@@ -1,7 +1,6 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
-  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import MultiplayerMark from '$lib/components/multiplayer/MultiplayerMark.svelte';
   import {
     deriveMultiplayerMode,
@@ -21,13 +20,6 @@
   function handleIzciNameChange(event: Event) {
     multiplayerSettings.update({
       izciName: (event.currentTarget as HTMLInputElement).value
-    });
-  }
-
-  function handleTransportChange(event: CustomEvent<string>) {
-    const value = event.detail;
-    multiplayerSettings.update({
-      multiplayerTransport: value === 'server' ? 'server' : 'rtdb'
     });
   }
 
@@ -121,22 +113,6 @@
     </div>
     <div class="field-grid">
       <SettingsField
-        title={$t('options.multiplayer.transport.title', { default: 'Connection method' })}
-        hint={$multiplayerSettings.multiplayerTransport === 'server'
-          ? `${$t('options.multiplayer.transport.hint', { default: 'Firebase is the legacy invite-code path. Server uses a self-hosted server.' })} ${$t('options.multiplayer.hostingHint', { default: 'Server connection details live under Hosting.' })}`
-          : $t('options.multiplayer.transport.hint', { default: 'Firebase is the legacy invite-code path. Server uses a self-hosted server.' })}
-      >
-        <ThemedSelect
-          value={$multiplayerSettings.multiplayerTransport}
-          options={[
-            { value: 'rtdb', label: $t('options.multiplayer.transport.rtdb', { default: 'Firebase (legacy invites)' }) },
-            { value: 'server', label: $t('options.multiplayer.transport.server', { default: 'izci-server' }) }
-          ]}
-          label={$t('options.multiplayer.transport.title', { default: 'Connection method' })}
-          on:change={handleTransportChange}
-        />
-      </SettingsField>
-      <SettingsField
         title={$t('options.multiplayer.name', { default: 'Name this izci' })}
         hint={$t('options.multiplayer.nameHint', { default: 'Shown to hosts and clients in multiplayer sessions.' })}
       >
@@ -172,21 +148,13 @@
         {$t('options.multiplayer.diagnostics.heading', { default: 'Connection diagnostics' })}
       </h3>
     </div>
-    {#if $multiplayerSettings.multiplayerTransport === 'server'}
       <p>
         {$t('options.multiplayer.server.noticeText', { default: 'The server sees connection metadata and relays SDP and ICE while connecting; it is trusted for signaling.' })}
       </p>
-    {:else}
-      <p>
-        {$t('options.multiplayer.diagnostics.signaling', { default: 'Firebase only exchanges the invite, session descriptions, and ICE candidates. Playback controls, catalog data, artwork, and audio use the resulting peer connection.' })}
-      </p>
-    {/if}
+
     <p>
-      {#if $multiplayerSettings.multiplayerTransport === 'server'}
         {$t('options.multiplayer.server.iceManaged', { default: 'STUN and TURN are supplied by the izci-server operator. This client does not configure relay credentials.' })}
-      {:else}
-        {$t('options.multiplayer.diagnostics.direct', { default: 'izci asks Cloudflare and Google STUN servers for public candidates, then tries direct routes. A TURN relay configured under Hosting adds a fallback path for restrictive NAT or firewalls.' })}
-      {/if}
+
     </p>
     <p>
       {$t('options.multiplayer.diagnostics.upnp', { default: 'A static public IP or router UPnP is no guarantee: Chromium picks its own ICE ports and izci never requests a UPnP mapping.' })}

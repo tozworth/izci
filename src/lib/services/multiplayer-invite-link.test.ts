@@ -1,41 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildInviteLink,
   consumeInviteLinkHash,
   parseInviteLinkHash
 } from './multiplayer-invite-link';
 
 describe('parseInviteLinkHash', () => {
-  it('parses a bare join hash', () => {
+  it('recognizes retired links only', () => {
     expect(parseInviteLinkHash('#join=abcd1234')).toBe('abcd1234');
-  });
-
-  it('parses join inside a larger fragment', () => {
-    expect(parseInviteLinkHash('#room=xyz&join=abcd1234')).toBe('abcd1234');
-    expect(parseInviteLinkHash('#join=abcd1234&view=queue')).toBe('abcd1234');
-  });
-
-  it('rejects malformed codes', () => {
-    expect(parseInviteLinkHash('#join=abcd12345')).toBeNull();
-    expect(parseInviteLinkHash('#join=ABCD1234')).toBeNull();
-    expect(parseInviteLinkHash('#join=abcd')).toBeNull();
-    expect(parseInviteLinkHash('#room=abcd1234')).toBeNull();
-    expect(parseInviteLinkHash('')).toBeNull();
-    expect(parseInviteLinkHash('join=abcd1234')).toBeNull();
-  });
-});
-
-describe('buildInviteLink', () => {
-  it('builds a link on the current origin by default', () => {
-    expect(buildInviteLink('abcd1234', 'https://izci.example')).toBe(
-      'https://izci.example/#join=abcd1234'
-    );
-  });
-
-  it('round-trips with the parser and normalizeInviteCode', () => {
-    const link = buildInviteLink('abcd1234', 'https://izci.example');
-    const hash = link.slice(link.indexOf('#'));
-    expect(parseInviteLinkHash(hash)).toBe('abcd1234');
+    expect(parseInviteLinkHash('#party=payload')).toBeNull();
+    expect(parseInviteLinkHash('#join=abcdefghijkl')).toBeNull();
   });
 });
 

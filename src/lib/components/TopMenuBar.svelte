@@ -26,8 +26,6 @@
     MultiplayerMode
   } from '$lib/services/multiplayer-types';
   import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
-  import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
-  import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
   import type { OptionsViewName } from '../../options/views';
 
   export let nowPlayingViewActive = false;
@@ -62,8 +60,6 @@
   export let multiplayerReceiveAudio = true;
   export let multiplayerConnectionStats: MultiplayerConnectionStats | null = null;
   export let multiplayerClients: MultiplayerClient[] = [];
-  export let multiplayerRecents: MultiplayerRecent[] = [];
-  export let multiplayerPairings: MultiplayerPairing[] = [];
 
   const dispatch = createEventDispatcher<{
     enterOda: void;
@@ -92,9 +88,6 @@
     multiplayerHostWithCode: void;
     multiplayerStopHosting: void;
     multiplayerJoin: void;
-    multiplayerJoinRecent: string;
-    multiplayerJoinPaired: string;
-    multiplayerForgetPairing: string;
     multiplayerLeave: void;
     multiplayerCopyInvite: void;
     multiplayerResumeAudio: void;
@@ -132,8 +125,6 @@
     translate: get(t),
     multiplayerMode,
     multiplayerFreeplayEnabled,
-    multiplayerPairings,
-    multiplayerRecents,
     multiplayerInviteCode,
     multiplayerClients,
     multiplayerConnectionStatus,

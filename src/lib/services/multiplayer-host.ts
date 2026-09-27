@@ -21,7 +21,6 @@ import {
 } from './multiplayer-host-playback-prep';
 import {
   kick,
-  startHosting,
   stopHosting,
   togglePairing
 } from './multiplayer-host-session';
@@ -81,7 +80,6 @@ export function createMultiplayerHostSide(
 
   return {
     ctx,
-    startHosting: (options?: { silent?: boolean }) => startHosting(ctx, options),
     stopHosting: () => stopHosting(ctx),
     kick: (clientId: string) => kick(ctx, clientId),
     togglePairing: (clientId: string) => togglePairing(ctx, clientId),

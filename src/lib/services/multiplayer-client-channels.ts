@@ -5,10 +5,6 @@ import {
   rememberMultiplayerLastSession
 } from '$lib/stores/multiplayer-last-session';
 import {
-  forgetMultiplayerPairing,
-  rememberMultiplayerPairing
-} from '$lib/stores/multiplayer-pairings';
-import {
   findServerPairing,
   forgetServerPairing,
   rememberServerPairing,
@@ -16,7 +12,6 @@ import {
 } from '$lib/stores/multiplayer-server-pairings';
 import { getLocalServerIdentity, isValidServerIdentity } from './multiplayer-server-identity';
 import { computePairProof, createPairNonce } from './multiplayer-server-pairing';
-import { rememberMultiplayerHost } from '$lib/stores/multiplayer-recents';
 import { getMultiplayerArtworkTrackKey } from './multiplayer-artwork';
 import { applyRemoteTrackInfo, enrichCatalog, enrichPlayback } from './multiplayer-client-track-info';
 import { multiplayerAudioService } from './multiplayer-audio';
@@ -82,12 +77,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
       reconnecting: core.state.reconnecting
     });
     core.publish({ connectionStatus: 'connected', reconnecting: false, connectionDetail: null, message: null });
-    if (core.state.inviteCode && core.state.hostName) {
-      rememberMultiplayerHost(core.state.hostName, core.state.inviteCode);
-    }
     rememberMultiplayerLastSession('client', {
-      inviteCode: core.state.inviteCode,
-      hostId: core.clientHostId,
       hostName: core.state.hostName
     });
     sendToPeer(peer, {
@@ -260,10 +250,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
         if (!message.paired) {
           forgetServerPairing(message.hostId);
         }
-      } else if (message.paired) {
-        rememberMultiplayerPairing(message.hostId, message.name);
       }
-      else forgetMultiplayerPairing(message.hostId);
       // Keep the host identity while unpaired Freeplay is active so its
       // independent queue/selection can persist across reconnects.
       core.clientHostId = message.paired || message.freeplayActive ? message.hostId : null;
@@ -272,8 +259,6 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
       });
       updateLocalTimelineMode(ctx);
       rememberMultiplayerLastSession('client', {
-        inviteCode: core.state.inviteCode,
-        hostId: core.clientHostId,
         hostName: message.name
       });
       if (message.freeplayActive) {
@@ -386,10 +371,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
           capabilities: normalizeCapabilities(message.capabilities)
         }
       });
-      if (core.state.inviteCode) rememberMultiplayerHost(hostName, core.state.inviteCode);
       rememberMultiplayerLastSession('client', {
-        inviteCode: core.state.inviteCode,
-        hostId: core.clientHostId,
         hostName
       });
       if (core.serverGuest) void sendServerPairProof(ctx, peer, message.identity, message.pairNonce);

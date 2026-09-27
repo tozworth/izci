@@ -10,8 +10,6 @@ import { countLibraryGroups } from '$lib/components/track-list-panel/library-vie
 import type { TrackItem } from '$lib/types';
 import type { OdaRoute } from '$lib/services/oda-session';
 import type { MultiplayerSessionState } from '$lib/services/multiplayer-types';
-import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
-import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
 
 export function isOdaMusicTrack(track: TrackItem): boolean {
   return track.kind === 'stream' || track.kind === 'module';
@@ -89,8 +87,7 @@ export type OdaCardCommand =
   | 'multiplayer-stop-hosting'
   | 'multiplayer-join'
   | 'multiplayer-leave'
-  | 'multiplayer-join-paired'
-  | 'multiplayer-join-recent';
+;
 
 export interface OdaCardModel {
   /** Stable logical focus ID. */
@@ -115,8 +112,6 @@ export interface OdaCardModel {
 export interface OdaMultiplayerHomeState {
   enabled: boolean;
   session: MultiplayerSessionState;
-  pairings: readonly MultiplayerPairing[];
-  recents: readonly MultiplayerRecent[];
 }
 
 export interface OdaHomeSectionModel {
@@ -229,7 +224,7 @@ export function buildOdaHomeSections(
   ];
 
   if (multiplayer?.enabled) {
-    const { session, pairings, recents } = multiplayer;
+    const { session } = multiplayer;
     const connectedClients = session.clients.filter((client) => client.status === 'connected').length;
     sections.push({
       id: 'multiplayer',
@@ -270,26 +265,6 @@ export function buildOdaHomeSections(
             : 'multiplayer-join',
           meta: session.mode === 'client' ? session.hostName ?? undefined : undefined
         },
-        ...pairings.map((pairing): OdaCardModel => ({
-          id: `multiplayer-paired-${pairing.hostId}`,
-          labelKey: 'oda.cards.pairedHost',
-          labelFallback: 'Paired host',
-          label: pairing.name,
-          command: 'multiplayer-join-paired',
-          commandValue: pairing.hostId,
-          metaKey: 'oda.cards.pairedHost',
-          metaFallback: 'Paired host'
-        })),
-        ...recents.map((recent): OdaCardModel => ({
-          id: `multiplayer-recent-${recent.inviteCode}`,
-          labelKey: 'oda.cards.recentHost',
-          labelFallback: 'Recent host',
-          label: recent.name,
-          command: 'multiplayer-join-recent',
-          commandValue: recent.inviteCode,
-          metaKey: 'oda.cards.recentHost',
-          metaFallback: 'Recent host'
-        }))
       ]
     });
   }

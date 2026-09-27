@@ -45,7 +45,7 @@ export async function syncPeerFreeplayMode(ctx: MultiplayerHostContext, peer: Pe
   if (core.state.mode !== 'hosting') return;
   // Admission authorizes the live session. Pairing is only for remembered
   // reconnects and does not gate Freeplay once both peers opt in.
-  if (!core.firebaseRuntime && !core.serverHost) return;
+  if (!core.serverHost) return;
   if (!peer.helloReceived) return;
   const modeToken = ++peer.freeplayModeToken;
   const active = isMultiplayerFreeplayActive({
@@ -360,15 +360,8 @@ export function playheadMsForPeer(ctx: MultiplayerHostContext, peer: PeerConnect
 
 export function sendPairingState(ctx: MultiplayerHostContext, peer: PeerConnection): void {
   const { core } = ctx;
-  // The pairing key is transport-scoped: Firebase UID on the legacy path,
-  // the browser-local identity on server. Clients store each in their
-  // own namespace and never mix them.
-  const hostId = core.firebaseRuntime
-    ? core.firebaseRuntime.uid
-    : core.serverHost
-      ? getLocalServerIdentity()
-      : null;
-  if (!hostId) return;
+  if (!core.serverHost) return;
+  const hostId = getLocalServerIdentity();
   sendToPeer(peer, {
     kind: 'pairing',
     paired: peer.paired,

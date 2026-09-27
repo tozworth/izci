@@ -10,8 +10,6 @@
   } from '$lib/services/multiplayer-types';
   import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
   import type { MediaTabKind } from '$lib/types';
-  import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
-  import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
 
   export let open = false;
   export let installAvailable = false;
@@ -29,8 +27,6 @@
   export let multiplayerHostName: string | null = null;
   export let multiplayerFreeplay = false;
   export let multiplayerClients: MultiplayerClient[] = [];
-  export let multiplayerRecents: MultiplayerRecent[] = [];
-  export let multiplayerPairings: MultiplayerPairing[] = [];
 
   type DrawerAction =
     | 'openFiles'
@@ -65,9 +61,6 @@
     multiplayerHostWithCode: void;
     multiplayerStopHosting: void;
     multiplayerJoin: void;
-    multiplayerJoinRecent: string;
-    multiplayerJoinPaired: string;
-    multiplayerForgetPairing: string;
     multiplayerLeave: void;
     multiplayerCopyInvite: void;
     multiplayerResumeAudio: void;
@@ -81,10 +74,7 @@
   }
 
   function runWithDetail(
-    action: 'multiplayerJoinRecent'
-      | 'multiplayerJoinPaired'
-      | 'multiplayerForgetPairing'
-      | 'multiplayerKick'
+    action: 'multiplayerKick'
       | 'multiplayerTogglePair',
     detail: string
   ): void {
@@ -173,31 +163,6 @@
             <span class="material-symbols-outlined" aria-hidden="true">cast_connected</span>
             <span>{$t('main.multiplayer.join', { default: 'Join...' })}</span>
           </button>
-          {#if multiplayerPairings.length > 0}
-            <div class="mobile-drawer-subheading">{$t('main.multiplayer.pairedHosts', { default: 'Paired hosts' })}</div>
-            {#each multiplayerPairings as pairing (pairing.hostId)}
-              <button type="button" on:click={() => runWithDetail('multiplayerJoinPaired', pairing.hostId)}>
-                <span class="material-symbols-outlined" aria-hidden="true">cast_connected</span>
-                <span>{pairing.name}</span>
-              </button>
-              <button type="button" on:click={() => runWithDetail('multiplayerForgetPairing', pairing.hostId)}>
-                <span class="material-symbols-outlined" aria-hidden="true">link_off</span>
-                <span>{$t('main.multiplayer.forgetPairing', {
-                  default: 'Forget pairing with {name}',
-                  values: { name: pairing.name }
-                })}</span>
-              </button>
-            {/each}
-          {/if}
-          {#if multiplayerRecents.length > 0}
-            <div class="mobile-drawer-subheading">{$t('main.multiplayer.recents', { default: 'Recents' })}</div>
-            {#each multiplayerRecents as recent (recent.inviteCode)}
-              <button type="button" on:click={() => runWithDetail('multiplayerJoinRecent', recent.inviteCode)}>
-                <span class="material-symbols-outlined" aria-hidden="true">history</span>
-                <span>{recent.name}</span>
-              </button>
-            {/each}
-          {/if}
         {:else if multiplayerMode === 'hosting'}
           <div class="mobile-drawer-status">
             <span class="material-symbols-outlined" aria-hidden="true">cast_connected</span>

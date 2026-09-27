@@ -1,11 +1,5 @@
 import type { Readable } from 'svelte/store';
 import type {
-  DatabaseReference,
-  OnDisconnect,
-  Unsubscribe
-} from 'firebase/database';
-import type { FirebaseRuntime } from './multiplayer-signaling';
-import type {
   MultiplayerSettings,
   PlaybackSnapshot,
   TrackItem,
@@ -162,28 +156,10 @@ export const EMPTY_DELIVERY: MultiplayerDeliveryState = {
   reason: 'host-disabled'
 };
 
-// Firebase (RTDB) signaling record shapes live in multiplayer-signaling.ts;
-// this module keeps only the transport-agnostic candidate shape shared by
-// both signaling paths. The RTDB aliases below remain for overlap imports.
-export type { FirebaseRuntime, SignalOffer, SignalAnswer, SignalPeerRecord } from './multiplayer-signaling';
-
-import type {
-  MultiplayerTurnCredentialRequest,
-  MultiplayerTurnCredentialResponse
-} from './multiplayer-turn-credentials';
-
 export interface SignalCandidate {
   candidate: string;
   sdpMid: string;
   sdpMLineIndex: number;
-}
-
-export type SignalCandidates = Record<string, SignalCandidate>;
-
-export interface PairedClientRecord {
-  name: string;
-  platform: string;
-  pairedAt: number;
 }
 
 export interface SourceFileBeginFrame {
@@ -283,7 +259,6 @@ export type MultiplayerChatPresenceHandler = (
 
 export interface MultiplayerSessionController extends Readable<MultiplayerSessionState> {
   getSnapshot(): MultiplayerSessionState;
-  startHosting(options?: { silent?: boolean }): Promise<string>;
   startServerHosting(
     endpoint: string,
     hostKey: string,
@@ -297,9 +272,7 @@ export interface MultiplayerSessionController extends Readable<MultiplayerSessio
   ): Promise<{ endpoint: string; roomId: string; secret: string; ownerSecret: string | null }>;
   rotateServerInvitation(): Promise<string>;
   stopHosting(): Promise<void>;
-  join(inviteCode: string): Promise<void>;
   joinServer(endpoint: string, roomId: string, secret: string, signal?: AbortSignal): Promise<void>;
-  joinPaired(hostId: string): Promise<void>;
   restoreLastSession(): Promise<MultiplayerMode | null>;
   leave(): Promise<void>;
   kick(clientId: string): Promise<void>;
@@ -327,17 +300,7 @@ export interface MultiplayerSessionCore {
   publish(patch: Partial<MultiplayerSessionState>): void;
   updateClient(id: string, patch: Partial<MultiplayerClient>): void;
   multiplayerSettings: MultiplayerSettings;
-  firebaseRuntime: FirebaseRuntime | null;
-  roomRef: DatabaseReference | null;
-  hostDirectoryRef: DatabaseReference | null;
-  ownPeerRef: DatabaseReference | null;
-  roomCode: string | null;
   clientHostId: string | null;
-  roomDisconnect: OnDisconnect | null;
-  hostDirectoryDisconnect: OnDisconnect | null;
-  peerDisconnect: OnDisconnect | null;
-  stopPeersListener: Unsubscribe | null;
-  stopAnswerListener: Unsubscribe | null;
   hostPeers: Map<string, PeerConnection>;
   freeplaySelections: Map<string, TrackItem>;
   clientPeer: PeerConnection | null;
@@ -372,13 +335,12 @@ export interface MultiplayerSessionCore {
   bypassHostPlaybackGateTrackId: string | null;
   rejectedPeerIds: Set<string>;
   acceptingPeerIds: Set<string>;
-  answeredTurnCredentialRequestIds: Set<string>;
   /** Active server transport (host link or guest connection), if any. */
   serverHost: ServerHostLink | null;
   serverGuest: ServerGuestConnection | null;
   /** Generation guard: late server callbacks check ownership before mutating. */
   transportGeneration: number;
-  /** Small transport cleanup handle for the non-RTDB path. */
+  /** Small transport cleanup handle for the signaling connection. */
   disposeServerTransport: (() => void) | null;
   resetSession(removeRemote: boolean): Promise<void>;
 }

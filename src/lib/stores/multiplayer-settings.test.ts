@@ -23,12 +23,7 @@ describe('multiplayer settings', () => {
       multiplayerWaitForClients: false,
       multiplayerSynchronizedPlayback: false,
       multiplayerSyncLeadTimeMs: 1_000,
-      multiplayerAutoHost: false,
       multiplayerRestoreLastSession: true,
-      multiplayerTurnUrl: '',
-      multiplayerTurnSecret: '',
-      multiplayerTurnCredentialHours: 12,
-      multiplayerForceTurn: false,
       multiplayerFreeplay: false,
       multiplayerStreamAudio: true,
       multiplayerFileTransferLimitMiB: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerFileTransferLimitMiB,
@@ -66,25 +61,8 @@ describe('multiplayer settings', () => {
     });
   });
 
-  it('normalizes TURN settings while keeping them opt-in', () => {
-    expect(normalizeMultiplayerSettings({
-      multiplayerTurnUrl: ' relay.example.test:3478 ',
-      multiplayerTurnSecret: ' secret ',
-      multiplayerTurnCredentialHours: 999,
-      multiplayerForceTurn: true
-    })).toMatchObject({
-      multiplayerTurnUrl: 'turn:relay.example.test:3478',
-      multiplayerTurnSecret: 'secret',
-      multiplayerTurnCredentialHours: 48,
-      multiplayerForceTurn: true
-    });
-    expect(normalizeMultiplayerSettings({ multiplayerForceTurn: true }).multiplayerTurnUrl)
-      .toBe('');
-  });
-
   it('defaults server setup state to unconfigured and explicit opt-ins off', () => {
     expect(normalizeMultiplayerSettings({})).toMatchObject({
-      multiplayerTransport: 'rtdb',
       multiplayerServerEndpoint: '',
       multiplayerServerNoticeVersion: 0,
       multiplayerServerForceRelay: false,

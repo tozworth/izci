@@ -71,8 +71,6 @@
   } from '$lib/services/workspace-actions';
   import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
   import { multiplayerChat, resolveMultiplayerChatTrackLink } from '$lib/services/multiplayer-chat';
-  import { multiplayerRecents } from '$lib/stores/multiplayer-recents';
-  import { forgetMultiplayerPairing, multiplayerPairings } from '$lib/stores/multiplayer-pairings';
   import type {
     MultiplayerSessionState
   } from '$lib/services/multiplayer-types';
@@ -387,10 +385,7 @@
     multiplayerAudioStatus: multiplayerState.audioStatus,
     multiplayerConnectionRoute: multiplayerState.connectionRoute,
     multiplayerAudioBitrateKbps: multiplayerState.averageAudioBitrateKbps,
-    // Menu presentation historically treated a null RTDB code as
-    // invite-less paired hosting. Server keeps its shareable link in the
-    // setup controller, so expose a short room label whenever that link is
-    // ready and let the existing Copy invite action handle either transport.
+    // Server invitations are managed by the setup service.
     multiplayerInviteCode: multiplayerState.inviteCode
       ?? ($serverSetup.inviteLink ? $serverSetup.hosted?.roomId.slice(0, 8) ?? 'Server' : null),
     multiplayerHostName: multiplayerState.hostName,
@@ -402,8 +397,6 @@
     multiplayerReceiveAudio: multiplayerState.receiveAudio,
     multiplayerConnectionStats: multiplayerState.connectionStats,
     multiplayerClients: multiplayerState.clients,
-    multiplayerRecents: $multiplayerRecents,
-    multiplayerPairings: $multiplayerPairings
   };
 
 
@@ -1045,15 +1038,11 @@
     multiplayer={{
       enabled: $multiplayerSettings.multiplayer,
       session: multiplayerState,
-      pairings: $multiplayerPairings,
-      recents: $multiplayerRecents
     }}
     onMultiplayerHost={() => void multiplayerController.host()}
     onMultiplayerStopHosting={() => { closeChatTab(); void multiplayerSession.stopHosting(); }}
     onMultiplayerJoin={() => void multiplayerController.joinWithPrompt()}
     onMultiplayerLeave={() => { closeChatTab(); void multiplayerSession.leave(); }}
-    onMultiplayerJoinPaired={(hostId) => void multiplayerController.joinPaired(hostId)}
-    onMultiplayerJoinRecent={(inviteCode) => void multiplayerController.join(inviteCode)}
     media={{
       videoElement: $mediaElementsStore.video,
       imageElement: $mediaElementsStore.image,
@@ -1157,9 +1146,6 @@
     on:multiplayerHostWithCode={() => void multiplayerController.host()}
     on:multiplayerStopHosting={() => { closeChatTab(); void multiplayerSession.stopHosting(); }}
     on:multiplayerJoin={() => void multiplayerController.joinWithPrompt()}
-    on:multiplayerJoinRecent={(event) => void multiplayerController.join(event.detail)}
-    on:multiplayerJoinPaired={(event) => void multiplayerController.joinPaired(event.detail)}
-    on:multiplayerForgetPairing={(event) => forgetMultiplayerPairing(event.detail)}
     on:multiplayerLeave={() => { closeChatTab(); void multiplayerSession.leave(); }}
     on:multiplayerCopyInvite={() => void multiplayerController.copyInvite()}
     on:multiplayerResumeAudio={() => void multiplayerSession.resumeAudio()}
@@ -1203,9 +1189,6 @@
     on:multiplayerHostWithCode={() => void multiplayerController.host()}
     on:multiplayerStopHosting={() => { closeChatTab(); void multiplayerSession.stopHosting(); }}
     on:multiplayerJoin={() => void multiplayerController.joinWithPrompt()}
-    on:multiplayerJoinRecent={(event) => void multiplayerController.join(event.detail)}
-    on:multiplayerJoinPaired={(event) => void multiplayerController.joinPaired(event.detail)}
-    on:multiplayerForgetPairing={(event) => forgetMultiplayerPairing(event.detail)}
     on:multiplayerLeave={() => { closeChatTab(); void multiplayerSession.leave(); }}
     on:multiplayerCopyInvite={() => void multiplayerController.copyInvite()}
     on:multiplayerResumeAudio={() => void multiplayerSession.resumeAudio()}

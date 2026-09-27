@@ -82,8 +82,6 @@ import { serverSetup } from '$lib/services/multiplayer-server-setup';
 import { createFreeplayUiActions } from '$lib/services/freeplay-ui-actions';
 import { createMultiplayerSession } from '$lib/services/multiplayer-session';
 import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
-import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
-import { multiplayerPairings } from '$lib/stores/multiplayer-pairings';
 import {
   createWindowSelectionController,
   type RemoteSelectionSnapshot
@@ -347,8 +345,6 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
       return true;
     },
     getMultiplayerSettings: () => multiplayerSettings.getSnapshot(),
-    getLastSession: () => multiplayerLastSession.getSnapshot(),
-    getPairings: () => multiplayerPairings.getSnapshot(),
     pausePlayer: () => playerController.pause(),
     setActiveWorkspaceTab: (tab) => workspaceShell.setActiveWorkspaceTab(tab),
     openMultiplayerOptions: () => deps.openOptions('multiplayer'),
@@ -368,7 +364,6 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     stopHosting: () => multiplayerSession.stopHosting(),
     leave: () => multiplayerSession.leave()
   });
-  multiplayerController.prepareLaunchDialog();
   publish({ multiplayerState: multiplayerSession.getSnapshot() });
   const unsubscribeMultiplayerUi = multiplayerController.subscribe((ui) => {
     publish({

@@ -1,15 +1,9 @@
 /**
- * Multiplayer invite deep links: `https://<origin>/#join=<invite code>`.
- * Parsed from the URL hash at startup so offline service-worker launches
- * still deliver the code; the hash is consumed (stripped) either way.
+ * Recognize retired invite links so offline launches can explain retirement.
+ * These codes never initiate a signaling connection.
  */
 
 const INVITE_HASH_PARAM_PATTERN = /(?:^|[#?&])join=([a-z0-9]{8})(?![a-z0-9])/;
-
-export function buildInviteLink(inviteCode: string, origin?: string): string {
-  const base = origin ?? window.location.origin;
-  return `${base}/#join=${inviteCode}`;
-}
 
 /** Returns the invite code embedded in a hash fragment, if any. */
 export function parseInviteLinkHash(hash: string): string | null {

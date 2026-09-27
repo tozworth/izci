@@ -1,5 +1,5 @@
 /**
- * Browser-local server identity. Replaces Firebase UIDs for pairing:
+ * Browser-local server identity for pairing:
  * every browser generates one stable random identity, persisted locally,
  * and proves pair ownership over RTC with an HMAC over a versioned
  * context (see multiplayer-server-pairing.ts). The identity never leaves

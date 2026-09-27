@@ -5,12 +5,8 @@ const MULTIPLAYER_LAST_SESSION_CHANNEL = 'izci-multiplayer-last-session';
 
 export interface MultiplayerLastSession {
   mode: 'client' | 'hosting';
-  inviteCode: string | null;
-  hostId: string | null;
   hostName: string | null;
-  /** Explicit signaling transport; defaults to RTDB for legacy records. */
-  transport: 'rtdb' | 'server';
-  /** Server state stored separately from RTDB UIDs/invite codes. */
+  transport: 'server';
   serverEndpoint: string | null;
   serverRoomId: string | null;
   savedAt: number;
@@ -20,16 +16,11 @@ function normalizeMultiplayerLastSession(value: unknown): MultiplayerLastSession
   if (!value || typeof value !== 'object') return null;
   const candidate = value as Partial<MultiplayerLastSession>;
   if (candidate.mode !== 'client' && candidate.mode !== 'hosting') return null;
-  const inviteCode = typeof candidate.inviteCode === 'string' && /^[a-z0-9]{8}$/.test(candidate.inviteCode)
-    ? candidate.inviteCode
-    : null;
-  const hostId = typeof candidate.hostId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(candidate.hostId)
-    ? candidate.hostId
-    : null;
   const hostName = typeof candidate.hostName === 'string'
     ? candidate.hostName.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 48) || null
     : null;
-  const transport = candidate.transport === 'server' ? 'server' : 'rtdb';
+  if (candidate.transport !== 'server') return null;
+  const transport = 'server';
   const serverEndpoint = typeof candidate.serverEndpoint === 'string'
     && candidate.serverEndpoint.trim()
     ? candidate.serverEndpoint.trim().slice(0, 512)
@@ -38,14 +29,11 @@ function normalizeMultiplayerLastSession(value: unknown): MultiplayerLastSession
     && /^[0-9a-f]{32}$/.test(candidate.serverRoomId)
     ? candidate.serverRoomId
     : null;
-  if (candidate.mode === 'client' && transport === 'rtdb' && !inviteCode && !hostId) return null;
-  if (candidate.mode === 'client' && transport === 'server' && (!serverEndpoint || !serverRoomId)) {
+  if (candidate.mode === 'client' && (!serverEndpoint || !serverRoomId)) {
     return null;
   }
   return {
     mode: candidate.mode,
-    inviteCode,
-    hostId,
     hostName,
     transport,
     serverEndpoint,
@@ -63,35 +51,31 @@ export const multiplayerLastSession = createPersistentStore({
   normalize: normalizeMultiplayerLastSession
 });
 
+if (typeof window !== 'undefined') {
+  try {
+    multiplayerLastSession.set(multiplayerLastSession.getSnapshot());
+  } catch {
+    // Session state remains usable when storage is unavailable.
+  }
+}
+
 export function rememberMultiplayerLastSession(
   mode: 'client' | 'hosting',
   options: {
-    inviteCode?: string | null;
-    hostId?: string | null;
     hostName?: string | null;
-    transport?: 'rtdb' | 'server';
+    transport?: 'server';
     serverEndpoint?: string | null;
     serverRoomId?: string | null;
   } = {}
 ): void {
   const previous = multiplayerLastSession.getSnapshot();
-  const transport = options.transport ?? previous?.transport ?? 'rtdb';
+  const transport = options.transport ?? previous?.transport ?? 'server';
   multiplayerLastSession.set({
     mode,
-    inviteCode: mode === 'client' && transport === 'rtdb'
-      ? (options.inviteCode ?? previous?.inviteCode ?? null)
-      : null,
-    hostId: mode === 'client' && transport === 'rtdb'
-      ? (options.hostId ?? previous?.hostId ?? null)
-      : null,
     hostName: options.hostName ?? previous?.hostName ?? null,
     transport,
-    serverEndpoint: transport === 'server'
-      ? (options.serverEndpoint ?? previous?.serverEndpoint ?? null)
-      : null,
-    serverRoomId: transport === 'server'
-      ? (options.serverRoomId ?? previous?.serverRoomId ?? null)
-      : null,
+    serverEndpoint: options.serverEndpoint ?? previous?.serverEndpoint ?? null,
+    serverRoomId: options.serverRoomId ?? previous?.serverRoomId ?? null,
     savedAt: Date.now()
   });
 }

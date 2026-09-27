@@ -76,9 +76,6 @@ export type MenuActionId =
   | 'multiplayerToggleAudio'
   | `multiplayerKick:${string}`
   | `multiplayerTogglePair:${string}`
-  | `multiplayerJoinPaired:${string}`
-  | `multiplayerForgetPairing:${string}`
-  | `multiplayerJoinRecent:${string}`
   | `applyLoadout:${string}`;
 
 interface MenuActionsDeps {
@@ -118,18 +115,6 @@ export function createMenuActions(deps: MenuActionsDeps) {
     }
     if (action.startsWith('multiplayerTogglePair:')) {
       deps.dispatch('multiplayerTogglePair', action.slice('multiplayerTogglePair:'.length));
-      return;
-    }
-    if (action.startsWith('multiplayerJoinPaired:')) {
-      deps.dispatch('multiplayerJoinPaired', action.slice('multiplayerJoinPaired:'.length));
-      return;
-    }
-    if (action.startsWith('multiplayerForgetPairing:')) {
-      deps.dispatch('multiplayerForgetPairing', action.slice('multiplayerForgetPairing:'.length));
-      return;
-    }
-    if (action.startsWith('multiplayerJoinRecent:')) {
-      deps.dispatch('multiplayerJoinRecent', action.slice('multiplayerJoinRecent:'.length));
       return;
     }
     if (action === 'videoFitContain' || action === 'videoFitCover') {

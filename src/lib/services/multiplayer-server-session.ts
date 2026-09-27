@@ -1,7 +1,6 @@
 /**
  * Server session attachment: host and guest RTC setup over the server
- * signaling transport. Keeps RTC creation and channel attachment identical
- * to the RTDB path; only the signaling transport differs. Attempt-local
+ * signaling transport. Attempt-local
  * connection IDs identify peers until the RTC hello supplies
  * identity/presentation.
  */
@@ -25,7 +24,6 @@ import {
   stageServerRemoteCandidate,
   startPeerConnectionTimer
 } from './multiplayer-peer';
-import { createDirectIceSettings } from './multiplayer-signaling';
 import { errorMessage, getLocalName } from './multiplayer-utils';
 import type { MultiplayerHostContext } from './multiplayer-host';
 import type { MultiplayerClientContext } from './multiplayer-client';
@@ -41,6 +39,8 @@ import { setMultiplayerReceiverBuffer } from './multiplayer-receiver';
 import { attachClientChannel } from './multiplayer-client-channels';
 import { attachClientMediaChannel, attachClientRenderChannel } from './multiplayer-client-audio';
 import { updateLocalTimelineMode } from './multiplayer-client-freeplay';
+import { beginClientPlaybackSession } from './multiplayer-client-lifecycle';
+import { multiplayerSourcePlaybackService } from './multiplayer-source-playback';
 import {
   acquireServerHostRoom,
   acquireServerHostRoomWithSession,
@@ -330,7 +330,7 @@ async function acceptServerOffer(
     return;
   }
   if (!checkGeneration(core, generation) || core.state.mode !== 'hosting') return;
-  const peer = createPeer(connectionId, `Guest ${connectionId.slice(0, 4)}`, createDirectIceSettings(), rtcConfig);
+  const peer = createPeer(connectionId, `Guest ${connectionId.slice(0, 4)}`, rtcConfig);
   (peer as { serverAttemptId?: string }).serverAttemptId = attemptId;
   peer.signalingCreatedAt = Date.now();
   core.hostPeers.set(connectionId, peer);
@@ -438,6 +438,7 @@ export async function joinServer(
   core.serverGuest = null;
   await core.resetSession(true);
   const owned = core.transportGeneration;
+  beginClientPlaybackSession(ctx);
   core.publish({
     mode: 'client',
     connectionStatus: 'connecting',
@@ -579,6 +580,7 @@ export async function joinServer(
     logError('multiplayer', 'Server join failed', error);
     if (checkGeneration(core, owned)) {
       await core.resetSession(true);
+      await multiplayerSourcePlaybackService.endClientSession();
       core.publish({
         mode: 'idle',
         connectionStatus: 'error',
@@ -637,7 +639,7 @@ async function createServerOffer(
     disposePeerConnection(core.clientPeer);
     core.clientPeer = null;
   }
-  const peer = createPeer(`server-${attemptId.slice(0, 8)}`, getLocalName(), createDirectIceSettings(), rtcConfig);
+  const peer = createPeer(`server-${attemptId.slice(0, 8)}`, getLocalName(), rtcConfig);
   peer.signalingCreatedAt = attemptHash(attemptId);
   const audioTransceiver = peer.pc.addTransceiver('audio', { direction: 'recvonly' });
   preferOpus(audioTransceiver);

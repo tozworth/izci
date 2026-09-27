@@ -373,7 +373,6 @@ export interface TrackSettings {
 export interface MultiplayerSettings {
   multiplayer: boolean;
   izciName: string;
-  multiplayerTransport: 'rtdb' | 'server';
   multiplayerServerEndpoint: string;
   multiplayerServerNoticeVersion: number;
   multiplayerServerForceRelay: boolean;
@@ -383,12 +382,7 @@ export interface MultiplayerSettings {
   multiplayerWaitForClients: boolean;
   multiplayerSynchronizedPlayback: boolean;
   multiplayerSyncLeadTimeMs: number;
-  multiplayerAutoHost: boolean;
   multiplayerRestoreLastSession: boolean;
-  multiplayerTurnUrl: string;
-  multiplayerTurnSecret: string;
-  multiplayerTurnCredentialHours: number;
-  multiplayerForceTurn: boolean;
   multiplayerFreeplay: boolean;
   multiplayerStreamAudio: boolean;
   multiplayerFileTransferLimitMiB: number;

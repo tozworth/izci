@@ -1,7 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 const protocolPath = new URL('../src/lib/services/multiplayer-protocol.ts', import.meta.url);
-const rulesPath = new URL('../database.rules.json', import.meta.url);
 const serverProtocolPath = new URL('../izci-server/internal/protocol/protocol.go', import.meta.url);
 const checkOnly = process.argv.includes('--check');
 
@@ -19,26 +18,6 @@ if (!majorMatch || !minorMatch) {
 
 const major = majorMatch[1];
 const minor = minorMatch[1];
-const rulesSource = await readFile(rulesPath, 'utf8');
-let replacements = 0;
-const synchronizedRules = rulesSource
-  .replace(/protocolMajor'\)\.val\(\) === \d+/g, (match) => {
-    replacements += 1;
-    return match.replace(/\d+$/, major);
-  })
-  .replace(/("protocolMajor": \{ "\.validate": "newData[^}]*?===\s*)\d+/g, (_, prefix) => {
-    replacements += 1;
-    return `${prefix}${major}`;
-  })
-  .replace(/child\('protocolMajor'\)\.val\(\) === \d+/g, (match) => {
-    replacements += 1;
-    return match.replace(/\d+$/, major);
-  });
-
-if (replacements < 3) {
-  throw new Error(`Expected to find at least 3 multiplayer protocol major checks; found ${replacements}.`);
-}
-
 const serverProtocolSource = await readFile(serverProtocolPath, 'utf8');
 let serverReplacements = 0;
 let synchronizedServerProtocol = serverProtocolSource.replace(
@@ -60,20 +39,17 @@ if (serverReplacements !== 2) {
   throw new Error(`Expected to find Go protocol Major and Minor; found ${serverReplacements}.`);
 }
 
-const rulesChanged = synchronizedRules !== rulesSource;
 const serverProtocolChanged = synchronizedServerProtocol !== serverProtocolSource;
 
-if (!rulesChanged && !serverProtocolChanged) process.exit(0);
+if (!serverProtocolChanged) process.exit(0);
 
 if (checkOnly) {
   const mismatches = [];
-  if (rulesChanged) mismatches.push('database.rules.json');
   if (serverProtocolChanged) mismatches.push('izci-server/internal/protocol/protocol.go');
   throw new Error(`${mismatches.join(' and ')} do not use multiplayer protocol ${major}.${minor}.`);
 }
 
 await Promise.all([
-  rulesChanged ? writeFile(rulesPath, synchronizedRules) : undefined,
   serverProtocolChanged ? writeFile(serverProtocolPath, synchronizedServerProtocol) : undefined
 ]);
 console.log(`Synchronized multiplayer protocol consumers to ${major}.${minor}.`);
