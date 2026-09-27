@@ -4,7 +4,7 @@
 
 ## Core principles
 
-- Offline PWA, no backend, mainly targeting Chromium/Blink for maximum API flexibility.
+- Offline PWA, does not require a backend, mainly targeting Chromium/Blink for maximum API flexibility.
 - Desktop-style design: tight margins, no overstyling, no extraneous hyperlinks or pointer cursors. Basically, before working on UI, check whether the output is "too website-y" and redesign as needed.
 - Goldilocks factor: izci intentionally exposes many obscure settings ("Count track as played after (s)", "Logarithmic volume", "Keep columns visible in narrow library panels"...), mostly under the per-page "Advanced tweaks" toggle. This means we have a goldilocks quota to fill. When adding a substantial feature, briefly consider its accompanying tweaks.
 - The project is pre-alpha and has one (1) user. Compatibility is intentionally scorched-earth: prefer clean current-version state over legacy/adapter/migration slop.
