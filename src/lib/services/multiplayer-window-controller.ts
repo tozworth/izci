@@ -7,8 +7,7 @@ import type {
   MultiplayerCommand
 } from '$lib/services/multiplayer-protocol';
 import { logError } from '$lib/services/logging';
-import type { MultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
-import { consumeInviteLinkHash, buildInviteLink } from '$lib/services/multiplayer-invite-link';
+import { consumeInviteLinkHash } from '$lib/services/multiplayer-invite-link';
 import {
   consumeServerInvite,
   parseServerInviteText,
@@ -16,7 +15,6 @@ import {
 } from '$lib/services/multiplayer-server-invite';
 import { serverSetup } from '$lib/services/multiplayer-server-setup';
 import { getRememberedServerHostKey } from '$lib/stores/multiplayer-server-host-keys';
-import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
 import type {
   MultiplayerSettings,
   PlaybackSnapshot,
@@ -75,8 +73,6 @@ interface MultiplayerWindowControllerDeps {
   editSharedQueue(type: 'queue.add' | 'queue.replace' | 'queue.remove' | 'queue.randomize', ids: string[]): boolean;
   playCollectionItemsNext(collection: 'library' | 'favorites', ids: string[]): boolean;
   getMultiplayerSettings(): MultiplayerSettings;
-  getLastSession(): MultiplayerLastSession | null;
-  getPairings(): MultiplayerPairing[];
   pausePlayer(): void;
   setActiveWorkspaceTab(tab: WorkspaceTab): void;
   openMultiplayerOptions(): void;
@@ -344,28 +340,6 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
     };
   }
 
-  function prepareLaunchDialog(): void {
-    const settings = deps.getMultiplayerSettings();
-    if (!settings.multiplayer) return;
-    // Server never auto-connects: hosting needs a fresh operator login
-    // and guests confirm each invitation. The setup dialog opens only for
-    // an explicit deep link, menu action, or remembered-room resume.
-    if (settings.multiplayerTransport === 'server') return;
-    const last = settings.multiplayerRestoreLastSession
-      ? deps.getLastSession()
-      : null;
-    if (!last && !settings.multiplayerAutoHost) return;
-    if (last?.mode === 'client') {
-      beginConnection('joining', last.hostName);
-      return;
-    }
-    beginConnection('hosting');
-  }
-
-  function isServerTransport(): boolean {
-    return deps.getMultiplayerSettings().multiplayerTransport === 'server';
-  }
-
   function isServerHostConfigured(): boolean {
     const endpoint = deps.getMultiplayerSettings().multiplayerServerEndpoint;
     if (!endpoint) return false;
@@ -373,94 +347,55 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   }
 
   async function host(): Promise<void> {
-    if (isServerTransport()) {
-      if (deps.getSession().getSnapshot().mode === 'hosting') {
-        await copyInvite();
-        return;
-      }
-      // No configuration popup: an unconfigured server goes straight to
-      // Options > Multiplayer instead of opening a connection dialog that
-      // only reports the missing setup.
-      if (!isServerHostConfigured()) {
-        deps.openMultiplayerOptions();
-        return;
-      }
-      beginConnection('hosting');
-      try {
-        await serverSetup.hostConfigured();
-      } catch (error) {
-        failConnection(error, 'Could not start Server hosting.');
-      }
+    if (deps.getSession().getSnapshot().mode === 'hosting') {
+      await copyInvite();
+      return;
+    }
+    // No configuration popup: an unconfigured server goes straight to
+    // Options > Multiplayer instead of opening a connection dialog that
+    // only reports the missing setup.
+    if (!isServerHostConfigured()) {
+      deps.openMultiplayerOptions();
       return;
     }
     beginConnection('hosting');
     try {
-      await deps.getSession().startHosting();
+      await serverSetup.hostConfigured();
     } catch (error) {
-      failConnection(error, 'Could not start multiplayer hosting.');
+      failConnection(error, 'Could not start Server hosting.');
     }
-  }
-
-  async function join(inviteCode: string): Promise<void> {
-    beginConnection('joining');
-    deps.pausePlayer();
-    try {
-      await deps.getSession().join(inviteCode);
-    } catch (error) {
-      failConnection(error, 'Could not join that multiplayer session.');
-    }
+    return;
   }
 
   async function joinWithPrompt(): Promise<void> {
-    if (isServerTransport()) {
-      const invite = window.prompt(
-        deps.translate('main.multiplayer.server.enterInvite', {
-          default: 'Paste the Server invitation link or invite code'
-        })
+    const invite = window.prompt(
+      deps.translate('main.multiplayer.server.enterInvite', {
+        default: 'Paste the Server invitation link or invite code'
+      })
+    );
+    if (!invite) return;
+    let invitation;
+    try {
+      invitation = parseServerInviteText(
+        invite,
+        deps.getMultiplayerSettings().multiplayerServerEndpoint
       );
-      if (!invite) return;
-      let invitation;
-      try {
-        invitation = parseServerInviteText(
-          invite,
-          deps.getMultiplayerSettings().multiplayerServerEndpoint
-        );
-      } catch (error) {
-        failConnection(error, 'That Server invitation could not be read.');
-        return;
-      }
-      beginConnection('joining', invitation.title);
-      deps.pausePlayer();
-      await serverSetup.joinInvitation(invitation);
-      if (serverSetup.getSnapshot().dialogOpen) {
-        dialog.open = false;
-        publish();
-      }
+    } catch (error) {
+      failConnection(error, 'That Server invitation could not be read.');
       return;
     }
-    const inviteCode = window.prompt(
-      deps.translate('main.multiplayer.enterInvite', { default: 'Enter the host invite code' })
-    );
-    if (!inviteCode) return;
-    await join(inviteCode);
-  }
-
-  async function joinPaired(hostId: string): Promise<void> {
-    const pairing = deps.getPairings().find((candidate) => candidate.hostId === hostId);
-    beginConnection('joining', pairing?.name ?? null);
+    beginConnection('joining', invitation.title);
     deps.pausePlayer();
-    try {
-      await deps.getSession().joinPaired(hostId);
-    } catch (error) {
-      failConnection(error, 'Could not join that paired host.');
+    await serverSetup.joinInvitation(invitation);
+    if (serverSetup.getSnapshot().dialogOpen) {
+      dialog.open = false;
+      publish();
     }
+    return;
   }
 
   async function copyInvite(): Promise<void> {
-    const inviteCode = state?.inviteCode ?? null;
-    const inviteLink = inviteCode
-      ? buildInviteLink(inviteCode)
-      : serverSetup.getSnapshot().inviteLink;
+    const inviteLink = serverSetup.getSnapshot().inviteLink;
     if (!inviteLink) return;
     try {
       await navigator.clipboard.writeText(inviteLink);
@@ -506,11 +441,8 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
 
   function handleDeepLinkJoin(): void {
     if (handleServerDeepLink()) return;
-    // Legacy invite codes join without confirmation, so they stay behind
-    // the Multiplayer switch. Server invitations always confirm first.
-    if (!deps.getMultiplayerSettings().multiplayer) return;
     const code = consumeInviteLinkHash();
-    if (code) void join(code);
+    if (code) showRetiredInvite();
   }
 
   async function startLaunch(): Promise<void> {
@@ -524,13 +456,11 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
     }
     ensureInviteLinkListener();
     const settings = deps.getMultiplayerSettings();
-    if (!settings.multiplayer) return;
     const inviteCode = consumeInviteLinkHash();
     if (inviteCode) {
-      await join(inviteCode);
+      showRetiredInvite();
     }
-    ensureInviteLinkListener();
-    if (inviteCode) return;
+    if (inviteCode || !settings.multiplayer) return;
     if (settings.multiplayerRestoreLastSession) {
       const restored = await deps.getSession().restoreLastSession().catch((error) => {
         logError('multiplayer', 'Last session restore could not start', error);
@@ -542,15 +472,12 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
       }
       if (restored === 'hosting') return;
     }
-    if (!settings.multiplayerAutoHost) return;
-    // Server auto-host stays silent: remembered keys are scoped to the
-    // explicit setup flow, and no server request may fire unprompted.
-    if (settings.multiplayerTransport === 'server') return;
-    try {
-      await deps.getSession().startHosting({ silent: true });
-    } catch (error) {
-      logError('multiplayer', 'Persistent peer hosting could not start', error);
-    }
+  }
+
+  function showRetiredInvite(): void {
+    showToast(deps.translate('main.multiplayer.server.legacyRetired', {
+      default: 'Legacy multiplayer invitations have been retired. Ask the host for an izci-server invitation.'
+    }));
   }
 
   function dismissConnectionDialog(): void {
@@ -576,11 +503,8 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
     activateChatTrack,
     syncFromSession,
     subscribe,
-    prepareLaunchDialog,
     host,
-    join,
     joinWithPrompt,
-    joinPaired,
     copyInvite,
     startLaunch,
     dismissConnectionDialog,

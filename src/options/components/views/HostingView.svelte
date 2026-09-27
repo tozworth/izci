@@ -18,8 +18,6 @@
     MULTIPLAYER_SYNC_LEAD_TIME_MAX_MS,
     MULTIPLAYER_SYNC_LEAD_TIME_MIN_MS,
     MULTIPLAYER_SYNC_LEAD_TIME_STEP_MS,
-    MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX,
-    MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN,
     multiplayerSettings
   } from '$lib/stores/multiplayer-settings';
 
@@ -72,28 +70,6 @@
     return `${limit} MiB`;
   }
 
-  function handleTurnUrlChange(event: Event) {
-    multiplayerSettings.update({
-      multiplayerTurnUrl: (event.currentTarget as HTMLInputElement).value
-    });
-  }
-
-  function handleTurnSecretChange(event: Event) {
-    multiplayerSettings.update({
-      multiplayerTurnSecret: (event.currentTarget as HTMLInputElement).value
-    });
-  }
-
-  function handleTurnCredentialHoursChange(event: Event) {
-    multiplayerSettings.update({
-      multiplayerTurnCredentialHours: (event.currentTarget as HTMLInputElement).valueAsNumber
-    });
-  }
-
-  function handleForceTurnToggle(event: Event) {
-    multiplayerSettings.update({ multiplayerForceTurn: checked(event) });
-  }
-
   function handleOpusBitrateChange(event: Event) {
     multiplayerSettings.update({
       multiplayerOpusBitrateKbps: (event.currentTarget as HTMLInputElement).valueAsNumber
@@ -110,10 +86,6 @@
     multiplayerSettings.update({
       multiplayerMaxListeners: (event.currentTarget as HTMLInputElement).valueAsNumber
     });
-  }
-
-  function handleAutoHostToggle(event: Event) {
-    multiplayerSettings.update({ multiplayerAutoHost: checked(event) });
   }
 
   function handleMotdChange(event: Event): void {
@@ -137,11 +109,9 @@
   <div class="section">
     <h2>{$t('options.multiplayer.hosting.category', { default: 'Hosting' })}</h2>
     <div class="field-grid">
-      {#if $multiplayerSettings.multiplayerTransport === 'server'}
         <div class="server-config">
           <ServerSetupPanel mode="config" />
         </div>
-      {/if}
       <SettingsField
         title={$t('options.multiplayer.waitForClients.title', { default: 'Wait for clients' })}
         hint={$t('options.multiplayer.waitForClients.hint', { default: 'Before starting a track, waits until every connected listener has loaded its transferred file or tuned to the audio stream.' })}
@@ -153,72 +123,6 @@
           on:change={handleWaitForClientsToggle}
         />
       </SettingsField>
-      <SettingsField
-        title={$t('options.multiplayer.autoHost.title', { default: 'Always host for peers' })}
-        hint={$t('options.multiplayer.autoHost.hint', { default: 'Silently hosts on launch so paired devices can join without an invite code.' })}
-        checkbox
-      >
-        <input
-          type="checkbox"
-          checked={$multiplayerSettings.multiplayerAutoHost}
-          on:change={handleAutoHostToggle}
-        />
-      </SettingsField>
-      {#if $multiplayerSettings.multiplayerTransport === 'rtdb'}
-      <SettingsField
-        title={$t('options.multiplayer.turnUrl.title', { default: 'TURN server' })}
-        hint={$t('options.multiplayer.turnUrl.hint', { default: 'Host-only relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. Listeners receive it with temporary credentials.' })}
-      >
-        <input
-          class="multiplayer-text-input multiplayer-endpoint-input"
-          type="text"
-          spellcheck="false"
-          autocomplete="off"
-          placeholder="turn:host:3478"
-          value={$multiplayerSettings.multiplayerTurnUrl}
-          on:change={handleTurnUrlChange}
-        />
-      </SettingsField>
-      <SettingsField
-        title={$t('options.multiplayer.turnSecret.title', { default: 'TURN authentication secret' })}
-        hint={$t('options.multiplayer.turnSecret.hint', { default: 'Host-only shared secret configured on the relay. Listeners receive encrypted temporary credentials and do not need this setting.' })}
-      >
-        <input
-          class="multiplayer-text-input"
-          type="password"
-          autocomplete="current-password"
-          value={$multiplayerSettings.multiplayerTurnSecret}
-          on:change={handleTurnSecretChange}
-        />
-      </SettingsField>
-      <SettingsField
-        title={$t('options.multiplayer.turnLifetime.title', { default: 'TURN credential lifetime' })}
-        hint={$t('options.multiplayer.turnLifetime.hint', { default: 'Sets the expiry of credentials minted for each listener. Longer values better tolerate long sessions and reconnects.' })}
-      >
-        <input
-          type="range"
-          min={MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN}
-          max={MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX}
-          step="1"
-          value={$multiplayerSettings.multiplayerTurnCredentialHours}
-          disabled={!$multiplayerSettings.multiplayerTurnUrl || !$multiplayerSettings.multiplayerTurnSecret}
-          on:input={handleTurnCredentialHoursChange}
-        />
-        <span class="field-output">{$multiplayerSettings.multiplayerTurnCredentialHours} h</span>
-      </SettingsField>
-      <SettingsField
-        title={$t('options.multiplayer.forceTurn.title', { default: 'Force TURN relay' })}
-        hint={$t('options.multiplayer.forceTurn.hint', { default: 'Uses relay candidates only on the host and listeners. Enable temporarily to verify the relay or keep enabled when direct routes must never be used.' })}
-        checkbox
-      >
-        <input
-          type="checkbox"
-          checked={$multiplayerSettings.multiplayerForceTurn}
-          disabled={!$multiplayerSettings.multiplayerTurnUrl || !$multiplayerSettings.multiplayerTurnSecret}
-          on:change={handleForceTurnToggle}
-        />
-      </SettingsField>
-      {/if}
       <SettingsField
         title={$t('options.multiplayer.maxListeners.title', { default: 'Maximum guests' })}
         hint={$t('options.multiplayer.maxListeners.hint', { default: 'Limits how many guests can connect to the host at once, whether or not audio streaming is enabled.' })}
@@ -357,17 +261,8 @@
 </article>
 
 <style>
-  :global(html:not([data-izci-mobile='true'])) input.multiplayer-text-input {
-    width: min(12rem, 32vw);
-  }
-
   :global(html:not([data-izci-mobile='true'])) input.multiplayer-motd-input {
     width: min(24rem, 50vw);
-  }
-
-  input.multiplayer-endpoint-input {
-    font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
-    font-size: 0.74rem;
   }
 
   .server-config {

@@ -22,11 +22,7 @@ export const MULTIPLAYER_SYNC_LEAD_TIME_STEP_MS = 50;
 export const MULTIPLAYER_MAX_LISTENERS_MIN = 1;
 export const MULTIPLAYER_MAX_LISTENERS_MAX = 8;
 export const MULTIPLAYER_CHAT_HISTORY_LINES = [0, 25, 50, 100, 250, 500, 1000] as const;
-const MULTIPLAYER_TURN_URL_MAX_LENGTH = 512;
-const MULTIPLAYER_TURN_SECRET_MAX_LENGTH = 512;
 const MULTIPLAYER_MOTD_MAX_LENGTH = 500;
-export const MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN = 1;
-export const MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX = 48;
 
 function createDefaultIzciName(): string {
   const bytes = new Uint8Array(4);
@@ -46,18 +42,11 @@ function normalizeSingleLine(value: unknown, maxLength: number): string {
     : '';
 }
 
-function normalizeMultiplayerTurnUrl(value: unknown): string {
-  const url = normalizeSingleLine(value, MULTIPLAYER_TURN_URL_MAX_LENGTH);
-  if (!url) return '';
-  return /^(?:turn|turns):/i.test(url) ? url : `turn:${url}`;
-}
-
 const defaultIzciName = createDefaultIzciName();
 
 export const DEFAULT_MULTIPLAYER_SETTINGS: MultiplayerSettings = {
   multiplayer: false,
   izciName: defaultIzciName,
-  multiplayerTransport: 'rtdb',
   multiplayerServerEndpoint: '',
   multiplayerServerNoticeVersion: 0,
   multiplayerServerForceRelay: false,
@@ -67,12 +56,7 @@ export const DEFAULT_MULTIPLAYER_SETTINGS: MultiplayerSettings = {
   multiplayerWaitForClients: false,
   multiplayerSynchronizedPlayback: false,
   multiplayerSyncLeadTimeMs: 1_000,
-  multiplayerAutoHost: false,
   multiplayerRestoreLastSession: true,
-  multiplayerTurnUrl: '',
-  multiplayerTurnSecret: '',
-  multiplayerTurnCredentialHours: 12,
-  multiplayerForceTurn: false,
   multiplayerFreeplay: false,
   multiplayerStreamAudio: true,
   multiplayerFileTransferLimitMiB: 0,
@@ -132,7 +116,6 @@ export function normalizeMultiplayerSettings(value: unknown): MultiplayerSetting
   return {
     multiplayer: normalizeBoolean(source.multiplayer, DEFAULT_MULTIPLAYER_SETTINGS.multiplayer),
     izciName: normalizeIzciName(source.izciName, defaultIzciName),
-    multiplayerTransport: source.multiplayerTransport === 'server' ? 'server' : 'rtdb',
     multiplayerServerEndpoint: typeof source.multiplayerServerEndpoint === 'string'
       ? source.multiplayerServerEndpoint.trim().slice(0, 512)
       : '',
@@ -163,23 +146,10 @@ export function normalizeMultiplayerSettings(value: unknown): MultiplayerSetting
       MULTIPLAYER_SYNC_LEAD_TIME_MIN_MS,
       MULTIPLAYER_SYNC_LEAD_TIME_MAX_MS
     ),
-    multiplayerAutoHost: normalizeBoolean(source.multiplayerAutoHost, DEFAULT_MULTIPLAYER_SETTINGS.multiplayerAutoHost),
     multiplayerRestoreLastSession: normalizeBoolean(
       source.multiplayerRestoreLastSession,
       DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRestoreLastSession
     ),
-    multiplayerTurnUrl: normalizeMultiplayerTurnUrl(source.multiplayerTurnUrl),
-    multiplayerTurnSecret: normalizeSingleLine(
-      source.multiplayerTurnSecret,
-      MULTIPLAYER_TURN_SECRET_MAX_LENGTH
-    ),
-    multiplayerTurnCredentialHours: normalizeBoundedInteger(
-      source.multiplayerTurnCredentialHours,
-      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerTurnCredentialHours,
-      MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN,
-      MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX
-    ),
-    multiplayerForceTurn: normalizeBoolean(source.multiplayerForceTurn, DEFAULT_MULTIPLAYER_SETTINGS.multiplayerForceTurn),
     multiplayerFreeplay: normalizeBoolean(source.multiplayerFreeplay, DEFAULT_MULTIPLAYER_SETTINGS.multiplayerFreeplay),
     multiplayerStreamAudio: normalizeBoolean(
       source.multiplayerStreamAudio,
@@ -253,17 +223,12 @@ export const multiplayerSettings = createSettingsStore({
 });
 
 if (typeof window !== 'undefined') {
-  let hasStoredName = false;
+  // Drop retired signaling state; persist only the current settings schema.
   try {
-    const stored = JSON.parse(window.localStorage.getItem(MULTIPLAYER_SETTINGS_STORAGE_KEY) ?? 'null') as unknown;
-    hasStoredName = Boolean(
-      stored
-      && typeof stored === 'object'
-      && typeof (stored as Partial<MultiplayerSettings>).izciName === 'string'
-      && (stored as Partial<MultiplayerSettings>).izciName?.trim()
-    );
+    window.localStorage.removeItem('izci.multiplayer-pairings');
+    window.localStorage.removeItem('izci.multiplayer-recents');
+    multiplayerSettings.set(multiplayerSettings.getSnapshot());
   } catch {
-    // Persist the normalized defaults below.
+    // Settings remain usable when storage is unavailable.
   }
-  if (!hasStoredName) multiplayerSettings.set(multiplayerSettings.getSnapshot());
 }

@@ -103,8 +103,6 @@
   export let onMultiplayerStopHosting: () => void = () => {};
   export let onMultiplayerJoin: () => void = () => {};
   export let onMultiplayerLeave: () => void = () => {};
-  export let onMultiplayerJoinPaired: (hostId: string) => void = () => {};
-  export let onMultiplayerJoinRecent: (inviteCode: string) => void = () => {};
 
   let screensaverIdleTimer: ReturnType<typeof setTimeout> | null = null;
   let screensaverMounted = false;
@@ -418,12 +416,6 @@
       case 'multiplayer-stop-hosting': onMultiplayerStopHosting(); return;
       case 'multiplayer-join': onMultiplayerJoin(); return;
       case 'multiplayer-leave': onMultiplayerLeave(); return;
-      case 'multiplayer-join-paired':
-        if (card.commandValue) onMultiplayerJoinPaired(card.commandValue);
-        return;
-      case 'multiplayer-join-recent':
-        if (card.commandValue) onMultiplayerJoinRecent(card.commandValue);
-        return;
     }
     if (card.id === 'now-playing') {
       session.push(resolveNowPlayingRoute(playingTrack));

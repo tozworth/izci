@@ -91,7 +91,8 @@
         "inviteTitle": "izci-server daveti",
         "enterInvite": "izci-server davet bağlantısını veya davet kodunu yapıştırın",
         "dismiss": "Kapat",
-        "inviteInvalid": "Bu parti davet bağlantısı okunamadı."
+        "inviteInvalid": "Bu parti davet bağlantısı okunamadı.",
+        "legacyRetired": "Eski çok oyunculu davetler kullanımdan kaldırıldı. Sunucudan bir izci-server daveti isteyin."
       }
     },
     "common": {
@@ -793,29 +794,9 @@
         "title": "İstemcileri bekle",
         "hint": "Bir parçayı başlatmadan önce bağlı tüm dinleyicilerin aktarılan dosyayı yüklemesini veya ses akışına bağlanmasını bekler."
       },
-      "autoHost": {
-        "title": "Eşler için her zaman sunucu ol",
-        "hint": "Başlangıçta sessizce sunucu olur; böylece eşleştirilmiş cihazlar davet kodu olmadan katılabilir."
-      },
       "restoreSession": {
         "title": "Son oturumu geri yükle",
-        "hint": "Yeniden başlatıldıktan sonra önceki sunucuya bağlanır veya sunuculuğu sürdürür. izci-server konukları için daveti bu cihazda saklar."
-      },
-      "turnUrl": {
-        "title": "TURN server",
-        "hint": "Optional relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. A bare address uses turn: automatically."
-      },
-      "turnSecret": {
-        "title": "TURN authentication secret",
-        "hint": "Host-only shared secret configured on the relay. Listeners receive encrypted temporary credentials and do not need this setting."
-      },
-      "turnLifetime": {
-        "title": "TURN credential lifetime",
-        "hint": "Sets the expiry of credentials minted for each listener. Longer values better tolerate long sessions and reconnects."
-      },
-      "forceTurn": {
-        "title": "Force TURN relay",
-        "hint": "Uses relay candidates only. Enable temporarily to verify the relay or keep enabled when direct routes must never be used."
+        "hint": "Yeniden başlatıldıktan sonra hatırlanan izci-server davetine bağlanır. Sunuculuk için giriş gerekir."
       },
       "maxListeners": {
         "title": "Azami konuk",
@@ -854,16 +835,8 @@
       },
       "diagnostics": {
         "heading": "Bağlantı tanılama",
-        "signaling": "Firebase yalnızca daveti, oturum açıklamalarını ve ICE adaylarını iletir. Oynatma kontrolleri, katalog verileri, görseller ve ses, kurulan eş bağlantısını kullanır.",
-        "direct": "izci, genel adaylar için Cloudflare ve Google STUN sunucularına başvurur, sonra doğrudan yolları dener. Barındırma altında yapılandırılan TURN aktarıcısı, kısıtlayıcı NAT ya da güvenlik duvarları için yedek yol sağlar.",
         "upnp": "Sabit genel IP ya da yönlendirici UPnP'si garanti vermez: Chromium kendi ICE portlarını seçer, izci UPnP eşlemesi istemez.",
         "messages": "Hiç aday toplanamaması tarayıcı ya da ağ ilkesine; yalnızca yerel aday bulunması STUN arızasına; iki tarafta da aday olup bağlantı kurulamaması NAT ya da güvenlik duvarı filtrelemesine işaret eder."
-      },
-      "transport": {
-        "title": "Bağlantı yöntemi",
-        "hint": "Firebase eski davet kodu yoludur. izci-server kendi sunucunu kullanır; sunuculuk için operatör anahtarı, katılım için izci-server daveti gerekir.",
-        "rtdb": "Firebase (eski davetler)",
-        "server": "izci-server"
       },
       "serverEndpoint": {
         "title": "izci-server",

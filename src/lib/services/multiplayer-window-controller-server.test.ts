@@ -11,7 +11,6 @@ function settings(overrides: Partial<MultiplayerSettings> = {}): MultiplayerSett
   return {
     multiplayer: true,
     izciName: 'Test',
-    multiplayerTransport: 'rtdb',
     multiplayerServerEndpoint: '',
     multiplayerServerNoticeVersion: 1,
     multiplayerServerForceRelay: false,
@@ -21,12 +20,7 @@ function settings(overrides: Partial<MultiplayerSettings> = {}): MultiplayerSett
     multiplayerWaitForClients: false,
     multiplayerSynchronizedPlayback: false,
     multiplayerSyncLeadTimeMs: 1_000,
-    multiplayerAutoHost: false,
     multiplayerRestoreLastSession: true,
-    multiplayerTurnUrl: '',
-    multiplayerTurnSecret: '',
-    multiplayerTurnCredentialHours: 12,
-    multiplayerForceTurn: false,
     multiplayerFreeplay: false,
     multiplayerStreamAudio: true,
     multiplayerFileTransferLimitMiB: 0,
@@ -89,8 +83,6 @@ function deps(overrides: {
       toggleQueueShuffle: () => undefined,
       cycleQueueRepeat: () => undefined,
       getMultiplayerSettings: () => current,
-      getLastSession: () => null,
-      getPairings: () => [],
       pausePlayer: () => undefined,
       setActiveWorkspaceTab: () => undefined,
       openMultiplayerOptions: overrides.openMultiplayerOptions ?? (() => undefined),
@@ -148,20 +140,11 @@ describe('multiplayer window controller server routing', () => {
   it('keeps server auto-host silent on launch', async () => {
     stubWindow('');
     const { session, controller } = deps({
-      multiplayerSettings: settings({ multiplayerTransport: 'server', multiplayerAutoHost: true })
+      multiplayerSettings: settings({  })
     });
     await controller.startLaunch();
     expect(session.startHosting).not.toHaveBeenCalled();
     expect(serverSetup.getSnapshot().dialogOpen).toBe(false);
-  });
-
-  it('still auto-hosts the legacy transport', async () => {
-    stubWindow('');
-    const { session, controller } = deps({
-      multiplayerSettings: settings({ multiplayerTransport: 'rtdb', multiplayerAutoHost: true })
-    });
-    await controller.startLaunch();
-    expect(session.startHosting).toHaveBeenCalled();
   });
 
   it('runs server commands directly instead of opening the setup surface', async () => {
@@ -179,7 +162,6 @@ describe('multiplayer window controller server routing', () => {
     ]);
     const { session, controller } = deps({
       multiplayerSettings: settings({
-        multiplayerTransport: 'server',
         multiplayerServerEndpoint: 'https://server.example.com'
       })
     });
@@ -198,7 +180,7 @@ describe('multiplayer window controller server routing', () => {
     const openMultiplayerOptions = vi.fn();
     const hostConfigured = vi.spyOn(serverSetup, 'hostConfigured');
     const { controller } = deps({
-      multiplayerSettings: settings({ multiplayerTransport: 'server' }),
+      multiplayerSettings: settings({ }),
       openMultiplayerOptions
     });
     let open = false;
@@ -218,7 +200,6 @@ describe('multiplayer window controller server routing', () => {
     const hostConfigured = vi.spyOn(serverSetup, 'hostConfigured');
     const { controller } = deps({
       multiplayerSettings: settings({
-        multiplayerTransport: 'server',
         multiplayerServerEndpoint: 'https://server.example.com'
       }),
       openMultiplayerOptions
@@ -238,7 +219,7 @@ describe('multiplayer window controller server routing', () => {
     });
     stubWindow(`#party=${raw}`);
     const { session, controller } = deps({
-      multiplayerSettings: settings({ multiplayerTransport: 'server' })
+      multiplayerSettings: settings({ })
     });
     await controller.startLaunch();
     expect(session.startHosting).not.toHaveBeenCalled();
@@ -259,7 +240,7 @@ describe('multiplayer window controller server routing', () => {
     });
     stubWindow(`#party=${raw}`);
     const { session, controller } = deps({
-      multiplayerSettings: settings({ multiplayer: false, multiplayerTransport: 'server' })
+      multiplayerSettings: settings({ multiplayer: false, })
     });
     await controller.startLaunch();
     expect(session.startHosting).not.toHaveBeenCalled();
@@ -270,10 +251,10 @@ describe('multiplayer window controller server routing', () => {
     expect(snapshot.guestStatus).toBe('idle');
   });
 
-  it('leaves legacy invite codes alone for fresh clients with multiplayer disabled', async () => {
+  it('retires legacy invite codes even with multiplayer disabled', async () => {
     const stub = stubWindow('#join=abcd1234');
     const { session, controller } = deps({
-      multiplayerSettings: settings({ multiplayer: false, multiplayerTransport: 'rtdb' })
+      multiplayerSettings: settings({ multiplayer: false, })
     });
     await controller.startLaunch();
     expect(session.join).not.toHaveBeenCalled();
@@ -281,7 +262,7 @@ describe('multiplayer window controller server routing', () => {
     expect(serverSetup.getSnapshot().dialogOpen).toBe(false);
     expect(
       ((globalThis as Record<string, unknown>)['window'] as { location: { hash: string } }).location.hash
-    ).toBe('#join=abcd1234');
+    ).toBe('');
     stub.fire('hashchange');
     expect(session.join).not.toHaveBeenCalled();
   });
@@ -295,7 +276,7 @@ describe('multiplayer window controller server routing', () => {
     });
     const stub = stubWindow('');
     const { session, controller } = deps({
-      multiplayerSettings: settings({ multiplayer: false, multiplayerTransport: 'server' })
+      multiplayerSettings: settings({ multiplayer: false, })
     });
     await controller.startLaunch();
     expect(serverSetup.getSnapshot().dialogOpen).toBe(false);
@@ -306,29 +287,18 @@ describe('multiplayer window controller server routing', () => {
     expect(serverSetup.getSnapshot().pendingInvitation).toMatchObject({ roomId: ROOM });
   });
 
-  it('leaves the launch dialog alone for server restores', () => {
-    stubWindow('');
-    const { controller } = deps({
-      multiplayerSettings: settings({ multiplayerTransport: 'server', multiplayerRestoreLastSession: true })
-    });
-    let open = true;
-    const unsubscribe = controller.subscribe((ui) => {
-      open = ui.dialog.open;
-    });
-    controller.prepareLaunchDialog();
-    expect(open).toBe(false);
-    unsubscribe();
-  });
 
   it('finishes joining an idle host without waiting for an audio generation', async () => {
-    stubWindow('');
+    const raw = buildServerInvitationPayload({ endpoint: 'https://server.example.com', roomId: ROOM, secret: 'invite-secret-7', title: null });
+    stubWindow('', `https://izci.example/#party=${raw}`);
+    vi.spyOn(serverSetup, 'joinInvitation').mockResolvedValueOnce();
     const { controller } = deps();
     let open = false;
     const unsubscribe = controller.subscribe((ui) => {
       open = ui.dialog.open;
     });
 
-    await controller.join('abcd1234');
+    await controller.joinWithPrompt();
     expect(open).toBe(true);
     controller.syncFromSession({
       mode: 'client',

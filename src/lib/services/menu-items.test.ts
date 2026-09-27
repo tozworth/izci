@@ -22,8 +22,6 @@ const baseDeps = (): MenuItemsDeps => ({
   translate,
   multiplayerMode: 'idle',
   multiplayerFreeplayEnabled: false,
-  multiplayerPairings: [],
-  multiplayerRecents: [],
   multiplayerInviteCode: null,
   multiplayerClients: [],
   multiplayerConnectionStatus: 'idle',
@@ -118,11 +116,9 @@ describe('menu-items builders', () => {
     }), 'view'))).toContain('showChat');
   });
 
-  it('lists paired hosts and recents for idle clients', () => {
+  it('offers server hosting and joining for idle clients', () => {
     const result = buildMenuItems({
       ...baseDeps(),
-      multiplayerPairings: [{ hostId: 'host-a', name: 'A' }],
-      multiplayerRecents: [{ name: 'Recent', inviteCode: 'abcd1234' }]
     });
     const app = result.menuGroups.find((group) => group.id === 'app')!;
     const multiplayer = app.items.find((item) => item.id === 'multiplayer')!;
@@ -130,10 +126,6 @@ describe('menu-items builders', () => {
       'multiplayerHost',
       'multiplayerJoin',
       'multiplayerFreeplayPreference',
-      'multiplayerPairedHosts',
-      'multiplayerJoinPaired:host-a',
-      'multiplayerRecents',
-      'multiplayerJoinRecent:abcd1234'
     ]);
   });
 

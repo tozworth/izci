@@ -47,17 +47,7 @@ export function createMultiplayerSession({
     publish: () => undefined,
     updateClient: () => undefined,
     multiplayerSettings: multiplayerSettings.getSnapshot(),
-    firebaseRuntime: null,
-    roomRef: null,
-    hostDirectoryRef: null,
-    ownPeerRef: null,
-    roomCode: null,
     clientHostId: null,
-    roomDisconnect: null,
-    hostDirectoryDisconnect: null,
-    peerDisconnect: null,
-    stopPeersListener: null,
-    stopAnswerListener: null,
     hostPeers: new Map(),
     freeplaySelections: new Map(),
     clientPeer: null,
@@ -82,7 +72,6 @@ export function createMultiplayerSession({
     bypassHostPlaybackGateTrackId: null,
     rejectedPeerIds: new Set(),
     acceptingPeerIds: new Set(),
-    answeredTurnCredentialRequestIds: new Set(),
     serverHost: null,
     serverGuest: null,
     transportGeneration: 0,
@@ -242,7 +231,10 @@ export function createMultiplayerSession({
     // Bump the transport generation first so late server callbacks from a
     // previous attempt cannot mutate the session being torn down.
     core.transportGeneration += 1;
-    // Tell the server server to release our slot before the socket goes
+    core.allowClientReconnect = false;
+    core.reconnectInFlight = false;
+    client.clearReconnectTimer();
+    // Tell the server to release our slot before the socket goes
     // away; the reader generation guard already invalidated late frames.
     if (core.serverGuest) {
       try {
@@ -260,10 +252,6 @@ export function createMultiplayerSession({
     core.serverGuest = null;
     client.clearReceiverMonitor();
     client.resetTransitions();
-    core.stopPeersListener?.();
-    core.stopAnswerListener?.();
-    core.stopPeersListener = null;
-    core.stopAnswerListener = null;
     for (const peer of core.hostPeers.values()) {
       disposePeerConnection(peer);
     }
@@ -287,34 +275,6 @@ export function createMultiplayerSession({
     core.bypassHostPlaybackGateTrackId = null;
     multiplayerAudioService.releaseHostTrack();
 
-    try {
-      if (removeRemote && core.firebaseRuntime && core.state.mode === 'hosting' && core.roomRef) {
-        await core.firebaseRuntime.remove(core.roomRef);
-      } else if (removeRemote && core.firebaseRuntime && core.ownPeerRef) {
-        await core.firebaseRuntime.remove(core.ownPeerRef);
-      }
-      if (removeRemote && core.firebaseRuntime && core.state.mode === 'hosting' && core.hostDirectoryRef) {
-        await core.firebaseRuntime.remove(core.hostDirectoryRef);
-      }
-    } catch (error) {
-      // The disconnect registration remains a best-effort cleanup fallback.
-      logWarning(
-        'multiplayer',
-        'Remote session cleanup failed; disconnect fallback remains registered',
-        error
-      );
-    }
-    await core.roomDisconnect?.cancel().catch(() => undefined);
-    await core.hostDirectoryDisconnect?.cancel().catch(() => undefined);
-    await core.peerDisconnect?.cancel().catch(() => undefined);
-    core.roomDisconnect = null;
-    core.hostDirectoryDisconnect = null;
-    core.peerDisconnect = null;
-    core.roomRef = null;
-    core.roomCode = null;
-    core.hostDirectoryRef = null;
-    core.ownPeerRef = null;
-    core.firebaseRuntime = null;
     if (removeRemote && serverHost) {
       // Close the hosted room and revoke the login bearer server-side.
       // Established RTC keeps playing until renegotiated; new admissions
@@ -334,7 +294,6 @@ export function createMultiplayerSession({
     core.hostArtworkLoadToken += 1;
     core.rejectedPeerIds.clear();
     core.acceptingPeerIds.clear();
-    core.answeredTurnCredentialRequestIds.clear();
     core.renderFallbackTrackIds.clear();
     core.latestDelivery = { ...EMPTY_DELIVERY };
     // Server transport health resets with the session; media health
@@ -440,43 +399,34 @@ export function createMultiplayerSession({
     if (core.state.mode !== 'idle') return core.state.mode;
     const last = multiplayerLastSession.getSnapshot();
     if (!last) return null;
-    // Explicit transport routing: server records never fall back to RTDB.
     // Hosting stops at login after reload. Guests restore only when the
     // invitation was explicitly retained on this device.
-    if (last.transport === 'server') {
-      if (last.mode === 'hosting') {
-        core.publish({
-          mode: 'idle',
-          connectionStatus: 'idle',
-          connectionDetail: 'Open Server setup to log in and resume hosting.',
-          message: 'Open Server setup to log in and resume hosting.'
-        });
-        return 'idle' as const;
-      }
-      const secret = last.serverEndpoint && last.serverRoomId
-        ? getRememberedServerInvitation(last.serverEndpoint, last.serverRoomId)
-        : null;
-      if (!secret || !last.serverEndpoint || !last.serverRoomId) {
-        core.publish({
-          mode: 'idle',
-          connectionStatus: 'idle',
-          connectionDetail: 'That server invitation needs to be opened again.',
-          message: 'That server invitation needs to be opened again.'
-        });
-        return 'idle' as const;
-      }
-      await joinServer(last.serverEndpoint, last.serverRoomId, secret);
-      return 'client' as const;
-    }
     if (last.mode === 'hosting') {
-      await host.startHosting({ silent: true });
-      return 'hosting' as const;
+      core.publish({
+        mode: 'idle',
+        connectionStatus: 'idle',
+        connectionDetail: 'Open Server setup to log in and resume hosting.',
+        message: 'Open Server setup to log in and resume hosting.'
+      });
+      return 'idle' as const;
     }
-    await client.restoreClientJoin(last);
+    const secret = last.serverEndpoint && last.serverRoomId
+      ? getRememberedServerInvitation(last.serverEndpoint, last.serverRoomId)
+      : null;
+    if (!secret || !last.serverEndpoint || !last.serverRoomId) {
+      core.publish({
+        mode: 'idle',
+        connectionStatus: 'idle',
+        connectionDetail: 'That server invitation needs to be opened again.',
+        message: 'That server invitation needs to be opened again.'
+      });
+      return 'idle' as const;
+    }
+    await joinServer(last.serverEndpoint, last.serverRoomId, secret);
     return 'client' as const;
   }
 
-  // Dynamic imports keep the RTDB bundle untouched when server is idle.
+  // Load signaling on demand.
   async function startServerHosting(
     endpoint: string,
     hostKey: string,
@@ -513,13 +463,10 @@ export function createMultiplayerSession({
   return {
     subscribe: store.subscribe,
     getSnapshot: () => core.state,
-    startHosting: (options) => host.startHosting(options),
     startServerHosting,
     rotateServerInvitation,
     stopHosting: () => host.stopHosting(),
-    join: (inviteCode) => client.join(inviteCode),
     joinServer,
-    joinPaired: (hostId) => client.joinPaired(hostId),
     restoreLastSession,
     leave: () => client.leave(),
     kick: (clientId) => host.kick(clientId),

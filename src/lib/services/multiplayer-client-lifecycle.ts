@@ -6,16 +6,38 @@ import { multiplayerSourcePlaybackService } from './multiplayer-source-playback'
 import { EMPTY_CATALOG, EMPTY_DELIVERY, EMPTY_REMOTE_PLAYBACK } from './multiplayer-types';
 import { isMultiplayerClientTransportHealthy } from './multiplayer-utils';
 import type { MultiplayerClientContext } from './multiplayer-client';
+import { sendToPeer } from './multiplayer-peer';
 import {
   applyClientAudioBuffer,
   sendClientPlaybackReadyIfPossible
 } from './multiplayer-client-audio';
 
+export function beginClientPlaybackSession(ctx: MultiplayerClientContext): void {
+  const { core, transition } = ctx;
+  core.allowClientReconnect = true;
+  core.reconnectAttempts = 0;
+  if (core.state.receiveAudio) void multiplayerAudioService.warmRemoteAudio();
+  multiplayerSourcePlaybackService.beginClientSession((trackId, generationId) => {
+    if (!core.clientPeer || core.state.mode !== 'client'
+      || !transition.isCurrent(generationId, trackId, 'source-file')) return;
+    if (core.state.freeplay && core.state.remoteCatalog.repeatMode === 'one') {
+      multiplayerSourcePlaybackService.replay();
+      return;
+    }
+    if (core.state.freeplay || core.state.hostImplementation?.product === 'izci-server') {
+      sendToPeer(core.clientPeer, { kind: 'playback.ended', generationId, trackId });
+    }
+  });
+  multiplayerSourcePlaybackService.setEnabled(core.state.receiveAudio);
+}
+
 export function scheduleClientReconnect(ctx: MultiplayerClientContext, delay?: number): void {
   const { core } = ctx;
   if (!core.allowClientReconnect || core.state.mode !== 'client' || core.reconnectInFlight || core.reconnectTimer !== null) return;
-  const inviteCode = core.state.inviteCode;
-  if (!inviteCode) return;
+  const guest = core.serverGuest;
+  if (!guest) return;
+  const generation = core.transportGeneration;
+  const isCurrent = () => core.transportGeneration === generation && core.serverGuest === guest;
   const backoff = [2_000, 5_000, 10_000, 20_000, 30_000];
   const wait = delay ?? backoff[Math.min(core.reconnectAttempts, backoff.length - 1)];
   logInfo('multiplayer', 'Client reconnect scheduled', {
@@ -25,7 +47,7 @@ export function scheduleClientReconnect(ctx: MultiplayerClientContext, delay?: n
   });
   core.reconnectTimer = window.setTimeout(() => {
     core.reconnectTimer = null;
-    if (!core.allowClientReconnect || core.state.mode !== 'client') return;
+    if (!isCurrent() || !core.allowClientReconnect || core.state.mode !== 'client') return;
     core.reconnectInFlight = true;
     core.reconnectAttempts += 1;
     logInfo('multiplayer', 'Client reconnect timer fired', {
@@ -39,24 +61,24 @@ export function scheduleClientReconnect(ctx: MultiplayerClientContext, delay?: n
       connectionDetail: 'Reconnecting and gathering fresh ICE candidates...',
       message: 'Reconnecting to the host...'
     });
-    void (async () => {
-      const directoryRoom = core.clientHostId
-        ? await ctx.resolveDirectoryRoomCode(core.clientHostId)
-        : null;
-      return ctx.connectClient(directoryRoom ?? inviteCode, true, true);
-    })()
+    const timeout = new AbortController();
+    const deadline = window.setTimeout(() => timeout.abort(), 45_000);
+    void guest.reconnectSignaling(timeout.signal)
       .then(() => {
+        if (!isCurrent()) return;
         core.reconnectInFlight = false;
         if (core.state.connectionStatus !== 'connected') scheduleClientReconnect(ctx, 15_000);
       })
       .catch((error) => {
+        if (!isCurrent()) return;
         core.reconnectInFlight = false;
         logWarning('multiplayer', 'Client reconnect attempt will retry', {
           attempt: core.reconnectAttempts,
           error
         });
         scheduleClientReconnect(ctx);
-      });
+      })
+      .finally(() => window.clearTimeout(deadline));
   }, wait);
 }
 

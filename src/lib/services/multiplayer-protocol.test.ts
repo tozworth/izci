@@ -12,7 +12,6 @@ import {
   type HostMessage
 } from './multiplayer-protocol';
 import { isClientMessage } from './multiplayer-utils';
-import { normalizeInviteCode } from './multiplayer-signaling';
 
 describe('multiplayer protocol', () => {
   it('requires protocol and implementation identity in the hello', () => {
@@ -553,12 +552,4 @@ describe('multiplayer protocol', () => {
     expect(isClientMessage({ kind: 'freeplay.queue', itemIds: [''] })).toBe(false);
   });
 
-  it('accepts invite codes directly or from an izci room link', () => {
-    const code = 'a1b2c3d4';
-    expect(normalizeInviteCode(code)).toBe(code);
-    expect(normalizeInviteCode(`https://izci.example/#room=${code}`)).toBe(code);
-    expect(normalizeInviteCode('A1B2C3D4')).toBeNull();
-    expect(normalizeInviteCode('abcdefghijklmnopqrstuvwx')).toBeNull();
-    expect(normalizeInviteCode('not a room')).toBeNull();
-  });
 });

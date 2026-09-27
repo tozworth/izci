@@ -24,8 +24,6 @@
     MultiplayerMode
   } from '$lib/services/multiplayer-types';
   import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
-  import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
-  import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
   import type { WorkspaceTabContentProps } from '$lib/components/workspace/types';
   import MobileMenuDrawer from './MobileMenuDrawer.svelte';
   import MobileMultiplayerStats from './MobileMultiplayerStats.svelte';
@@ -66,8 +64,6 @@
   export let multiplayerReceiveAudio = true;
   export let multiplayerConnectionStats: MultiplayerConnectionStats | null = null;
   export let multiplayerClients: MultiplayerClient[] = [];
-  export let multiplayerRecents: MultiplayerRecent[] = [];
-  export let multiplayerPairings: MultiplayerPairing[] = [];
 
   const dispatch = createEventDispatcher<{
     tabChange: WorkspaceTab;
@@ -83,9 +79,6 @@
     multiplayerHostWithCode: void;
     multiplayerStopHosting: void;
     multiplayerJoin: void;
-    multiplayerJoinRecent: string;
-    multiplayerJoinPaired: string;
-    multiplayerForgetPairing: string;
     multiplayerLeave: void;
     multiplayerCopyInvite: void;
     multiplayerResumeAudio: void;
@@ -369,8 +362,6 @@
   {multiplayerHostName}
   {multiplayerFreeplay}
   {multiplayerClients}
-  {multiplayerRecents}
-  {multiplayerPairings}
   on:close={() => (menuOpen = false)}
   on:openFiles={() => dispatch('openFiles')}
   on:openFolder={() => dispatch('openFolder')}
@@ -385,9 +376,6 @@
   on:multiplayerHostWithCode={() => dispatch('multiplayerHostWithCode')}
   on:multiplayerStopHosting={() => dispatch('multiplayerStopHosting')}
   on:multiplayerJoin={() => dispatch('multiplayerJoin')}
-  on:multiplayerJoinRecent={(event) => dispatch('multiplayerJoinRecent', event.detail)}
-  on:multiplayerJoinPaired={(event) => dispatch('multiplayerJoinPaired', event.detail)}
-  on:multiplayerForgetPairing={(event) => dispatch('multiplayerForgetPairing', event.detail)}
   on:multiplayerLeave={() => dispatch('multiplayerLeave')}
   on:multiplayerCopyInvite={() => dispatch('multiplayerCopyInvite')}
   on:multiplayerResumeAudio={() => dispatch('multiplayerResumeAudio')}

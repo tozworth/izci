@@ -1,17 +1,9 @@
 import { MultiplayerClientTransition } from './multiplayer-client-transition';
 import { clearRemoteTrackLyrics } from './lyrics';
-import type { MultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { multiplayerRenderPlaybackService } from './multiplayer-render-playback';
 import { createReceiverBitrateMonitor } from './multiplayer-receiver-monitor';
 import { sendToPeer } from './multiplayer-peer';
 import { requestRemoteTrackInfo } from './multiplayer-client-track-info';
-import {
-  join,
-  joinPaired,
-  restoreClientJoin,
-  connectClient,
-  resolveDirectoryRoomCode
-} from './multiplayer-client-connect';
 import {
   sendRenderReadyMessages,
   applyClientAudioBuffer,
@@ -57,8 +49,6 @@ export interface MultiplayerClientContext {
   useHostOdaBackground: boolean;
   trackInfoById: Map<string, import('./multiplayer-protocol').MultiplayerTrackInfo>;
   requestedTrackInfo: Set<string>;
-  connectClient: (rawInviteCode: string, reconnecting: boolean, silent?: boolean) => Promise<void>;
-  resolveDirectoryRoomCode: (hostId: string) => Promise<string | null>;
   sendCommand: (command: MultiplayerCommandInput) => boolean;
 }
 
@@ -87,9 +77,6 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore) {
     useHostOdaBackground: true,
     trackInfoById: new Map(),
     requestedTrackInfo: new Set(),
-    connectClient: (rawInviteCode, reconnecting, silent = false): Promise<void> =>
-      connectClient(ctx, rawInviteCode, reconnecting, silent),
-    resolveDirectoryRoomCode: (hostId): Promise<string | null> => resolveDirectoryRoomCode(ctx, hostId),
     sendCommand: (command): boolean => sendCommand(command)
   };
 
@@ -140,9 +127,6 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore) {
 
   return {
     ctx,
-    join: (inviteCode: string, options?: { silent?: boolean }) => join(ctx, inviteCode, options),
-    joinPaired: (hostId: string) => joinPaired(ctx, hostId),
-    restoreClientJoin: (last: MultiplayerLastSession) => restoreClientJoin(ctx, last),
     leave: () => leave(ctx),
     sendCommand: (command: MultiplayerCommandInput) => sendCommand(command),
     requestTrackInfo: (trackId: string) => requestRemoteTrackInfo(ctx, trackId),

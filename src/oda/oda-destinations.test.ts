@@ -158,8 +158,6 @@ describe('buildOdaHomeSections', () => {
     const sections = buildOdaHomeSections(resolveOdaMediaCounts([]), {
       enabled: true,
       session,
-      pairings: [{ hostId: 'paired-1', name: 'Bedroom' }],
-      recents: [{ inviteCode: 'wxyz9876', name: 'Kitchen' }]
     });
 
     expect(sections.at(-2)?.id).toBe('multiplayer');
@@ -167,8 +165,6 @@ describe('buildOdaHomeSections', () => {
     expect(sections.at(-2)?.cards.map((card) => card.id)).toEqual([
       'multiplayer-host',
       'multiplayer-join',
-      'multiplayer-paired-paired-1',
-      'multiplayer-recent-wxyz9876'
     ]);
     expect(sections.at(-2)?.cards[0]).toMatchObject({
       command: 'multiplayer-stop-hosting',

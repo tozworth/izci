@@ -79,13 +79,9 @@ hello = {
   admits at the signaling layer; per-facility availability is decided by
   `capabilities`. Future baselines add names here without a major bump.
 
-Signaling admission (both transports) compares major + baseline, not an exact
+Signaling admission compares major + baseline, not an exact
 integer:
 
-- Firebase RTDB: room `meta` and host `directory` carry `protocolMajor` (must
-  be `1`) and `protocolMinor` (any number). Clients check
-  `isCompatibleHelloIdentity({protocolMajor, capabilities: []})` before RTC.
-  Rules enforce `protocolMajor === 1`.
 - Server HTTP: `GET /v1/info` returns `{signalingVersion:1,
   appProtocolMajor:1, appProtocolMinor:1, appCapabilities:[...]}`.
   `POST /v1/join` requires `{appProtocolMajor:1, appProtocolMinor?:n,
@@ -272,7 +268,7 @@ Queue `50_000` items; chat `200` msgs / `500` text / `500` MOTD; render
 trackId/itemId `1..200`; sourceRevision `1..120`; names `1..48`, platform
 `≤32`; buffer `0..30000 ms`; seek `0..604800 s`; ODA opacity int `0..100`.
 
-Transport timeouts: ICE `15_000 ms`; Firebase step `8_000 ms`; reconnect
+Transport timeouts: ICE `15_000 ms`; reconnect
 `[2000,5000,10000,20000,30000]` with explicit `1000/2000/4000/15000` cases;
 kick dispose `80 ms`; host-full reap `5 s`; receiver clamp `0..4000 ms`;
 render monitor `500 ms`, stall `2500 ms`; server backoff

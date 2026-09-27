@@ -83,7 +83,8 @@
         "inviteTitle": "izci-server invitation",
         "enterInvite": "Paste the izci-server invitation link or invite code",
         "dismiss": "Dismiss",
-        "inviteInvalid": "That party invitation link could not be read."
+        "inviteInvalid": "That party invitation link could not be read.",
+        "legacyRetired": "Legacy multiplayer invitations have been retired. Ask the host for an izci-server invitation."
       }
     },
     "common": {
@@ -785,29 +786,9 @@
         "title": "Wait for clients",
         "hint": "Before starting a track, waits until every connected listener has loaded its transferred file or tuned to the audio stream."
       },
-      "autoHost": {
-        "title": "Always host for peers",
-        "hint": "Silently hosts on launch so paired devices can join without an invite code."
-      },
       "restoreSession": {
         "title": "Restore last session",
-        "hint": "Reconnects to the previous host or resumes hosting after relaunch. For izci-server guests, saves the invitation on this device."
-      },
-      "turnUrl": {
-        "title": "TURN server",
-        "hint": "Host-only relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. Listeners receive it with temporary credentials."
-      },
-      "turnSecret": {
-        "title": "TURN authentication secret",
-        "hint": "Host-only shared secret configured on the relay. Listeners receive encrypted temporary credentials and do not need this setting."
-      },
-      "turnLifetime": {
-        "title": "TURN credential lifetime",
-        "hint": "Sets the expiry of credentials minted for each listener. Longer values better tolerate long sessions and reconnects."
-      },
-      "forceTurn": {
-        "title": "Force TURN relay",
-        "hint": "Uses relay candidates only on the host and listeners. Enable temporarily to verify the relay or keep enabled when direct routes must never be used."
+        "hint": "Reconnects to a remembered izci-server invitation after relaunch. Hosting requires login."
       },
       "maxListeners": {
         "title": "Maximum guests",
@@ -846,16 +827,8 @@
       },
       "diagnostics": {
         "heading": "Connection diagnostics",
-        "signaling": "Firebase only exchanges the invite, session descriptions, and ICE candidates. Playback controls, catalog data, artwork, and audio use the resulting peer connection.",
-        "direct": "izci asks Cloudflare and Google STUN servers for public candidates, then tries direct routes. A TURN relay configured under Hosting adds a fallback path for restrictive NAT or firewalls.",
         "upnp": "A static public IP or router UPnP is no guarantee: Chromium picks its own ICE ports and izci never requests a UPnP mapping.",
         "messages": "No candidates at all points to browser or network policy; local-only candidates point to STUN failure; candidates on both sides with no connection point to NAT or firewall filtering."
-      },
-      "transport": {
-        "title": "Connection method",
-        "hint": "Firebase is the legacy invite-code path. izci-server uses a self-hosted server; hosting needs its operator key and guests need an izci-server invitation.",
-        "rtdb": "Firebase (legacy invites)",
-        "server": "izci-server"
       },
       "serverEndpoint": {
         "title": "izci-server",

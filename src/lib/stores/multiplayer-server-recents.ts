@@ -9,7 +9,7 @@ const SERVER_STORE_LIMIT = 8;
 const SERVER_LABEL_MAX = 120;
 
 /**
- * Server-specific recents, stored separately from RTDB UIDs/invite codes.
+ * Remembered izci-server rooms.
  * Operator keys live in their own opt-in store and login bearers are never
  * persisted; remembered host rooms may keep their owner/invitation secrets
  * when Remember was chosen.

@@ -33,8 +33,6 @@ import {
   type MultiplayerImplementation
 } from '$lib/services/multiplayer-protocol';
 import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
-import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
-import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
 import {
   formatMultiplayerAudioStatusLabel,
   formatConnectionStat,
@@ -51,8 +49,6 @@ interface MenuItemsDeps {
   translate: MenuTranslation;
   multiplayerMode: MultiplayerMode;
   multiplayerFreeplayEnabled: boolean;
-  multiplayerPairings: MultiplayerPairing[];
-  multiplayerRecents: MultiplayerRecent[];
   multiplayerInviteCode: string | null;
   multiplayerClients: MultiplayerClient[];
   multiplayerConnectionStatus: MultiplayerConnectionStatus;
@@ -151,45 +147,6 @@ function buildMultiplayerMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
         disabled: true,
         separatorBefore: true
       },
-      ...(deps.multiplayerPairings.length > 0
-        ? [
-            {
-              id: 'multiplayerPairedHosts',
-              label: deps.translate('main.multiplayer.pairedHosts', { default: 'Paired hosts' }),
-              icon: 'link',
-              disabled: true,
-              separatorBefore: true
-            } satisfies MenuActionItem,
-            ...deps.multiplayerPairings.map((pairing) => ({
-              id: `multiplayerJoinPaired:${pairing.hostId}`,
-              label: pairing.name,
-              description: deps.translate('main.multiplayer.instantJoin', { default: 'Join without a code' }),
-              icon: 'cast_connected',
-              removeActionId: `multiplayerForgetPairing:${pairing.hostId}`,
-              removeLabel: deps.translate('main.multiplayer.forgetPairing', {
-                default: 'Forget pairing with {name}',
-                values: { name: pairing.name }
-              })
-            } satisfies MenuActionItem))
-          ]
-        : []),
-      ...(deps.multiplayerRecents.length > 0
-        ? [
-            {
-              id: 'multiplayerRecents',
-              label: deps.translate('main.multiplayer.recents', { default: 'Recents' }),
-              icon: 'history',
-              disabled: true,
-              separatorBefore: deps.multiplayerPairings.length === 0
-            } satisfies MenuActionItem,
-            ...deps.multiplayerRecents.map((recent) => ({
-              id: `multiplayerJoinRecent:${recent.inviteCode}`,
-              label: recent.name,
-              description: recent.inviteCode,
-              icon: 'cast'
-            } satisfies MenuActionItem))
-          ]
-        : [])
     ] satisfies MenuActionItem[];
   }
 
