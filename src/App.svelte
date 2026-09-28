@@ -384,7 +384,7 @@
     multiplayerReconnecting: multiplayerState.reconnecting,
     multiplayerAudioStatus: multiplayerState.audioStatus,
     multiplayerConnectionRoute: multiplayerState.connectionRoute,
-    multiplayerAudioBitrateKbps: multiplayerState.averageAudioBitrateKbps,
+    multiplayerAudioBitrateKbps: multiplayerState.audioBitrateKbps,
     // Server invitations are managed by the setup service.
     multiplayerInviteCode: multiplayerState.inviteCode
       ?? ($serverSetup.inviteLink ? $serverSetup.hosted?.roomId.slice(0, 8) ?? 'Server' : null),
@@ -395,7 +395,7 @@
     multiplayerFreeplayEnabled: $multiplayerSettings.multiplayerFreeplay,
     multiplayerFreeplay: multiplayerState.freeplay,
     multiplayerReceiveAudio: multiplayerState.receiveAudio,
-    multiplayerConnectionStats: multiplayerState.connectionStats,
+    multiplayerDeliveryMode: multiplayerState.remoteDelivery.mode,
     multiplayerClients: multiplayerState.clients,
   };
 

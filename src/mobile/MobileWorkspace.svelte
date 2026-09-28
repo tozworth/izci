@@ -19,10 +19,10 @@
   import type {
     MultiplayerClient,
     MultiplayerAudioStatus,
-    MultiplayerConnectionStats,
     MultiplayerConnectionStatus,
     MultiplayerMode
   } from '$lib/services/multiplayer-types';
+  import type { MultiplayerDeliveryMode } from '$lib/services/multiplayer-protocol';
   import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
   import type { WorkspaceTabContentProps } from '$lib/components/workspace/types';
   import MobileMenuDrawer from './MobileMenuDrawer.svelte';
@@ -62,7 +62,7 @@
   export let multiplayerHostProtocol: { major: number; minor: number } | null = null;
   export let multiplayerFreeplay = false;
   export let multiplayerReceiveAudio = true;
-  export let multiplayerConnectionStats: MultiplayerConnectionStats | null = null;
+  export let multiplayerDeliveryMode: MultiplayerDeliveryMode = 'none';
   export let multiplayerClients: MultiplayerClient[] = [];
 
   const dispatch = createEventDispatcher<{
@@ -394,7 +394,7 @@
     audioBitrateKbps={multiplayerAudioBitrateKbps}
     receiveAudio={multiplayerReceiveAudio}
     freeplay={multiplayerFreeplay}
-    connectionStats={multiplayerConnectionStats}
+    deliveryMode={multiplayerDeliveryMode}
     on:close={() => (multiplayerStatsOpen = false)}
   />
 {/if}

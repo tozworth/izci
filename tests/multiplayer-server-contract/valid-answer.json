@@ -1,1 +1,1 @@
-{"version": 1, "type": "answer", "requestId": "req-host-5", "attemptId": "0123456789abcdef0123456789abcdef", "payload": {"sdp": "v=0\no=host 1 1 IN IP4 192.0.2.2\ns=izci\nt=0 0\nm=audio 9 UDP/TLS/RTP/SAVPF 111\n"}}
+{"version": 1, "type": "answer", "requestId": "req-host-5", "attemptId": "0123456789abcdef0123456789abcdef", "payload": {"sdp": "v=0\no=host 1 1 IN IP4 192.0.2.2\ns=izci\nt=0 0\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\n"}}

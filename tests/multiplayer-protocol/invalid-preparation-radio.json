@@ -1,0 +1,8 @@
+{
+  "kind": "playback.prepare",
+  "preparation": {
+    "generationId": "old-radio",
+    "trackId": "track",
+    "delivery": "stream"
+  }
+}

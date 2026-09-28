@@ -76,8 +76,7 @@ export async function stopHosting(ctx: MultiplayerHostContext): Promise<void> {
     clients: [],
     audioStatus: 'idle',
     connectionRoute: null,
-    averageAudioBitrateKbps: null,
-    connectionStats: null,
+    audioBitrateKbps: null,
     connectionDetail: null,
     message: null
   });

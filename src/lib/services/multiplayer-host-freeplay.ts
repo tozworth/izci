@@ -1,7 +1,6 @@
 import type { TrackItem } from '$lib/types';
 import { materializeTrackItem } from '$lib/stores/queue-materialization';
 import { logDebug, logInfo, logWarning } from '$lib/services/logging';
-import { multiplayerAudioService } from './multiplayer-audio';
 import {
   getMultiplayerArtworkTrackKey,
   loadMultiplayerArtwork
@@ -11,7 +10,7 @@ import {
   createFreeplayStepResolver,
   type MultiplayerFreeplayPlayerUpdate
 } from './multiplayer-freeplay';
-import { applyAudioBitrate, sendToPeer } from './multiplayer-peer';
+import { sendToPeer } from './multiplayer-peer';
 import { multiplayerRenderCoordinator } from './multiplayer-render-coordinator';
 import { buildRenderCacheKey } from './multiplayer-render-cache';
 import {
@@ -93,29 +92,6 @@ export async function syncPeerFreeplayMode(ctx: MultiplayerHostContext, peer: Pe
       () => freeplayCollectionItems(ctx, peer, peer.freeplayCollection)
     );
     peer.freeplayUpNext = [];
-    // The stable wire only matters for streamed (video) Freeplay; buffered
-    // Opus peers do not need it. A missing wire must not kill the session.
-    const wireTrack = await player.ensureWire().catch(() => null);
-    if (peer.freeplayPlayer !== player || !peer.freeplay) return;
-    try {
-      if (wireTrack && peer.audioSender) {
-        await peer.audioSender.replaceTrack(wireTrack);
-        await applyAudioBitrate(peer, core.multiplayerSettings.multiplayerOpusBitrateKbps);
-        logInfo('freeplay', 'Freeplay stable wire attached', {
-          peerId: peer.id,
-          trackId: wireTrack.id
-        });
-      }
-    } catch (error) {
-      logWarning('freeplay', 'Freeplay stable wire attach failed', {
-        peerId: peer.id,
-        error
-      });
-      player.destroy();
-      peer.freeplayPlayer = null;
-      peer.pc.close();
-      return;
-    }
     const previousSelection = core.freeplaySelections.get(peer.id);
     if (previousSelection) {
       void activateFreeplayTrack(ctx, peer, 'queue', previousSelection.id);
@@ -166,7 +142,6 @@ export async function syncPeerFreeplayMode(ctx: MultiplayerHostContext, peer: Pe
     freeplay: active
   });
   peer.freeplaySettled = true;
-  if (!active) await syncSharedPeerAudio(ctx, peer);
   sendPairingState(ctx, peer);
   if (changed || peer.channel?.readyState === 'open') ctx.sendCurrentState(peer);
   if (peer.mediaSyncPending || peer.mediaChannel?.readyState === 'open') {
@@ -371,17 +346,6 @@ export function sendPairingState(ctx: MultiplayerHostContext, peer: PeerConnecti
   });
 }
 
-async function syncSharedPeerAudio(ctx: MultiplayerHostContext, peer: PeerConnection): Promise<void> {
-  const { core } = ctx;
-  const track = core.latestDelivery.mode === 'stream'
-    ? multiplayerAudioService.getHostTrack()
-    : null;
-  if (peer.audioSender?.track !== track) {
-    await peer.audioSender?.replaceTrack(track).catch(() => undefined);
-  }
-  await applyAudioBitrate(peer, core.multiplayerSettings.multiplayerOpusBitrateKbps);
-}
-
 function syncFreeplayPlayerUpdate(
   ctx: MultiplayerHostContext,
   peer: PeerConnection,
@@ -524,9 +488,7 @@ async function activateFreeplayTrack(
     itemId
   });
   peer.freeplayPendingPreparation = null;
-  // Silence the stable wire before file materialization. This gives the
-  // continuously consuming receiver route the entire load interval to drain
-  // prior audio while leaving source-file clients on their local timeline.
+  // Pause the host-owned timeline before materializing the next track.
   peer.freeplayPlayer.pause();
   const track = await materializeTrackItem(source, false);
   if (peer.freeplayActivation !== activation
@@ -561,9 +523,8 @@ async function activateFreeplayTrack(
   const autoPlay = activation.autoPlay;
   peer.freeplayActivation = null;
   if (!autoPlay) return true;
-  // The stable receiver route must be ready before a streamed renderer starts;
-  // source-file delivery uses the same generation ack only to confirm that the
-  // complete file is locally loadable. Its host timeline remains passive.
+  // Wait for buffered Opus readiness or a locally loadable source file.
+  // Source-file delivery keeps the host timeline passive.
   beginFreeplayPlaybackPreparation(peer);
   return true;
 }

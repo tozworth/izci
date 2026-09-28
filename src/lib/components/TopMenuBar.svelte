@@ -21,10 +21,10 @@
   import type {
     MultiplayerClient,
     MultiplayerAudioStatus,
-    MultiplayerConnectionStats,
     MultiplayerConnectionStatus,
     MultiplayerMode
   } from '$lib/services/multiplayer-types';
+  import type { MultiplayerDeliveryMode } from '$lib/services/multiplayer-protocol';
   import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
   import type { OptionsViewName } from '../../options/views';
 
@@ -58,7 +58,7 @@
   export let multiplayerFreeplayEnabled = false;
   export let multiplayerFreeplay = false;
   export let multiplayerReceiveAudio = true;
-  export let multiplayerConnectionStats: MultiplayerConnectionStats | null = null;
+  export let multiplayerDeliveryMode: MultiplayerDeliveryMode = 'none';
   export let multiplayerClients: MultiplayerClient[] = [];
 
   const dispatch = createEventDispatcher<{
@@ -137,7 +137,7 @@
     multiplayerHostVersion,
     multiplayerHostImplementation,
     multiplayerHostProtocol,
-    multiplayerConnectionStats,
+    multiplayerDeliveryMode,
     multiplayerEnabled,
     playingTrack,
     installAvailable,

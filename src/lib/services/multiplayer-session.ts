@@ -4,7 +4,6 @@ import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
 import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { getRememberedServerInvitation } from '$lib/stores/multiplayer-server-recents';
 import { logDebug, logWarning } from '$lib/services/logging';
-import { multiplayerAudioService } from './multiplayer-audio';
 import { multiplayerSourcePlaybackService } from './multiplayer-source-playback';
 import { multiplayerRenderPlaybackService } from './multiplayer-render-playback';
 import { multiplayerRenderCoordinator } from './multiplayer-render-coordinator';
@@ -250,7 +249,6 @@ export function createMultiplayerSession({
     core.serverHost = null;
     core.serverGuest?.dispose();
     core.serverGuest = null;
-    client.clearReceiverMonitor();
     client.resetTransitions();
     for (const peer of core.hostPeers.values()) {
       disposePeerConnection(peer);
@@ -262,7 +260,6 @@ export function createMultiplayerSession({
     const previousClientPeer = core.clientPeer;
     core.clientPeer = null;
     if (previousClientPeer) disposePeerConnection(previousClientPeer);
-    multiplayerAudioService.clearRemoteTrack();
     multiplayerSourcePlaybackService.clearLoadedFile();
     multiplayerRenderPlaybackService.release();
     core.pendingClientSourceFile = null;
@@ -273,7 +270,6 @@ export function createMultiplayerSession({
     }
     core.hostPlaybackPreparation = null;
     core.bypassHostPlaybackGateTrackId = null;
-    multiplayerAudioService.releaseHostTrack();
 
     if (removeRemote && serverHost) {
       // Close the hosted room and revoke the login bearer server-side.
@@ -383,7 +379,7 @@ export function createMultiplayerSession({
     }
     if (core.state.mode === 'client' && core.clientPeer && audioBufferChanged
       && core.hostAudioBufferMs === null) {
-      client.applyClientAudioBuffer(core.clientPeer);
+      client.applyClientAudioBuffer();
     }
     if (core.state.mode === 'client' && core.clientPeer && freeplayPreferenceChanged) {
       sendToPeer(core.clientPeer, {
@@ -518,9 +514,8 @@ function getInitialState(): MultiplayerSessionState {
     serverHostAuth: null,
     remoteDelivery: { ...EMPTY_DELIVERY },
     connectionRoute: null,
-    averageAudioBitrateKbps: null,
+    audioBitrateKbps: null,
     receiveAudio: readReceiveAudioPreference(),
-    connectionStats: null,
     connectionDetail: null,
     message: null
   };

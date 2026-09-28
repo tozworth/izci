@@ -37,10 +37,10 @@ describe('multiplayer render delivery selection', () => {
     };
   }
 
-  it('pre-renders audio and modules over the limit, and keeps live RTP only for video', () => {
+  it('pre-renders audio and modules, and transfers video sources', () => {
     expect(resolveMultiplayerDeliveryMode(track('stream'), true)).toBe('render');
     expect(resolveMultiplayerDeliveryMode(track('module'), true)).toBe('render');
-    expect(resolveMultiplayerDeliveryMode(track('video'), true)).toBe('stream');
+    expect(resolveMultiplayerDeliveryMode(track('video'), true)).toBe('source-file');
   });
 
   it('transfers files under the "Send files under" limit whole', () => {
@@ -51,8 +51,8 @@ describe('multiplayer render delivery selection', () => {
     // 0 = off (everything renders), < 0 = every file transfers.
     expect(resolveMultiplayerDeliveryMode(track('stream', 1), true, 0)).toBe('render');
     expect(resolveMultiplayerDeliveryMode(track('stream', 1), true, -1)).toBe('source-file');
-    // Video ignores the limit and keeps the live RTP path.
-    expect(resolveMultiplayerDeliveryMode(track('video', 1), true, 8)).toBe('stream');
+    // Video always transfers its source, preserving native client playback.
+    expect(resolveMultiplayerDeliveryMode(track('video', 1), true, 8)).toBe('source-file');
     // Unknown size falls back to pre-rendering rather than transferring.
     expect(resolveMultiplayerDeliveryMode({ ...track('stream'), size: 0 }, true, 8)).toBe('render');
   });

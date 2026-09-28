@@ -138,7 +138,7 @@
 - One izci hosts its catalog and playback state, while joined izci clients provide a remote view, transport/track controls and streamed audio. The host remains authoritative.
 - Multiplayer settings live in synchronized `multiplayer-settings.ts` and default to singleplayer.
 - Multiplayer uses the self-hosted izci-server exclusively for short-lived signaling, then WebRTC data channels for peer traffic. Keep session lifecycle, protocol/versioning, and persisted recent hosts in dedicated `multiplayer-*` modules, separate from queue/library data.
-- Streamed Multiplayer audio is host renderer output after transport envelopes but before ReplayGain, Raf, analysis, or master volume; listeners own any later processing.
+- Multiplayer audio delivery has exactly two paths: buffered Opus renders over data channels and source-file delivery (including videos). No live RTP audio or jitter-buffer pathway. Listeners own ReplayGain, Raf, analysis, and master volume.
 - Freeplay is a persisted per-pair Multiplayer mode. Each active Freeplay client browses the host library but owns an independent host-side renderer and timeline; never route Freeplay through the host queue or shared player controller.
 
 ## izci-server

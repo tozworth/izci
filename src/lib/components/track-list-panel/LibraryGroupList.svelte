@@ -3,6 +3,7 @@
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import { formatTotalDuration } from './search';
+  import { getLocalizedItemCount } from './summaries';
   import type { LibraryGroup, LibraryGroupViewId } from './library-views';
 
   export let groups: LibraryGroup[] = [];
@@ -198,10 +199,7 @@
           <span class="library-group-pin-spacer" aria-hidden="true"></span>
         {/if}
         <span class="library-group-meta">
-          <span class="library-group-song-count">{$t('library.groupSongCount', {
-            default: '{count, plural, one {# song} other {# songs}}',
-            values: { count: group.items.length }
-          })}</span>
+          <span class="library-group-song-count">{getLocalizedItemCount(group.items, $t)}</span>
           {#if group.duration > 0}
             <span class="library-group-meta-divider" aria-hidden="true">·</span>
             <span class="library-group-runtime">{formatTotalDuration(group.duration)}</span>

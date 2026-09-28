@@ -1,4 +1,5 @@
-import type { MultiplayerAudioStatus, MultiplayerConnectionStats, MultiplayerConnectionStatus } from '$lib/services/multiplayer-types';
+import type { MultiplayerDeliveryMode } from './multiplayer-protocol';
+import type { MultiplayerAudioStatus, MultiplayerConnectionStatus } from '$lib/services/multiplayer-types';
 import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
 
 export type MenuTranslation = (id: string | { id: string; locale?: string; format?: string; default?: string; values?: Record<string, string | number | boolean | Date | null | undefined> }, options?: { locale?: string; format?: string; default?: string; values?: Record<string, string | number | boolean | Date | null | undefined> }) => string;
@@ -41,33 +42,12 @@ export function formatConnectionStat(connectionStatus: MultiplayerConnectionStat
   return [connectionStatus, routeLabel].filter(Boolean).join(' · ') || '—';
 }
 
-export function formatAudioStat(receiveAudio: boolean, stats: MultiplayerConnectionStats | null, bitrateKbps: number | null, t: MenuTranslation): string {
+export function formatAudioStat(receiveAudio: boolean, delivery: MultiplayerDeliveryMode, bitrateKbps: number | null, t: MenuTranslation): string {
   if (!receiveAudio) return t('main.multiplayer.audio.refused', { default: 'Refused' });
-  return [
-    stats?.codec,
-    bitrateKbps === null ? null : `${bitrateKbps} kbps`
-  ].filter(Boolean).join(' · ') || '—';
-}
-
-export function formatPacketLoss(lost?: number, received?: number, percent?: number | null): string {
-  if (lost === undefined || received === undefined) return '—';
-  return `${lost} / ${received + lost}${percent === null || percent === undefined ? '' : ` · ${percent}%`}`;
-}
-
-export function formatBytes(value: number | null | undefined): string {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return '—';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let scaled = value;
-  let unit = 0;
-  while (scaled >= 1000 && unit < units.length - 1) {
-    scaled /= 1000;
-    unit += 1;
+  if (delivery === 'source-file') return t('main.multiplayer.audio.sourceFile', { default: 'Source file' });
+  if (delivery === 'render') {
+    const label = t('main.multiplayer.audio.bufferedOpus', { default: 'Buffered Opus' });
+    return bitrateKbps === null ? label : `${label} · ${bitrateKbps} kbps`;
   }
-  return `${scaled >= 100 || unit === 0 ? Math.round(scaled) : Math.round(scaled * 10) / 10} ${units[unit]}`;
-}
-
-export function formatTimingStat(stats: MultiplayerConnectionStats | null): string {
-  const jitter = stats?.jitterMs;
-  const rtt = stats?.roundTripTimeMs;
-  return `${jitter === null || jitter === undefined ? '—' : `${jitter} ms`} · ${rtt === null || rtt === undefined ? '—' : `${rtt} ms`}`;
+  return t('main.multiplayer.audio.disabled', { default: 'Host audio is off' });
 }

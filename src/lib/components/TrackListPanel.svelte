@@ -530,9 +530,9 @@
       ? orderLibraryGroups(libraryGroups, pinnedLibraryGroupKeys)
       : [];
   $: visibleLibraryGroups = groupView ? filterLibraryGroups(orderedLibraryGroups, normalizedSearchQuery) : [];
-  $: visibleGroupSongCount = new Set(
-    visibleLibraryGroups.flatMap((group) => group.items.map((item) => item.id))
-  ).size;
+  $: visibleGroupItems = [...new Map(
+    visibleLibraryGroups.flatMap((group) => group.items.map((item) => [item.id, item] as const))
+  ).values()];
   $: selectedLibraryGroup = selectedGroupKey
     ? libraryGroups.find((group) => group.key === selectedGroupKey) ?? null
     : null;
@@ -561,10 +561,10 @@
     : filterItemsByQuery(unfilteredDisplayItems, normalizedSearchQuery);
   $: trackSummary = selectedLibraryGroup
     ? getLibraryGroupTrackSummary(selectedLibraryGroup, filteredItems, $t)
-    : getLocalizedTrackSummary(displaySourceItems, filteredItems, normalizedSearchQuery, $t, libraryMode);
+    : getLocalizedTrackSummary(displaySourceItems, filteredItems, normalizedSearchQuery, $t);
   $: libraryTooltipDetails = getLibraryViewTooltipDetails(items, favoriteItems, normalizedSearchQuery, $locale ?? undefined);
   $: librarySummary = groupView && !selectedLibraryGroup
-    ? getLibraryGroupSummary(groupView, visibleLibraryGroups.length, libraryGroups.length, normalizedSearchQuery ? visibleGroupSongCount : items.length, normalizedSearchQuery, $t)
+    ? getLibraryGroupSummary(groupView, visibleLibraryGroups.length, libraryGroups.length, normalizedSearchQuery ? visibleGroupItems : items, normalizedSearchQuery, $t)
     : trackSummary;
   $: repeatIcon = repeatMode === 'one' ? 'repeat_one' : 'repeat';
   $: repeatLabel = getRepeatControlLabel(repeatMode, $t);

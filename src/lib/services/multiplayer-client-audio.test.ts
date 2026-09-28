@@ -2,10 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { MultiplayerClientContext } from './multiplayer-client';
 import type { PeerConnection } from './multiplayer-types';
 
-const audio = vi.hoisted(() => ({ setRemoteAudible: vi.fn() }));
 const peerIo = vi.hoisted(() => ({ sendToPeer: vi.fn() }));
 
-vi.mock('./multiplayer-audio', () => ({ multiplayerAudioService: audio }));
 vi.mock('./multiplayer-peer', () => peerIo);
 vi.mock('./multiplayer-render-playback', () => ({
   multiplayerRenderPlaybackService: { ingest: vi.fn() }
@@ -52,7 +50,6 @@ describe('multiplayer source-file channel generations', () => {
       data: JSON.stringify({ kind: 'file.end', transferId: 'stale-transfer' })
     } as MessageEvent);
 
-    expect(audio.setRemoteAudible).not.toHaveBeenCalled();
     expect(core.pendingClientSourceFile).toBeNull();
     expect(core.publish).not.toHaveBeenCalled();
     expect(peerIo.sendToPeer).not.toHaveBeenCalled();

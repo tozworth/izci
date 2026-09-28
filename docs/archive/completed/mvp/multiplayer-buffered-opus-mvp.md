@@ -1,5 +1,7 @@
 # Multiplayer buffered Opus MVP
 
+Current implementation (2026-09-28): live RTP has also been removed for video; videos use source-file delivery. Historical video exceptions below describe the earlier implementation.
+
 ## Decision
 
 Two delivery pathways replace live WebRTC audio ("internet radio mode"), selected per track by the **Send files under** limit:

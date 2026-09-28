@@ -18,10 +18,6 @@ export class AudioBusService {
   #output: GainNode | null = null;
   #rafEngine: RafEngine | null = null;
   #analyser: AnalyserNode | null = null;
-  #broadcastGain: GainNode | null = null;
-  #broadcastDestination: MediaStreamAudioDestinationNode | null = null;
-  #broadcastSource: AudioNode | null = null;
-  #broadcastGainValue = 1;
   #sourceRoutes = new Map<AudioBusSource, AudioBusSourceRoute>();
   #mediaSources = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
   #outputGain = 1;
@@ -46,7 +42,7 @@ export class AudioBusService {
         this.#mediaSources.set(element, source);
       }
 
-      this.#connectSource(source, true);
+      this.#connectSource(source);
       return source;
     } catch (error) {
       // If Web Audio cannot adopt the element, leave Howler's native output untouched.
@@ -66,7 +62,7 @@ export class AudioBusService {
       throw new Error('Audio bus sources must use the shared AudioContext.');
     }
 
-    this.#connectSource(node, true);
+    this.#connectSource(node);
     return node;
   }
 
@@ -87,66 +83,6 @@ export class AudioBusService {
     }
 
     this.#sourceRoutes.delete(source);
-  }
-
-  connectMediaStream(stream: MediaStream | null): MediaStreamAudioSourceNode | null {
-    if (!stream || stream.getAudioTracks().length === 0) return null;
-
-    this.#ensureGraph();
-
-    try {
-      const source = this.context.createMediaStreamSource(stream);
-      // Received WebRTC audio is a listener-only source and must never feed a
-      // host broadcast tap, even if session teardown and startup overlap.
-      this.#connectSource(source, false);
-      return source;
-    } catch {
-      return null;
-    }
-  }
-
-  getBroadcastTrack(): MediaStreamTrack | null {
-    this.#ensureGraph();
-    if (!this.#context || !this.#program) return null;
-
-    if (!this.#broadcastDestination) {
-      const gain = this.#context.createGain();
-      const destination = this.#context.createMediaStreamDestination();
-      destination.channelCount = 2;
-      gain.gain.value = this.#broadcastGainValue;
-      this.#program.connect(gain);
-      gain.connect(destination);
-      this.#broadcastGain = gain;
-      this.#broadcastDestination = destination;
-      this.#broadcastSource = this.#program;
-    }
-
-    const track = this.#broadcastDestination.stream.getAudioTracks()[0] ?? null;
-    if (track && 'contentHint' in track) track.contentHint = 'music';
-    return track;
-  }
-
-  setBroadcastGain(gain: number): void {
-    this.#broadcastGainValue = Math.max(gain, 0);
-    if (!this.#broadcastGain || !this.#context) return;
-    setAudioParam(this.#broadcastGain.gain, this.#broadcastGainValue, this.#context);
-  }
-
-  releaseBroadcastTrack(): void {
-    const destination = this.#broadcastDestination;
-    if (!destination) return;
-
-    for (const track of destination.stream.getTracks()) track.stop();
-    try {
-      this.#broadcastSource?.disconnect(this.#broadcastGain as GainNode);
-      this.#broadcastGain?.disconnect();
-      destination.disconnect();
-    } catch {
-      // The graph may already be closing.
-    }
-    this.#broadcastGain = null;
-    this.#broadcastDestination = null;
-    this.#broadcastSource = null;
   }
 
   setSourceGain(source: AudioBusSource | null, gain: number, durationSeconds = 0): void {
@@ -229,7 +165,6 @@ export class AudioBusService {
   destroy(): void {
     logInfo('playback', 'Audio graph destroyed');
     for (const source of this.#sourceRoutes.keys()) this.disconnect(source);
-    this.releaseBroadcastTrack();
     visualizerService.clear();
 
     try {
@@ -250,9 +185,6 @@ export class AudioBusService {
     this.#output = null;
     this.#rafEngine = null;
     this.#analyser = null;
-    this.#broadcastGain = null;
-    this.#broadcastDestination = null;
-    this.#broadcastSource = null;
     this.#mediaSources = new WeakMap();
     this.#sourceRoutes.clear();
 
@@ -261,7 +193,7 @@ export class AudioBusService {
     }
   }
 
-  #connectSource(source: AudioBusSource, broadcastEligible: boolean): void {
+  #connectSource(source: AudioBusSource): void {
     if (this.#sourceRoutes.has(source) || !this.#input || !this.#program || !this.#context) {
       return;
     }
@@ -273,7 +205,7 @@ export class AudioBusService {
     source.connect(transitionGain);
     transitionGain.connect(localGain);
     localGain.connect(this.#input);
-    if (broadcastEligible) transitionGain.connect(this.#program);
+    transitionGain.connect(this.#program);
     this.#sourceRoutes.set(source, { transitionGain, localGain });
   }
 

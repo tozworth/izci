@@ -1,8 +1,3 @@
-import type { ChiptuneJsPlayer } from 'chiptune3';
-import { audioBusService } from '$lib/services/audio-bus';
-import { createChiptunePlayer } from '$lib/services/chiptune-loader';
-import { logWarning } from '$lib/services/logging';
-import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { createQueueNavigation } from '$lib/stores/queue-navigation';
 import type { PlaybackSnapshot, TrackItem, RepeatMode } from '$lib/types';
 import type {
@@ -16,7 +11,7 @@ interface MultiplayerFreeplayAudioSettings {
   enabled: boolean;
   /**
    * Pre-resolved delivery for the track: 'render' (buffered Opus), 'source-file'
-   * (direct transfer, timeline-passive) or 'stream' (video live RTP).
+   * (direct transfer, timeline-passive).
    */
   delivery: MultiplayerDeliveryMode;
 }
@@ -42,23 +37,14 @@ const EMPTY_SNAPSHOT: PlaybackSnapshot = {
 };
 
 /**
- * A host-side player whose output exists only on a single peer's WebRTC sender.
- * It deliberately never enters the shared player controller or speaker graph.
+ * An independent host-side timeline for a peer's buffered Opus delivery.
+ * Source files play on the client; this never enters the shared player controller.
  */
 export class MultiplayerFreeplayPlayer {
   #track: TrackItem | null = null;
   #snapshot: PlaybackSnapshot = { ...EMPTY_SNAPSHOT };
   #delivery: MultiplayerDeliveryMode = 'none';
-  #element: HTMLMediaElement | null = null;
-  #elementSource: MediaElementAudioSourceNode | null = null;
-  #modulePlayer: ChiptuneJsPlayer | null = null;
-  #wireDestination: MediaStreamAudioDestinationNode | null = null;
-  #silenceSource: ConstantSourceNode | null = null;
-  #silenceGain: GainNode | null = null;
-  #wirePromise: Promise<MediaStreamTrack | null> | null = null;
-  #objectUrl: string | null = null;
   #progressTimer: ReturnType<typeof globalThis.setInterval> | null = null;
-  #loadToken = 0;
   #playIntent = false;
   #timelineTickAt = 0;
   readonly #getAudioSettings: CreateMultiplayerFreeplayPlayerOptions['getAudioSettings'];
@@ -92,54 +78,10 @@ export class MultiplayerFreeplayPlayer {
     return this.#delivery;
   }
 
-  get streamTrack(): MediaStreamTrack | null {
-    return this.#wireDestination?.stream.getAudioTracks()[0] ?? null;
-  }
-
-  /** Create the peer's sender track once and keep it alive with silent RTP. */
-  async ensureWire(): Promise<MediaStreamTrack | null> {
-    if (this.streamTrack?.readyState === 'live') return this.streamTrack;
-    if (this.#wirePromise) return this.#wirePromise;
-    const token = this.#loadToken;
-    const creating = this.#createWire(token);
-    this.#wirePromise = creating;
-    try {
-      return await creating;
-    } finally {
-      if (this.#wirePromise === creating) this.#wirePromise = null;
-    }
-  }
-
-  async #createWire(token: number): Promise<MediaStreamTrack | null> {
-    let context: AudioContext;
-    try {
-      context = audioBusService.context;
-    } catch {
-      return null;
-    }
-    await audioBusService.resume();
-    if (token !== this.#loadToken) return null;
-    const destination = context.createMediaStreamDestination();
-    destination.channelCount = 2;
-    const silenceSource = context.createConstantSource();
-    const silenceGain = context.createGain();
-    silenceGain.gain.value = 0;
-    silenceSource.connect(silenceGain);
-    silenceGain.connect(destination);
-    silenceSource.start();
-    this.#wireDestination = destination;
-    this.#silenceSource = silenceSource;
-    this.#silenceGain = silenceGain;
-    const track = this.streamTrack;
-    if (track && 'contentHint' in track) track.contentHint = 'music';
-    return track;
-  }
-
   async load(track: TrackItem, autoPlay = false, initialPosition = 0): Promise<boolean> {
     if (!track.file) return false;
-    const token = ++this.#loadToken;
     this.#playIntent = autoPlay;
-    this.#disposeRenderer();
+    this.#stopProgress();
     this.#track = track;
     this.#snapshot = {
       ...EMPTY_SNAPSHOT,
@@ -153,32 +95,15 @@ export class MultiplayerFreeplayPlayer {
     this.#delivery = !settings.enabled
       ? 'none'
       : settings.delivery === 'render'
-        || settings.delivery === 'stream'
         || settings.delivery === 'source-file'
       ? settings.delivery
       : 'none';
     this.#publish();
 
-    try {
-      if (this.#delivery === 'stream') {
-        if (!await this.ensureWire()) throw new Error('Freeplay wire is unavailable.');
-        if (track.kind === 'module') await this.#loadModuleRenderer(track, token);
-        else await this.#loadMediaRenderer(track, token);
-      }
-    } catch {
-      if (token !== this.#loadToken) return false;
-      this.#snapshot = { ...this.#snapshot, state: 'error', error: 'Freeplay could not render this track.' };
-      this.#publish();
-      return false;
-    }
-
-    if (token !== this.#loadToken) return false;
-    const passive = this.#delivery !== 'stream';
     this.#snapshot = {
       ...this.#snapshot,
-      state: passive ? 'idle' : 'paused',
-      currentTime: passive ? 0 : Math.min(this.#snapshot.currentTime, finiteDuration(this.#snapshot.duration)),
-      error: undefined
+      state: 'idle',
+      currentTime: this.#delivery === 'render' ? Math.max(initialPosition, 0) : 0
     };
     this.#timelineTickAt = Date.now();
     this.seek(this.#snapshot.currentTime);
@@ -210,32 +135,6 @@ export class MultiplayerFreeplayPlayer {
       this.#publish();
       return true;
     }
-    if (this.#delivery !== 'stream') return true;
-    if (this.#snapshot.state === 'error') {
-      this.#snapshot = { ...this.#snapshot, state: 'paused', error: undefined };
-    }
-    const audioReady = await audioBusService.resume();
-    if (!audioReady) {
-      this.#snapshot = { ...this.#snapshot, state: 'error', error: 'Freeplay audio could not start.' };
-      logWarning('freeplay', 'Freeplay audio context is blocked', { trackId: this.#track.id });
-      this.#publish();
-      return false;
-    }
-    try {
-      if (this.#element) await this.#element.play();
-      else if (this.#modulePlayer) {
-        if (this.#snapshot.currentTime > 0) this.#modulePlayer.seek(this.#snapshot.currentTime);
-        this.#modulePlayer.unpause();
-      }
-    } catch (error) {
-      this.#snapshot = { ...this.#snapshot, state: 'error', error: 'Freeplay audio could not start.' };
-      logWarning('freeplay', 'Freeplay renderer could not start', { trackId: this.#track.id, error });
-      this.#publish();
-      return false;
-    }
-    this.#snapshot = { ...this.#snapshot, state: 'playing', error: undefined };
-    this.#startProgress();
-    this.#publish();
     return true;
   }
 
@@ -249,13 +148,6 @@ export class MultiplayerFreeplayPlayer {
       this.#publish();
       return true;
     }
-    if (this.#delivery !== 'stream') return true;
-    const current = this.#currentSnapshot().currentTime;
-    this.#element?.pause();
-    this.#modulePlayer?.pause();
-    this.#snapshot = { ...this.#snapshot, state: 'paused', currentTime: current };
-    this.#stopProgress();
-    this.#publish();
     return true;
   }
 
@@ -278,122 +170,15 @@ export class MultiplayerFreeplayPlayer {
       this.#publish();
       return true;
     }
-    if (this.#delivery !== 'stream') return true;
-    const duration = finiteDuration(this.#snapshot.duration);
-    const target = Math.min(Math.max(seconds, 0), duration);
-    if (this.#element) this.#element.currentTime = target;
-    if (this.#modulePlayer) this.#modulePlayer.seek(target);
-    this.#snapshot = { ...this.#snapshot, currentTime: target };
-    this.#publish();
     return true;
   }
 
   destroy(): void {
-    this.#loadToken += 1;
     this.#stopProgress();
-    this.#disposeRenderer();
-    this.#disposeWire();
     this.#track = null;
     this.#delivery = 'none';
     this.#playIntent = false;
     this.#snapshot = { ...EMPTY_SNAPSHOT };
-  }
-
-  async #loadMediaRenderer(track: TrackItem, token: number): Promise<void> {
-    const context = audioBusService.context;
-    await audioBusService.resume();
-    const element = document.createElement(track.kind === 'video' ? 'video' : 'audio');
-    element.preload = 'auto';
-    element.setAttribute('playsinline', '');
-    element.volume = 1;
-    const objectUrl = URL.createObjectURL(track.file!);
-    const source = context.createMediaElementSource(element);
-    this.#connectRenderer(source);
-
-    await new Promise<void>((resolve, reject) => {
-      const cleanup = () => {
-        element.removeEventListener('loadedmetadata', loaded);
-        element.removeEventListener('error', failed);
-      };
-      const loaded = () => {
-        cleanup();
-        if (token !== this.#loadToken) return resolve();
-        this.#snapshot = {
-          ...this.#snapshot,
-          duration: positiveNumber(element.duration) || this.#snapshot.duration
-        };
-        resolve();
-      };
-      const failed = () => {
-        cleanup();
-        disposeMediaRenderer(element, source, objectUrl);
-        reject(new Error('Media element rejected the Freeplay source.'));
-      };
-      element.addEventListener('loadedmetadata', loaded);
-      element.addEventListener('error', failed);
-      element.src = objectUrl;
-      element.load();
-    });
-    if (token !== this.#loadToken) {
-      disposeMediaRenderer(element, source, objectUrl);
-      return;
-    }
-    this.#element = element;
-    this.#elementSource = source;
-    this.#objectUrl = objectUrl;
-    element.addEventListener('ended', this.#handleEnded);
-  }
-
-  async #loadModuleRenderer(track: TrackItem, token: number): Promise<void> {
-    const context = audioBusService.context;
-    await audioBusService.resume();
-    const settings = modulePlaybackSettings.getSnapshot();
-    const player = await createChiptunePlayer({
-      context,
-      repeatCount: 0,
-      stereoSeparation: settings.stereoSeparation,
-      interpolationFilter: settings.interpolationFilter
-    });
-    if (token !== this.#loadToken) {
-      disposeModulePlayer(player);
-      return;
-    }
-    const buffer = await track.file!.arrayBuffer();
-    if (token !== this.#loadToken) {
-      disposeModulePlayer(player);
-      return;
-    }
-    this.#connectRenderer(player.gain);
-    this.#modulePlayer = player;
-    player.setVol(1);
-    player.setRepeatCount(0);
-    player.onMetadata((metadata) => {
-      if (player !== this.#modulePlayer) return;
-      this.#snapshot = {
-        ...this.#snapshot,
-        duration: positiveNumber(metadata.dur) || this.#snapshot.duration
-      };
-      this.#publish();
-    });
-    player.onProgress((progress) => {
-      if (player !== this.#modulePlayer) return;
-      this.#snapshot = { ...this.#snapshot, currentTime: Math.max(progress.pos, 0) };
-    });
-    player.onEnded(() => this.#handleEnded());
-    player.onError(() => {
-      if (player !== this.#modulePlayer) return;
-      this.#snapshot = { ...this.#snapshot, state: 'error', error: 'Freeplay module rendering failed.' };
-      this.#stopProgress();
-      this.#publish();
-    });
-    player.play(buffer);
-    player.pause();
-  }
-
-  #connectRenderer(source: AudioNode): void {
-    const destination = this.#wireDestination;
-    if (!destination) throw new Error('Freeplay wire is unavailable.');
-    source.connect(destination);
   }
 
   #handleEnded = (): void => {
@@ -413,9 +198,7 @@ export class MultiplayerFreeplayPlayer {
 
   #currentSnapshot(): PlaybackSnapshot {
     let currentTime = this.#snapshot.currentTime;
-    if (this.#element) currentTime = positiveNumber(this.#element.currentTime);
-    else if (this.#modulePlayer) currentTime = positiveNumber(this.#modulePlayer.currentTime);
-    else if (this.#delivery === 'render' && this.#snapshot.state === 'playing') {
+    if (this.#delivery === 'render' && this.#snapshot.state === 'playing') {
       const elapsed = this.#timelineTickAt > 0 ? (Date.now() - this.#timelineTickAt) / 1_000 : 0;
       currentTime = Math.min(
         currentTime + Math.max(0, elapsed),
@@ -457,42 +240,6 @@ export class MultiplayerFreeplayPlayer {
     this.#progressTimer = null;
   }
 
-  #disposeRenderer(): void {
-    this.#stopProgress();
-    if (this.#element) {
-      this.#element.removeEventListener('ended', this.#handleEnded);
-      this.#element.pause();
-      this.#element.removeAttribute('src');
-      this.#element.load();
-    }
-    try {
-      this.#elementSource?.disconnect();
-      this.#modulePlayer?.gain.disconnect();
-    } catch {
-      // A renderer may already have disconnected during a failed load.
-    }
-    if (this.#modulePlayer) disposeModulePlayer(this.#modulePlayer);
-    if (this.#objectUrl) URL.revokeObjectURL(this.#objectUrl);
-    this.#element = null;
-    this.#elementSource = null;
-    this.#modulePlayer = null;
-    this.#objectUrl = null;
-  }
-
-  #disposeWire(): void {
-    try {
-      this.#silenceSource?.stop();
-      this.#silenceSource?.disconnect();
-      this.#silenceGain?.disconnect();
-      this.#wireDestination?.disconnect();
-    } catch {
-      // A closed audio context has already made the wire inert.
-    }
-    for (const track of this.#wireDestination?.stream.getTracks() ?? []) track.stop();
-    this.#silenceSource = null;
-    this.#silenceGain = null;
-    this.#wireDestination = null;
-  }
 }
 
 export interface FreeplayStepResolver {
@@ -524,31 +271,4 @@ function positiveNumber(value: unknown): number {
 
 function finiteDuration(value: number): number {
   return value > 0 && Number.isFinite(value) ? value : Number.MAX_SAFE_INTEGER;
-}
-
-function disposeModulePlayer(player: ChiptuneJsPlayer): void {
-  try {
-    player.stop();
-    player.gain.disconnect();
-    player.processNode?.disconnect();
-    player.processNode?.port.close();
-  } catch {
-    // Detached worklets are already inaudible; teardown is best-effort.
-  }
-}
-
-function disposeMediaRenderer(
-  element: HTMLMediaElement,
-  source: MediaElementAudioSourceNode,
-  objectUrl: string
-): void {
-  element.pause();
-  element.removeAttribute('src');
-  element.load();
-  try {
-    source.disconnect();
-  } catch {
-    // A failed media load may already have detached the source.
-  }
-  URL.revokeObjectURL(objectUrl);
 }

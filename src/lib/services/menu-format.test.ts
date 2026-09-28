@@ -5,9 +5,6 @@ import {
   formatMultiplayerAudioStatusLabel,
   formatConnectionStat,
   formatAudioStat,
-  formatPacketLoss,
-  formatBytes,
-  formatTimingStat,
   type MenuTranslation
 } from './menu-format';
 
@@ -28,29 +25,11 @@ describe('menu-format helpers', () => {
       .toBe('disconnected');
   });
 
-  it('formats audio stats from codec and bitrate', () => {
-    expect(formatAudioStat(true, { codec: 'opus' } as never, 64, t)).toBe('opus · 64 kbps');
-    expect(formatAudioStat(true, null, null, t)).toBe('—');
-    expect(formatAudioStat(false, null, null, t)).toBe('Refused');
-  });
-
-  it('formats packet loss with optional percentage', () => {
-    expect(formatPacketLoss(2, 98, 2)).toBe('2 / 100 · 2%');
-    expect(formatPacketLoss(2, 98, null)).toBe('2 / 100');
-    expect(formatPacketLoss(undefined, 98, null)).toBe('—');
-  });
-
-  it('formats byte counts with units', () => {
-    expect(formatBytes(0)).toBe('0 B');
-    expect(formatBytes(999)).toBe('999 B');
-    expect(formatBytes(1000)).toBe('1 KB');
-    expect(formatBytes(12_345)).toBe('12.3 KB');
-    expect(formatBytes(null)).toBe('—');
-    expect(formatBytes(-1)).toBe('—');
-  });
-
-  it('formats jitter and rtt timing stats', () => {
-    expect(formatTimingStat({ jitterMs: 12, roundTripTimeMs: 40 } as never)).toBe('12 ms · 40 ms');
-    expect(formatTimingStat({ jitterMs: null, roundTripTimeMs: null } as never)).toBe('— · —');
+  it('labels both delivery modes and uses the render bitrate', () => {
+    expect(formatAudioStat(true, 'render', 64, t)).toBe('Buffered Opus · 64 kbps');
+    expect(formatAudioStat(true, 'render', null, t)).toBe('Buffered Opus');
+    expect(formatAudioStat(true, 'source-file', null, t)).toBe('Source file');
+    expect(formatAudioStat(true, 'none', null, t)).toBe('Host audio is off');
+    expect(formatAudioStat(false, 'render', null, t)).toBe('Refused');
   });
 });

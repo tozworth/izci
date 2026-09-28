@@ -14,7 +14,6 @@ import { getLocalServerIdentity, isValidServerIdentity } from './multiplayer-ser
 import { computePairProof, createPairNonce } from './multiplayer-server-pairing';
 import { getMultiplayerArtworkTrackKey } from './multiplayer-artwork';
 import { applyRemoteTrackInfo, enrichCatalog, enrichPlayback } from './multiplayer-client-track-info';
-import { multiplayerAudioService } from './multiplayer-audio';
 import {
   clearPeerConnectionTimer,
   describeIceFailure,
@@ -41,9 +40,7 @@ import type { PeerConnection } from './multiplayer-types';
 import type { MultiplayerClientContext } from './multiplayer-client';
 import {
   applyClientAudioBuffer,
-  applyReceiverBuffer,
   applySynchronizedStart,
-  attachClientRemoteAudio,
   cancelSynchronizedStart,
   loadPendingClientSourceFile,
   sendClientPlaybackReadyIfPossible,
@@ -135,14 +132,6 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
       }
       core.publish({ remotePlayback: enrichPlayback({ ...message.playback, sentAt: Date.now() }, ctx.trackInfoById) });
       multiplayerSourcePlaybackService.syncPlayback(message.playback);
-      if (core.state.remoteDelivery.mode === 'stream') {
-        multiplayerAudioService.setRemoteAudible(
-          core.state.receiveAudio
-            && message.playback.snapshot.state === 'playing'
-            && !(ctx.synchronizedStartGenerationId === message.playback.generationId
-              && Date.now() < ctx.synchronizedStartAt)
-        );
-      }
       if (core.state.remoteDelivery.mode === 'render') {
         multiplayerRenderPlaybackService.syncPlayback(message.playback);
         const audible = core.state.receiveAudio
@@ -156,7 +145,6 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
             : message.playback.snapshot.state === 'playing'
             ? 'playing'
             : 'ready',
-          averageAudioBitrateKbps: null
         });
       }
       persistFreeplayState(ctx);
@@ -209,6 +197,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
       );
       const accepted = multiplayerRenderPlaybackService.setManifest(message.manifest);
       if (accepted) {
+        core.publish({ audioBitrateKbps: message.manifest.bitrateKbps });
         logInfo('multiplayer', 'Buffered Opus manifest accepted', {
           generationId: message.manifest.generationId,
           renderId: message.manifest.renderId,
@@ -285,7 +274,6 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
         ctx.sourceRetryGenerationId = message.delivery.generationId;
         ctx.sourceRetryCount = 0;
         core.pendingClientSourceFile = null;
-        multiplayerAudioService.setRemoteAudible(false);
         logInfo('freeplay', 'Multiplayer delivery generation changed', {
           generationId: message.delivery.generationId,
           trackId: message.delivery.trackId,
@@ -296,35 +284,19 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
       core.publish({ remoteDelivery: message.delivery });
       updateLocalTimelineMode(ctx);
       if (changed) {
-        if (!core.state.receiveAudio) {
-          multiplayerSourcePlaybackService.setEnabled(false);
-          core.publish({ audioStatus: 'refused', averageAudioBitrateKbps: null });
-        } else if (message.delivery.mode === 'source-file') {
-          multiplayerSourcePlaybackService.setEnabled(true);
-          core.publish({ audioStatus: multiplayerSourcePlaybackService.active ? 'playing' : 'connecting' });
-        } else if (message.delivery.mode === 'none') {
-          core.publish({
-            audioStatus: 'disabled',
-            averageAudioBitrateKbps: null
-          });
-          multiplayerSourcePlaybackService.clearSourceTrack();
-        } else if (message.delivery.mode === 'render') {
-          multiplayerSourcePlaybackService.clearSourceTrack();
-          multiplayerAudioService.clearRemoteTrack();
-          multiplayerRenderPlaybackService.start(
-            message.delivery.generationId,
-            message.delivery.trackId ?? ''
-          );
-          multiplayerRenderPlaybackService.updateWindowMs(
-            core.hostAudioBufferMs ?? core.multiplayerSettings.multiplayerAudioBufferMs
-          );
-          core.publish({ audioStatus: 'connecting', averageAudioBitrateKbps: null });
-        } else {
-          multiplayerSourcePlaybackService.clearSourceTrack();
-          multiplayerRenderPlaybackService.release();
-          core.publish({ audioStatus: 'connecting', averageAudioBitrateKbps: null });
-          void attachClientRemoteAudio(ctx, peer, message.delivery.generationId);
+        if (message.delivery.mode !== 'render') multiplayerRenderPlaybackService.release();
+        if (message.delivery.mode !== 'source-file') multiplayerSourcePlaybackService.clearSourceTrack();
+        if (message.delivery.mode === 'render') {
+          multiplayerRenderPlaybackService.setEnabled(core.state.receiveAudio);
+          multiplayerRenderPlaybackService.start(message.delivery.generationId, message.delivery.trackId ?? '');
+          applyClientAudioBuffer(ctx);
         }
+        multiplayerSourcePlaybackService.setEnabled(core.state.receiveAudio);
+        core.publish({
+          audioStatus: !core.state.receiveAudio ? 'refused'
+            : message.delivery.mode === 'none' ? 'disabled' : 'connecting',
+          audioBitrateKbps: null
+        });
       }
       loadPendingClientSourceFile(ctx, peer);
       sendClientPlaybackReadyIfPossible(ctx, peer);
@@ -346,7 +318,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
     }
     if (message.kind === 'buffer') {
       core.hostAudioBufferMs = message.bufferMs;
-      applyClientAudioBuffer(ctx, peer);
+      applyClientAudioBuffer(ctx);
     }
     if (message.kind === 'kicked') {
       core.allowClientReconnect = false;
@@ -424,38 +396,6 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
       scheduleClientReconnect(ctx, 1_000);
     }
     if (peer.pc.connectionState === 'disconnected') scheduleClientReconnect(ctx, 4_000);
-  };
-  peer.pc.ontrack = (event) => {
-    if (core.clientPeer !== peer) return;
-    if (event.track.kind !== 'audio') return;
-    applyReceiverBuffer(ctx, event.receiver);
-    ctx.receiverMonitor.start(peer);
-    const stream = event.streams[0] ?? new MediaStream([event.track]);
-    event.track.enabled = true;
-    void multiplayerAudioService.attachRemoteTrack(
-      event.track,
-      stream,
-      (audioStatus) => {
-        if (core.clientPeer !== peer || core.state.mode !== 'client') return;
-        if (audioStatus === 'unavailable') transition.setReceiverPipelineReady(false);
-        if (core.latestDelivery.mode !== 'stream'
-          && (audioStatus === 'connecting' || audioStatus === 'ready' || audioStatus === 'playing')) return;
-        core.publish({
-          audioStatus,
-          averageAudioBitrateKbps: audioStatus === 'playing'
-            ? core.state.averageAudioBitrateKbps
-            : null
-        });
-      }
-    ).then((ready) => {
-      if (core.clientPeer !== peer) return;
-      transition.setReceiverPipelineReady(ready);
-      if (!core.state.receiveAudio) core.publish({ audioStatus: 'refused', averageAudioBitrateKbps: null });
-      else if (core.state.remoteDelivery.mode === 'stream') {
-        multiplayerAudioService.setRemoteAudible(core.state.remotePlayback.snapshot.state === 'playing');
-      }
-      sendClientPlaybackReadyIfPossible(ctx, peer);
-    });
   };
 }
 

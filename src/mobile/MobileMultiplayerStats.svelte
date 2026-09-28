@@ -1,16 +1,12 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
-  import { MULTIPLAYER_PROTOCOL_MAJOR, MULTIPLAYER_PROTOCOL_MINOR, formatHostImplementation, type MultiplayerImplementation } from '$lib/services/multiplayer-protocol';
+  import { MULTIPLAYER_PROTOCOL_MAJOR, MULTIPLAYER_PROTOCOL_MINOR, formatHostImplementation, type MultiplayerDeliveryMode, type MultiplayerImplementation } from '$lib/services/multiplayer-protocol';
   import {
     formatAudioStat,
-    formatBytes,
     formatConnectionStat,
-    formatPacketLoss,
-    formatTimingStat
   } from '$lib/services/menu-format';
   import type {
-    MultiplayerConnectionStats,
     MultiplayerConnectionStatus
   } from '$lib/services/multiplayer-types';
   import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
@@ -24,7 +20,7 @@
   export let audioBitrateKbps: number | null = null;
   export let receiveAudio = true;
   export let freeplay = false;
-  export let connectionStats: MultiplayerConnectionStats | null = null;
+  export let deliveryMode: MultiplayerDeliveryMode = 'none';
 
   const dispatch = createEventDispatcher<{ close: void }>();
 
@@ -128,19 +124,7 @@
     </div>
     <div class="mobile-stats-row">
       <dt><span class="material-symbols-outlined" aria-hidden="true">graphic_eq</span><span>{$t('main.multiplayer.stats.audio', { default: 'Audio' })}</span></dt>
-      <dd>{formatAudioStat(receiveAudio, connectionStats, audioBitrateKbps, $t)}</dd>
-    </div>
-    <div class="mobile-stats-row">
-      <dt><span class="material-symbols-outlined" aria-hidden="true">data_usage</span><span>{$t('main.multiplayer.stats.data', { default: 'Data' })}</span></dt>
-      <dd>{formatBytes(connectionStats?.bytesReceived)}</dd>
-    </div>
-    <div class="mobile-stats-row">
-      <dt><span class="material-symbols-outlined" aria-hidden="true">monitoring</span><span>{$t('main.multiplayer.stats.lossTotal', { default: 'Loss · total' })}</span></dt>
-      <dd>{formatPacketLoss(connectionStats?.packetsLost, connectionStats?.packetsReceived, connectionStats?.packetLossPercent)}</dd>
-    </div>
-    <div class="mobile-stats-row">
-      <dt><span class="material-symbols-outlined" aria-hidden="true">speed</span><span>{$t('main.multiplayer.stats.timing', { default: 'Jitter · RTT' })}</span></dt>
-      <dd>{formatTimingStat(connectionStats)}</dd>
+      <dd>{formatAudioStat(receiveAudio, deliveryMode, audioBitrateKbps, $t)}</dd>
     </div>
   </dl>
 </div>

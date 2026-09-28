@@ -1,0 +1,9 @@
+{
+  "kind": "delivery",
+  "delivery": {
+    "generationId": "old-radio",
+    "trackId": "track",
+    "mode": "stream",
+    "reason": null
+  }
+}

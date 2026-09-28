@@ -59,10 +59,10 @@ export function isMultiplayerClientTransportHealthy(
 }
 
 /**
- * Delivery decision between the two streaming pathways: files at or under the
+ * Delivery decision between the two streaming pathways: files under the
  * "Send files under" limit transfer whole and play on the listener; larger
- * files are pre-rendered to buffered Opus. Live RTP remains only for video.
- * limitMiB: 0 = off (everything renders), < 0 = every file transfers.
+ * files are pre-rendered to buffered Opus. Videos always transfer their source.
+ * limitMiB: 0 = off (audio/modules render), < 0 = every file transfers.
  */
 export function resolveMultiplayerDeliveryMode(
   track: TrackItem | null,
@@ -71,7 +71,7 @@ export function resolveMultiplayerDeliveryMode(
 ): MultiplayerDeliveryMode {
   if (!track || !audioEnabled) return 'none';
   if (track.kind === 'image') return 'none';
-  if (track.kind === 'video') return 'stream';
+  if (track.kind === 'video') return 'source-file';
   if (fileTransferLimitMiB !== 0
     && track.size > 0
     && (fileTransferLimitMiB < 0 || track.size < fileTransferLimitMiB * 1024 * 1024)) {

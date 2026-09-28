@@ -19,7 +19,6 @@ import {
   type MultiplayerPlayback,
   type MultiplayerPlaybackPreparation
 } from './multiplayer-protocol';
-import type { MultiplayerReceiverAudioStatus } from './multiplayer-audio';
 import type { MultiplayerConnectionRoute } from './multiplayer-ice';
 import type { FreeplayStepResolver, MultiplayerFreeplayPlayer } from './multiplayer-freeplay';
 import type { ServerHostLink } from './multiplayer-server-host';
@@ -27,24 +26,7 @@ import type { ServerGuestConnection } from './multiplayer-server-client';
 
 export type MultiplayerMode = 'idle' | 'hosting' | 'client';
 export type MultiplayerConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
-export type MultiplayerAudioStatus = MultiplayerReceiverAudioStatus | 'disabled' | 'refused';
-
-export interface MultiplayerConnectionStats {
-  packetsReceived: number;
-  packetsLost: number;
-  packetLossPercent: number | null;
-  /** Total bytes received over the transport (audio RTP plus data-channel transfers). */
-  bytesReceived: number;
-  jitterMs: number | null;
-  jitterBufferDelayMs: number | null;
-  jitterBufferTargetDelayMs: number | null;
-  concealedSamples: number | null;
-  concealmentEvents: number | null;
-  insertedSamplesForDeceleration: number | null;
-  removedSamplesForAcceleration: number | null;
-  roundTripTimeMs: number | null;
-  codec: string | null;
-}
+export type MultiplayerAudioStatus = 'idle' | 'connecting' | 'ready' | 'playing' | 'blocked' | 'unavailable' | 'disabled' | 'refused';
 
 export interface MultiplayerClient {
   id: string;
@@ -106,9 +88,8 @@ export interface MultiplayerSessionState {
   serverSignaling: 'live' | 'reconnecting' | 'dropped' | null;
   /** Server host-login state; expired logins need user action, not retry. */
   serverHostAuth: 'valid' | 'expired' | null;
-  averageAudioBitrateKbps: number | null;
+  audioBitrateKbps: number | null;
   receiveAudio: boolean;
-  connectionStats: MultiplayerConnectionStats | null;
   connectionDetail: string | null;
   message: string | null;
 }
@@ -197,9 +178,6 @@ export interface PeerConnection {
   renderState: MultiplayerPeerRenderState | null;
   sourceTrackKey: string;
   decode: ReturnType<typeof createMultiplayerMessageDecoder<ClientMessage>>;
-  audioSender: RTCRtpSender | null;
-  pendingAudioBitrate: number | null;
-  audioBitrateUpdate: Promise<void> | null;
   localCandidateTypes: Set<string>;
   remoteCandidateTypes: Set<string>;
   pendingRemoteCandidates: Map<string, SignalCandidate>;

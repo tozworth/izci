@@ -55,34 +55,6 @@ class FakeMediaElementSourceNode extends FakeAudioNode {
   }
 }
 
-class FakeMediaStreamTrack {
-  contentHint = '';
-  stopCalls = 0;
-  stop(): void {
-    this.stopCalls += 1;
-  }
-}
-
-class FakeMediaStream {
-  readonly track = new FakeMediaStreamTrack();
-  getAudioTracks(): MediaStreamTrack[] {
-    return [this.track as unknown as MediaStreamTrack];
-  }
-  getTracks(): MediaStreamTrack[] {
-    return this.getAudioTracks();
-  }
-}
-
-class FakeMediaStreamDestinationNode extends FakeAudioNode {
-  readonly stream = new FakeMediaStream();
-}
-
-class FakeMediaStreamSourceNode extends FakeAudioNode {
-  constructor(context: FakeAudioContext, readonly mediaStream: MediaStream) {
-    super(context);
-  }
-}
-
 class FakeAudioContext {
   static instances: FakeAudioContext[] = [];
   static constructorOptions: AudioContextOptions[] = [];
@@ -91,8 +63,6 @@ class FakeAudioContext {
   readonly gains: FakeGainNode[] = [];
   readonly analysers: FakeAnalyserNode[] = [];
   readonly mediaSources: FakeMediaElementSourceNode[] = [];
-  readonly streamDestinations: FakeMediaStreamDestinationNode[] = [];
-  readonly streamSources: FakeMediaStreamSourceNode[] = [];
   state: AudioContextState = 'suspended';
   currentTime = 0;
   closeCalls = 0;
@@ -119,18 +89,6 @@ class FakeAudioContext {
     const node = new FakeMediaElementSourceNode(this, element);
     this.mediaSources.push(node);
     return node as unknown as MediaElementAudioSourceNode;
-  }
-
-  createMediaStreamDestination(): MediaStreamAudioDestinationNode {
-    const node = new FakeMediaStreamDestinationNode(this);
-    this.streamDestinations.push(node);
-    return node as unknown as MediaStreamAudioDestinationNode;
-  }
-
-  createMediaStreamSource(stream: MediaStream): MediaStreamAudioSourceNode {
-    const node = new FakeMediaStreamSourceNode(this, stream);
-    this.streamSources.push(node);
-    return node as unknown as MediaStreamAudioSourceNode;
   }
 
   async resume(): Promise<void> {
@@ -252,47 +210,6 @@ describe('AudioBusService', () => {
     expect(FakeAudioContext.instances).toHaveLength(1);
     expect(FakeAudioContext.instances[0].resumeCalls).toBe(1);
     expect(FakeAudioContext.instances[0].state).toBe('running');
-  });
-
-  it('broadcasts the reusable raw program track before local ReplayGain and Raf', () => {
-    const context = bus.context as unknown as FakeAudioContext;
-    const source = new FakeAudioNode(context);
-    bus.connectAudioNode(source as unknown as AudioNode);
-    bus.setSourceReplayGain(source as unknown as AudioNode, 0.5);
-
-    const first = bus.getBroadcastTrack();
-    const [input, , program] = context.gains;
-    const transition = source.connections[0] as FakeGainNode;
-    const localGain = transition.connections[0] as FakeGainNode;
-    const destination = context.streamDestinations[0];
-    const broadcastGain = context.gains.at(-1)!;
-
-    expect((first as unknown as FakeMediaStreamTrack).contentHint).toBe('music');
-    expect(localGain.gain.value).toBe(0.5);
-    expect(localGain.connections).toEqual([input]);
-    expect(transition.connections).toContain(program);
-    expect(program.connections).toContain(broadcastGain);
-    expect(broadcastGain.connections).toEqual([destination]);
-
-    const second = bus.getBroadcastTrack();
-    expect(second).toBe(first);
-
-    bus.releaseBroadcastTrack();
-    expect((first as unknown as FakeMediaStreamTrack).stopCalls).toBe(1);
-  });
-
-  it('connects a received multiplayer stream only through the local Raf input', () => {
-    const stream = new FakeMediaStream() as unknown as MediaStream;
-    const source = bus.connectMediaStream(stream) as unknown as FakeMediaStreamSourceNode;
-    const context = bus.context as unknown as FakeAudioContext;
-    const [input, , program] = context.gains;
-    const transition = source.connections[0] as FakeGainNode;
-    const localGain = transition.connections[0] as FakeGainNode;
-
-    expect(source.mediaStream).toBe(stream);
-    expect(transition.connections).toEqual([localGain]);
-    expect(transition.connections).not.toContain(program);
-    expect(localGain.connections).toEqual([input]);
   });
 
   it('routes a rendered media element to both the raw program and local processing branches', () => {
