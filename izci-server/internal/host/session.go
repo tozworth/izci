@@ -21,7 +21,6 @@ type DeliveryMode string
 
 const (
 	DeliveryNone       DeliveryMode = "none"
-	DeliveryStream     DeliveryMode = "stream"
 	DeliverySourceFile DeliveryMode = "source-file"
 	DeliveryRender     DeliveryMode = "render"
 )

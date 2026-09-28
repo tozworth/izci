@@ -19,6 +19,8 @@
       "audio": {
         "blocked": "Audio needs permission",
         "start": "Start audio",
+        "bufferedOpus": "Buffered Opus",
+        "sourceFile": "Source file",
         "listening": "Listening",
         "ready": "Audio ready",
         "refused": "Audio refused",
@@ -66,10 +68,7 @@
         "hostVersion": "Host",
         "protocol": "Protocol",
         "connection": "Connection",
-        "audio": "Audio",
-        "lossTotal": "Loss · total",
-        "data": "Data",
-        "timing": "Jitter · RTT"
+        "audio": "Audio"
       },
       "route": {
         "direct": "Direct",
@@ -800,7 +799,7 @@
       },
       "synchronizedPlayback": {
         "title": "Synchronized playback",
-        "hint": "Coordinates a shared start time across the host and listeners. Works best with sent files; streamed audio remains best effort because browser buffers vary."
+        "hint": "Coordinates a shared start time across the host and listeners after each source file or buffered Opus window is ready."
       },
       "syncLeadTime": {
         "title": "Start lead time",
@@ -808,7 +807,7 @@
       },
       "fileTransfer": {
         "title": "Send files under",
-        "hint": "Sends smaller audio and module files whole, then plays them on each listener. Larger files are pre-rendered to buffered Opus by the host. Modules are usually small, so they transfer directly.",
+        "hint": "Sends smaller audio and module files whole, then plays them on each listener. Larger files are pre-rendered to buffered Opus by the host. Videos always transfer their source file.",
         "every": "Every file",
         "never": "Buffered Opus only"
       },
@@ -2332,7 +2331,6 @@
     "expandFolder": "Expand {folder}",
     "unpinNamed": "Unpin {group}",
     "unpin": "Unpin",
-    "groupSongCount": "{count, plural, one {# media item} other {# media items}}",
     "views": {
       "favorites": "Favorites",
       "ratings": "Ratings",
@@ -2394,9 +2392,11 @@
       "years": "{count, plural, one {# year} other {# years}}",
       "formats": "{count, plural, one {# format} other {# formats}}",
       "folders": "{count, plural, one {# folder} other {# folders}}",
-      "groupsAndSongs": "{groups} · {songs, plural, one {# media item} other {# media items}}",
-      "filteredMedia": "{visible} of {total} media items · {duration}",
-      "media": "{count, plural, one {# media item} other {# media items}} · {duration}"
+      "groupsAndItems": "{groups} · {items}",
+      "countSongs": "{count, plural, one {# song} other {# songs}}",
+      "countImages": "{count, plural, one {# image} other {# images}}",
+      "countVideos": "{count, plural, one {# video} other {# videos}}",
+      "countItems": "{count, plural, one {# item} other {# items}}"
     },
     "pinToTop": "Pin to top",
     "noResults": "No library results match \"{query}\".",

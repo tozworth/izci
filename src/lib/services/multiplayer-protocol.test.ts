@@ -165,7 +165,7 @@ describe('multiplayer protocol', () => {
     expect(isHostMessage({
       kind: 'delivery',
       delivery: { generationId: 'one', trackId: 'track', mode: 'stream', reason: null }
-    })).toBe(true);
+    })).toBe(false);
     expect(isHostMessage({
       kind: 'delivery',
       delivery: { generationId: 'two', trackId: 'track', mode: 'source-file', reason: null }
@@ -181,6 +181,7 @@ describe('multiplayer protocol', () => {
   });
 
   it('accepts bounded playback preparation messages', () => {
+    expect(isHostMessage({ kind: 'playback.prepare', preparation: { generationId: 'old', trackId: 'track', delivery: 'stream' } })).toBe(false);
     expect(isHostMessage({
       kind: 'playback.prepare',
       preparation: {

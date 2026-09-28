@@ -138,7 +138,7 @@ export interface MultiplayerOdaBackground {
   opacity: number;
 }
 
-export type MultiplayerDeliveryMode = 'none' | 'stream' | 'source-file' | 'render';
+export type MultiplayerDeliveryMode = 'none' | 'source-file' | 'render';
 
 export interface MultiplayerDeliveryState {
   generationId: string;
@@ -582,7 +582,6 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && preparation.trackId.length > 0
       && preparation.trackId.length <= 200
       && (preparation.delivery === 'source-file'
-        || preparation.delivery === 'stream'
         || preparation.delivery === 'render'
         || preparation.delivery === 'none');
   }
@@ -624,7 +623,6 @@ export function isHostMessage(value: unknown): value is HostMessage {
           && delivery.trackId.length > 0
           && delivery.trackId.length <= 200))
       && (delivery.mode === 'none'
-        || delivery.mode === 'stream'
         || delivery.mode === 'source-file'
         || delivery.mode === 'render')
       && (delivery.reason === null

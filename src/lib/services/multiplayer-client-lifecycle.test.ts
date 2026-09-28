@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MultiplayerClientContext } from './multiplayer-client';
 
-vi.mock('./multiplayer-audio', () => ({ multiplayerAudioService: { warmRemoteAudio: vi.fn() } }));
+vi.mock('./audio-bus', () => ({ audioBusService: { resume: vi.fn() } }));
 vi.mock('./multiplayer-render-playback', () => ({ multiplayerRenderPlaybackService: {} }));
 vi.mock('./multiplayer-source-playback', () => ({ multiplayerSourcePlaybackService: {
   beginClientSession: vi.fn(), setEnabled: vi.fn(), replay: vi.fn()

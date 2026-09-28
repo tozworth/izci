@@ -29,9 +29,8 @@ type ICEServer struct {
 }
 
 // RTCHost answers client offers: the client is the offerer, the server is
-// the answerer. It accepts the three data channels by label and answers the
-// client's audio transceiver safely even when the server provides no RTP
-// track (sendonly transceiver with a null track, matching the browser host).
+// the answerer. It accepts the three data channels by label for control,
+// source files, and buffered Opus.
 type RTCHost struct {
 	mu           sync.Mutex
 	api          *webrtc.API
@@ -197,11 +196,7 @@ func (h *RTCHost) Answer(ctx context.Context, cfg AnswerConfig) (string, error) 
 		h.discardPeer(cfg.PeerID, pc)
 		return "", fmt.Errorf("host: set remote offer: %w", err)
 	}
-	// Answer the client's audio transceiver safely even when the server
-	// provides no RTP track: keep the negotiated transceivers as-is and
-	// create an answer without attaching any local track. Pion negotiates
-	// the audio m-line (Opus preferred by the client) as sendonly/recvonly
-	// without requiring a server-side track.
+	// Negotiate the data channels without adding media transceivers.
 	answer, err := pc.CreateAnswer(nil)
 	if err != nil {
 		h.discardPeer(cfg.PeerID, pc)

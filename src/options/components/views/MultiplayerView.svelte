@@ -265,6 +265,10 @@
     color: var(--muted);
   }
 
+  :global(.options-shell:not(.hints-expanded)) .multiplayer-footnotes {
+    display: none;
+  }
+
   .multiplayer-footnotes h3 {
     margin: 0;
     color: var(--muted-strong);

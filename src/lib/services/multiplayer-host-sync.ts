@@ -1,7 +1,6 @@
 import type { TrackItem } from '$lib/types';
 import { getMultiplayerArtworkTrackKey, loadMultiplayerArtwork } from './multiplayer-artwork';
-import { multiplayerAudioService } from './multiplayer-audio';
-import { applyAudioBitrate, sendToPeer } from './multiplayer-peer';
+import { sendToPeer } from './multiplayer-peer';
 import {
   sanitizeTrackItem,
   type HostMessage,
@@ -155,7 +154,6 @@ export function syncHostAudio(ctx: MultiplayerHostContext, track: TrackItem | nu
         true,
         core.multiplayerSettings.multiplayerFileTransferLimitMiB
       );
-  const enabled = mode === 'stream';
   const trackId = track?.id ?? null;
   const changed = force
     || core.latestDelivery.trackId !== trackId
@@ -170,21 +168,6 @@ export function syncHostAudio(ctx: MultiplayerHostContext, track: TrackItem | nu
           : null
       }
     : core.latestDelivery;
-  multiplayerAudioService.setHostAudible(enabled);
-
-  const hostTrack = enabled ? multiplayerAudioService.getHostTrack() : null;
-  for (const peer of core.hostPeers.values()) {
-    if (!peer.freeplaySettled || peer.freeplay) continue;
-    if (enabled) {
-      if (peer.audioSender?.track !== hostTrack) {
-        void peer.audioSender?.replaceTrack(hostTrack).catch(() => undefined);
-      }
-      void applyAudioBitrate(peer, core.multiplayerSettings.multiplayerOpusBitrateKbps);
-    } else {
-      if (peer.audioSender?.track) void peer.audioSender.replaceTrack(null).catch(() => undefined);
-    }
-  }
-
   if (changed) {
     core.latestDelivery = nextDelivery;
     broadcastShared(ctx, { kind: 'delivery', delivery: nextDelivery });

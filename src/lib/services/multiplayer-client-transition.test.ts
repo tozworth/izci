@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { MultiplayerDeliveryState, MultiplayerPlayback } from './multiplayer-protocol';
 import { MultiplayerClientTransition } from './multiplayer-client-transition';
 
-function delivery(generationId: string, mode: MultiplayerDeliveryState['mode'] = 'stream') {
+function delivery(generationId: string, mode: MultiplayerDeliveryState['mode'] = 'source-file') {
   return {
     generationId,
     trackId: `track-${generationId}`,
@@ -30,16 +30,16 @@ function playback(generationId: string): MultiplayerPlayback {
 }
 
 describe('MultiplayerClientTransition', () => {
-  it('reuses one receiver pipeline while acknowledging each matching generation once', () => {
+  it('acknowledges each source generation once after its own file is ready', () => {
     const transition = new MultiplayerClientTransition();
-    transition.setReceiverPipelineReady(true);
 
     for (const id of ['a', 'b']) {
       transition.beginDelivery(delivery(id));
       expect(transition.acceptPlayback(playback(id))).toBe(true);
       expect(transition.acceptPreparation({
-        generationId: id, trackId: `track-${id}`, delivery: 'stream'
+        generationId: id, trackId: `track-${id}`, delivery: 'source-file'
       })).toBe(true);
+      transition.setSourceReady(id, `track-${id}`, true);
       expect(transition.takeReadyGeneration()).toBe(id);
       expect(transition.takeReadyGeneration()).toBeNull();
     }
@@ -76,76 +76,57 @@ describe('MultiplayerClientTransition', () => {
     transition.setReceiveAudio(false);
     transition.beginDelivery(delivery('a'));
     transition.acceptPlayback(playback('a'));
-    transition.acceptPreparation({ generationId: 'a', trackId: 'track-a', delivery: 'stream' });
+    transition.acceptPreparation({ generationId: 'a', trackId: 'track-a', delivery: 'source-file' });
     expect(transition.takeReadyGeneration()).toBe('a');
 
     transition.setReceiveAudio(true);
     transition.beginDelivery(delivery('b'));
     transition.acceptPlayback(playback('b'));
-    transition.acceptPreparation({ generationId: 'b', trackId: 'track-b', delivery: 'stream' });
+    transition.acceptPreparation({ generationId: 'b', trackId: 'track-b', delivery: 'source-file' });
     expect(transition.takeReadyGeneration()).toBeNull();
   });
 
-  it('handles stream to source-file to stream without replacing receiver readiness', () => {
+  it('keeps buffered Opus readiness on the render protocol rather than acknowledging a file', () => {
     const transition = new MultiplayerClientTransition();
-    transition.setReceiverPipelineReady(true);
-
-    transition.beginDelivery(delivery('stream-a'));
-    transition.acceptPlayback(playback('stream-a'));
-    transition.acceptPreparation({
-      generationId: 'stream-a', trackId: 'track-stream-a', delivery: 'stream'
-    });
-    expect(transition.takeReadyGeneration()).toBe('stream-a');
-
-    transition.beginDelivery(delivery('file', 'source-file'));
-    transition.acceptPlayback(playback('file'));
-    transition.acceptPreparation({
-      generationId: 'file', trackId: 'track-file', delivery: 'source-file'
-    });
+    transition.beginDelivery(delivery('render', 'render'));
+    transition.acceptPlayback(playback('render'));
+    transition.acceptPreparation({ generationId: 'render', trackId: 'track-render', delivery: 'render' });
+    expect(transition.setSourceReady('render', 'track-render', true)).toBe(false);
     expect(transition.takeReadyGeneration()).toBeNull();
-    transition.setSourceReady('file', 'track-file', true);
-    expect(transition.takeReadyGeneration()).toBe('file');
-
-    transition.beginDelivery(delivery('stream-b'));
-    transition.acceptPlayback(playback('stream-b'));
-    transition.acceptPreparation({
-      generationId: 'stream-b', trackId: 'track-stream-b', delivery: 'stream'
-    });
-    expect(transition.takeReadyGeneration()).toBe('stream-b');
   });
 
   it('allows only the last transition in rapid A to B to C preparation', () => {
     const transition = new MultiplayerClientTransition();
-    transition.setReceiverPipelineReady(true);
     for (const id of ['a', 'b', 'c']) transition.beginDelivery(delivery(id));
 
     expect(transition.acceptPlayback(playback('b'))).toBe(false);
     expect(transition.acceptPreparation({
-      generationId: 'b', trackId: 'track-b', delivery: 'stream'
+      generationId: 'b', trackId: 'track-b', delivery: 'source-file'
     })).toBe(false);
     expect(transition.acceptPlayback(playback('c'))).toBe(true);
     expect(transition.acceptPreparation({
-      generationId: 'c', trackId: 'track-c', delivery: 'stream'
+      generationId: 'c', trackId: 'track-c', delivery: 'source-file'
     })).toBe(true);
+    transition.setSourceReady('c', 'track-c', true);
     expect(transition.takeReadyGeneration()).toBe('c');
   });
 
   it('treats a generation identity as immutable', () => {
     const transition = new MultiplayerClientTransition();
     transition.beginDelivery(delivery('same'));
-    expect(transition.beginDelivery({ ...delivery('same'), mode: 'source-file' })).toBeNull();
+    expect(transition.beginDelivery({ ...delivery('same'), mode: 'render' })).toBeNull();
     expect(transition.acceptPlayback(playback('same'))).toBe(true);
   });
 
   it('does not reset readiness when an identical delivery message is replayed', () => {
     const transition = new MultiplayerClientTransition();
-    transition.setReceiverPipelineReady(true);
     expect(transition.beginDelivery(delivery('same'))).toBe(true);
     transition.acceptPlayback(playback('same'));
     transition.acceptPreparation({
-      generationId: 'same', trackId: 'track-same', delivery: 'stream'
+      generationId: 'same', trackId: 'track-same', delivery: 'source-file'
     });
 
+    transition.setSourceReady('same', 'track-same', true);
     expect(transition.beginDelivery(delivery('same'))).toBe(false);
     expect(transition.takeReadyGeneration()).toBe('same');
     expect(transition.beginDelivery(delivery('same'))).toBe(false);

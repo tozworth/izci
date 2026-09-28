@@ -13,9 +13,9 @@ Status: Phase 0 baseline. Protocol major `1`, minor `1`.
 
 ## 1. Transports and channels
 
-WebRTC peer connection with one audio transceiver (host `sendonly`, client
-`recvonly`, Opus preferred, stereo enabled) and three data channels created by
-the offerer (client/guest). The answerer (host) attaches by label.
+WebRTC peer connection with three data channels created by the offerer
+(client/guest). The answerer (host) attaches by label. Playback uses buffered
+Opus or source-file delivery; no RTP audio transceiver is created.
 
 | Label | `ordered` | Reliability | Use |
 |---|---|---|---|
@@ -135,12 +135,12 @@ All control messages are JSON over `izci-control`. `H→C` = host to client,
 - `H→C playback {playback:{generationId:1..80, snapshot:PlaybackSnapshot,
   track:TrackItem|null, sentAt:number}}`.
 - `H→C playback.prepare {preparation:{generationId, trackId:1..200,
-  delivery:'source-file'|'stream'|'render'|'none'}}`.
+  delivery:'source-file'|'render'|'none'}}`.
 - `C→H playback.ready {generationId}`.
 - `C→H playback.ended {generationId, trackId}`.
 - `H→C playback.cancel {generationId}`.
 - `H→C delivery {delivery:{generationId, trackId:null|1..200,
-  mode:'none'|'stream'|'source-file'|'render',
+  mode:'none'|'source-file'|'render',
   reason:'host-disabled'|'no-track'|null}}` with invariant
   `mode==='none' ⟺ reason!==null`.
 - `H→C buffer {bufferMs:0..30000}` (host-authoritative listener buffer).

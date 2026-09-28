@@ -6,20 +6,17 @@
  */
 import { logError, logInfo, logWarning } from '$lib/services/logging';
 import { rememberMultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
-import { enableOpusStereo } from './multiplayer-opus';
 import {
   MULTIPLAYER_PROTOCOL_MAJOR,
   MULTIPLAYER_PROTOCOL_MINOR
 } from './multiplayer-protocol';
 import { multiplayerChat } from './multiplayer-chat';
 import {
-  applyAudioBitrate,
   clearPeerConnectionTimer,
   createPeer,
   describeIceFailure,
   disposePeerConnection,
   flushRemoteCandidates,
-  preferOpus,
   prepareCandidatePublisher,
   stageServerRemoteCandidate,
   startPeerConnectionTimer
@@ -35,7 +32,6 @@ import {
 } from './multiplayer-host-channels';
 import { removePeerFromHostPlaybackPreparation } from './multiplayer-host-playback-prep';
 import { primeHostState } from './multiplayer-host-sync';
-import { setMultiplayerReceiverBuffer } from './multiplayer-receiver';
 import { attachClientChannel } from './multiplayer-client-channels';
 import { attachClientMediaChannel, attachClientRenderChannel } from './multiplayer-client-audio';
 import { updateLocalTimelineMode } from './multiplayer-client-freeplay';
@@ -372,16 +368,7 @@ async function acceptServerOffer(
       core.hostPeers.delete(connectionId);
       return;
     }
-    const audioTransceiver = peer.pc.getTransceivers().find(
-      (t) => t.receiver.track.kind === 'audio'
-    );
-    if (audioTransceiver) {
-      preferOpus(audioTransceiver);
-      audioTransceiver.direction = 'sendonly';
-      peer.audioSender = audioTransceiver.sender;
-      await peer.audioSender.replaceTrack(null);
-    }
-    const answer = enableOpusStereo(await peer.pc.createAnswer());
+    const answer = await peer.pc.createAnswer();
     const startPublishing = prepareCandidatePublisher(
       peer,
       (candidate, index) => {
@@ -399,7 +386,6 @@ async function acceptServerOffer(
       }
     );
     await peer.pc.setLocalDescription(answer);
-    await applyAudioBitrate(peer, core.multiplayerSettings.multiplayerOpusBitrateKbps);
     if (!checkGeneration(core, generation) || core.state.mode !== 'hosting') {
       disposePeerConnection(peer);
       core.hostPeers.delete(connectionId);
@@ -641,12 +627,6 @@ async function createServerOffer(
   }
   const peer = createPeer(`server-${attemptId.slice(0, 8)}`, getLocalName(), rtcConfig);
   peer.signalingCreatedAt = attemptHash(attemptId);
-  const audioTransceiver = peer.pc.addTransceiver('audio', { direction: 'recvonly' });
-  preferOpus(audioTransceiver);
-  setMultiplayerReceiverBuffer(
-    audioTransceiver.receiver,
-    core.multiplayerSettings.multiplayerAudioBufferMs
-  );
   const channel = peer.pc.createDataChannel('izci-control', { ordered: true });
   peer.channel = channel;
   const mediaChannel = peer.pc.createDataChannel('izci-media', { ordered: true });
@@ -682,7 +662,7 @@ async function createServerOffer(
       });
     }
   );
-  const offer = enableOpusStereo(await peer.pc.createOffer());
+  const offer = await peer.pc.createOffer();
   if (!checkGeneration(core, generation) || core.clientPeer !== peer) {
     disposePeerConnection(peer);
     return;

@@ -1,7 +1,6 @@
 import { MultiplayerClientTransition } from './multiplayer-client-transition';
 import { clearRemoteTrackLyrics } from './lyrics';
 import { multiplayerRenderPlaybackService } from './multiplayer-render-playback';
-import { createReceiverBitrateMonitor } from './multiplayer-receiver-monitor';
 import { sendToPeer } from './multiplayer-peer';
 import { requestRemoteTrackInfo } from './multiplayer-client-track-info';
 import {
@@ -25,8 +24,7 @@ import {
   type MultiplayerCommandInput
 } from './multiplayer-protocol';
 import {
-  type MultiplayerSessionCore,
-  type PeerConnection
+  type MultiplayerSessionCore
 } from './multiplayer-types';
 
 /**
@@ -37,7 +35,6 @@ import {
 export interface MultiplayerClientContext {
   core: MultiplayerSessionCore;
   transition: MultiplayerClientTransition;
-  receiverMonitor: ReturnType<typeof createReceiverBitrateMonitor>;
   sourceRetryGenerationId: string | null;
   sourceRetryCount: number;
   pendingFreeplayResumeTrackId: string | null;
@@ -56,16 +53,9 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore) {
   const transition = new MultiplayerClientTransition();
   transition.setReceiveAudio(core.state.receiveAudio);
 
-  const receiverMonitor = createReceiverBitrateMonitor({
-    getState: () => core.state,
-    publish: (patch) => core.publish(patch),
-    isActivePeer: (peer) => core.clientPeer === peer
-  });
-
   const ctx: MultiplayerClientContext = {
     core,
     transition,
-    receiverMonitor,
     sourceRetryGenerationId: null,
     sourceRetryCount: 0,
     pendingFreeplayResumeTrackId: null,
@@ -134,9 +124,8 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore) {
     setReceiveAudio: (enabled: boolean) => setReceiveAudio(ctx, enabled),
     setUseHostOdaBackground,
     resumeAudio: () => resumeAudio(ctx),
-    applyClientAudioBuffer: (peer: PeerConnection) => applyClientAudioBuffer(ctx, peer),
+    applyClientAudioBuffer: () => applyClientAudioBuffer(ctx),
     handleClientResume: () => handleClientResume(ctx),
-    clearReceiverMonitor: () => receiverMonitor.clear(),
     clearReconnectTimer: () => clearReconnectTimer(ctx),
     resetTransitions: () => {
       clearRemoteTrackLyrics();

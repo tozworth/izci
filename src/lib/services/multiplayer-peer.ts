@@ -34,9 +34,6 @@ export function createPeer(
     renderState: null,
     sourceTrackKey: '',
     decode: createMultiplayerMessageDecoder(isClientMessage),
-    audioSender: null,
-    pendingAudioBitrate: null,
-    audioBitrateUpdate: null,
     localCandidateTypes: new Set(),
     remoteCandidateTypes: new Set(),
     pendingRemoteCandidates: new Map(),
@@ -107,31 +104,6 @@ export function flushPeer(peer: PeerConnection): void {
     window.setTimeout(flush, 20);
   };
   flush();
-}
-
-export async function applyAudioBitrate(peer: PeerConnection, bitrateKbps: number): Promise<void> {
-  peer.pendingAudioBitrate = bitrateKbps * 1_000;
-  if (peer.audioBitrateUpdate) return peer.audioBitrateUpdate;
-
-  peer.audioBitrateUpdate = (async () => {
-    while (peer.pendingAudioBitrate !== null) {
-      const bitrate = peer.pendingAudioBitrate;
-      peer.pendingAudioBitrate = null;
-      const sender = peer.audioSender;
-      if (!sender) continue;
-      const parameters = sender.getParameters();
-      if (parameters.encodings.length === 0) continue;
-      for (const encoding of parameters.encodings) {
-        encoding.maxBitrate = bitrate;
-        encoding.priority = 'high';
-        encoding.networkPriority = 'high';
-      }
-      await sender.setParameters(parameters).catch(() => undefined);
-    }
-  })().finally(() => {
-    peer.audioBitrateUpdate = null;
-  });
-  return peer.audioBitrateUpdate;
 }
 
 /**
@@ -314,16 +286,4 @@ function formatCandidateTypes(types: string[]): string {
     relay: 'relay'
   };
   return types.map((type) => labels[type] ?? type).join('/') || 'unknown';
-}
-
-export function preferOpus(transceiver: RTCRtpTransceiver): void {
-  const codecs = RTCRtpSender.getCapabilities?.('audio')?.codecs.filter(
-    (codec) => codec.mimeType.toLowerCase() === 'audio/opus'
-  ) ?? [];
-  if (codecs.length === 0) return;
-  try {
-    transceiver.setCodecPreferences(codecs);
-  } catch {
-    // The browser's default audio codec order still normally prefers Opus.
-  }
 }

@@ -760,6 +760,28 @@ code {
   accent-color: var(--accent);
 }
 
+/* Values precede the right-aligned tracks, so their length cannot move them. */
+.field-control:has(> input[type="range"] + .field-output) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) min(180px, 24vw);
+}
+
+.field-control > input[type="range"]:has(+ .field-output) {
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+  min-width: 0;
+  margin-inline: 0;
+}
+
+.field-control > input[type="range"] + .field-output {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .chameleon-slider-control {
   gap: 12px;
 }
@@ -982,6 +1004,11 @@ code {
 
   .field-control {
     justify-content: space-between;
+  }
+
+  .field-control:has(> input[type="range"] + .field-output) {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .field input[type="range"] {

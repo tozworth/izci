@@ -25,11 +25,12 @@ import type {
 } from '$lib/types';
 import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
 import { formatDisplayVersion } from '$lib/utils/version';
-import type { MultiplayerClient, MultiplayerAudioStatus, MultiplayerConnectionStats, MultiplayerConnectionStatus, MultiplayerMode } from '$lib/services/multiplayer-types';
+import type { MultiplayerClient, MultiplayerAudioStatus, MultiplayerConnectionStatus, MultiplayerMode } from '$lib/services/multiplayer-types';
 import {
   MULTIPLAYER_PROTOCOL_MAJOR,
   MULTIPLAYER_PROTOCOL_MINOR,
   formatHostImplementation,
+  type MultiplayerDeliveryMode,
   type MultiplayerImplementation
 } from '$lib/services/multiplayer-protocol';
 import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
@@ -37,9 +38,6 @@ import {
   formatMultiplayerAudioStatusLabel,
   formatConnectionStat,
   formatAudioStat,
-  formatPacketLoss,
-  formatBytes,
-  formatTimingStat,
   type MenuTranslation
 } from '$lib/services/menu-format';
 
@@ -61,7 +59,7 @@ interface MenuItemsDeps {
   multiplayerHostVersion: string | null;
   multiplayerHostImplementation: MultiplayerImplementation | null;
   multiplayerHostProtocol: { major: number; minor: number } | null;
-  multiplayerConnectionStats: MultiplayerConnectionStats | null;
+  multiplayerDeliveryMode: MultiplayerDeliveryMode;
   multiplayerEnabled: boolean;
   playingTrack: TrackItem | null;
   installAvailable: boolean;
@@ -283,35 +281,10 @@ function buildSessionMenuItems(deps: MenuItemsDeps, multiplayerMenuItems: MenuAc
     {
       id: 'multiplayerStatAudio',
       label: deps.translate('main.multiplayer.stats.audio', { default: 'Audio' }),
-      shortcut: formatAudioStat(deps.multiplayerReceiveAudio, deps.multiplayerConnectionStats, deps.multiplayerAudioBitrateKbps, deps.translate),
+      shortcut: formatAudioStat(deps.multiplayerReceiveAudio, deps.multiplayerDeliveryMode, deps.multiplayerAudioBitrateKbps, deps.translate),
       icon: 'graphic_eq',
       disabled: true
     },
-    {
-      id: 'multiplayerStatData',
-      label: deps.translate('main.multiplayer.stats.data', { default: 'Data' }),
-      shortcut: formatBytes(deps.multiplayerConnectionStats?.bytesReceived),
-      icon: 'data_usage',
-      disabled: true
-    },
-    {
-      id: 'multiplayerStatTotalLoss',
-      label: deps.translate('main.multiplayer.stats.lossTotal', { default: 'Loss · total' }),
-      shortcut: formatPacketLoss(
-        deps.multiplayerConnectionStats?.packetsLost,
-        deps.multiplayerConnectionStats?.packetsReceived,
-        deps.multiplayerConnectionStats?.packetLossPercent
-      ),
-      icon: 'monitoring',
-      disabled: true
-    },
-    {
-      id: 'multiplayerStatTiming',
-      label: deps.translate('main.multiplayer.stats.timing', { default: 'Jitter · RTT' }),
-      shortcut: formatTimingStat(deps.multiplayerConnectionStats),
-      icon: 'speed',
-      disabled: true
-    }
   ] satisfies MenuActionItem[];
 }
 

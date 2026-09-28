@@ -259,8 +259,8 @@ Phase gate:
    room admission, invitation rotation, pairing admission, reconnection,
    temporary TURN credentials, limits, and secret-redaction guarantees.
 3. Add Pion WebRTC to a dedicated host package. Use the existing offerer/client
-   and answerer/host roles. Accept the client's three data channels and answer
-   its audio transceiver safely even when the server provides no RTP track.
+   and answerer/host roles. Accept the client's three data channels for
+   control, source files, and buffered Opus.
 4. Implement remote-host signaling through the same izci-server socket contract
    used by browser hosts. Implement combined mode through an injected embedded
    signaling transport with equivalent lifecycle semantics, not direct registry
@@ -501,7 +501,7 @@ separate user-authorized release operations.
 ## Explicitly later
 
 - User-facing libopenmpt/Hively decoder controls.
-- Real-time RTP for radio, live inputs, or reduced cold-start latency.
+- Live inputs (outside the two supported file-based delivery modes).
 - Incremental/open render manifests that begin playback before a complete
   rendition is available.
 - Video delivery rather than audio-only video soundtrack rendering.

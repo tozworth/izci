@@ -129,8 +129,8 @@ the reservation; established RTC keeps playing if signaling drops.
 
 `serve` and `host` answer client offers over WebRTC: the client is the
 offerer on three data channels (`izci-control` ordered/reliable,
-`izci-media` ordered/reliable, `izci-render` unordered/reliable) plus an
-audio transceiver the server answers with no RTP track of its own. Hello
+`izci-media` ordered/reliable, `izci-render` unordered/reliable). Buffered
+Opus and source files travel over those channels. Hello
 carries protocol major/minor plus capabilities separately from the
 `izci-server` product identity; minor skew admits, major mismatch is
 rejected, and unsupported commands receive a negative acknowledgement.

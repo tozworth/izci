@@ -19,6 +19,8 @@
       "audio": {
         "blocked": "Ses için izin gerekiyor",
         "start": "Sesi başlat",
+        "bufferedOpus": "Tamponlu Opus",
+        "sourceFile": "Kaynak dosya",
         "listening": "Dinleniyor",
         "ready": "Ses hazır",
         "refused": "Ses reddedildi",
@@ -74,10 +76,7 @@
         "hostVersion": "Sunucu",
         "protocol": "Protokol",
         "connection": "Bağlantı",
-        "audio": "Ses",
-        "lossTotal": "Kayıp · toplam",
-        "data": "Veri",
-        "timing": "Titreşim · RTT"
+        "audio": "Ses"
       },
       "route": {
         "direct": "Doğrudan",
@@ -808,7 +807,7 @@
       },
       "synchronizedPlayback": {
         "title": "Eşzamanlı oynatma",
-        "hint": "Sunucu ve dinleyiciler için ortak bir başlangıç zamanı ayarlar. En iyi gönderilen dosyalarla çalışır; tarayıcı tamponları değişebildiği için aktarılan ses yaklaşık olarak eşzamanlanır."
+        "hint": "Kaynak dosya veya tamponlu Opus bölümü hazır olduktan sonra sunucu ve dinleyiciler için ortak bir başlangıç zamanı ayarlar."
       },
       "syncLeadTime": {
         "title": "Başlangıç hazırlık süresi",
@@ -816,7 +815,7 @@
       },
       "fileTransfer": {
         "title": "Şundan küçük dosyaları gönder",
-        "hint": "Daha küçük ses ve modül dosyalarını bütün olarak gönderir ve her dinleyicide çalar. Daha büyük dosyalar sunucuda önceden arabelleğe alınmış Opus'a dönüştürülür. Modüller genellikle küçük olduğundan doğrudan aktarılır.",
+        "hint": "Daha küçük ses ve modül dosyalarını bütün olarak gönderir ve her dinleyicide çalar. Daha büyük dosyalar sunucuda önceden tamponlu Opus olarak işlenir. Videolar her zaman kaynak dosya olarak aktarılır.",
         "every": "Her dosya",
         "never": "Yalnızca arabelleğe alınmış Opus"
       },
@@ -2340,7 +2339,6 @@
     "expandFolder": "{folder} klasörünü genişlet",
     "unpinNamed": "{group} sabitlemesini kaldır",
     "unpin": "Sabitlemeyi kaldır",
-    "groupSongCount": "{count, plural, one {# medya ögesi} other {# medya ögesi}}",
     "views": {
       "favorites": "Favoriler",
       "ratings": "Puanlar",
@@ -2402,9 +2400,11 @@
       "years": "{count, plural, one {# yıl} other {# yıl}}",
       "formats": "{count, plural, one {# tür} other {# tür}}",
       "folders": "{count, plural, one {# klasör} other {# klasör}}",
-      "groupsAndSongs": "{groups} · {songs, plural, one {# medya ögesi} other {# medya ögesi}}",
-      "filteredMedia": "{total} medya ögesinden {visible} görünür · {duration}",
-      "media": "{count, plural, one {# medya ögesi} other {# medya ögesi}} · {duration}"
+      "groupsAndItems": "{groups} · {items}",
+      "countSongs": "{count, plural, one {# parça} other {# parça}}",
+      "countImages": "{count, plural, one {# görsel} other {# görsel}}",
+      "countVideos": "{count, plural, one {# video} other {# video}}",
+      "countItems": "{count, plural, one {# öge} other {# öge}}"
     },
     "pinToTop": "Üste sabitle",
     "noResults": "\"{query}\" ile eşleşen kütüphane ögesi yok.",

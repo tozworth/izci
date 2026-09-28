@@ -229,9 +229,8 @@ export function createMainWindowRuntimeState(): {
       connectionRoute: null,
       serverSignaling: null,
       serverHostAuth: null,
-      averageAudioBitrateKbps: null,
+      audioBitrateKbps: null,
       receiveAudio: true,
-      connectionStats: null,
       connectionDetail: null,
       message: null
     },

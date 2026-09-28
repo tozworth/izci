@@ -5,7 +5,7 @@ import {
   formatTotalDuration,
   matchesSearchQuery
 } from './search';
-import { getLocalizedTrackSummary, getQueueSummaryKind } from './summaries';
+import { getLocalizedItemCount, getLibraryGroupSummary, getLocalizedTrackSummary, getQueueSummaryKind } from './summaries';
 import type { TrackItem } from '$lib/types';
 
 function item(name: string, metadata: TrackItem['metadata'] = {}): TrackItem {
@@ -76,4 +76,30 @@ describe('track-list-panel search helpers', () => {
     expect(getQueueSummaryKind([video])).toBe('videos');
     expect(getQueueSummaryKind([tracks[0], image])).toBe('items');
   });
+
+  it('uses media-aware counts in library groups and preserves the filtered source kind', () => {
+    const image = { ...item('cover.png'), kind: 'image' as const };
+    const video = { ...item('clip.mp4'), kind: 'video' as const };
+    const translate = (id: string) => id;
+    expect(getLocalizedItemCount(tracks, translate)).toBe('library.summary.countSongs');
+    expect(getLocalizedItemCount([image], translate)).toBe('library.summary.countImages');
+    expect(getLocalizedItemCount([video], translate)).toBe('library.summary.countVideos');
+    expect(getLocalizedItemCount([image, tracks[0]], translate)).toBe('library.summary.countItems');
+    expect(getLocalizedItemCount([], translate)).toBe('library.summary.countItems');
+    expect(getLocalizedTrackSummary([image, video], [image], 'cover', translate))
+      .toBe('queue.summary.filteredTracksItems');
+    expect(getLocalizedTrackSummary([image], [], 'missing', translate))
+      .toBe('queue.summary.filteredTracksImages');
+    const calls: string[] = [];
+    getLibraryGroupSummary('folders', 1, 2, [image], 'cover', (id) => {
+      calls.push(id);
+      return id;
+    });
+    expect(calls).toEqual([
+      'library.summary.filteredFolders',
+      'library.summary.countImages',
+      'library.summary.groupsAndItems'
+    ]);
+  });
+
 });

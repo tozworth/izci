@@ -1,27 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TrackItem } from '$lib/types';
 
-const wireHarness = vi.hoisted(() => {
-  const track = { readyState: 'live', stop: vi.fn(), contentHint: '' };
-  const destination = {
-    channelCount: 0,
-    stream: { getAudioTracks: () => [track], getTracks: () => [track] },
-    disconnect: vi.fn()
-  };
-  const constant = { connect: vi.fn(), start: vi.fn(), stop: vi.fn(), disconnect: vi.fn() };
-  const gain = { gain: { value: 1 }, connect: vi.fn(), disconnect: vi.fn() };
-  const context = {
-    createMediaStreamDestination: vi.fn(() => destination),
-    createConstantSource: vi.fn(() => constant),
-    createGain: vi.fn(() => gain)
-  };
-  return { track, destination, constant, gain, context, resume: vi.fn(async () => true) };
-});
-
-vi.mock('$lib/services/audio-bus', () => ({
-  audioBusService: { context: wireHarness.context, resume: wireHarness.resume }
-}));
-
 import { createFreeplayStepResolver, MultiplayerFreeplayPlayer } from './multiplayer-freeplay';
 
 function track(id: string): TrackItem {
@@ -55,24 +34,6 @@ describe('Freeplay navigation', () => {
 
 describe('Freeplay delivery ownership', () => {
   beforeEach(() => vi.clearAllMocks());
-
-  it('keeps one silent sender track alive for the lifetime of a peer player', async () => {
-    const player = new MultiplayerFreeplayPlayer({
-      getAudioSettings: () => ({ enabled: true, delivery: 'stream' }),
-      onUpdate: () => undefined,
-      onEnded: () => undefined
-    });
-
-    const [first, second] = await Promise.all([player.ensureWire(), player.ensureWire()]);
-
-    expect(first).toBe(wireHarness.track);
-    expect(second).toBe(first);
-    expect(wireHarness.context.createMediaStreamDestination).toHaveBeenCalledTimes(1);
-    expect(wireHarness.constant.start).toHaveBeenCalledTimes(1);
-    expect(wireHarness.gain.gain.value).toBe(0);
-    player.destroy();
-    expect(wireHarness.track.stop).toHaveBeenCalledTimes(1);
-  });
 
   it('keeps the host timeline passive when audio delivery is disabled', async () => {
     const updates: Array<{ state: string; time: number; delivery: string }> = [];

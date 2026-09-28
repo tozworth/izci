@@ -57,6 +57,20 @@ export function getQueueSummaryKind(items: TrackItem[]): QueueSummaryKind {
   return 'items';
 }
 
+export function getLocalizedItemCount(items: TrackItem[], translate: Translate): string {
+  const kind = getQueueSummaryKind(items);
+  const labels = {
+    songs: '{count, plural, one {# song} other {# songs}}',
+    images: '{count, plural, one {# image} other {# images}}',
+    videos: '{count, plural, one {# video} other {# videos}}',
+    items: '{count, plural, one {# item} other {# items}}'
+  };
+  return translate(`library.summary.count${kind[0].toUpperCase()}${kind.slice(1)}`, {
+    default: labels[kind],
+    values: { count: items.length }
+  });
+}
+
 function getQueueTracksSummary(
   kind: QueueSummaryKind,
   count: number,
@@ -125,22 +139,10 @@ export function getLocalizedTrackSummary(
   sourceItems: TrackItem[],
   visibleItems: TrackItem[],
   query: string,
-  translate: Translate,
-  mediaLabels = false
+  translate: Translate
 ): string {
   const duration = formatTotalDuration(getTotalDuration(visibleItems));
 
-  if (mediaLabels) {
-    return query && visibleItems.length !== sourceItems.length
-      ? translate('library.summary.filteredMedia', {
-          default: '{visible} of {total} media items · {duration}',
-          values: { visible: visibleItems.length, total: sourceItems.length, duration }
-        })
-      : translate('library.summary.media', {
-          default: '{count, plural, one {# media item} other {# media items}} · {duration}',
-          values: { count: visibleItems.length, duration }
-        });
-  }
 
   if (query && visibleItems.length !== sourceItems.length) {
     return getFilteredQueueTracksSummary(
@@ -189,14 +191,14 @@ export function getLibraryGroupSummary(
   view: LibraryGroupViewId,
   visibleGroups: number,
   totalGroups: number,
-  songs: number,
+  items: TrackItem[],
   query: string,
   translate: Translate
 ): string {
   const groups = getGroupCountSummary(view, visibleGroups, totalGroups, Boolean(query) && visibleGroups !== totalGroups, translate);
-  return translate('library.summary.groupsAndSongs', {
-    default: '{groups} · {songs, plural, one {# media item} other {# media items}}',
-    values: { groups, songs }
+  return translate('library.summary.groupsAndItems', {
+    default: '{groups} · {items}',
+    values: { groups, items: getLocalizedItemCount(items, translate) }
   });
 }
 

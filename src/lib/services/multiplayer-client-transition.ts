@@ -5,15 +5,13 @@ import type {
 } from './multiplayer-protocol';
 
 /**
- * Owns the client-side readiness contract for one stable receiver pipeline.
- * Delivery generations are disposable; the physical WebRTC pipeline may live
- * for the whole session and can therefore satisfy more than one generation.
+ * Owns generation-scoped source-file readiness. Buffered Opus readiness is
+ * reported by the render playback service through render.ready.
  */
 export class MultiplayerClientTransition {
   #delivery: MultiplayerDeliveryState | null = null;
   #playbackTrackId: string | null = null;
   #preparation: MultiplayerPlaybackPreparation | null = null;
-  #receiverPipelineReady = false;
   #sourceReady: { generationId: string; trackId: string } | null = null;
   #receiveAudio = true;
   #readySent = false;
@@ -57,10 +55,6 @@ export class MultiplayerClientTransition {
     return true;
   }
 
-  setReceiverPipelineReady(ready: boolean): void {
-    this.#receiverPipelineReady = ready;
-  }
-
   setSourceReady(generationId: string, trackId: string, ready: boolean): boolean {
     if (!this.isCurrent(generationId, trackId, 'source-file')) return false;
     this.#sourceReady = ready ? { generationId, trackId } : null;
@@ -72,7 +66,6 @@ export class MultiplayerClientTransition {
     if (!preparation || this.#readySent || this.#playbackTrackId !== preparation.trackId) return null;
     const ready = !this.#receiveAudio
       || preparation.delivery === 'none'
-      || (preparation.delivery === 'stream' && this.#receiverPipelineReady)
       || (preparation.delivery === 'source-file'
         && this.#sourceReady?.generationId === preparation.generationId
         && this.#sourceReady.trackId === preparation.trackId);
@@ -95,7 +88,6 @@ export class MultiplayerClientTransition {
     this.#delivery = null;
     this.#playbackTrackId = null;
     this.#preparation = null;
-    this.#receiverPipelineReady = false;
     this.#sourceReady = null;
     this.#readySent = false;
   }

@@ -511,7 +511,7 @@ func validateKnownKind(kind string, msg map[string]json.RawMessage) bool {
 			if mode == "none" {
 				return hasReason && (reason == "host-disabled" || reason == "no-track")
 			}
-			if mode == "stream" || mode == "source-file" || mode == "render" {
+			if mode == "source-file" || mode == "render" {
 				return !hasReason
 			}
 			return false
@@ -522,7 +522,7 @@ func validateKnownKind(kind string, msg map[string]json.RawMessage) bool {
 		if d.Mode == "none" {
 			return d.Reason != nil && (*d.Reason == "host-disabled" || *d.Reason == "no-track")
 		}
-		if d.Mode == "stream" || d.Mode == "source-file" || d.Mode == "render" {
+		if d.Mode == "source-file" || d.Mode == "render" {
 			return d.Reason == nil
 		}
 		return false

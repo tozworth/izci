@@ -34,7 +34,7 @@ func TestPionThreeChannelsHello(t *testing.T) {
 
 	rtcHost := NewRTCHost(RTCConfig{})
 
-	// Client (offerer) side: three data channels + audio transceiver.
+	// Client (offerer) side: three data channels.
 	clientPC, err := webrtc.NewPeerConnection(webrtc.Configuration{})
 	if err != nil {
 		t.Fatalf("client pc: %v", err)
@@ -56,9 +56,6 @@ func TestPionThreeChannelsHello(t *testing.T) {
 	}
 	_ = mediaDC
 	_ = renderDC
-	if _, err := clientPC.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly}); err != nil {
-		t.Fatalf("audio transceiver: %v", err)
-	}
 	offer, err := clientPC.CreateOffer(nil)
 	if err != nil {
 		t.Fatalf("offer: %v", err)
@@ -99,8 +96,8 @@ func TestPionThreeChannelsHello(t *testing.T) {
 	if err != nil {
 		t.Fatalf("host answer: %v", err)
 	}
-	if !strings.Contains(answerSDP, "m=audio") {
-		t.Fatalf("answer must contain an audio m-line even with no server RTP track")
+	if strings.Contains(answerSDP, "m=audio") || !strings.Contains(answerSDP, "m=application") {
+		t.Fatalf("answer must negotiate data channels only")
 	}
 	if err := clientPC.SetRemoteDescription(webrtc.SessionDescription{Type: webrtc.SDPTypeAnswer, SDP: answerSDP}); err != nil {
 		t.Fatalf("set remote answer: %v", err)
@@ -213,9 +210,6 @@ func TestPionRenderEndToEnd(t *testing.T) {
 	renderDC, err := clientPC.CreateDataChannel(ChannelRender, &webrtc.DataChannelInit{Ordered: &unordered})
 	if err != nil {
 		t.Fatalf("render dc: %v", err)
-	}
-	if _, err := clientPC.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly}); err != nil {
-		t.Fatalf("audio transceiver: %v", err)
 	}
 
 	controlTexts := make(chan string, 256)

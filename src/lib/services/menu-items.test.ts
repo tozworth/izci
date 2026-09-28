@@ -12,7 +12,7 @@ const storage = vi.hoisted(() => {
 import type { MenuActionItem } from '$lib/types';
 import { buildMenuItems } from './menu-items';
 import type { MenuTranslation } from './menu-format';
-import type { MultiplayerConnectionStats, MultiplayerConnectionStatus, MultiplayerMode } from '$lib/services/multiplayer-types';
+import type { MultiplayerConnectionStatus, MultiplayerMode } from '$lib/services/multiplayer-types';
 
 const translate: MenuTranslation = (_id, options) => options?.default ?? String(_id);
 type MenuItemsDeps = Parameters<typeof buildMenuItems>[0];
@@ -34,7 +34,7 @@ const baseDeps = (): MenuItemsDeps => ({
   multiplayerHostVersion: null,
   multiplayerHostImplementation: null,
   multiplayerHostProtocol: null,
-  multiplayerConnectionStats: null,
+  multiplayerDeliveryMode: 'none',
   multiplayerEnabled: true,
   playingTrack: null,
   installAvailable: false,
@@ -96,10 +96,16 @@ describe('menu-items builders', () => {
       multiplayerMode: 'client' as MultiplayerMode,
       multiplayerConnectionStatus: 'connected' as MultiplayerConnectionStatus,
       multiplayerHostName: 'Other Device',
-      multiplayerConnectionStats: { packetsReceived: 10, packetsLost: 1, packetLossPercent: 9.09, bytesReceived: 2048, jitterMs: 5, roundTripTimeMs: 20, codec: 'opus' } as MultiplayerConnectionStats
+      multiplayerDeliveryMode: 'render',
+      multiplayerAudioBitrateKbps: 128
     });
     expect(groupIds(result)).toContain('session');
     expect(groupIds(result)).not.toContain('file');
+    const session = groupItems(result, 'session');
+    expect(session.find((item) => item.id === 'multiplayerStatAudio')?.shortcut).toBe('Buffered Opus · 128 kbps');
+    expect(ids(session)).not.toContain('multiplayerStatData');
+    expect(ids(session)).not.toContain('multiplayerStatTotalLoss');
+    expect(ids(session)).not.toContain('multiplayerStatTiming');
   });
 
   it('only exposes Chat in View while connected to a multiplayer room', () => {
