@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { emitTo, listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { get } from 'svelte/store';
 import type { PlatformIntegrationOptions } from '$lib/services/platform-integration-types';
-import { desktopSettings } from './settings';
+import { desktopSettings, type DesktopShowIn } from './settings';
 import { readDesktopFiles } from './files';
 import { parseTrayAction, trayState, TRAY_ACTION_EVENT, TRAY_REQUEST_EVENT, TRAY_STATE_EVENT, type TrayState } from './tray-protocol';
 
@@ -11,7 +11,7 @@ export function openDesktopDefaultApps(): void { void invoke('open_desktop_defau
 
 export function createPlatformIntegration(options: PlatformIntegrationOptions): () => void {
   let disposed = false;
-  let previousTray: boolean | undefined;
+  let previousShowIn: DesktopShowIn | undefined;
   let previousAssociations: boolean | undefined;
   let settingsWork: Promise<unknown> = Promise.resolve();
   let importWork: Promise<unknown> = Promise.resolve();
@@ -20,7 +20,7 @@ export function createPlatformIntegration(options: PlatformIntegrationOptions): 
   let lastTrayState: TrayState | undefined;
 
   async function publish(force = false): Promise<void> {
-    if (!disposed && desktopSettings.getSnapshot().trayIcon) {
+    if (!disposed && desktopSettings.getSnapshot().showIn !== 'taskbar') {
       const snapshot = get(options.snapshot);
       const state = trayState(snapshot, options.canControl() || snapshot.backend !== null);
       if (!force && state.playing === lastTrayState?.playing && state.canControl === lastTrayState?.canControl) return;
@@ -43,9 +43,9 @@ export function createPlatformIntegration(options: PlatformIntegrationOptions): 
   const unsubscribeSettings = desktopSettings.subscribe((settings) => {
     settingsWork = settingsWork.then(async () => {
       if (disposed) return;
-      if (settings.trayIcon !== previousTray) {
-        await invoke('configure_desktop_tray', { enabled: settings.trayIcon });
-        previousTray = settings.trayIcon;
+      if (settings.showIn !== previousShowIn) {
+        await invoke('configure_desktop_visibility', { showIn: settings.showIn });
+        previousShowIn = settings.showIn;
       }
       if (settings.fileAssociations !== previousAssociations) {
         await invoke('configure_desktop_associations', { enabled: settings.fileAssociations });
@@ -60,7 +60,11 @@ export function createPlatformIntegration(options: PlatformIntegrationOptions): 
       if (disposed) return;
       const action = parseTrayAction(payload);
       if (!action) return;
-      if (action === 'open') void invoke('close_mini_player').catch(reportError);
+      if (action === 'open' || action === 'enterOda') {
+        void invoke('restore_main_window')
+          .then(() => { if (!disposed && action === 'enterOda') options.handlers.enterOda(); })
+          .catch(reportError);
+      }
       else options.handlers[action]();
     }),
     listen('izci:desktop-files-available', scheduleFiles)

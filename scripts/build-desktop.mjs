@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ensureDesktopPacker, packDesktopExecutable } from './desktop/pack-executable.mjs';
 import { verifyStandaloneExecutable } from './desktop/verify-executable.mjs';
+import { publishDesktopBuild } from './desktop/publish-build.mjs';
 
 if (process.platform !== 'win32') throw new Error('The desktop MVP is Windows-only.');
 const root = resolve(import.meta.dirname, '..');
@@ -38,24 +39,15 @@ const executable = join(release, 'izci.exe');
 const imports = verifyStandaloneExecutable(readFileSync(executable));
 console.log(`Verified standalone dependencies: ${imports.length} Windows system DLLs; no sidecar DLLs.`);
 // Pack a staging copy so Cargo's output stays untouched and a failed pack never
-// replaces the working build. A running player keeps the existing fallback.
+// replaces the working build. Playback continues until publication is ready.
 const staging = join(root, '.local', `desktop-packed-${process.pid}.exe`);
 mkdirSync(join(root, '.local'), { recursive: true });
-let output = join(root, '.local', 'desktop');
+const output = join(root, '.local', 'desktop');
 mkdirSync(output, { recursive: true });
 try {
   copyFileSync(executable, staging);
   if (packer) packDesktopExecutable(packer, staging);
-  try {
-    copyFileSync(staging, join(output, 'izci.exe'));
-  } catch (error) {
-    if (error.code !== 'EBUSY' && error.code !== 'EPERM' && error.code !== 'EACCES') throw error;
-    // A running Windows executable is locked. Preserve the user's playback session.
-    output = join(root, '.local', 'desktop-next');
-    mkdirSync(output, { recursive: true });
-    copyFileSync(staging, join(output, 'izci.exe'));
-    console.log(`Could not replace the current desktop executable (${error.code}); saved the new build separately.`);
-  }
+  await publishDesktopBuild(root, staging);
 } finally {
   rmSync(staging, { force: true });
 }

@@ -1,12 +1,13 @@
 import { createSettingsStore } from '$lib/stores/persistent-store';
 
-export interface DesktopSettings { trayIcon: boolean; fileAssociations: boolean }
-export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = { trayIcon: false, fileAssociations: true };
+export type DesktopShowIn = 'taskbar' | 'tray' | 'both';
+export interface DesktopSettings { showIn: DesktopShowIn; fileAssociations: boolean }
+export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = { showIn: 'taskbar', fileAssociations: true };
 
 export function normalizeDesktopSettings(value: unknown): DesktopSettings {
   const source = value && typeof value === 'object' ? value as Partial<DesktopSettings> : {};
   return {
-    trayIcon: source.trayIcon === true,
+    showIn: source.showIn === 'tray' || source.showIn === 'both' ? source.showIn : 'taskbar',
     fileAssociations: typeof source.fileAssociations === 'boolean' ? source.fileAssociations : true
   };
 }
@@ -17,7 +18,7 @@ export const desktopSettings = createSettingsStore({
 });
 
 export function resetDesktopAppearance(): void {
-  desktopSettings.update({ trayIcon: DEFAULT_DESKTOP_SETTINGS.trayIcon });
+  desktopSettings.update({ showIn: DEFAULT_DESKTOP_SETTINGS.showIn });
 }
 export function resetDesktopTracks(): void {
   desktopSettings.update({ fileAssociations: DEFAULT_DESKTOP_SETTINGS.fileAssociations });

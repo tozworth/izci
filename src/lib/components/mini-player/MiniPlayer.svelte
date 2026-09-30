@@ -1,11 +1,13 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
+  import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import type { Readable } from 'svelte/store';
   import type { PlaybackSnapshot, TrackItem } from '$lib/types';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
   import { createWheelSeekController } from '$lib/services/wheel-seek';
 
+  export let showTooltips = false;
   export let snapshotStore: Readable<PlaybackSnapshot>;
   export let trackStore: Readable<TrackItem | null>;
   export let selectedTrackStore: Readable<TrackItem | null>;
@@ -182,6 +184,7 @@
         </span>
       {/if}
       <span class="mini-player-artwork-fullscreen material-symbols-outlined" aria-hidden="true">fullscreen</span>
+      {#if showTooltips}<HoverTooltip align="left" nowrap>{$t('main.player.enterNowPlaying')}</HoverTooltip>{/if}
     </button>
 
     <div class="mini-player-track-copy">
@@ -205,6 +208,7 @@
         on:click={onPreviousTrack}
       >
         <span class="material-symbols-outlined" aria-hidden="true">skip_previous</span>
+        {#if showTooltips}<HoverTooltip nowrap>{$t('main.player.previousTrack')}</HoverTooltip>{/if}
       </button>
       <button
         type="button"
@@ -220,6 +224,7 @@
         <span class="material-symbols-outlined" aria-hidden="true">
           {isLoading ? 'progress_activity' : snapshot.state === 'playing' ? 'pause' : 'play_arrow'}
         </span>
+        {#if showTooltips}<HoverTooltip nowrap>{$t(snapshot.state === 'playing' ? 'main.player.pausePlayback' : 'main.player.playPlayback')}</HoverTooltip>{/if}
       </button>
       <button
         type="button"
@@ -228,6 +233,7 @@
         on:click={onNextTrack}
       >
         <span class="material-symbols-outlined" aria-hidden="true">skip_next</span>
+        {#if showTooltips}<HoverTooltip nowrap>{$t('main.player.nextTrack')}</HoverTooltip>{/if}
       </button>
     </div>
   </div>
@@ -263,6 +269,7 @@
       on:wheel|preventDefault={handleVolumeWheel}
     >
       <span class="material-symbols-outlined" aria-hidden="true">{getVolumeIcon()}</span>
+      {#if showTooltips}<HoverTooltip placement="above" nowrap>{$t(snapshot.muted || snapshot.volume <= 0 ? 'main.player.unmute' : 'main.player.mute')}</HoverTooltip>{/if}
     </button>
     <div
       class="mini-player-range mini-player-volume-range"

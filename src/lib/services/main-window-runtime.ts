@@ -151,6 +151,7 @@ interface MainWindowRuntimeDeps {
   setVideoSeekFeedback(feedback: VideoSeekFeedback | null): void;
   getSelectedItem(): TrackItem | null;
   openOptions(view?: OptionsViewName): void;
+  enterOda(): void;
   activateLibraryPanelTrack(id: string): Promise<void>;
 }
 
@@ -739,6 +740,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
       previousTrack: () => transport.stepTrack(-1),
       nextTrack: () => transport.stepTrack(1),
       openOptions: () => deps.openOptions(),
+      enterOda: () => deps.enterOda(),
       miniPlayer: () => miniPlayer.toggle(),
       exit: () => windowManager.exit()
     },

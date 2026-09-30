@@ -4,6 +4,9 @@
 #[path = "../src/fonts.rs"]
 mod fonts;
 #[allow(dead_code)]
+#[path = "../src/player_windows.rs"]
+mod player_windows;
+#[allow(dead_code)]
 #[path = "../src/tray.rs"]
 mod tray;
 #[allow(dead_code)]
@@ -15,9 +18,15 @@ mod window_presentation;
 #[allow(dead_code)]
 #[path = "../src/window_resources.rs"]
 mod window_resources;
-#[allow(dead_code)]
-#[path = "../src/window_state.rs"]
-mod window_state;
+// Presentation checks must never save smoke-window placement to the player's
+// registry key. Persistence is covered by the real module's unit tests.
+mod window_state {
+    #[derive(Default)]
+    pub struct WindowState;
+    pub fn capture(_: &tauri::Window) {}
+    pub fn restore(_: &tauri::Window) {}
+    pub fn save(_: &tauri::Window) {}
+}
 #[allow(dead_code)]
 #[path = "../src/windows.rs"]
 mod windows;
@@ -75,10 +84,6 @@ async fn check_resources(window: &tauri::WebviewWindow, visible: bool) -> Result
         .ok_or("WebView2 resource check did not complete")?
 }
 
-fn close_mini(app: &tauri::AppHandle) -> Result<(), String> {
-    windows::restore_main(app)
-}
-
 #[tauri::command]
 fn smoke_check(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
     if app.tray_by_id("izci").is_some() != enabled {
@@ -127,6 +132,91 @@ async fn smoke_utilities(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+fn check_player_mode(app: &tauri::AppHandle, mini_mode: bool) -> Result<(), String> {
+    let main = app.get_webview_window("main").ok_or("Missing owner")?;
+    let mini = app
+        .get_webview_window("mini-player")
+        .ok_or("Missing mini")?;
+    if main.is_visible().map_err(|error| error.to_string())? == mini_mode
+        || mini.is_visible().map_err(|error| error.to_string())? != mini_mode
+        || player_windows::mini_active(app) != mini_mode
+    {
+        return Err("Main and mini player did not switch exclusively".into());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn smoke_player_modes(app: tauri::AppHandle) -> Result<(), String> {
+    let main = app.get_webview_window("main").ok_or("Missing owner")?;
+    let mini = app
+        .get_webview_window("mini-player")
+        .ok_or("Missing mini")?;
+    for _ in 0..3 {
+        windows::restore_main(&app)?;
+        check_player_mode(&app, false)?;
+        player_windows::open_mini(&app)?;
+        check_player_mode(&app, true)?;
+        check_resources(&main, true).await?;
+        check_resources(&mini, true).await?;
+        player_windows::dismiss_mini(&app)?;
+        if main.is_visible().map_err(|error| error.to_string())?
+            || mini.is_visible().map_err(|error| error.to_string())?
+            || !player_windows::mini_active(&app)
+        {
+            return Err("Dismissing mini restored main or ended mini mode".into());
+        }
+        check_resources(&main, true).await?;
+        check_resources(&mini, false).await?;
+        tray::activate_player(&app, false)?;
+        check_player_mode(&app, true)?;
+        check_resources(&mini, true).await?;
+        mini.minimize().map_err(|error| error.to_string())?;
+        tray::activate_player(&app, false)?;
+        check_player_mode(&app, true)?;
+        if mini.is_minimized().map_err(|error| error.to_string())? {
+            return Err("Single tray click did not restore the mini player".into());
+        }
+        tray::activate_player(&app, true)?;
+        check_player_mode(&app, false)?;
+        // Expand returns to main; close must only dismiss mini.
+        player_windows::open_mini(&app)?;
+        windows::restore_main(&app)?;
+        check_player_mode(&app, false)?;
+        check_resources(&mini, false).await?;
+        player_windows::open_mini(&app)?;
+        player_windows::dismiss_mini(&app)?;
+        tray::activate_player(&app, true)?;
+        check_player_mode(&app, false)?;
+        player_windows::open_mini(&app)?;
+        window_presentation::request_main(&app)?;
+        check_player_mode(&app, false)?;
+        main.minimize().map_err(|error| error.to_string())?;
+        tray::activate_player(&app, false)?;
+        if !main.is_minimized().map_err(|error| error.to_string())? {
+            return Err("Single tray click changed main mode".into());
+        }
+        tray::activate_player(&app, true)?;
+        check_player_mode(&app, false)?;
+    }
+    tray::configure_desktop_visibility(app.clone(), main.clone(), tray::DesktopShowIn::Taskbar)
+        .await?;
+    player_windows::open_mini(&app)?;
+    player_windows::dismiss_mini(&app)?;
+    check_player_mode(&app, true)?;
+    if !mini.is_minimized().map_err(|error| error.to_string())? {
+        return Err("Dismissing mini without a tray lost taskbar access".into());
+    }
+    windows::restore_main(&app)?;
+    tray::configure_desktop_visibility(app.clone(), main.clone(), tray::DesktopShowIn::Both)
+        .await?;
+    main.hide().map_err(|error| error.to_string())?;
+    println!(
+        "Verified exclusive switching, mini-only dismissal, and single/double tray activation."
+    );
+    Ok(())
+}
+
 #[tauri::command]
 async fn smoke_popup(app: tauri::AppHandle, visible: bool, destroy: bool) -> Result<(), String> {
     let popup = app
@@ -162,8 +252,9 @@ async fn smoke_popup(app: tauri::AppHandle, visible: bool, destroy: bool) -> Res
 const DRIVER: &str = r#"(async () => {
     const invoke = window.__TAURI_INTERNALS__.invoke;
     try {
+        await invoke('desktop_window_ready');
         // Saved tray settings and Options warmup arrive concurrently at launch.
-        const trayStartup = invoke('configure_desktop_tray', { enabled: true });
+        const trayStartup = invoke('configure_desktop_visibility', { showIn: 'both' });
         // Exercise real window.open and the packaged Options entrypoint, both
         // on a cold load and subsequent cached loads. The isolated profile and
         // placeholder owner never run playback or file associations.
@@ -188,9 +279,10 @@ const DRIVER: &str = r#"(async () => {
             await invoke('smoke_popup', { visible: true, destroy: true });
         }
         await invoke('smoke_utilities');
-        for (const enabled of [true, false, true]) {
-            await invoke('configure_desktop_tray', { enabled });
-            await invoke('smoke_check', { enabled });
+        await invoke('smoke_player_modes');
+        for (const showIn of ['both', 'tray', 'taskbar', 'tray', 'both']) {
+            await invoke('configure_desktop_visibility', { showIn });
+            await invoke('smoke_check', { enabled: showIn !== 'taskbar' });
         }
         await invoke('plugin:window|close', { label: 'main' });
     } catch (error) { await invoke('smoke_error', { error: String(error) }); }
@@ -211,12 +303,13 @@ fn main() {
         .plugin(tauri_plugin_single_instance::init(|_, _, _| {}))
         .manage(window_lifecycle::WindowLifecycle::default())
         .manage(window_state::WindowState::default())
+        .manage(player_windows::PlayerWindowMode::default())
         .manage(Mutex::new(tray::TrayMenuState::default()))
         .manage(Mutex::new(
             window_presentation::WindowPresentation::default(),
         ))
         .invoke_handler(tauri::generate_handler![
-            tray::configure_desktop_tray,
+            tray::configure_desktop_visibility,
             tray::desktop_tray_menu_ready,
             window_presentation::desktop_window_ready,
             window_presentation::present_desktop_popup,
@@ -224,6 +317,7 @@ fn main() {
             smoke_check,
             smoke_popup,
             smoke_utilities,
+            smoke_player_modes,
             smoke_error
         ])
         .setup(move |app| {

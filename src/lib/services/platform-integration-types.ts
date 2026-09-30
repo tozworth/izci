@@ -6,7 +6,7 @@ export interface PlatformIntegrationOptions {
   canControl: () => boolean;
   handlers: {
     togglePlayback: () => void; previousTrack: () => void; nextTrack: () => void;
-    openOptions: () => void; miniPlayer: () => void; exit: () => void;
+    openOptions: () => void; enterOda: () => void; miniPlayer: () => void; exit: () => void;
   };
   importFiles: (files: File[]) => Promise<void>;
 }

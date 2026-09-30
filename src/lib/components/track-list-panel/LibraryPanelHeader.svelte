@@ -84,8 +84,6 @@
   }
 
   function handleViewMenuAction(actionId: string) {
-    viewMenuOpen = false;
-
     if (actionId.startsWith('toggle:')) {
       const view = actionId.slice('toggle:'.length) as LibraryViewId;
       if (LIBRARY_VIEW_IDS.includes(view)) {
@@ -283,6 +281,7 @@
 {#if viewMenuOpen}
   <MenuSurface
     items={viewMenuItems}
+    dismissOnSelect={false}
     x={viewMenuX}
     y={viewMenuY}
     ariaLabel={$t('library.views.label', { default: 'Library views' })}

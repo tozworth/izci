@@ -574,6 +574,7 @@
       "logoAlt": "izci logosu",
       "kicker": "MIZMIZLI / YALAMAÇLI / WCO'LU",
       "tagline": "PWA medya düzeneği",
+      "desktopTagline": "Medya düzeneği",
       "openOnGitHub": "GitHub'da dunsparce9/izci repo'sunu aç",
       "features": {
         "formats": "Bildiğiniz müzik dosyalarının yanı sıra izci modüllerini de çalar",
@@ -1623,9 +1624,12 @@
   },
   "desktop": {
     "appearance": {
-      "tray": {
-        "title": "Sistem tepsisi simgesini göster",
-        "hint": "Windows bildirim alanında izci simgesini, oynatma ve pencere denetimleriyle gösterir."
+      "showIn": {
+        "title": "Gösterileceği yer",
+        "hint": "izci'nin nerede görüneceğini seçin. Sistem tepsisi simgesi oynatma ve pencere denetimleri sunar.",
+        "taskbar": "Yalnızca görev çubuğu",
+        "tray": "Yalnızca sistem tepsisi",
+        "both": "Her ikisi"
       }
     },
     "tracks": {
@@ -1644,6 +1648,7 @@
       "pause": "Duraklat",
       "play": "Oynat",
       "open": "izci'yi aç",
+      "oda": "Oda",
       "exit": "izci'den çık"
     }
   },

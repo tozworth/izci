@@ -7,6 +7,7 @@ mod associations;
 mod desktop_files;
 mod fonts;
 mod playback_restoration;
+mod player_windows;
 mod tray;
 mod window_lifecycle;
 mod window_presentation;
@@ -28,27 +29,25 @@ fn open_mini_player(app: AppHandle, window: WebviewWindow) -> Result<(), String>
     if window.label() != "main" {
         return Err("Only the playback owner can open the miniplayer".into());
     }
-    let mini = app
-        .get_webview_window("mini-player")
-        .ok_or("Miniplayer is unavailable")?;
-    window_resources::show(&mini)?;
-    mini.set_focus().map_err(|error| error.to_string())?;
-    window.minimize().map_err(|error| error.to_string())
+    player_windows::open_mini(&app)
 }
 
 fn close_mini(app: &AppHandle) -> Result<(), String> {
-    if let Some(mini) = app.get_webview_window("mini-player") {
-        window_resources::hide(&mini)?;
-    }
-    app.emit_to("main", "izci:desktop-mini-closed", ())
-        .map_err(|error| error.to_string())?;
-    windows::restore_main(app)
+    player_windows::restore_main(app)
 }
 
 #[tauri::command]
 fn close_mini_player(app: AppHandle, window: WebviewWindow) -> Result<(), String> {
     require_player_window(&window)?;
     close_mini(&app)
+}
+
+#[tauri::command]
+fn dismiss_mini_player(app: AppHandle, window: WebviewWindow) -> Result<(), String> {
+    if window.label() != "mini-player" {
+        return Err("Only the miniplayer can dismiss itself".into());
+    }
+    player_windows::dismiss_mini(&app)
 }
 
 #[tauri::command]
@@ -88,6 +87,7 @@ fn main() {
         }))
         .manage(window_lifecycle::WindowLifecycle::default())
         .manage(window_state::WindowState::default())
+        .manage(player_windows::PlayerWindowMode::default())
         .manage(desktop_files::LaunchFiles(std::sync::Mutex::new(
             desktop_files::launch_paths(
                 std::env::args(),
@@ -101,6 +101,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             open_mini_player,
             close_mini_player,
+            dismiss_mini_player,
             restore_main_window,
             pin_mini_player,
             exit_desktop,
@@ -112,7 +113,7 @@ fn main() {
             associations::open_desktop_default_apps,
             desktop_files::take_desktop_launch_paths,
             desktop_files::materialize_desktop_files,
-            tray::configure_desktop_tray,
+            tray::configure_desktop_visibility,
             tray::desktop_tray_menu_ready,
             tray::show_desktop_tray_menu,
             tray::hide_desktop_tray_menu
@@ -122,7 +123,7 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| match (window.label(), event) {
-            ("main", WindowEvent::Moved(_) | WindowEvent::Resized(_)) => {
+            ("main" | "mini-player", WindowEvent::Moved(_) | WindowEvent::Resized(_)) => {
                 window_state::capture(window);
             }
             ("main", WindowEvent::CloseRequested { api, .. }) => {
@@ -132,7 +133,7 @@ fn main() {
             ("mini-player", WindowEvent::CloseRequested { api, .. }) => {
                 if window.app_handle().get_webview_window("main").is_some() {
                     api.prevent_close();
-                    let _ = close_mini(window.app_handle());
+                    let _ = player_windows::dismiss_mini(window.app_handle());
                 }
             }
             ("main", WindowEvent::Destroyed) => {

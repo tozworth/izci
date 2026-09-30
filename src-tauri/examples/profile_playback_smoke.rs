@@ -30,7 +30,7 @@ fn desktop_window_ready() {}
 #[tauri::command]
 fn configure_desktop_associations() {}
 #[tauri::command]
-fn configure_desktop_tray() {}
+fn configure_desktop_visibility() {}
 
 static CHECKING: AtomicBool = AtomicBool::new(false);
 const SNAPSHOT: &str = r#"(async () => {
@@ -67,7 +67,7 @@ fn main() {
     tauri::Builder::default()
         .manage(desktop_files::LaunchFiles::default())
         .invoke_handler(tauri::generate_handler![
-            desktop_window_ready, configure_desktop_associations, configure_desktop_tray,
+            desktop_window_ready, configure_desktop_associations, configure_desktop_visibility,
             playback_restoration::prepare_desktop_playback_restoration,
             desktop_files::take_desktop_launch_paths, desktop_files::materialize_desktop_files,
             fonts::local_font_families

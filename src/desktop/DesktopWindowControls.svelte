@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
+  import { fitDesktopTitlebar } from './titlebar-overflow';
   import {
     desktopWindowState, minimizeDesktopWindow, toggleDesktopMaximize, closeDesktopWindow
   } from './window-titlebar';
@@ -12,7 +13,7 @@
     ? $t('main.windowControls.restore') : $t('main.windowControls.maximize');
 </script>
 
-<div class="desktop-window-controls" data-menu-interactive="true">
+<div class="desktop-window-controls" data-menu-interactive="true" use:fitDesktopTitlebar>
   {#if miniPlayerSupported}
     <button class="mini-player-control" title={$t('main.menu.miniPlayer')} aria-label={$t('main.menu.miniPlayer')}
       aria-pressed={miniPlayerActive} on:click={() => dispatch('miniplayer')}>
@@ -38,6 +39,7 @@
 
 <style>
   :global(.menu-bar.desktop-titlebar) {
+    min-width: 0; max-width: 100vw;
     min-height: 32px; padding: 0; gap: 0; user-select: none;
   }
   :global(.desktop-titlebar .menu-brand) {
@@ -49,6 +51,9 @@
   :global(.desktop-titlebar .compact-menu-trigger) {
     flex-shrink: 0;
   }
+  :global(.desktop-titlebar .menu-brand > *) { flex: 0 0 auto; }
+  :global(.desktop-titlebar-hide-brand .menu-brand) { visibility: hidden; }
+  :global(.desktop-titlebar-hide-mini .mini-player-control) { display: none; }
   :global(.desktop-titlebar-inactive .menu-brand) { opacity: 0.6; }
   .desktop-window-controls { display: flex; align-self: stretch; flex: 0 0 auto; margin-left: auto; }
   button {

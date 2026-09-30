@@ -2,8 +2,13 @@
 
 Build with `npm run desktop:build`. The runnable output is
 `.local/desktop/izci.exe`; this is the only app file needed for distribution.
-If the current executable is locked by a running player, the new build is saved
-to `.local/desktop-next/izci.exe` instead, leaving the playback session intact.
+After compilation, verification and packing succeed, the build script closes
+the running workspace copy (including `.local/desktop-next/izci.exe` from an
+earlier build), atomically replaces the output, and relaunches it. Playback
+continues during the build. Shutdown first requests a normal close to save
+window placement, then force-terminates after 1.5 seconds if necessary. A failed
+replacement relaunches the previous copy. Other executable paths are untouched;
+building while no local player is running does not launch one.
 The MSVC build statically links the WebView2 loader and Visual C++ runtime, so
 there is no `WebView2Loader.dll` sidecar. An installed Evergreen WebView2 runtime
 is still required. Build dependencies are the Rust MSVC toolchain
@@ -33,11 +38,17 @@ and audio resources. Installed fonts are enumerated through Windows DirectWrite;
 the desktop font picker never requests Chromium Local Font Access permission.
 
 Open the Mini player button or menu action to show a frameless native window and
-minimize the main window. Drag it by the track text or empty space. Always-on-top,
+hide the main window. Drag it by the track text or empty space. Always-on-top,
 restore, and close controls appear on hover or keyboard focus without reserving
 a titlebar row. Native shadows are disabled to avoid Windows' nonclient border.
 Its pin preference persists; its active state and playback snapshots do not.
-Closing it restores the main window. The main window remains the sole playback
+Expanding it ends mini mode and restores the main window. Closing hides it to
+the tray while keeping mini mode active; without a tray icon, it minimizes to
+the taskbar instead. A single
+tray click brings the mini player forward while in mini mode; a double-click
+ends mini mode and opens the main window. Every main-window restoration closes
+the mini player, so the two player surfaces cannot remain visible together.
+The main window remains the sole playback
 owner, including Multiplayer's effective state. All miniplayer actions go back
 through its existing transport handlers. Chromium background timer throttling
 is disabled for the native windows so minimized transport work can continue.
@@ -50,10 +61,11 @@ generate/register a service worker. Existing Options/tool windows keep their
 Chromium opener relationship through Tauri's new-window handler.
 
 Native preferences live in a separate synchronized `izci.desktop-settings`
-store, independent of per-track loadouts. Appearance includes the tray icon, which
-defaults off. Right-click opens the actual shared MenuSurface in a transparent,
+store, independent of per-track loadouts. Appearance's Show in dropdown offers
+Taskbar only (the default), Tray only, and Both. Tray only hides the main window's
+taskbar entry without hiding the window. Right-click opens the actual shared MenuSurface in a transparent,
 frameless popup; transport uses the main runtime's effective playback commands.
-Closing the main window still exits normally. Disabling the icon removes it.
+Closing the main window still exits normally. Taskbar only removes the tray icon.
 Owner close explicitly destroys the playback window and its hidden utilities,
 then exits the native process. Window roles are recorded during navigation so
 shutdown does not query disappearing WebView2 controllers. Hidden tray and

@@ -36,8 +36,7 @@ fn present(window: &WebviewWindow) -> Result<(), String> {
 }
 
 pub fn request_main(app: &AppHandle) -> Result<(), String> {
-    let main = app
-        .get_webview_window("main")
+    app.get_webview_window("main")
         .ok_or("Main window is unavailable")?;
     let show = app
         .state::<Mutex<WindowPresentation>>()
@@ -45,7 +44,7 @@ pub fn request_main(app: &AppHandle) -> Result<(), String> {
         .map_err(|error| error.to_string())?
         .request("main");
     if show {
-        present(&main)?;
+        crate::windows::restore_main(app)?;
     }
     Ok(())
 }
@@ -64,6 +63,9 @@ pub fn desktop_window_ready(
         .map_err(|error| error.to_string())?
         .ready(window.label(), initially_visible);
     if show {
+        if window.label() == "main" {
+            crate::player_windows::end_mini(window.app_handle())?;
+        }
         crate::window_state::restore(&window.as_ref().window());
         present(&window)?;
         crate::window_state::capture(&window.as_ref().window());

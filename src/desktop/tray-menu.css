@@ -5,5 +5,11 @@
 * { box-sizing: border-box; }
 body { font-size: 0.8rem; user-select: none; }
 button { font: inherit; cursor: default; border: 0; }
-.menu-surface { min-width: 220px; max-width: none; max-height: none !important; }
+.menu-surface { min-width: 0; max-width: none; max-height: none !important; }
+.tray-menu { left: 6px; top: 6px; min-width: 10rem; outline: none; }
+.tray-transport { display: flex; gap: 2px; padding: 2px; }
+.tray-transport button { flex: 1; justify-content: center; height: 2rem; padding: 0; }
+.tray-transport .material-symbols-outlined { font-size: 22px; }
+.menu-list button:focus { outline: none; }
+.menu-list button:focus-visible { background-color: var(--menu-popover-hover); }
 .material-symbols-outlined { font-size: 16px; line-height: 1; }

@@ -1,5 +1,6 @@
 type WindowDismissOptions = {
   enabled?: boolean;
+  dismissOnResize?: boolean;
   onDismiss: () => void;
 };
 
@@ -53,11 +54,15 @@ export function windowDismiss(node: HTMLElement, initialOptions: WindowDismissOp
     dismiss();
   };
 
+  const handleResize = () => {
+    if (options.dismissOnResize !== false) dismiss();
+  };
+
   window.addEventListener('pointerdown', handlePointerDown, true);
   window.addEventListener('keydown', handleKeydown);
   window.addEventListener('scroll', handleScroll, true);
   window.addEventListener('blur', dismiss);
-  window.addEventListener('resize', dismiss);
+  window.addEventListener('resize', handleResize);
 
   return {
     update(nextOptions: WindowDismissOptions) {
@@ -68,7 +73,7 @@ export function windowDismiss(node: HTMLElement, initialOptions: WindowDismissOp
       window.removeEventListener('keydown', handleKeydown);
       window.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('blur', dismiss);
-      window.removeEventListener('resize', dismiss);
+      window.removeEventListener('resize', handleResize);
     }
   };
 }
