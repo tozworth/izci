@@ -1,13 +1,16 @@
 # Windows desktop MVP
 
 Build with `npm run desktop:build`. The runnable output is
-`.local/desktop/izci.exe`; keep any DLLs in that directory alongside the executable.
+`.local/desktop/izci.exe`; this is the only app file needed for distribution.
 If the current executable is locked by a running player, the new build is saved
 to `.local/desktop-next/izci.exe` instead, leaving the playback session intact.
-The current GNU build includes Microsoft's `WebView2Loader.dll`. An installed
-Evergreen WebView2 runtime is required. Rust and a Windows C/C++ toolchain are
-build dependencies only. The build script also recognizes the workspace-local
-Rust installation under `.local/desktop-toolchain/`.
+The MSVC build statically links the WebView2 loader and Visual C++ runtime, so
+there is no `WebView2Loader.dll` sidecar. An installed Evergreen WebView2 runtime
+is still required. Build dependencies are the Rust MSVC toolchain
+(`rustup toolchain install stable-x86_64-pc-windows-msvc`) and Microsoft C++ Build
+Tools with the Desktop development with C++ workload. The build script defaults
+to `stable-x86_64-pc-windows-msvc`, honors an MSVC `RUSTUP_TOOLCHAIN` override,
+and recognizes workspace-local Rust under `.local/desktop-toolchain/`.
 
 This target uses the existing File System Access pickers and **real Chromium
 filesystem handles**, including writable handles used by the tools. Queue and
