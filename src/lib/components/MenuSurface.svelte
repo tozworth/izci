@@ -487,6 +487,7 @@
         {/if}
       </div>
     {/each}
+    <slot />
   </div>
 {/if}
 
