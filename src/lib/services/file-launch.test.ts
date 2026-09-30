@@ -123,24 +123,3 @@ describe('launched-handles preview', () => {
     }
   });
 });
-
-describe('zzz-debug', () => {
-  it('probes subscribe path', () => {
-    const store = new Map<string, string>();
-    const setConsumer = vi.fn();
-    vi.stubGlobal('window', {
-      launchQueue: { setConsumer },
-      localStorage: {
-        getItem: (key: string) => store.get(key) ?? null,
-        setItem: (key: string, value: string) => { store.set(key, value); },
-        removeItem: (key: string) => { store.delete(key); }
-      },
-      addEventListener: vi.fn(),
-      setInterval: vi.fn(() => 0)
-    });
-    process.stdout.write('DBG win=' + typeof window + ' lq=' + String(!!(window as any).launchQueue) + '\n');
-    const unsub = subscribeToLaunchedFiles(() => {});
-    process.stdout.write('DBG calls=' + (setConsumer as any).mock.calls.length + '\n');
-    unsub();
-  });
-});

@@ -39,6 +39,19 @@ function clientHello(overrides: Record<string, unknown> = {}) {
 }
 
 describe('multiplayer compatibility matrix', () => {
+  it.each([
+    { type: 'queue.add', itemIds: [] },
+    { type: 'queue.replace', itemIds: [''] },
+    { type: 'queue.remove', itemIds: ['x'.repeat(201)] },
+    { type: 'queue.play-next', collection: 'other', itemIds: ['track'] },
+    { type: 'transport.seek', seconds: Number.NaN },
+    { type: 'collection.activate', collection: 'queue', itemId: '' }
+  ])('rejects a malformed known command: $type', (payload) => {
+    const command = { ...payload, commandId: 'invalid-payload' };
+    expect(isMultiplayerCommandEnvelope(command)).toBe(true);
+    expect(isClientMessage({ kind: 'command', command })).toBe(false);
+  });
+
   it('admits current minor in both directions', () => {
     expect(isHostMessage(hostHello({ protocolMinor: MULTIPLAYER_PROTOCOL_MINOR + 1 }))).toBe(true);
     expect(isClientMessage(clientHello({ protocolMinor: MULTIPLAYER_PROTOCOL_MINOR + 1 }))).toBe(true);

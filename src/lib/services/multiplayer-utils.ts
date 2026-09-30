@@ -10,6 +10,7 @@ import {
   isHelloProtocolIdentity,
   isMultiplayerCommand,
   isMultiplayerCommandEnvelope,
+  isSupportedMultiplayerCommandType,
   isMultiplayerChatTrackLink,
   isProtocolDisplayName,
   normalizeCapabilities,
@@ -211,9 +212,11 @@ export function isClientMessage(value: unknown): value is ClientMessage {
       && message.positionMs >= 0;
   }
   if (message.kind === 'command') {
-    // Accept any well-formed command envelope so unsupported types can be
-    // nacked explicitly instead of dropped silently.
-    return isMultiplayerCommandEnvelope(message.command);
+    // Unknown types retain their envelope for an explicit nack. Known types
+    // must also pass payload validation, matching the dedicated server.
+    return isMultiplayerCommandEnvelope(message.command)
+      && (!isSupportedMultiplayerCommandType(message.command.type)
+        || isMultiplayerCommand(message.command));
   }
   return false;
 }

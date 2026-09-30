@@ -12,6 +12,49 @@
 
   const dispatch = createEventDispatcher<{ action: string; dismiss: void }>();
 
+  $: iconLabels = {
+    music_note: $t('options.presetIcons.symbols.music_note', { default: 'Music note' }),
+    music_video: $t('options.presetIcons.symbols.music_video', { default: 'Music video' }),
+    album: $t('options.presetIcons.symbols.album', { default: 'Album' }),
+    library_music: $t('options.presetIcons.symbols.library_music', { default: 'Music library' }),
+    queue_music: $t('options.presetIcons.symbols.queue_music', { default: 'Music queue' }),
+    playlist_play: $t('options.presetIcons.symbols.playlist_play', { default: 'Playlist' }),
+    piano: $t('options.presetIcons.symbols.piano', { default: 'Piano' }),
+    lyrics: $t('options.presetIcons.symbols.lyrics', { default: 'Lyrics' }),
+    headphones: $t('options.presetIcons.symbols.headphones', { default: 'Headphones' }),
+    speaker: $t('options.presetIcons.symbols.speaker', { default: 'Speaker' }),
+    speaker_group: $t('options.presetIcons.symbols.speaker_group', { default: 'Speakers' }),
+    radio: $t('options.presetIcons.symbols.radio', { default: 'Radio' }),
+    mic: $t('options.presetIcons.symbols.mic', { default: 'Microphone' }),
+    equalizer: $t('options.presetIcons.symbols.equalizer', { default: 'Equalizer' }),
+    graphic_eq: $t('options.presetIcons.symbols.graphic_eq', { default: 'Audio spectrum' }),
+    tune: $t('options.presetIcons.symbols.tune', { default: 'Sliders' }),
+    volume_up: $t('options.presetIcons.symbols.volume_up', { default: 'Volume' }),
+    spatial_audio: $t('options.presetIcons.symbols.spatial_audio', { default: 'Spatial audio' }),
+    hearing: $t('options.presetIcons.symbols.hearing', { default: 'Ear' }),
+    surround_sound: $t('options.presetIcons.symbols.surround_sound', { default: 'Surround sound' }),
+    waves: $t('options.presetIcons.symbols.waves', { default: 'Waves' }),
+    speed: $t('options.presetIcons.symbols.speed', { default: 'Speed' }),
+    slow_motion_video: $t('options.presetIcons.symbols.slow_motion_video', { default: 'Slow motion' }),
+    animation: $t('options.presetIcons.symbols.animation', { default: 'Animation' }),
+    video_library: $t('options.presetIcons.symbols.video_library', { default: 'Video library' }),
+    movie: $t('options.presetIcons.symbols.movie', { default: 'Movie' }),
+    theaters: $t('options.presetIcons.symbols.theaters', { default: 'Film' }),
+    tv: $t('options.presetIcons.symbols.tv', { default: 'Television' }),
+    live_tv: $t('options.presetIcons.symbols.live_tv', { default: 'Live television' }),
+    videocam: $t('options.presetIcons.symbols.videocam', { default: 'Video camera' }),
+    image: $t('options.presetIcons.symbols.image', { default: 'Image' }),
+    photo_library: $t('options.presetIcons.symbols.photo_library', { default: 'Photo library' }),
+    favorite: $t('options.presetIcons.symbols.favorite', { default: 'Heart' }),
+    star: $t('options.presetIcons.symbols.star', { default: 'Star' }),
+    bookmark: $t('options.presetIcons.symbols.bookmark', { default: 'Bookmark' }),
+    bolt: $t('options.presetIcons.symbols.bolt', { default: 'Lightning bolt' }),
+    flare: $t('options.presetIcons.symbols.flare', { default: 'Sparkle' }),
+    nightlight: $t('options.presetIcons.symbols.nightlight', { default: 'Moon' }),
+    wb_sunny: $t('options.presetIcons.symbols.wb_sunny', { default: 'Sun' }),
+    local_fire_department: $t('options.presetIcons.symbols.local_fire_department', { default: 'Flame' })
+  };
+
   function select(icon: string) {
     dispatch('action', `${picker.actionPrefix}${icon}`);
     dispatch('dismiss');
@@ -49,13 +92,13 @@
         type="button"
         role="menuitemradio"
         aria-checked={picker.value === icon}
-        aria-label={$t(`options.presetIcons.symbols.${icon}`)}
+        aria-label={iconLabels[icon]}
         class:selected={picker.value === icon}
         on:keydown={(event) => moveFocus(event, index)}
         on:click={() => select(icon)}
       >
         <span class="material-symbols-outlined" aria-hidden="true">{icon}</span>
-        <HoverTooltip align="center" nowrap>{$t(`options.presetIcons.symbols.${icon}`)}</HoverTooltip>
+        <HoverTooltip align="center" nowrap>{iconLabels[icon]}</HoverTooltip>
       </button>
     {/each}
   </div>

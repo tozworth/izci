@@ -102,6 +102,28 @@ export type MultiplayerCommandInput = MultiplayerCommand extends infer Command
     : never
   : never;
 
+const MULTIPLAYER_COMMAND_TYPES: Record<MultiplayerCommand['type'], true> = {
+  'transport.toggle': true,
+  'transport.play': true,
+  'transport.pause': true,
+  'transport.stop': true,
+  'transport.previous': true,
+  'transport.next': true,
+  'transport.seek': true,
+  'queue.shuffle': true,
+  'queue.repeat': true,
+  'queue.randomize': true,
+  'queue.add': true,
+  'queue.replace': true,
+  'queue.remove': true,
+  'queue.play-next': true,
+  'collection.activate': true
+};
+
+export function isSupportedMultiplayerCommandType(type: string): boolean {
+  return Object.hasOwn(MULTIPLAYER_COMMAND_TYPES, type);
+}
+
 export interface MultiplayerCatalog {
   revision: number;
   queue: TrackItem[];
@@ -456,8 +478,8 @@ export function formatHostImplementation(impl: MultiplayerImplementation | null 
 
 /**
  * Envelope shape for any command frame, including unsupported command types.
- * Validators accept this envelope; execution then nacks unknown types instead
- * of dropping them silently.
+ * Unknown types retain this envelope for an explicit nack; known types also
+ * need payload validation through isMultiplayerCommand.
  */
 export function isMultiplayerCommandEnvelope(value: unknown): value is { type: string; commandId: string } {
   if (!value || typeof value !== 'object') return false;
