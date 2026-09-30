@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, copyFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -18,10 +18,12 @@ if (systemCargo.error && existsSync(join(localToolchain, 'cargo', 'bin', 'cargo.
   env.RUSTUP_HOME = join(localToolchain, 'rustup');
   env.PATH = `${join(env.CARGO_HOME, 'bin')};${process.env.PATH}`;
 }
+// webview2-com statically links the loader only with MSVC; GNU needs a DLL.
+env.RUSTUP_TOOLCHAIN ??= 'stable-x86_64-pc-windows-msvc';
 const rust = spawnSync('rustc', ['-vV'], { env, encoding: 'utf8' });
-if (rust.error || rust.status !== 0) throw new Error('Install Rust and a Windows C/C++ toolchain before building the desktop app.');
+if (rust.error || rust.status !== 0) throw new Error('Install the Rust MSVC toolchain (rustup toolchain install stable-x86_64-pc-windows-msvc) and Microsoft C++ Build Tools with the Desktop development with C++ workload before building the desktop app.');
 const target = rust.stdout.match(/^host: (.+)$/m)?.[1].trim();
-if (!target?.startsWith('x86_64-pc-windows-')) throw new Error(`Unsupported MVP toolchain: ${target}`);
+if (target !== 'x86_64-pc-windows-msvc') throw new Error(`Single-file desktop builds require x86_64-pc-windows-msvc; selected toolchain: ${target}`);
 const cli = join(root, 'node_modules', '@tauri-apps', 'cli', 'tauri.js');
 const result = spawnSync(process.execPath, [cli, 'build', '--no-bundle', '--target', target], { cwd: root, env, stdio: 'inherit' });
 if (result.error) throw result.error;
@@ -39,7 +41,6 @@ try {
   copyFileSync(join(release, 'izci.exe'), join(output, 'izci.exe'));
   console.log('Current desktop executable is locked; saved the new build separately.');
 }
-for (const name of readdirSync(release)) {
-  if (name.toLowerCase().endsWith('.dll')) copyFileSync(join(release, name), join(output, name));
-}
+// Remove the sidecar left by older GNU builds from this output directory only.
+rmSync(join(output, 'WebView2Loader.dll'), { force: true });
 console.log(`Desktop build: ${join(output, 'izci.exe')}`);
