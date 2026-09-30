@@ -158,6 +158,9 @@
     },
     "miniPlayer": {
       "heading": "Mini oynatıcı",
+      "alwaysOnTop": "Her zaman üstte",
+      "restoreWindow": "Ana pencereyi göster",
+      "close": "Mini oynatıcıyı kapat",
       "nothingPlaying": "Yürütülen parça yok",
       "ready": "Hazır",
       "seek": "Konum"

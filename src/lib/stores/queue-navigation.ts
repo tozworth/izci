@@ -131,7 +131,7 @@ export function createQueueNavigation(getItems: () => TrackItem[]) {
     }
 
     if (!wrap) {
-      return resolveExhaustedStepTrack(baseId);
+      return null;
     }
 
     return direction > 0 ? itemList[0] : itemList[itemList.length - 1];
@@ -154,7 +154,7 @@ export function createQueueNavigation(getItems: () => TrackItem[]) {
       }
 
       if (!wrap) {
-        return resolveExhaustedStepTrack(baseId);
+        return null;
       }
 
       const previousCycle = buildShuffleCycle(baseId);
@@ -189,7 +189,7 @@ export function createQueueNavigation(getItems: () => TrackItem[]) {
     }
 
     if (!wrap) {
-      return resolveExhaustedStepTrack(baseId);
+      return null;
     }
 
     const nextCycle = buildShuffleCycle(baseId);
@@ -260,10 +260,11 @@ export function createQueueNavigation(getItems: () => TrackItem[]) {
           return initialTrack;
         }
 
-        return resolveShuffledTrack(baseId, direction, wrap);
+        return resolveShuffledTrack(baseId, direction, wrap) ?? resolveExhaustedStepTrack(baseId);
       }
 
-      return resolveLinearTrack(baseId, direction, wrap);
+      // Manual navigation can restart the sole item; automatic track end must exhaust.
+      return resolveLinearTrack(baseId, direction, wrap) ?? resolveExhaustedStepTrack(baseId);
     },
     resolveTrackEnd(options: {
       currentId?: string | null;

@@ -5,6 +5,7 @@ import { OPEN_CURRENT_TOOL_TRACK_MESSAGE } from '$lib/services/tool-track-contex
 import { OPEN_TROUBADOUR_BATCH_CONTEXT_MESSAGE } from '$lib/services/troubadour-sync';
 import { buildOptionsWindowPath, type OptionsViewName } from '../../options/views';
 import { logDebug, logInfo, logWarning } from '$lib/services/logging';
+import { exitDesktop } from '$platform';
 
 function isOpenWindow(windowRef: Window | null | undefined): windowRef is Window {
   return windowRef !== null && windowRef !== undefined && !windowRef.closed;
@@ -224,6 +225,7 @@ export const windowManager = {
     return isOpenWindow(windowRef) ? windowRef : null;
   },
   exit() {
+    if (exitDesktop()) return;
     closeAllPopupWindows();
     window.close();
 

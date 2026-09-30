@@ -9,6 +9,7 @@
     "isolatedModules": true,
     "moduleResolution": "bundler",
     "paths": {
+      "$platform": ["src/platform/browser.ts"],
       "$lib/*": ["src/lib/*"]
     },
     "resolveJsonModule": true,

@@ -46,6 +46,22 @@ describe('queue navigation', () => {
     expect(navigation.resolveTrackEnd({ currentId: 'c', repeatMode: 'all' })?.id).toBe('a');
   });
 
+  it.each([false, true])('stops a one-item queue with repeat off (shuffle: %s)', (shuffle) => {
+    const navigation = createQueueNavigation(() => [items[0]]);
+
+    expect(navigation.resolveTrackEnd({ currentId: 'a', shuffle, repeatMode: 'off' })).toBeNull();
+    expect(navigation.resolveStepTrack({ currentId: 'a', direction: 1, shuffle })?.id).toBe('a');
+    expect(navigation.resolveStepTrack({ currentId: 'a', direction: -1, shuffle })?.id).toBe('a');
+    expect(navigation.resolveTrackEnd({ currentId: 'a', shuffle, repeatMode: 'off' })).toBeNull();
+  });
+
+  it.each([false, true])('repeats a one-item queue when enabled (shuffle: %s)', (shuffle) => {
+    const navigation = createQueueNavigation(() => [items[0]]);
+
+    expect(navigation.resolveTrackEnd({ currentId: 'a', shuffle, repeatMode: 'one' })?.id).toBe('a');
+    expect(navigation.resolveTrackEnd({ currentId: 'a', shuffle, repeatMode: 'all' })?.id).toBe('a');
+  });
+
   it('starts linear playback from selection and shuffled playback from the full queue', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const navigation = createQueueNavigation(() => items);

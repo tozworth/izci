@@ -150,6 +150,9 @@
     },
     "miniPlayer": {
       "heading": "Mini player",
+      "alwaysOnTop": "Always on top",
+      "restoreWindow": "Show main window",
+      "close": "Close mini player",
       "nothingPlaying": "Nothing playing",
       "ready": "Ready when you are",
       "seek": "Seek"
