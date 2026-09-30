@@ -13,10 +13,15 @@
   import { rafMeter } from '$lib/services/raf-meter';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
+  import { LOADOUT_COLORS } from '$lib/stores/loadouts';
+  import { getLoadoutColorValue, LOADOUT_COLOR_VALUES } from '$lib/utils/loadout-presentation';
+  import type { MenuActionItem } from '$lib/types';
+  import { normalizePresetIcon } from '$lib/utils/preset-icons';
   import RafEffectsWorkspace from './RafEffectsWorkspace.svelte';
 
   let transferMenu: HTMLDetailsElement;
   let presetMenuOpen = false;
+  let appearancePresetId: string | null = null;
   let presetMenuX = 0;
   let presetMenuY = 0;
   let presetMenuDismissedAt = 0;
@@ -92,6 +97,7 @@
 
   function closePresetMenu() {
     presetMenuOpen = false;
+    appearancePresetId = null;
     presetMenuDismissedAt = performance.now();
   }
 
@@ -119,8 +125,36 @@
     if (name !== null) rafPresets.rename(id, name);
   }
 
+  function openPresetAppearance(event: CustomEvent<{ id: string; x: number; y: number }>) {
+    appearancePresetId = event.detail.id;
+    presetMenuX = event.detail.x;
+    presetMenuY = event.detail.y;
+  }
+
   $: selectedPreset = $rafPresets.presets.find((preset) => preset.id === $rafPresets.selectedPresetId) ?? null;
   $: presetDirty = isRafPresetDirty($rafPresets, $rafSettings);
+  $: appearancePreset = $rafPresets.presets.find((preset) => preset.id === appearancePresetId);
+  $: appearanceMenuItems = [{
+    id: 'icon',
+    label: $t('options.presetIcons.setIcon', { default: 'Set icon' }),
+    icon: appearancePreset?.icon ?? 'tune',
+    iconPicker: {
+      value: appearancePreset?.icon,
+      defaultIcon: 'tune',
+      actionPrefix: 'icon:',
+      color: getLoadoutColorValue(appearancePreset?.color)
+    }
+  }, {
+    id: 'color',
+    label: $t('options.raf.presets.setColor', { default: 'Set color' }),
+    icon: 'palette',
+    colorPicker: LOADOUT_COLORS.map((color) => ({
+      id: `color:${color}`,
+      label: $t(`options.loadouts.colors.${color}`),
+      color: LOADOUT_COLOR_VALUES[color],
+      checked: appearancePreset?.color === color
+    }))
+  }] satisfies MenuActionItem[];
   $: presetMenuItems = [
     {
       id: 'new',
@@ -129,6 +163,9 @@
     },
     ...$rafPresets.presets.map((preset, index) => ({
       id: `apply:${preset.id}`,
+      icon: preset.icon ?? 'tune',
+      iconColor: getLoadoutColorValue(preset.color),
+      contextActionId: preset.id,
       label: `${preset.name}${preset.id === $rafPresets.selectedPresetId && presetDirty ? ' *' : ''}`,
       checked: preset.id === $rafPresets.selectedPresetId,
       separatorBefore: index === 0,
@@ -141,6 +178,17 @@
   ];
 
   function handlePresetMenuAction(actionId: string) {
+    if (appearancePresetId) {
+      if (actionId.startsWith('icon:')) {
+        const value = actionId.slice('icon:'.length);
+        const icon = normalizePresetIcon(value);
+        if (icon || value === 'default') rafPresets.setIcon(appearancePresetId, icon);
+        return;
+      }
+      const color = LOADOUT_COLORS.find((candidate) => actionId === `color:${candidate}`);
+      if (color && appearancePreset) rafPresets.setColor(appearancePresetId, appearancePreset.color === color ? undefined : color);
+      return;
+    }
     if (actionId === 'new') {
       createPreset();
       return;
@@ -183,6 +231,9 @@
       aria-haspopup="menu"
       aria-expanded={presetMenuOpen}
     >
+      {#if selectedPreset}
+        <span class="material-symbols-outlined preset-icon" style:color={getLoadoutColorValue(selectedPreset.color)} aria-hidden="true">{selectedPreset.icon ?? 'tune'}</span>
+      {/if}
       <span class="preset-summary-name">{selectedPreset?.name ?? $t('options.raf.presets.label', { default: 'Presets' })}{presetDirty ? ' *' : ''}</span>
       <span class="material-symbols-outlined" aria-hidden="true">arrow_drop_down</span>
       <HoverTooltip>{$t('options.raf.presets.choose', { default: 'Choose a Raf preset' })}</HoverTooltip>
@@ -222,11 +273,13 @@
 
   {#if presetMenuOpen}
     <MenuSurface
-      items={presetMenuItems}
+      items={appearancePresetId ? appearanceMenuItems : presetMenuItems}
       x={presetMenuX}
       y={presetMenuY}
+      enableOverflowSubmenuFallback
       ariaLabel={$t('options.raf.presets.choose', { default: 'Choose a Raf preset' })}
       on:action={(event) => handlePresetMenuAction(event.detail)}
+      on:contextaction={openPresetAppearance}
       on:dismiss={closePresetMenu}
     />
   {/if}
@@ -270,6 +323,7 @@
   .preset-trigger { width: min(150px, 32vw); height: 27px; min-width: 72px; padding: 0 4px 0 7px; display: flex; align-items: center; gap: 2px; border-radius: 4px; background: var(--bg-input); color: var(--text); font-size: inherit; }
   .preset-trigger:hover { background: var(--hover-surface); color: var(--text-strong); }
   .preset-summary-name { min-width: 0; flex: 1; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+  .preset-icon { flex: 0 0 auto; margin-right: 3px; font-size: 1rem; }
   .transfer-menu-items { position: absolute; z-index: 5; left: 2px; right: auto; top: calc(100% + 3px); width: min(190px, calc(100% - 4px)); min-width: 0; padding: 3px; display: grid; border: 1px solid var(--menu-bar-border); border-radius: 5px; background: var(--menu-popover-bg); box-shadow: 0 6px 16px rgb(0 0 0 / 35%); }
   .transfer-menu-items button { display: flex; align-items: center; gap: 6px; padding: 6px 7px; border-radius: 3px; background: transparent; color: var(--text); text-align: left; }
   .transfer-menu-items button:hover { background: var(--hover-surface); color: var(--text-strong); }

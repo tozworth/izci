@@ -10,6 +10,8 @@
   import { keepMenuInViewport } from '$lib/components/track-list-panel/actions/menu-viewport';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import RatingMenuSurface from '$lib/components/RatingMenuSurface.svelte';
+  import ColorMenuSurface from '$lib/components/ColorMenuSurface.svelte';
+  import IconMenuSurface from '$lib/components/IconMenuSurface.svelte';
 
   export let items: MenuActionItem[] = [];
   export let x = 0;
@@ -26,10 +28,13 @@
     label: string;
     items: MenuActionItem[];
     ratingPicker?: MenuActionItem['ratingPicker'];
+    colorPicker?: MenuActionItem['colorPicker'];
+    iconPicker?: MenuActionItem['iconPicker'];
   };
 
   const dispatch = createEventDispatcher<{
     action: string;
+    contextaction: { id: string; x: number; y: number };
     dismiss: void;
   }>();
 
@@ -45,6 +50,8 @@
   $: currentLevel = navigationStack[navigationStack.length - 1] ?? null;
   $: displayedItems = currentLevel?.items ?? items;
   $: displayedRatingPicker = currentLevel?.ratingPicker;
+  $: displayedColorPicker = currentLevel?.colorPicker;
+  $: displayedIconPicker = currentLevel?.iconPicker;
   $: showsSessionStats = displayedItems.some((item) => item.id === 'multiplayerStatProtocol');
   $: resolvedAriaLabel = currentLevel?.label
     ?? ariaLabel
@@ -52,7 +59,7 @@
   $: canShowHoverSubmenus = nested || !shouldUseSubmenuDrilldown;
 
   function hasSubmenu(item: MenuActionItem): boolean {
-    return Boolean(item.children?.length || item.ratingPicker);
+    return Boolean(item.children?.length || item.ratingPicker || item.colorPicker?.length || item.iconPicker);
   }
 
   function closeSubmenu() {
@@ -83,7 +90,9 @@
       sourceItemId: item.id,
       label: item.label,
       items: item.children ?? [],
-      ratingPicker: item.ratingPicker
+      ratingPicker: item.ratingPicker,
+      colorPicker: item.colorPicker,
+      iconPicker: item.iconPicker
     }];
     activeSubmenuId = null;
   }
@@ -133,6 +142,13 @@
     handleItemSelect(item);
   }
 
+  function handleItemContextMenu(event: MouseEvent, item: MenuActionItem) {
+    if (!item.contextActionId || item.disabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dispatch('contextaction', { id: item.contextActionId, x: event.clientX, y: event.clientY });
+  }
+
   function handleItemPointerUp(event: PointerEvent, item: MenuActionItem) {
     if (activateOnPointerUpPointerId === null || event.pointerId !== activateOnPointerUpPointerId) {
       return;
@@ -179,7 +195,9 @@
         sourceItemId: sourceItem.id,
         label: sourceItem.label,
         items: childItems,
-        ratingPicker: sourceItem.ratingPicker
+        ratingPicker: sourceItem.ratingPicker,
+        colorPicker: sourceItem.colorPicker,
+        iconPicker: sourceItem.iconPicker
       });
       sourceItems = childItems;
     }
@@ -249,6 +267,7 @@
           aria-expanded={hasSubmenu(item) ? activeSubmenuId === item.id : undefined}
           on:pointerup={(event) => handleItemPointerUp(event, item)}
           on:click={() => handleItemClick(item)}
+          on:contextmenu={(event) => handleItemContextMenu(event, item)}
         >
           <span
             class="material-symbols-outlined menu-item-icon"
@@ -291,6 +310,21 @@
             items={item.children}
             ariaLabel={item.label}
             activateOnPointerUpPointerId={activateOnPointerUpPointerId}
+            on:contextaction={(event) => dispatch('contextaction', event.detail)}
+            on:action={(event) => dispatch('action', event.detail)}
+            on:dismiss={() => dispatch('dismiss')}
+          />
+        {:else if item.iconPicker && activeSubmenuId === item.id}
+          <IconMenuSurface
+            picker={item.iconPicker}
+            ariaLabel={item.label}
+            on:action={(event) => dispatch('action', event.detail)}
+            on:dismiss={() => dispatch('dismiss')}
+          />
+        {:else if item.colorPicker && activeSubmenuId === item.id}
+          <ColorMenuSurface
+            items={item.colorPicker}
+            ariaLabel={item.label}
             on:action={(event) => dispatch('action', event.detail)}
             on:dismiss={() => dispatch('dismiss')}
           />
@@ -329,6 +363,26 @@
       <div class="menu-separator" role="separator" aria-hidden="true"></div>
     {/if}
 
+    {#if displayedIconPicker}
+      <IconMenuSurface
+        nested={false}
+        picker={displayedIconPicker}
+        ariaLabel={resolvedAriaLabel}
+        on:action={(event) => dispatch('action', event.detail)}
+        on:dismiss={() => dispatch('dismiss')}
+      />
+    {/if}
+
+    {#if displayedColorPicker}
+      <ColorMenuSurface
+        nested={false}
+        items={displayedColorPicker}
+        ariaLabel={resolvedAriaLabel}
+        on:action={(event) => dispatch('action', event.detail)}
+        on:dismiss={() => dispatch('dismiss')}
+      />
+    {/if}
+
     {#if displayedRatingPicker}
       <RatingMenuSurface
         nested={false}
@@ -359,6 +413,7 @@
           aria-expanded={hasSubmenu(item) ? activeSubmenuId === item.id : undefined}
           on:pointerup={(event) => handleItemPointerUp(event, item)}
           on:click={() => handleItemClick(item)}
+          on:contextmenu={(event) => handleItemContextMenu(event, item)}
         >
           <span
             class="material-symbols-outlined menu-item-icon"
@@ -403,6 +458,21 @@
             items={item.children}
             ariaLabel={item.label}
             activateOnPointerUpPointerId={activateOnPointerUpPointerId}
+            on:contextaction={(event) => dispatch('contextaction', event.detail)}
+            on:action={(event) => dispatch('action', event.detail)}
+            on:dismiss={() => dispatch('dismiss')}
+          />
+        {:else if canShowHoverSubmenus && item.iconPicker && activeSubmenuId === item.id}
+          <IconMenuSurface
+            picker={item.iconPicker}
+            ariaLabel={item.label}
+            on:action={(event) => dispatch('action', event.detail)}
+            on:dismiss={() => dispatch('dismiss')}
+          />
+        {:else if canShowHoverSubmenus && item.colorPicker && activeSubmenuId === item.id}
+          <ColorMenuSurface
+            items={item.colorPicker}
+            ariaLabel={item.label}
             on:action={(event) => dispatch('action', event.detail)}
             on:dismiss={() => dispatch('dismiss')}
           />

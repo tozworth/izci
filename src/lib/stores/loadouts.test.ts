@@ -99,4 +99,25 @@ describe('loadout persistence normalization', () => {
       fileName: 'Track.flac'
     });
   });
+
+  it('retains a custom icon and color through normalization, rename, settings updates, and reorder', () => {
+    const created = loadouts.create('Headphones', { type: 'file', fileKey: 'track:1' }, { playback })!;
+    loadouts.setColor(created.id, 'cyan');
+    loadouts.setIcon(created.id, 'headphones');
+    loadouts.rename(created.id, 'Listening');
+    loadouts.updateSettings(created.id, { playback: { ...playback, playbackRate: 1.5 } });
+    loadouts.move(created.id, 0);
+
+    const state = normalizeLoadoutState(JSON.parse(JSON.stringify(loadouts.getSnapshot())));
+    expect(state.loadouts[0]).toMatchObject({
+      name: 'Listening', icon: 'headphones', color: 'cyan',
+      target: { type: 'file', fileKey: 'track:1' },
+      settings: { playback: { playbackRate: 1.5 } }
+    });
+    expect(normalizeLoadoutState({ loadouts: [{ ...created, icon: 'unknown_symbol' }] }).loadouts[0].icon).toBeUndefined();
+    expect(loadouts.setIcon(created.id, 'unknown_symbol' as never)).toBeNull();
+    expect(loadouts.getSnapshot().loadouts[0].icon).toBe('headphones');
+    expect(loadouts.setIcon(created.id)?.icon).toBeUndefined();
+    expect(loadouts.getSnapshot().loadouts[0].color).toBe('cyan');
+  });
 });

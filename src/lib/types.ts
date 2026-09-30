@@ -1,3 +1,5 @@
+import type { PresetIcon } from '$lib/utils/preset-icons';
+
 export const STREAM_EXTENSIONS = ['mp3', 'wav', 'flac', 'ogg', 'opus'] as const;
 export const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'mov', 'webm', 'mkv'] as const;
 export const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'avif'] as const;
@@ -299,6 +301,8 @@ export interface RafPresetSettings {
 export interface RafPreset {
   id: string;
   name: string;
+  color?: LoadoutColor;
+  icon?: PresetIcon;
   settings: RafPresetSettings;
 }
 
@@ -530,6 +534,7 @@ export interface Loadout {
   id: string;
   name: string;
   color?: LoadoutColor;
+  icon?: PresetIcon;
   target: LoadoutTarget;
   settings: LoadoutSettings;
   createdAt: number;
@@ -584,12 +589,20 @@ export interface MenuActionItem {
   attention?: boolean;
   /** Optional edit action shown at the trailing edge while the item is hovered. */
   editActionId?: string;
+  contextActionId?: string;
   editLabel?: string;
   /** Optional removal action shown at the trailing edge while the item is hovered. */
   removeActionId?: string;
   removeLabel?: string;
   removeIcon?: string;
   children?: MenuActionItem[];
+  colorPicker?: { id: string; label: string; color: string; checked?: boolean }[];
+  iconPicker?: {
+    value?: PresetIcon;
+    defaultIcon: string;
+    actionPrefix: string;
+    color?: string;
+  };
   ratingPicker?: {
     value: number;
     actionPrefix: string;

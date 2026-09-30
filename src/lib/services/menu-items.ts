@@ -23,7 +23,7 @@ import type {
   WindowMenuGroup,
   WorkspaceTab
 } from '$lib/types';
-import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
+import { getLoadoutColorValue, getLoadoutIcon } from '$lib/utils/loadout-presentation';
 import { formatDisplayVersion } from '$lib/utils/version';
 import type { MultiplayerClient, MultiplayerAudioStatus, MultiplayerConnectionStatus, MultiplayerMode } from '$lib/services/multiplayer-types';
 import {
@@ -298,7 +298,7 @@ function buildLoadoutMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
     ...deps.loadouts.loadouts.map((loadout, index) => ({
       id: `applyLoadout:${loadout.id}`,
       label: loadout.name,
-      icon: LOADOUT_TYPE_ICONS[loadout.target.type],
+      icon: getLoadoutIcon(loadout),
       iconColor: getLoadoutColorValue(loadout.color),
       separatorBefore: index === 0
     }))
@@ -341,7 +341,8 @@ function buildRafMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
       ? deps.rafPresets.presets.map((preset, index) => ({
           id: `applyRafPreset:${preset.id}`,
           label: `${preset.name}${preset.id === deps.rafPresets.selectedPresetId && isRafPresetDirty(deps.rafPresets, deps.rafSettings) ? ' *' : ''}`,
-          icon: 'tune',
+          icon: preset.icon ?? 'tune',
+          iconColor: getLoadoutColorValue(preset.color),
           checked: preset.id === deps.rafPresets.selectedPresetId,
           separatorBefore: index === 0
         }) satisfies MenuActionItem)

@@ -13,6 +13,7 @@ import { normalizeModulePlaybackSettings } from './module-playback-settings';
 import { createPersistentStore, normalizeBoolean } from './persistent-store';
 import { normalizePlaybackSettings } from './playback-settings';
 import { normalizeVisualizerSettings } from './visualizer-settings';
+import { normalizePresetIcon, type PresetIcon } from '$lib/utils/preset-icons';
 
 const LOADOUTS_STORAGE_KEY = 'izci.loadouts';
 const LOADOUTS_CHANNEL = 'izci-loadouts';
@@ -119,6 +120,7 @@ function normalizeLoadout(value: unknown, ids: Set<string>): Loadout | null {
     ? source.color as LoadoutColor
     : undefined;
   const target = normalizeTarget(source.target);
+  const icon = normalizePresetIcon(source.icon);
   const settings = normalizeSettings(source.settings);
 
   if (!id || ids.has(id) || !name || !target || !settings) return null;
@@ -128,6 +130,7 @@ function normalizeLoadout(value: unknown, ids: Set<string>): Loadout | null {
     id,
     name,
     ...(color ? { color } : {}),
+    ...(icon ? { icon } : {}),
     target,
     settings,
     createdAt,
@@ -219,6 +222,20 @@ export const loadouts = {
         if (loadout.id !== id) return loadout;
         const { color: _previousColor, ...rest } = loadout;
         updated = { ...rest, ...(color ? { color } : {}), updatedAt: Date.now() };
+        return updated;
+      })
+    }));
+    return updated;
+  },
+  setIcon(id: string, icon?: PresetIcon): Loadout | null {
+    if (icon !== undefined && !normalizePresetIcon(icon)) return null;
+    let updated: Loadout | null = null;
+    store.update((state) => ({
+      ...state,
+      loadouts: state.loadouts.map((loadout) => {
+        if (loadout.id !== id) return loadout;
+        const { icon: _previousIcon, ...rest } = loadout;
+        updated = { ...rest, ...(icon ? { icon } : {}), updatedAt: Date.now() };
         return updated;
       })
     }));

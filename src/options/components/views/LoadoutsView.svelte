@@ -1,10 +1,9 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
+  import MenuSurface from '$lib/components/MenuSurface.svelte';
   import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
-  import { portal } from '$lib/components/track-list-panel/actions/portal';
-  import { windowDismiss } from '$lib/components/track-list-panel/actions/window-dismiss';
   import { translate } from '$lib/i18n';
   import { filesystemFolders } from '$lib/services/filesystem-folders';
   import { loadoutTrackContext } from '$lib/services/loadout-track-context';
@@ -26,9 +25,11 @@
   import { LOADOUT_COLORS, loadouts } from '$lib/stores/loadouts';
   import { playbackSettings } from '$lib/stores/playback-settings';
   import { rafPresets } from '$lib/stores/raf-presets';
-  import type { Loadout, LoadoutCategory, LoadoutColor, LoadoutType } from '$lib/types';
+  import { normalizePresetIcon } from '$lib/utils/preset-icons';
+  import type { Loadout, LoadoutCategory, LoadoutColor, LoadoutType, MenuActionItem } from '$lib/types';
   import {
     getLoadoutColorValue,
+    getLoadoutIcon,
     getLoadoutTargetText,
     LOADOUT_COLOR_VALUES,
     LOADOUT_TYPE_ICONS
@@ -46,8 +47,7 @@
   let selectedCategories = new Set<LoadoutCategory>();
   let draggedLoadoutId: string | null = null;
   let dropBoundary: number | null = null;
-  let contextMenu: { loadoutId: string; x: number; y: number; submenuOnLeft: boolean } | null = null;
-  let contextMenuElement: HTMLDivElement | null = null;
+  let contextMenu: { loadoutId: string; x: number; y: number } | null = null;
 
   function colorLabel(color: LoadoutColor): string {
     if (color === 'white') return $t('options.loadouts.colors.white', { default: 'White' });
@@ -208,23 +208,31 @@
     return canCaptureLoadoutCategories(getLoadoutCategories(loadout.settings));
   }
 
-  async function openLoadoutContextMenu(event: MouseEvent, loadoutId: string): Promise<void> {
+  function openLoadoutContextMenu(event: MouseEvent, loadoutId: string): void {
     event.preventDefault();
     event.stopPropagation();
     contextMenu = {
       loadoutId,
       x: event.clientX,
-      y: event.clientY,
-      submenuOnLeft: event.clientX > window.innerWidth / 2
+      y: event.clientY
     };
-    await tick();
-    if (!contextMenu || contextMenu.loadoutId !== loadoutId || !contextMenuElement) return;
-    const padding = 8;
-    contextMenu = {
-      ...contextMenu,
-      x: Math.max(padding, Math.min(contextMenu.x, window.innerWidth - contextMenuElement.offsetWidth - padding)),
-      y: Math.max(padding, Math.min(contextMenu.y, window.innerHeight - contextMenuElement.offsetHeight - padding))
-    };
+  }
+
+  function handleLoadoutContextMenuAction(action: string): void {
+    if (!contextMenu || !menuLoadout) return;
+    if (action === 'rename') {
+      renameLoadout(contextMenu.loadoutId);
+      return;
+    }
+    if (action.startsWith('icon:')) {
+      const value = action.slice('icon:'.length);
+      const icon = normalizePresetIcon(value);
+      if (icon || value === 'default') loadouts.setIcon(contextMenu.loadoutId, icon);
+      contextMenu = null;
+      return;
+    }
+    const color = LOADOUT_COLORS.find((candidate) => action === `color:${candidate}`);
+    if (color) toggleLoadoutColor(contextMenu.loadoutId, color, menuLoadout.color);
   }
 
   function renameLoadout(id: string): void {
@@ -313,6 +321,32 @@
   $: captureValue = loadoutType === 'tags' || loadoutType === 'preset'
     ? manualText
     : targetPreview?.name ?? '';
+  $: menuLoadout = $loadouts.loadouts.find((loadout) => loadout.id === contextMenu?.loadoutId);
+  $: contextMenuItems = [
+    { id: 'rename', label: $t('options.loadouts.actions.rename', { default: 'Rename' }), icon: 'edit' },
+    {
+      id: 'icon',
+      label: $t('options.presetIcons.setIcon', { default: 'Set icon' }),
+      icon: menuLoadout ? getLoadoutIcon(menuLoadout) : 'bookmark',
+      iconPicker: {
+        value: menuLoadout?.icon,
+        defaultIcon: LOADOUT_TYPE_ICONS[menuLoadout?.target.type ?? 'preset'],
+        actionPrefix: 'icon:',
+        color: getLoadoutColorValue(menuLoadout?.color)
+      }
+    },
+    {
+      id: 'color',
+      label: $t('options.loadouts.actions.setColor', { default: 'Set color' }),
+      icon: 'palette',
+      colorPicker: LOADOUT_COLORS.map((color) => ({
+        id: `color:${color}`,
+        label: colorLabel(color),
+        color: LOADOUT_COLOR_VALUES[color],
+        checked: menuLoadout?.color === color
+      }))
+    }
+  ] satisfies MenuActionItem[];
 </script>
 
 <article class="view">
@@ -426,7 +460,7 @@
               on:keydown={(event) => handleReorderKeydown(event, loadout, index)}
             ><span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span></button>
             <span class="type-glyph hover-tooltip-anchor" role="img" aria-label={typeLabel(loadout.target.type)}>
-              <span class="material-symbols-outlined" aria-hidden="true">{LOADOUT_TYPE_ICONS[loadout.target.type]}</span>
+              <span class="material-symbols-outlined" aria-hidden="true">{getLoadoutIcon(loadout)}</span>
               <HoverTooltip align="left">{typeLabel(loadout.target.type)}</HoverTooltip>
             </span>
             <span class:has-source={targetText && targetText !== loadout.name} class="loadout-label">
@@ -491,53 +525,16 @@
 </article>
 
 {#if contextMenu}
-  {@const menuLoadout = $loadouts.loadouts.find((loadout) => loadout.id === contextMenu?.loadoutId)}
-  <div
-    bind:this={contextMenuElement}
-    class="loadout-context-menu"
-    class:submenu-on-left={contextMenu.submenuOnLeft}
-    data-menu-interactive="true"
-    use:portal
-    use:windowDismiss={{ enabled: true, onDismiss: () => (contextMenu = null) }}
-    role="menu"
-    tabindex="-1"
-    aria-label={$t('options.loadouts.actions.forLoadout', { default: 'Actions for {name}', values: { name: menuLoadout?.name ?? '' } })}
-    style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
-    on:contextmenu|preventDefault
-  >
-    <button type="button" role="menuitem" on:click={() => renameLoadout(contextMenu?.loadoutId ?? '')}>
-      <span class="material-symbols-outlined" aria-hidden="true">edit</span>
-      <span>{$t('options.loadouts.actions.rename', { default: 'Rename' })}</span>
-    </button>
-    <div class="color-menu-item">
-      <button type="button" role="menuitem" aria-haspopup="menu">
-        <span class="material-symbols-outlined" aria-hidden="true">palette</span>
-        <span>{$t('options.loadouts.actions.setColor', { default: 'Set color' })}</span>
-        <span class="material-symbols-outlined submenu-chevron" aria-hidden="true">chevron_right</span>
-      </button>
-      <div class="color-submenu" role="menu" tabindex="-1" aria-label={$t('options.loadouts.actions.setColor', { default: 'Set color' })}>
-        {#each LOADOUT_COLORS as color}
-          <button
-            class="color-swatch"
-            class:white-swatch={color === 'white'}
-            type="button"
-            role="menuitemradio"
-            aria-checked={menuLoadout?.color === color}
-            aria-label={colorLabel(color)}
-            title={colorLabel(color)}
-            style={`--swatch-color: ${LOADOUT_COLOR_VALUES[color]};`}
-            on:click={() => toggleLoadoutColor(contextMenu?.loadoutId ?? '', color, menuLoadout?.color)}
-          >
-            {#if menuLoadout?.color === color}
-              <span class="material-symbols-outlined color-reset-glyph" aria-hidden="true">format_color_reset</span>
-            {/if}
-          </button>
-        {/each}
-      </div>
-    </div>
-  </div>
+  <MenuSurface
+    items={contextMenuItems}
+    x={contextMenu.x}
+    y={contextMenu.y}
+    enableOverflowSubmenuFallback
+    ariaLabel={$t('options.loadouts.actions.forLoadout', { default: 'Actions for {name}', values: { name: menuLoadout?.name ?? '' } })}
+    on:action={(event) => handleLoadoutContextMenuAction(event.detail)}
+    on:dismiss={() => (contextMenu = null)}
+  />
 {/if}
-
 <style>
   .section-heading,
   .list-heading {
@@ -800,112 +797,6 @@
     gap: 7px;
     padding: 0 4px 0 7px;
     color: var(--muted);
-  }
-
-  .loadout-context-menu {
-    position: fixed;
-    z-index: 60;
-    width: max-content;
-    min-width: 10.5rem;
-    max-width: calc(100vw - 1rem);
-    padding: 0.18rem;
-    border: 1px solid var(--menu-popover-border);
-    border-radius: 0.5rem;
-    background: var(--menu-popover-bg);
-    box-shadow: var(--menu-popover-shadow);
-    font-size: 0.8rem;
-  }
-
-  .loadout-context-menu button {
-    width: 100%;
-    padding: 0.32rem 0.42rem;
-    display: flex;
-    align-items: center;
-    gap: 0.42rem;
-    border-radius: 0.5rem;
-    background: transparent;
-    color: var(--menu-popover-text);
-    text-align: left;
-    white-space: nowrap;
-  }
-
-  .loadout-context-menu button:hover,
-  .loadout-context-menu button:focus-visible,
-  .color-menu-item:focus-within > button {
-    background: var(--menu-popover-hover);
-  }
-
-  .loadout-context-menu button > .material-symbols-outlined {
-    color: var(--menu-popover-muted);
-    font-size: 0.9rem;
-  }
-
-  .color-menu-item {
-    position: relative;
-  }
-
-  .submenu-chevron {
-    margin-left: auto;
-  }
-
-  .color-submenu {
-    position: absolute;
-    top: -0.18rem;
-    left: calc(100% + 0.22rem);
-    width: max-content;
-    padding: 0.36rem;
-    display: grid;
-    grid-template-columns: repeat(6, 1.35rem);
-    gap: 0.3rem;
-    visibility: hidden;
-    border: 1px solid var(--menu-popover-border);
-    border-radius: 0.5rem;
-    background: var(--menu-popover-bg);
-    box-shadow: var(--menu-popover-shadow);
-    opacity: 0;
-    transform: translateX(-2px);
-    transition: opacity 80ms ease, transform 80ms ease, visibility 80ms;
-  }
-
-  .submenu-on-left .color-submenu {
-    right: calc(100% + 0.22rem);
-    left: auto;
-    transform: translateX(2px);
-  }
-
-  .color-menu-item:hover .color-submenu,
-  .color-menu-item:focus-within .color-submenu {
-    visibility: visible;
-    opacity: 1;
-    transform: translateX(0);
-  }
-
-  .loadout-context-menu .color-swatch {
-    position: relative;
-    width: 1.35rem;
-    height: 1.35rem;
-    padding: 0;
-    display: grid;
-    place-items: center;
-    border: 2px solid transparent;
-    border-radius: 50%;
-    background: var(--swatch-color, var(--accent-strong));
-  }
-
-  .loadout-context-menu .color-swatch:hover,
-  .loadout-context-menu .color-swatch:focus-visible {
-    background: var(--swatch-color, var(--accent-strong));
-    border-color: var(--menu-popover-text);
-  }
-
-  .loadout-context-menu .white-swatch {
-    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 24%);
-  }
-
-  .loadout-context-menu .color-swatch > .color-reset-glyph {
-    color: color-mix(in srgb, var(--swatch-color) 20%, #111);
-    font-size: 0.9rem;
-    font-weight: 600;
   }
 
   @container (max-width: 480px) {
