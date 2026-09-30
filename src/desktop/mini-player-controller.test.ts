@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { writable } from 'svelte/store';
 import type { PlaybackSnapshot, TrackItem } from '$lib/types';
-import { MINI_PLAYER_COMMAND_EVENT, MINI_PLAYER_REQUEST_EVENT, MINI_PLAYER_STATE_EVENT } from './mini-player-protocol';
+import { MINI_PLAYER_CLOSED_EVENT, MINI_PLAYER_COMMAND_EVENT, MINI_PLAYER_REQUEST_EVENT, MINI_PLAYER_STATE_EVENT } from './mini-player-protocol';
 
 const native = vi.hoisted(() => ({
   invoke: vi.fn(async () => undefined),
@@ -70,6 +70,21 @@ describe('desktop miniplayer lifecycle', () => {
     await pending;
     expect(controller.getSnapshot().active).toBe(false);
     expect(native.invoke).not.toHaveBeenCalledWith('open_mini_player');
+    controller.destroy();
+  });
+
+  it('ends mini mode after a native return to main and can open it again', async () => {
+    const { controller, handlers } = setup();
+    await controller.open();
+    native.callbacks.get(MINI_PLAYER_CLOSED_EVENT)!({ payload: null });
+    expect(controller.getSnapshot()).toMatchObject({ active: false, opening: false });
+    native.callbacks.get(MINI_PLAYER_COMMAND_EVENT)!({ payload: { action: 'togglePlayback' } });
+    expect(handlers.togglePlayback).not.toHaveBeenCalled();
+    native.invoke.mockClear();
+    controller.toggle();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(native.invoke).toHaveBeenCalledWith('open_mini_player');
+    expect(controller.getSnapshot().active).toBe(true);
     controller.destroy();
   });
 

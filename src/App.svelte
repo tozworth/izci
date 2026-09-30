@@ -256,6 +256,7 @@
     setVideoSeekFeedback: (feedback) => (videoSeekFeedback = feedback),
     getSelectedItem: () => selectedItem,
     openOptions,
+    enterOda: () => void enterOda({ retryFullscreenOnGesture: true }),
     activateLibraryPanelTrack: (id) => activateLibraryPanelTrack(id)
   });
 
@@ -830,9 +831,9 @@
     if (mobileMode) return;
     await odaSession.enter({
       fullscreen: odaSettings.getSnapshot().odaEnterFullscreen,
-      // A URL launch carries no user activation, so a refused fullscreen
+      // URL launches and tray actions carry no main-window user activation, so a refused fullscreen
       // request is retried by the first pointer input instead of being given up on.
-      // Menu entries already have activation, so only deeplinks arm the retry:
+      // Main-window menu entries already have activation, so external entry points arm the retry:
       // a genuinely refused menu request must not fullscreen on a later key.
       retryFullscreenOnGesture: options.retryFullscreenOnGesture ?? false
     });

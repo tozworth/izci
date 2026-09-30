@@ -269,6 +269,10 @@
 }
 
 @media (width < 250px) {
+  .compact-player-bar .player-track-subtitle {
+    display: none;
+  }
+
   .compact-player-bar .player-control-strip .transport-button-previous {
     display: none;
   }

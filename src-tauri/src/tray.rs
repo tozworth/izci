@@ -43,25 +43,54 @@ pub fn create_menu(app: &AppHandle) -> tauri::Result<()> {
         background_color: Some(tauri::webview::Color(0, 0, 0, 0)),
         ..Default::default()
     };
-    crate::windows::builder(app, &config)?.build()?;
+    let window = crate::windows::builder(app, &config)?.build()?;
+    // This is a menu surface: DWM must not animate either showing or hiding it,
+    // including the native focus-loss dismissal path.
+    let disabled = ::windows::core::BOOL::from(true);
+    unsafe {
+        ::windows::Win32::Graphics::Dwm::DwmSetWindowAttribute(
+            window.hwnd()?,
+            ::windows::Win32::Graphics::Dwm::DWMWA_TRANSITIONS_FORCEDISABLED,
+            std::ptr::from_ref(&disabled).cast(),
+            std::mem::size_of_val(&disabled) as u32,
+        )
+    }
+    .map_err(|error| std::io::Error::other(error.to_string()))?;
     Ok(())
 }
 
+#[derive(Clone, Copy, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DesktopShowIn {
+    Taskbar,
+    Tray,
+    Both,
+}
+
 #[tauri::command]
-pub async fn configure_desktop_tray(
+pub async fn configure_desktop_visibility(
     app: AppHandle,
     window: WebviewWindow,
-    enabled: bool,
+    show_in: DesktopShowIn,
 ) -> Result<(), String> {
     if window.label() != "main" {
-        return Err("Only the player configures the tray".into());
+        return Err("Only the player configures desktop visibility".into());
     }
-    if !enabled {
+    // Restore taskbar access before removing the tray; create the tray before
+    // hiding the taskbar entry so a failed update always leaves access available.
+    if !matches!(show_in, DesktopShowIn::Tray) {
+        window
+            .set_skip_taskbar(false)
+            .map_err(|error| error.to_string())?;
+    }
+    if matches!(show_in, DesktopShowIn::Taskbar) {
         remove(&app);
         return Ok(());
     }
     if app.tray_by_id("izci").is_some() {
-        return Ok(());
+        return window
+            .set_skip_taskbar(matches!(show_in, DesktopShowIn::Tray))
+            .map_err(|error| error.to_string());
     }
     if app.get_webview_window("tray-menu").is_none() {
         return Err("Tray menu is unavailable".into());
@@ -93,18 +122,37 @@ pub async fn configure_desktop_tray(
                         let _ = app.emit_to("tray-menu", "izci:desktop-tray-open", ());
                     }
                 }
+                TrayIconEvent::Click {
+                    button: MouseButton::Left,
+                    button_state: MouseButtonState::Up,
+                    ..
+                } => {
+                    let _ = activate_player(app, false);
+                }
                 TrayIconEvent::DoubleClick {
                     button: MouseButton::Left,
                     ..
                 } => {
-                    let _ = crate::close_mini(app);
+                    let _ = activate_player(app, true);
                 }
                 _ => {}
             }
         })
         .build(&app)
         .map_err(|error| error.to_string())?;
-    Ok(())
+    window
+        .set_skip_taskbar(matches!(show_in, DesktopShowIn::Tray))
+        .map_err(|error| error.to_string())
+}
+
+pub fn activate_player(app: &AppHandle, double_click: bool) -> Result<(), String> {
+    if double_click {
+        crate::windows::restore_main(app)
+    } else if crate::player_windows::mini_active(app) {
+        crate::player_windows::activate_mini(app)
+    } else {
+        Ok(())
+    }
 }
 
 fn require_menu(window: &WebviewWindow) -> Result<(), String> {

@@ -18,6 +18,8 @@
   export let y = 0;
   export let ariaLabel: string | undefined = undefined;
   export let nested = false;
+  export let dismissOnSelect = true;
+  export let dismissOnResize = true;
   export let enableOverflowSubmenuFallback = false;
   export let activateOnPointerUpPointerId: number | null = null;
   export let viewportPadding = 8;
@@ -118,7 +120,7 @@
     }
 
     dispatch('action', item.id);
-    dispatch('dismiss');
+    if (dismissOnSelect) dispatch('dismiss');
   }
 
   function handleRemove(event: MouseEvent, item: MenuActionItem) {
@@ -350,7 +352,7 @@
     data-window-dismiss-ignore-scroll
     data-scrollbar-visibility-ignore-scroll
     use:portal
-    use:windowDismiss={{ enabled: true, onDismiss: () => dispatch('dismiss') }}
+    use:windowDismiss={{ enabled: true, dismissOnResize, onDismiss: () => dispatch('dismiss') }}
     role="menu"
     aria-label={resolvedAriaLabel}
     style={`left: ${resolvedX}px; top: ${resolvedY}px;${maxVisibleItems ? ` --menu-visible-count: ${maxVisibleItems};` : ''}`}

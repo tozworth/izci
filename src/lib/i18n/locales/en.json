@@ -566,6 +566,7 @@
       "logoAlt": "izci logo",
       "kicker": "GOLDILOCKED / SLOPTIMIZED / WCO'D",
       "tagline": "PWA media contraption",
+      "desktopTagline": "Media contraption",
       "openOnGitHub": "Open dunsparce9/izci on GitHub",
       "features": {
         "formats": "Plays usual streamed formats and tracker modules",
@@ -1615,9 +1616,12 @@
   },
   "desktop": {
     "appearance": {
-      "tray": {
-        "title": "Show tray icon",
-        "hint": "Shows izci in the Windows notification area with playback and window controls."
+      "showIn": {
+        "title": "Show in",
+        "hint": "Choose where izci appears. The tray icon provides playback and window controls.",
+        "taskbar": "Taskbar only",
+        "tray": "Tray only",
+        "both": "Both"
       }
     },
     "tracks": {
@@ -1636,6 +1640,7 @@
       "pause": "Pause",
       "play": "Play",
       "open": "Open izci",
+      "oda": "Oda",
       "exit": "Exit izci"
     }
   },

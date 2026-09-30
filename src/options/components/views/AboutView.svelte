@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { locale, t } from 'svelte-i18n';
+  import { isDesktop } from '$platform';
   import { version as appVersion } from '../../../../package.json';
   import {
     applyAvailableServiceWorkerUpdate,
@@ -58,7 +59,9 @@
           <div class="about-copy">
             <p class="about-kicker">{$t('options.about.kicker', { default: "GOLDILOCKED / SLOPTIMIZED / WCO'D" })}</p>
             <h3 class="about-name">izci</h3>
-            <p class="about-tagline">{$t('options.about.tagline', { default: 'PWA media contraption' })}</p>
+            <p class="about-tagline">{isDesktop
+              ? $t('options.about.desktopTagline', { default: 'Media contraption' })
+              : $t('options.about.tagline', { default: 'PWA media contraption' })}</p>
             <div class="about-meta-row">
               <span class="about-version">v{displayVersion}</span>
               <span>Toz · 2026</span>

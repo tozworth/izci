@@ -108,19 +108,29 @@ pub fn create_player_windows(app: &AppHandle) -> tauri::Result<()> {
         )
     {
         if app.get_webview_window(&config.label).is_none() {
-            builder(app, config)?.build()?;
+            let window = builder(app, config)?.build()?;
+            if config.label == "mini-player" {
+                use ::windows::Win32::Graphics::Dwm::{
+                    DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
+                };
+                // Let DWM clip the native surface, including the WebView. Older
+                // Windows versions can ignore this Windows 11 preference.
+                unsafe {
+                    let _ = DwmSetWindowAttribute(
+                        window.hwnd()?,
+                        DWMWA_WINDOW_CORNER_PREFERENCE,
+                        std::ptr::from_ref(&DWMWCP_ROUND).cast(),
+                        std::mem::size_of_val(&DWMWCP_ROUND) as u32,
+                    );
+                }
+            }
         }
     }
     Ok(())
 }
 
 pub fn restore_main(app: &AppHandle) -> Result<(), String> {
-    let main = app
-        .get_webview_window("main")
-        .ok_or("Main window is closed")?;
-    main.show().map_err(|error| error.to_string())?;
-    main.unminimize().map_err(|error| error.to_string())?;
-    main.set_focus().map_err(|error| error.to_string())
+    crate::player_windows::restore_main(app)
 }
 
 #[cfg(test)]
