@@ -176,6 +176,7 @@
   <div class="library-toolbar" data-mobile-swipe-lock>
     <TabStrip
       className="library-view-tabs"
+      flushStart
       ariaLabel={$t('library.views.label', { default: 'Library views' })}
       on:contextmenu={openViewMenu}
     >
@@ -343,7 +344,16 @@
     align-self: stretch;
     align-items: flex-end;
     gap: 0;
-    padding-inline: 0.08rem;
+    padding-inline: 0;
+  }
+
+  :global(.app-shell:not(.mobile-mode) .library-view-tabs) {
+    margin-left: -0.45rem;
+  }
+
+  /* The toolbar owns the full-width baseline; avoid layering translucent lines. */
+  .library-toolbar :global(.library-view-tabs::after) {
+    display: none;
   }
 
   :global(.library-view-tabs) .library-toolbar-button {

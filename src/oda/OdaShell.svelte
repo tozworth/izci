@@ -745,7 +745,6 @@
           parkingHost={media.parkingHost}
           fitMode={media.fitMode}
           snapshot={playbackSnapshot}
-          pictureInPictureSupported={media.pictureInPictureSupported}
           seekFeedback={media.seekFeedback}
           focusId={sessionState.focusId}
           {shuffleEnabled}
@@ -757,7 +756,6 @@
           onCycleRepeat={commands.cycleRepeat}
           onSeek={commands.seek}
           onVolumeStep={handleVolumeStep}
-          onTogglePictureInPicture={commands.togglePictureInPicture}
           onSetFit={commands.setVideoFit}
           onToggleQueue={openQueueFlyout}
           onFocus={(focusId) => focus.setFocus(focusId)}

@@ -12,7 +12,6 @@
   export let snapshot: PlaybackSnapshot | null = null;
   export let shuffleEnabled = false;
   export let repeatMode: RepeatMode = 'off';
-  export let pictureInPictureSupported = false;
   export let seekFeedback: VideoSeekFeedback | null = null;
   export let focusId: string | null = null;
   export let translate: OdaTranslate;
@@ -24,7 +23,6 @@
   export let onSeek: (seconds: number) => void = () => {};
   export let onVolumeStep: (delta: number) => void = () => {};
   export let onSetFit: (fitMode: VideoFitMode) => void = () => {};
-  export let onTogglePictureInPicture: () => void = () => {};
   export let onToggleQueue: () => void = () => {};
   export let onFocus: (focusId: string) => void = () => {};
 
@@ -36,10 +34,8 @@
     {parkingHost}
     {fitMode}
     {snapshot}
-    {pictureInPictureSupported}
     {seekFeedback}
     on:volumeStep={(event) => onVolumeStep(event.detail)}
-    on:togglePictureInPicture={onTogglePictureInPicture}
     on:setVideoFit={(event) => onSetFit(event.detail)}
     on:toggleVideoTheater={() => {}}
   />
