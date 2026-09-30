@@ -75,4 +75,42 @@ describe('Raf presets', () => {
     rafPresets.apply(preset!.id);
     expect(rafSettings.getSnapshot()).toEqual({ enabled: false, effects: [] });
   });
+
+  it('persists palette colors independently of rack edits and rejects unknown colors', () => {
+    const preset = rafPresets.create('Cute')!;
+    const settings = rafSettings.getSnapshot();
+    rafPresets.setColor(preset.id, 'magenta');
+    const state = normalizeRafPresetState(JSON.parse(JSON.stringify(rafPresets.getSnapshot())));
+    expect(state.presets[0].color).toBe('magenta');
+    expect(isRafPresetDirty(state, settings)).toBe(false);
+    rafPresets.rename(preset.id, 'Still cute');
+    rafPresets.save();
+    rafPresets.apply(preset.id);
+    expect(rafPresets.getSnapshot().presets[0].color).toBe('magenta');
+    expect(rafSettings.getSnapshot()).toEqual(settings);
+    expect(normalizeRafPresetState({ presets: [{ ...preset, color: 'chartreuse' }] }).presets[0].color).toBeUndefined();
+    expect(rafPresets.setColor(preset.id)?.color).toBeUndefined();
+  });
+
+  it('keeps icon choices outside rack edits and preserves them across preset operations', () => {
+    const preset = rafPresets.create('Favorite')!;
+    rafPresets.setColor(preset.id, 'magenta');
+    rafPresets.setIcon(preset.id, 'favorite');
+    const state = normalizeRafPresetState(JSON.parse(JSON.stringify(rafPresets.getSnapshot())));
+    expect(state.presets[0]).toMatchObject({ icon: 'favorite', color: 'magenta' });
+    expect(isRafPresetDirty(state, rafSettings.getSnapshot())).toBe(false);
+
+    rafPresets.rename(preset.id, 'Heart');
+    rafSettings.addEffect('stereo-width');
+    rafPresets.save();
+    rafSettings.clearEffects();
+    rafPresets.apply(preset.id);
+    expect(rafSettings.getSnapshot().effects).toHaveLength(1);
+    expect(rafPresets.getSnapshot().presets[0]).toMatchObject({ icon: 'favorite', color: 'magenta' });
+    expect(normalizeRafPresetState({ presets: [{ ...preset, icon: 'unknown_symbol' }] }).presets[0].icon).toBeUndefined();
+    expect(rafPresets.setIcon(preset.id, 'unknown_symbol' as never)).toBeNull();
+    expect(rafPresets.getSnapshot().presets[0].icon).toBe('favorite');
+    expect(rafPresets.setIcon(preset.id)?.icon).toBeUndefined();
+    expect(rafPresets.getSnapshot().presets[0].color).toBe('magenta');
+  });
 });

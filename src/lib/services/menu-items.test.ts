@@ -81,6 +81,31 @@ describe('menu-items builders', () => {
     expect(ids(groupItems(result, 'file'))).toEqual(['openFiles', 'openFolder', 'manageFolders']);
   });
 
+  it('shows preset icons and colors in the Playback Raf submenu', () => {
+    const deps = baseDeps();
+    deps.playbackSettings.enableRaf = true;
+    deps.rafPresets = {
+      selectedPresetId: 'cute',
+      presets: [{ id: 'cute', name: 'Cute', color: 'magenta', icon: 'favorite', settings: { effects: [] } }]
+    };
+    const playback = groupItems(buildMenuItems(deps), 'playback');
+    const raf = playback.find((item) => item.children?.some((child) => child.id === 'applyRafPreset:cute'));
+    expect(raf?.children?.find((item) => item.id === 'applyRafPreset:cute')).toMatchObject({
+      icon: 'favorite', iconColor: '#d858b0', checked: true, label: 'Cute'
+    });
+  });
+
+  it('shows custom loadout icons with the selected color and keeps target icons as defaults', () => {
+    const deps = baseDeps();
+    deps.loadouts.loadouts = [
+      { id: 'starred', name: 'Starred', icon: 'star', color: 'amber', target: { type: 'preset' }, settings: {}, createdAt: 1, updatedAt: 1 },
+      { id: 'folder', name: 'Folder', target: { type: 'path', folderId: 'one', folderName: 'Music' }, settings: {}, createdAt: 1, updatedAt: 1 }
+    ];
+    const items = groupItems(buildMenuItems(deps), 'app').find((item) => item.id === 'loadouts')!.children!;
+    expect(items.find((item) => item.id === 'applyLoadout:starred')).toMatchObject({ icon: 'star', iconColor: '#f6bd3a' });
+    expect(items.find((item) => item.id === 'applyLoadout:folder')?.icon).toBe('folder');
+  });
+
   it('includes the video group only when a video is active', () => {
     const result = buildMenuItems(baseDeps());
     expect(groupIds(result)).not.toContain('video');

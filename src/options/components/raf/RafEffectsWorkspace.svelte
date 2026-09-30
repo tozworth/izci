@@ -1,13 +1,10 @@
 <script lang="ts">
-  import { tick } from 'svelte';
   import { t } from 'svelte-i18n';
-  import { portal } from '$lib/components/track-list-panel/actions/portal';
-  import { windowDismiss } from '$lib/components/track-list-panel/actions/window-dismiss';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
   import { rafSettings } from '$lib/stores/raf-settings';
-  import type { RafEffectSettings, RafEffectType } from '$lib/types';
+  import type { MenuActionItem, RafEffectSettings, RafEffectType } from '$lib/types';
   import RafEffectEditor from './RafEffectEditor.svelte';
 
   let selectedEffectId: string | null = null;
@@ -19,7 +16,6 @@
   let addMenuY = 0;
   let addMenuDismissedAt = 0;
   let contextMenu: { effectId: string; x: number; y: number } | null = null;
-  let contextMenuElement: HTMLDivElement | null = null;
 
   function fitEffectNames(node: HTMLElement, names: { displayName: string; typeName: string }) {
     let currentNames = names;
@@ -94,19 +90,21 @@
       : current);
   }
 
-  async function openEffectContextMenu(event: MouseEvent, effectId: string) {
+  function openEffectContextMenu(event: MouseEvent, effectId: string) {
     event.preventDefault();
     event.stopPropagation();
     selectedEffectId = effectId;
     contextMenu = { effectId, x: event.clientX, y: event.clientY };
-    await tick();
-    if (!contextMenu || contextMenu.effectId !== effectId || !contextMenuElement) return;
-    const padding = 8;
-    contextMenu = {
-      ...contextMenu,
-      x: Math.max(padding, Math.min(contextMenu.x, window.innerWidth - contextMenuElement.offsetWidth - padding)),
-      y: Math.max(padding, Math.min(contextMenu.y, window.innerHeight - contextMenuElement.offsetHeight - padding))
-    };
+  }
+
+  function handleEffectContextMenuAction(action: string) {
+    if (!contextMenu) return;
+    const { effectId } = contextMenu;
+    switch (action) {
+      case 'rename': renameEffect(effectId); break;
+      case 'clone': cloneEffect(effectId); break;
+      case 'delete': deleteEffect(effectId); break;
+    }
   }
 
   function renameEffect(id: string) {
@@ -200,6 +198,12 @@
     label: effectTypeName(definition.type),
     icon: definition.icon
   }));
+
+  $: contextMenuItems = [
+    { id: 'rename', label: $t('options.raf.effects.rename', { default: 'Rename effect' }), icon: 'edit' },
+    { id: 'clone', label: $t('options.raf.effects.clone', { default: 'Clone effect' }), icon: 'content_copy' },
+    { id: 'delete', label: $t('options.raf.effects.delete', { default: 'Delete effect' }), icon: 'delete', separatorBefore: true }
+  ] satisfies MenuActionItem[];
 
   $: if (!$rafSettings.effects.some((effect) => effect.id === selectedEffectId)) {
     selectedEffectId = $rafSettings.effects[0]?.id ?? null;
@@ -345,30 +349,14 @@
 {/if}
 
 {#if contextMenu}
-  <div
-    bind:this={contextMenuElement}
-    class="effect-context-menu"
-    data-menu-interactive="true"
-    use:portal
-    use:windowDismiss={{ enabled: true, onDismiss: () => (contextMenu = null) }}
-    role="menu"
-    aria-label={$t('options.raf.effects.actions', { default: 'Effect actions' })}
-    style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
-  >
-    <button type="button" role="menuitem" on:click={() => renameEffect(contextMenu?.effectId ?? '')}>
-      <span class="material-symbols-outlined" aria-hidden="true">edit</span>
-      <span>{$t('options.raf.effects.rename', { default: 'Rename effect' })}</span>
-    </button>
-    <button type="button" role="menuitem" on:click={() => cloneEffect(contextMenu?.effectId ?? '')}>
-      <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
-      <span>{$t('options.raf.effects.clone', { default: 'Clone effect' })}</span>
-    </button>
-    <div class="context-menu-separator" role="separator" aria-hidden="true"></div>
-    <button class="danger" type="button" role="menuitem" on:click={() => deleteEffect(contextMenu?.effectId ?? '')}>
-      <span class="material-symbols-outlined" aria-hidden="true">delete</span>
-      <span>{$t('options.raf.effects.delete', { default: 'Delete effect' })}</span>
-    </button>
-  </div>
+  <MenuSurface
+    items={contextMenuItems}
+    x={contextMenu.x}
+    y={contextMenu.y}
+    ariaLabel={$t('options.raf.effects.actions', { default: 'Effect actions' })}
+    on:action={(event) => handleEffectContextMenuAction(event.detail)}
+    on:dismiss={() => (contextMenu = null)}
+  />
 {/if}
 
 <style>
@@ -424,13 +412,6 @@
   .empty-config { min-height: 180px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--muted); text-align: center; }
   .empty-config .material-symbols-outlined { color: var(--accent-strong); font-size: 26px; }
   .empty-config strong { color: var(--text-strong); }
-  .effect-context-menu { position: fixed; z-index: 60; width: max-content; min-width: 10.5rem; max-width: calc(100vw - 1rem); padding: 0.18rem; border: 1px solid var(--menu-popover-border); border-radius: 0.5rem; background: var(--menu-popover-bg); box-shadow: var(--menu-popover-shadow); font-size: 0.8rem; }
-  .effect-context-menu button { width: 100%; padding: 0.32rem 0.42rem; display: flex; align-items: center; gap: 0.42rem; border-radius: 0.5rem; background: transparent; color: var(--menu-popover-text); text-align: left; white-space: nowrap; }
-  .effect-context-menu button:hover { background: var(--menu-popover-hover); }
-  .effect-context-menu button .material-symbols-outlined { color: var(--menu-popover-muted); font-size: 0.9rem; }
-  .effect-context-menu button.danger:hover,
-  .effect-context-menu button.danger:hover .material-symbols-outlined { color: var(--danger); }
-  .context-menu-separator { height: 1px; margin: 0.18rem 0; background: var(--menu-popover-border); }
 
   @container (max-width: 390px) {
     .effects-workspace { grid-template-columns: 145px minmax(0, 1fr); }

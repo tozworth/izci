@@ -320,7 +320,8 @@
   }
 
   .themed-select-trigger .material-symbols-outlined {
-    flex: 0 0 auto;
+    width: 16px;
+    flex: 0 0 16px;
     color: var(--muted-strong);
     font-size: 16px;
   }

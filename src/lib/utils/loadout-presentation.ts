@@ -1,4 +1,4 @@
-import type { LoadoutColor, LoadoutTarget, LoadoutType } from '$lib/types';
+import type { Loadout, LoadoutColor, LoadoutTarget, LoadoutType } from '$lib/types';
 
 export const LOADOUT_TYPE_ICONS: Record<LoadoutType, string> = {
   file: 'audio_file',
@@ -25,6 +25,10 @@ export const LOADOUT_COLOR_VALUES: Record<LoadoutColor, string> = {
 
 export function getLoadoutColorValue(color?: LoadoutColor): string {
   return color ? LOADOUT_COLOR_VALUES[color] : 'var(--accent-strong)';
+}
+
+export function getLoadoutIcon(loadout: Pick<Loadout, 'icon' | 'target'>): string {
+  return loadout.icon ?? LOADOUT_TYPE_ICONS[loadout.target.type];
 }
 
 export function getLoadoutTargetText(target: LoadoutTarget): string | null {

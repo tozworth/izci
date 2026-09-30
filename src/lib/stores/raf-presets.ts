@@ -1,6 +1,9 @@
 import { samePersistentValue } from './persistent-store';
 import { normalizeRafSettings, rafSettings } from './raf-settings';
 import { createPersistentStore } from './persistent-store';
+import { LOADOUT_COLORS } from './loadouts';
+import type { LoadoutColor } from '$lib/types';
+import { normalizePresetIcon, type PresetIcon } from '$lib/utils/preset-icons';
 import type { RafPreset, RafPresetSettings, RafPresetState, RafRackSettings } from '$lib/types';
 
 const RAF_PRESETS_STORAGE_KEY = 'izci.raf-presets';
@@ -30,7 +33,7 @@ export function normalizeRafPresetState(value: unknown): RafPresetState {
   if (Array.isArray(source.presets)) {
     for (const candidate of source.presets) {
       if (!candidate || typeof candidate !== 'object') continue;
-      const preset = candidate as { id?: unknown; name?: unknown; settings?: unknown };
+      const preset = candidate as { id?: unknown; name?: unknown; color?: unknown; icon?: unknown; settings?: unknown };
       const name = normalizePresetName(preset.name);
       if (
         typeof preset.id !== 'string' ||
@@ -39,7 +42,9 @@ export function normalizeRafPresetState(value: unknown): RafPresetState {
         !name
       ) continue;
       ids.add(preset.id);
-      presets.push({ id: preset.id, name, settings: toPresetSettings(preset.settings) });
+      const color = LOADOUT_COLORS.includes(preset.color as LoadoutColor) ? preset.color as LoadoutColor : undefined;
+      const icon = normalizePresetIcon(preset.icon);
+      presets.push({ id: preset.id, name, ...(color ? { color } : {}), ...(icon ? { icon } : {}), settings: toPresetSettings(preset.settings) });
     }
   }
 
@@ -118,6 +123,34 @@ export const rafPresets = {
       })
     }));
     return renamed;
+  },
+  setColor(id: string, color?: LoadoutColor): RafPreset | null {
+    if (color !== undefined && !LOADOUT_COLORS.includes(color)) return null;
+    let updated: RafPreset | null = null;
+    store.update((state) => ({
+      ...state,
+      presets: state.presets.map((preset) => {
+        if (preset.id !== id) return preset;
+        const { color: _previousColor, ...rest } = preset;
+        updated = { ...rest, ...(color ? { color } : {}) };
+        return updated;
+      })
+    }));
+    return updated;
+  },
+  setIcon(id: string, icon?: PresetIcon): RafPreset | null {
+    if (icon !== undefined && !normalizePresetIcon(icon)) return null;
+    let updated: RafPreset | null = null;
+    store.update((state) => ({
+      ...state,
+      presets: state.presets.map((preset) => {
+        if (preset.id !== id) return preset;
+        const { icon: _previousIcon, ...rest } = preset;
+        updated = { ...rest, ...(icon ? { icon } : {}) };
+        return updated;
+      })
+    }));
+    return updated;
   },
   delete(id: string): RafPresetState {
     return store.update((state) => ({

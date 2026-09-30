@@ -6,7 +6,7 @@
   import { requestOptionsFromTool, windowManager } from '$lib/services/window-manager';
   import { loadouts } from '$lib/stores/loadouts';
   import type { MenuActionItem, WindowMenuGroup } from '$lib/types';
-  import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
+  import { getLoadoutColorValue, getLoadoutIcon } from '$lib/utils/loadout-presentation';
 
   type ActionId = 'openA' | 'openB' | 'close' | 'playPause' | 'stop' | 'auditionA' | 'auditionB'
     | 'difference' | 'toggleLoop' | 'toggleGainMatch' | 'openOptions' | 'openLoadouts' | 'openAbout'
@@ -39,7 +39,7 @@
     ...$loadouts.loadouts.map((loadout, index) => ({
       id: `applyLoadout:${loadout.id}`,
       label: loadout.name,
-      icon: LOADOUT_TYPE_ICONS[loadout.target.type],
+      icon: getLoadoutIcon(loadout),
       iconColor: getLoadoutColorValue(loadout.color),
       separatorBefore: index === 0
     }))
