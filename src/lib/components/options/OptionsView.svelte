@@ -15,6 +15,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
+  import { DesktopWindowControls, desktopTitlebar } from '$platform';
 
   export let windowTitle: string;
   export let pageToolsLabel = 'Page tools';
@@ -32,6 +33,7 @@
   export let hideAdvancedTweaksLabel = 'Hide advanced tweaks';
   export let resetPageLabel = 'Reset current page to defaults';
   export let contentClass = '';
+  export let embedded = false;
 
   const dispatch = createEventDispatcher<{
     select: { view: string };
@@ -104,6 +106,7 @@
       ? showModifiedAdvancedTweaksLabel
       : showAdvancedTweaksLabel;
   $: overlayState = $windowControlsOverlayState;
+  $: nativeTitlebar = !embedded && DesktopWindowControls !== null;
   $: overlayRect = overlayState.titlebarAreaRect;
   $: overlayInlineStyle = overlayState.visible
     ? `--window-controls-overlay-x: ${overlayRect.x}px; --window-controls-overlay-y: ${overlayRect.y}px; --window-controls-overlay-width: ${overlayRect.width}px; --window-controls-overlay-height: ${overlayRect.height}px;`
@@ -124,6 +127,8 @@
 >
   <header
     class="window-topbar"
+    class:desktop-titlebar={nativeTitlebar}
+    use:desktopTitlebar={nativeTitlebar}
     class:window-controls-overlay-active={overlayState.visible}
     style={overlayInlineStyle}
   >
@@ -181,6 +186,9 @@
         <HoverTooltip>{resetPageLabel}</HoverTooltip>
       </button>
     </div>
+    {#if nativeTitlebar}
+      <svelte:component this={DesktopWindowControls} />
+    {/if}
   </header>
 
   <main class="options-main">

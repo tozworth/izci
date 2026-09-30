@@ -47,7 +47,7 @@ vi.mock('$lib/utils/files', async (importOriginal) => ({
   readDirectoryFiles: restoreHarness.readDirectoryFiles
 }));
 
-import { locatePendingFolder, pendingBackupRestore } from './backups';
+import { forgetPendingFolder, locatePendingFolder, pendingBackupRestore } from './backups';
 
 describe('backup restore location', () => {
   beforeEach(() => {
@@ -58,6 +58,41 @@ describe('backup restore location', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it('forgets only the selected folder and its pending tracks and favorites', async () => {
+    const folder = { id: 'music-root', name: 'Music', addedAt: 1, libraryMode: 'launch' as const };
+    const track = {
+      id: 'track-1', name: 'Track.flac', extension: 'flac', kind: 'stream' as const,
+      size: 123, lastModified: 456, sourceFolderId: folder.id
+    };
+    const otherFolder = { ...folder, id: 'other-root', name: 'Other' };
+    const otherTrack = { ...track, id: 'other-track', sourceFolderId: otherFolder.id };
+    const looseTrack = { ...track, id: 'loose-track', sourceFolderId: undefined };
+    await pendingBackupRestore.replace({
+      createdAt: '2026-08-23T00:00:00.000Z',
+      sourceOrigin: 'https://example.test',
+      folders: [folder, otherFolder],
+      tracks: [track, otherTrack, looseTrack],
+      favorites: [track, otherTrack, looseTrack]
+    });
+
+    await forgetPendingFolder(folder.id);
+
+    expect(pendingBackupRestore.getSnapshot()).toMatchObject({
+      createdAt: '2026-08-23T00:00:00.000Z',
+      sourceOrigin: 'https://example.test',
+      folders: [otherFolder],
+      tracks: [otherTrack, looseTrack],
+      favorites: [otherTrack, looseTrack]
+    });
+    expect(restoreHarness.reconcileFolder).not.toHaveBeenCalled();
+    expect(restoreHarness.rememberFolder).not.toHaveBeenCalled();
+
+    await forgetPendingFolder(otherFolder.id);
+    expect(pendingBackupRestore.getSnapshot()).toMatchObject({
+      folders: [], tracks: [looseTrack], favorites: [looseTrack]
+    });
   });
 
   it('does not reconcile a managed folder against an empty pending track set', async () => {

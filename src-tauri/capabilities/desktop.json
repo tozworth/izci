@@ -1,11 +1,17 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "desktop",
-  "description": "Local desktop views exchange transient miniplayer state and commands.",
-  "windows": ["main", "mini-player", "popup-*"],
+  "description": "Local desktop views exchange transient player state and control their native windows.",
+  "windows": ["main", "mini-player", "popup-*", "tray-menu"],
   "permissions": [
     "core:event:allow-listen",
     "core:event:allow-unlisten",
-    "core:event:allow-emit-to"
+    "core:event:allow-emit-to",
+    "core:window:allow-is-maximized",
+    "core:window:allow-is-focused",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-start-dragging",
+    "core:window:allow-close"
   ]
 }

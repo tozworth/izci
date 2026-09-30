@@ -39,6 +39,7 @@ type ChromiumDataTransferItem = DataTransferItem & {
 
 interface ImportedFileSource {
   fileHandle?: FileSystemFileHandle;
+  desktopFile?: true;
   path?: string;
   sourceFolderId?: string;
 }
@@ -100,12 +101,13 @@ function cloneTrackMetadata(metadata: TrackMetadata | undefined): TrackMetadata 
   };
 }
 
-function registerImportedFile(file: File, source: ImportedFileSource): File {
+export function registerImportedFile(file: File, source: ImportedFileSource): File {
   const existing = importedFileSources.get(file);
 
   importedFileSources.set(file, {
     fileHandle: source.fileHandle ?? existing?.fileHandle,
-    path: normalizePath(source.path) ?? existing?.path,
+    desktopFile: source.desktopFile ?? existing?.desktopFile,
+    path: (source.desktopFile ? source.path?.replaceAll('\\', '/') : normalizePath(source.path)) ?? existing?.path,
     sourceFolderId: source.sourceFolderId ?? existing?.sourceFolderId
   });
 
@@ -224,6 +226,7 @@ function createTrackItem(file: File): TrackItem | null {
     id: crypto.randomUUID(),
     file: retainedFile,
     fileHandle: source?.fileHandle,
+    ...(source?.desktopFile ? { desktopFile: true as const } : {}),
     path: source?.path,
     sourceFolderId: source?.sourceFolderId,
     name: file.name,

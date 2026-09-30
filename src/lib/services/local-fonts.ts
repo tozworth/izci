@@ -1,3 +1,5 @@
+import { isDesktop, queryDesktopFontFamilies } from '$platform';
+
 interface LocalFontData {
   family: string;
 }
@@ -7,10 +9,11 @@ interface LocalFontAccessWindow extends Window {
 }
 
 export function supportsLocalFontAccess(): boolean {
-  return typeof window !== 'undefined' && typeof (window as LocalFontAccessWindow).queryLocalFonts === 'function';
+  return isDesktop || (typeof window !== 'undefined' && typeof (window as LocalFontAccessWindow).queryLocalFonts === 'function');
 }
 
 export async function hasLocalFontAccessPermission(): Promise<boolean> {
+  if (isDesktop) return true;
   if (!supportsLocalFontAccess() || !navigator.permissions) {
     return false;
   }
@@ -26,6 +29,7 @@ export async function hasLocalFontAccessPermission(): Promise<boolean> {
 }
 
 export async function queryLocalFontFamilies(): Promise<string[]> {
+  if (isDesktop) return normalizeFontFamilies(await queryDesktopFontFamilies());
   const queryLocalFonts = (window as LocalFontAccessWindow).queryLocalFonts;
 
   if (!queryLocalFonts) {
@@ -33,7 +37,11 @@ export async function queryLocalFontFamilies(): Promise<string[]> {
   }
 
   const fonts = await queryLocalFonts.call(window);
-  return [...new Set(fonts.map((font) => font.family.trim()).filter(Boolean))].sort((left, right) =>
+  return normalizeFontFamilies(fonts.map((font) => font.family));
+}
+
+function normalizeFontFamilies(families: string[]): string[] {
+  return [...new Set(families.map((family) => family.trim()).filter(Boolean))].sort((left, right) =>
     left.localeCompare(right, undefined, { sensitivity: 'base' })
   );
 }

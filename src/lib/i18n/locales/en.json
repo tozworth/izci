@@ -651,6 +651,7 @@
         "title": "Font",
         "loading": "Loading local fonts…",
         "useLocal": "Use local fonts…",
+        "desktopHint": "Applies the system interface font or any installed Windows font across the app.",
         "noFonts": "No local fonts were returned.",
         "permissionDenied": "Local font permission was not granted.",
         "loadFailed": "Local fonts could not be loaded.",
@@ -972,6 +973,7 @@
         "success": "Folder located and matching library tracks restored.",
         "mismatch": "That folder did not contain any of the expected library tracks.",
         "failed": "The folder could not be restored.",
+        "forgetFailed": "The folder could not be forgotten.",
         "locationMissing": "Location missing",
         "waiting": "Waiting for location",
         "locate": "Locate…"
@@ -1609,6 +1611,32 @@
         "title": "Hold Back threshold",
         "hint": "How long Back must be held before the Hold Back action triggers."
       }
+    }
+  },
+  "desktop": {
+    "appearance": {
+      "tray": {
+        "title": "Show tray icon",
+        "hint": "Shows izci in the Windows notification area with playback and window controls."
+      }
+    },
+    "tracks": {
+      "associations": {
+        "title": "Register file types",
+        "hint": "Makes izci available in Open with for supported audio, tracker, video and image files."
+      },
+      "defaults": {
+        "title": "Default player",
+        "hint": "Choose the file types Windows opens with izci.",
+        "button": "Choose file types…"
+      }
+    },
+    "tray": {
+      "menu": "izci tray menu",
+      "pause": "Pause",
+      "play": "Play",
+      "open": "Open izci",
+      "exit": "Exit izci"
     }
   },
   "audioCompare": {

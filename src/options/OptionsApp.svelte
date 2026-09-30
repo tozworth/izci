@@ -230,6 +230,7 @@
 </MobileOptionsView>
 {:else}
 <OptionsView
+  {embedded}
   windowTitle={$t('options.windowTitle', { default: 'izci Options' })}
   pageToolsLabel={$t('options.tools.label', { default: 'Page tools' })}
   categoriesLabel={$t('options.categories', { default: 'Options categories' })}

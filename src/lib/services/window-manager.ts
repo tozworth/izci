@@ -5,7 +5,7 @@ import { OPEN_CURRENT_TOOL_TRACK_MESSAGE } from '$lib/services/tool-track-contex
 import { OPEN_TROUBADOUR_BATCH_CONTEXT_MESSAGE } from '$lib/services/troubadour-sync';
 import { buildOptionsWindowPath, type OptionsViewName } from '../../options/views';
 import { logDebug, logInfo, logWarning } from '$lib/services/logging';
-import { exitDesktop } from '$platform';
+import { exitDesktop, isDesktop, presentDesktopPopup } from '$platform';
 
 function isOpenWindow(windowRef: Window | null | undefined): windowRef is Window {
   return windowRef !== null && windowRef !== undefined && !windowRef.closed;
@@ -108,6 +108,7 @@ function getPopupTitle(id: PopupWindowId): string {
 
 const popupRefs = new Map<PopupWindowId, Window | null>();
 let hasMainWindowLifecycleListeners = false;
+let requestedOptionsView: OptionsViewName | undefined;
 
 function getPopupWindowIds(): PopupWindowId[] {
   return Object.keys(popupWindows) as PopupWindowId[];
@@ -143,21 +144,41 @@ function attachMainWindowLifecycleListeners(): void {
   hasMainWindowLifecycleListeners = true;
   window.addEventListener('pagehide', closeAllPopupWindows);
   window.addEventListener('beforeunload', closeAllPopupWindows);
+  window.addEventListener('message', (event: MessageEvent) => {
+    // A view request can arrive while the hidden Options window is warming.
+    // Deliver it again once its controller has installed its message listener.
+    if (event.origin === window.location.origin
+      && event.source === popupRefs.get('options')
+      && event.data?.type === 'izci:popup-ready'
+      && requestedOptionsView) {
+      popupRefs.get('options')?.postMessage(
+        { type: 'izci:open-options-view', view: requestedOptionsView }, window.location.origin
+      );
+      requestedOptionsView = undefined;
+    }
+  });
 }
 
-function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | null {
+function focusPopupWindow(windowRef: Window, path: string): void {
+  if (!presentDesktopPopup(path)) windowRef.focus();
+}
+
+function openPopupWindow(id: PopupWindowId, pathOverride?: string, warm = false): Window | null {
   const existingWindow = popupRefs.get(id);
   const definition = popupWindows[id];
   const optionsState = id === 'options' ? getOptionsWindowState() : null;
   const storedSize = getPopupWindowSize(id);
   const popupPath = pathOverride ?? (optionsState ? buildOptionsWindowPath(optionsState.activeView) : definition.path);
   const popupUrl = new URL(popupPath, window.location.href);
+  if (warm) popupUrl.searchParams.set('desktop-prewarm', '');
 
   if (isOpenWindow(existingWindow)) {
     logDebug('tools', 'Reusing tool window', { id, path: popupUrl.pathname });
     if (
-      existingWindow.location.pathname !== popupUrl.pathname
-      || existingWindow.location.search !== popupUrl.search
+      id !== 'options' && id !== 'troubadourOptions' && (
+        existingWindow.location.pathname !== popupUrl.pathname
+        || existingWindow.location.search !== popupUrl.search
+      )
     ) {
       existingWindow.location.replace(popupUrl.href);
     }
@@ -174,12 +195,12 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
       );
     }
 
-    existingWindow.focus();
+    if (!warm) focusPopupWindow(existingWindow, popupUrl.pathname);
     return existingWindow;
   }
 
   const nextWindow = window.open(
-    '',
+    isDesktop ? popupUrl.href : '',
     definition.name,
     buildWindowFeatures(getPopupFeatures({
       ...definition,
@@ -192,11 +213,13 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
     return null;
   }
 
-  primePopupBackground(nextWindow, getPopupTitle(id));
+  if (!isDesktop) primePopupBackground(nextWindow, getPopupTitle(id));
   popupRefs.set(id, nextWindow);
   attachMainWindowLifecycleListeners();
-  navigatePrimedPopup(nextWindow, popupUrl.href);
-  nextWindow.focus();
+  if (!isDesktop) {
+    navigatePrimedPopup(nextWindow, popupUrl.href);
+    nextWindow.focus();
+  }
   logInfo('tools', 'Tool window opened', { id, path: popupUrl.pathname });
 
   return nextWindow;
@@ -207,6 +230,7 @@ export const windowManager = {
     return openPopupWindow(id);
   },
   openOptions(view?: OptionsViewName) {
+    requestedOptionsView = view;
     const existingWindow = popupRefs.get('options');
 
     if (isOpenWindow(existingWindow)) {
@@ -214,7 +238,7 @@ export const windowManager = {
         existingWindow.postMessage({ type: 'izci:open-options-view', view }, window.location.origin);
       }
 
-      existingWindow.focus();
+      focusPopupWindow(existingWindow, popupWindows.options.path);
       return existingWindow;
     }
 
@@ -235,6 +259,18 @@ export const windowManager = {
   },
   closePopups: closeAllPopupWindows
 };
+
+export function warmOptionsWindow(): void {
+  if (!isDesktop) return;
+  const warm = () => {
+    if (!isOpenWindow(popupRefs.get('options'))) openPopupWindow('options', undefined, true);
+  };
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(warm, { timeout: 1500 });
+  } else {
+    window.setTimeout(warm, 0);
+  }
+}
 
 export function requestOptionsFromTool(view?: OptionsViewName): void {
   if (window.opener && !window.opener.closed) {
