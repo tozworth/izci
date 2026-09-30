@@ -49,6 +49,7 @@
 - `src/lib/i18n/`: English source catalog, Turkish translations, and localization runtime.
 - `src/lib/utils/`: stateless shared helpers.
 - `src/options/`: separate Options Vite/Svelte entrypoint and settings UI. Options edits stores; it does not own audio nodes or main-window library mutation.
+- `src/desktop/` and `src-tauri/`: Windows Tauri integration and native shell. `npm run desktop:build` builds this target; native code/assets must stay out of PWA bundles and precache (`npm run desktop:verify`).
 - `src/tools/`: standalone Audio Compare, Editor, Converter, Logs, and Troubadour window code; `tool-shell.css` supplies their shared desktop-window styling.
 - `src/lib/types.ts`: shared domain types and canonical internally supported extensions.
 - `vite.config.ts`: build/PWA configuration, manifest/file handlers, and Chiptune3 worklet emission.

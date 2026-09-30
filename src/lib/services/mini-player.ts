@@ -1,8 +1,10 @@
 import { mount, unmount } from 'svelte';
-import { writable, type Readable } from 'svelte/store';
+import { writable } from 'svelte/store';
 import materialSymbolsFontUrl from '@material-symbols/font-400/material-symbols-outlined.woff2?url';
 import MiniPlayer from '$lib/components/mini-player/MiniPlayer.svelte';
-import type { PlaybackSnapshot, TrackItem } from '$lib/types';
+import { createDesktopMiniPlayerController } from '$platform';
+import type { MiniPlayerControllerOptions, MiniPlayerState } from './mini-player-types';
+export type { MiniPlayerState } from './mini-player-types';
 
 interface MiniPlayerWindowOptions {
   width?: number;
@@ -19,28 +21,6 @@ interface WindowWithMiniPlayerApi extends Window {
 
 interface MinimizeCapableWindow {
   minimize?: () => Promise<void>;
-}
-
-export interface MiniPlayerState {
-  supported: boolean;
-  active: boolean;
-  opening: boolean;
-}
-
-interface CreateMiniPlayerControllerOptions {
-  snapshot: Readable<PlaybackSnapshot>;
-  track: Readable<TrackItem | null>;
-  selectedTrack: Readable<TrackItem | null>;
-  artworkUrl: Readable<string | null>;
-  handlers: {
-    togglePlayback: () => void;
-    previousTrack: () => void;
-    nextTrack: () => void;
-    seek: (seconds: number) => void;
-    setVolume: (volume: number) => void;
-    toggleMute: () => void;
-    enterNowPlaying: () => void;
-  };
 }
 
 const MINI_PLAYER_WIDTH = 350;
@@ -192,7 +172,10 @@ export function createMiniPlayerController({
   selectedTrack,
   artworkUrl,
   handlers
-}: CreateMiniPlayerControllerOptions) {
+}: MiniPlayerControllerOptions) {
+  const desktopController = createDesktopMiniPlayerController({ snapshot, track, selectedTrack, artworkUrl, handlers });
+  if (desktopController) return desktopController;
+
   const supported = supportsMiniPlayer();
   const store = writable<MiniPlayerState>({ supported, active: false, opening: false });
   let state: MiniPlayerState = { supported, active: false, opening: false };

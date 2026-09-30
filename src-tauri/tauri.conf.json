@@ -1,0 +1,52 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "izci",
+  "version": "0.3.2",
+  "identifier": "app.izci.desktop",
+  "build": {
+    "beforeBuildCommand": "npm run desktop:frontend",
+    "frontendDist": "../dist-desktop"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "title": "izci",
+        "url": "index.html",
+        "width": 1120,
+        "height": 760,
+        "minWidth": 320,
+        "minHeight": 240,
+        "useHttpsScheme": true,
+        "dragDropEnabled": false,
+        "backgroundColor": "#18191b"
+      },
+      {
+        "label": "mini-player",
+        "create": false,
+        "title": "izci Mini player",
+        "url": "mini-player.html",
+        "width": 350,
+        "height": 100,
+        "minWidth": 320,
+        "minHeight": 100,
+        "decorations": false,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "visible": false,
+        "resizable": false,
+        "useHttpsScheme": true,
+        "dragDropEnabled": false,
+        "backgroundColor": "#18191b"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; media-src 'self' blob: data: https: http:; font-src 'self' blob: data:; connect-src 'self' ipc: http: https: ws: wss: blob: data:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'"
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": ["icons/icon.ico"]
+  }
+}
