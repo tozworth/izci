@@ -41,18 +41,15 @@
     min-height: 32px; padding: 0; gap: 0; user-select: none;
   }
   :global(.desktop-titlebar .menu-brand) {
-    position: absolute; left: 50%; transform: translateX(-50%);
-    max-width: max(0px, calc(100% - 2 * var(--desktop-title-reserve) - 16px));
-    margin: 0; padding: 0; overflow: hidden; pointer-events: none;
+    flex: 1 1 0; justify-content: center;
+    margin: 0; padding: 0; border-radius: 0;
+    overflow: hidden; pointer-events: none;
+  }
+  :global(.desktop-titlebar .menu-groups),
+  :global(.desktop-titlebar .compact-menu-trigger) {
+    flex-shrink: 0;
   }
   :global(.desktop-titlebar-inactive .menu-brand) { opacity: 0.6; }
-  /* Minimum-width windows center the label between the menu and controls. */
-  @media (max-width: 399px) {
-    :global(.desktop-titlebar .menu-brand) {
-      left: 48px; right: var(--desktop-controls-width); max-width: none;
-      transform: none; justify-content: center;
-    }
-  }
   .desktop-window-controls { display: flex; align-self: stretch; flex: 0 0 auto; margin-left: auto; }
   button {
     display: grid; place-items: center; width: 40px; min-height: 32px;

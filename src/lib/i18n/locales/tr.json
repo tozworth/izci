@@ -659,6 +659,7 @@
         "title": "Yazı tipi",
         "loading": "Yerel yazı tipleri yükleniyor…",
         "useLocal": "Yerel yazı tiplerini kullan…",
+        "desktopHint": "Sistem arayüz yazı tipini veya yüklü Windows yazı tiplerinden birini uygulama genelinde kullanır.",
         "noFonts": "Yerel yazı tipi bulunamadı.",
         "permissionDenied": "Yerel yazı tipi izni verilmedi.",
         "loadFailed": "Yerel yazı tipleri yüklenemedi.",
@@ -980,6 +981,7 @@
         "success": "Klasör bulundu ve eşleşen kütüphane parçaları geri yüklendi.",
         "mismatch": "Bu klasörde beklenen kütüphane parçalarından hiçbiri yoktu.",
         "failed": "Klasör geri yüklenemedi.",
+        "forgetFailed": "Klasör unutulamadı.",
         "locationMissing": "Konum eksik",
         "waiting": "Konum bekleniyor",
         "locate": "Bul…"
@@ -1617,6 +1619,32 @@
         "title": "Geri basılı tutma eşiği",
         "hint": "Geri basılı tutma eyleminin tetiklenmesi için Geri'nin ne kadar basılı tutulması gerektiği."
       }
+    }
+  },
+  "desktop": {
+    "appearance": {
+      "tray": {
+        "title": "Sistem tepsisi simgesini göster",
+        "hint": "Windows bildirim alanında izci simgesini, oynatma ve pencere denetimleriyle gösterir."
+      }
+    },
+    "tracks": {
+      "associations": {
+        "title": "Dosya türlerini kaydet",
+        "hint": "Desteklenen ses, modül, video ve görsel dosyaları için izci'yi Birlikte aç seçeneklerine ekler."
+      },
+      "defaults": {
+        "title": "Varsayılan oynatıcı",
+        "hint": "Windows'un izci ile açacağı dosya türlerini seçin.",
+        "button": "Dosya türlerini seç…"
+      }
+    },
+    "tray": {
+      "menu": "izci sistem tepsisi menüsü",
+      "pause": "Duraklat",
+      "play": "Oynat",
+      "open": "izci'yi aç",
+      "exit": "izci'den çık"
     }
   },
   "audioCompare": {

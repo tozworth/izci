@@ -427,6 +427,15 @@ function createPendingRestoreStore(): Readable<PendingBackupRestore> & {
 
 export const pendingBackupRestore = createPendingRestoreStore();
 
+export async function forgetPendingFolder(folderId: string): Promise<void> {
+  await pendingBackupRestore.update((state) => ({
+    ...state,
+    folders: state.folders.filter((folder) => folder.id !== folderId),
+    tracks: state.tracks.filter((track) => track.sourceFolderId !== folderId),
+    favorites: state.favorites.filter((track) => track.sourceFolderId !== folderId)
+  }));
+}
+
 export async function createBackupArchive(): Promise<{
   blob: Blob;
   fileName: string;

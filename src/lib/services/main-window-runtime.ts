@@ -55,6 +55,7 @@ import { playbackSettings } from '$lib/stores/playback-settings';
 import { videoSettings } from '$lib/stores/video-settings';
 import { isVisualMediaFileName } from '$lib/utils/files';
 import { trackSettings } from '$lib/stores/track-settings';
+import { createPlatformIntegration, preparePlaybackRestoration } from '$platform';
 import type {
   PlaybackSnapshot,
   TrackItem
@@ -511,7 +512,8 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     getQueueTrack: (id) => state.queueItems.find((item) => item.id === id) ?? null,
     ensureLoaded: (id) => queueStore.ensureLoaded(id),
     selectTrack: (id) => workspaceShell.selectTrack('queue', id),
-    loadTrack: (track, options) => playerController.load(track, options)
+    loadTrack: (track, options) => playerController.load(track, options),
+    prepareFileAccess: preparePlaybackRestoration
   });
   const artworkPresentation = createArtworkPresentationController({
     resolveTrackSnapshot: (track) =>
@@ -729,6 +731,19 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     void playbackCommands.importLaunchedFiles(files, trackSettings.getSnapshot().associatedFileAction)
   );
   const displayPlaybackSnapshotStore = writable<PlaybackSnapshot>(state.playbackSnapshot);
+  const stopPlatformIntegration = createPlatformIntegration({
+    snapshot: displayPlaybackSnapshotStore,
+    canControl: () => state.queueItems.length > 0 || state.playbackSnapshot.backend !== null,
+    handlers: {
+      togglePlayback: () => transport.togglePlayback(),
+      previousTrack: () => transport.stepTrack(-1),
+      nextTrack: () => transport.stepTrack(1),
+      openOptions: () => deps.openOptions(),
+      miniPlayer: () => miniPlayer.toggle(),
+      exit: () => windowManager.exit()
+    },
+    importFiles: (files) => playbackCommands.importLaunchedFiles(files, trackSettings.getSnapshot().associatedFileAction)
+  });
   const mediaSessionArtworkOverrideStore = writable<LoadedStreamArtwork | null | undefined>(undefined);
   const multiplayerClientMediaSessionStore = writable(false);
   const disconnectMediaSession = mediaSessionService.connect({
@@ -850,6 +865,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     multiplayerSession.destroy();
     multiplayerController.destroy();
     miniPlayer.destroy();
+    stopPlatformIntegration();
     appInstallService.destroy();
     unsubscribeLaunchedFiles();
     setLaunchedHandlesPreviewListener(null);

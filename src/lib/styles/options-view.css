@@ -54,19 +54,41 @@ select {
   max-width: 100%;
 }
 
-.font-control a {
+.font-control .local-font-button {
   align-self: flex-end;
-  color: var(--accent-strong);
+  padding: 0.2rem 0.45rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.2rem;
+  background: var(--bg-soft);
+  color: var(--text);
   font-size: 0.75rem;
+  cursor: default;
 }
 
 .font-control select {
   width: 100%;
 }
 
-.font-control a[aria-disabled='true'] {
+.font-control .local-font-button:disabled {
   opacity: 0.55;
   pointer-events: none;
+}
+
+.font-control .local-font-button:hover:not(:disabled) {
+  background: var(--hover-surface);
+}
+
+.window-topbar.desktop-titlebar {
+  min-height: 32px;
+  padding-right: 0;
+  gap: 0.45rem;
+  user-select: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+.window-topbar.desktop-titlebar-inactive .window-topbar-title {
+  opacity: 0.6;
 }
 
 button {

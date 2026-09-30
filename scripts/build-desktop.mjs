@@ -39,7 +39,7 @@ try {
   output = join(root, '.local', 'desktop-next');
   mkdirSync(output, { recursive: true });
   copyFileSync(join(release, 'izci.exe'), join(output, 'izci.exe'));
-  console.log('Current desktop executable is locked; saved the new build separately.');
+  console.log(`Could not replace the current desktop executable (${error.code}); saved the new build separately.`);
 }
 // Remove the sidecar left by older GNU builds from this output directory only.
 rmSync(join(output, 'WebView2Loader.dll'), { force: true });

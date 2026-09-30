@@ -1,3 +1,4 @@
+import { initializeDesktopWindow } from '$platform';
 import '@material-symbols/font-400/outlined.css';
 import { mount } from 'svelte';
 import { initializeLocalization } from '$lib/i18n';
@@ -21,4 +22,8 @@ initializePopupWindowSizePersistence('editor');
 
 mount(EditorApp, {
   target: document.getElementById('app')!
+});
+
+void initializeDesktopWindow().catch((error) => {
+  console.error('Could not present desktop window.', error);
 });

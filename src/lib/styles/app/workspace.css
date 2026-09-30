@@ -450,17 +450,6 @@
   .now-playing-workspace :is(.np-flyout, .np-flyout-edge, .player-range, .player-actions, .volume, .now-playing-context-toggle, .now-playing-close) { transition: none; }
 }
 
-@media (max-width: 349px) {
-  .dock-tab {
-    justify-content: center;
-    padding-inline: 0.4rem;
-  }
-
-  .dock-tab-label {
-    display: none;
-  }
-}
-
 .now-playing-workspace .now-playing-player .now-playing-context-toggle {
   position: absolute;
   top: .65rem;

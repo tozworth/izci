@@ -10,6 +10,7 @@
   } from '$lib/services/filesystem-folders';
   import { requestLibraryFolderScan } from '$lib/services/library-folder-coordination';
   import {
+    forgetPendingFolder,
     locatePendingFolder,
     pendingBackupRestore,
     type PortableFolderRecord
@@ -28,7 +29,7 @@
 
   let dropActive = false;
   let busyIds = new Set<string>();
-  let restoreStatus: 'idle' | 'success' | 'mismatch' | 'failed' = 'idle';
+  let restoreStatus: 'idle' | 'success' | 'mismatch' | 'failed' | 'forgetFailed' = 'idle';
 
   function setBusy(id: string, busy: boolean) {
     busyIds = new Set(busy ? [...busyIds, id] : [...busyIds].filter((value) => value !== id));
@@ -188,6 +189,18 @@
     }
   }
 
+  async function forgetRestoredFolder(folder: PortableFolderRecord) {
+    setBusy(folder.id, true);
+    restoreStatus = 'idle';
+    try {
+      await forgetPendingFolder(folder.id);
+    } catch {
+      restoreStatus = 'forgetFailed';
+    } finally {
+      setBusy(folder.id, false);
+    }
+  }
+
   async function locateRestoredFolder(folder: PortableFolderRecord) {
     const pickerWindow = window as PickerWindow;
     if (!pickerWindow.showDirectoryPicker) {
@@ -247,6 +260,8 @@
         <span>{$t('options.folders.restore.success', { default: 'Folder located and matching library tracks restored.' })}</span>
       {:else if restoreStatus === 'mismatch'}
         <span>{$t('options.folders.restore.mismatch', { default: 'That folder did not contain any of the expected library tracks.' })}</span>
+      {:else if restoreStatus === 'forgetFailed'}
+        <span>{$t('options.folders.restore.forgetFailed', { default: 'The folder could not be forgotten.' })}</span>
       {:else}
         <span>{$t('options.folders.restore.failed', { default: 'The folder could not be restored.' })}</span>
       {/if}
@@ -416,6 +431,14 @@
                 <span class="material-symbols-outlined" aria-hidden="true">folder_open</span>
                 {$t('options.folders.restore.locate', { default: 'Locate…' })}
               </button>
+              <OptionGlyphButton
+                icon="delete"
+                label={$t('options.folders.actions.forget', { default: 'Forget folder' })}
+                placement="above"
+                danger
+                disabled={busyIds.has(folder.id)}
+                on:click={() => void forgetRestoredFolder(folder)}
+              />
             </div>
           </div>
         {/each}

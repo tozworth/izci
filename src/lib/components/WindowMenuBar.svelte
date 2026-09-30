@@ -45,7 +45,7 @@
   const triggerElements = new Map<string, HTMLButtonElement>();
 
   $: overlayState = $windowControlsOverlayState;
-  $: nativeTitlebar = mainWorkspace && DesktopWindowControls !== null;
+  $: nativeTitlebar = DesktopWindowControls !== null;
   $: nativeControlsWidth = miniPlayerSupported ? 160 : 120;
   $: overlayRect = overlayState.titlebarAreaRect;
   $: overlayInlineStyle = overlayState.visible
@@ -56,7 +56,7 @@
     : menuBarWidth;
   $: resolvedMenuGroupsWidth = menuGroupsWidth || 140;
   $: compactMenuThreshold = (nativeTitlebar
-    ? 2 * Math.max(resolvedMenuGroupsWidth, nativeControlsWidth)
+    ? resolvedMenuGroupsWidth + nativeControlsWidth
     : resolvedMenuGroupsWidth) + MENU_TITLE_RESERVE + MENU_EDGE_RESERVE;
   $: isCompactMenu = availableTitlebarWidth < compactMenuThreshold;
   $: applicationGroup = groups.find((group) => group.application) ?? groups[0];
@@ -271,7 +271,7 @@
   class:multiplayer-reconnecting={multiplayerConnectionTone === 'reconnecting'}
   class:multiplayer-relayed={multiplayerConnectionTone === 'relayed'}
   class:multiplayer-disconnected={multiplayerConnectionTone === 'disconnected'}
-  style={`${overlayInlineStyle} ${nativeTitlebar ? `--desktop-title-reserve: ${Math.max(isCompactMenu ? 48 : resolvedMenuGroupsWidth, nativeControlsWidth)}px; --desktop-controls-width: ${nativeControlsWidth}px;` : ''}`}
+  style={overlayInlineStyle}
   aria-label={ariaLabel}
 >
   {#if isCompactMenu}

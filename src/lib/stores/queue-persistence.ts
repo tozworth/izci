@@ -1,6 +1,7 @@
 import type { TrackItem, PlaybackOptions, RepeatMode, TrackSelection } from '$lib/types';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
 import { logInfo } from '$lib/services/logging';
+import { isDesktop } from '$platform';
 
 export interface StoredTrackItem {
   id: string;
@@ -10,6 +11,7 @@ export interface StoredTrackItem {
   size: number;
   lastModified: number;
   fileHandle?: FileSystemFileHandle;
+  desktopFile?: true;
   path?: string;
   sourceFolderId?: string;
   metadata?: TrackItem['metadata'];
@@ -71,6 +73,8 @@ export function normalizeStoredItem(value: unknown): StoredTrackItem | null {
     size: source.size,
     lastModified: typeof source.lastModified === 'number' ? source.lastModified : 0,
     fileHandle: isFileSystemFileHandle(source.fileHandle) ? source.fileHandle : undefined,
+    ...(isDesktop && source.desktopFile === true && typeof source.path === 'string' && source.path
+      ? { desktopFile: true as const } : {}),
     path: typeof source.path === 'string' ? source.path : undefined,
     sourceFolderId: typeof source.sourceFolderId === 'string' ? source.sourceFolderId : undefined,
     metadata: source.metadata,
@@ -82,7 +86,7 @@ export function normalizeStoredItem(value: unknown): StoredTrackItem | null {
 export function restoreStoredItem(value: unknown): TrackItem | null {
   const item = normalizeStoredItem(value);
 
-  if (!item?.fileHandle) {
+  if (!item || (!item.fileHandle && !item.desktopFile)) {
     return null;
   }
 
@@ -90,7 +94,7 @@ export function restoreStoredItem(value: unknown): TrackItem | null {
 }
 
 export function serializeItem(item: TrackItem): StoredTrackItem | null {
-  if (!item.fileHandle) {
+  if (!item.fileHandle && !(isDesktop && item.desktopFile && item.path)) {
     return null;
   }
 
@@ -104,6 +108,7 @@ export function serializeItem(item: TrackItem): StoredTrackItem | null {
     size: item.size,
     lastModified: item.lastModified,
     fileHandle: item.fileHandle,
+    ...(isDesktop && item.desktopFile && item.path ? { desktopFile: true as const } : {}),
     path: item.path,
     sourceFolderId: item.sourceFolderId,
     metadata: item.metadata,

@@ -256,3 +256,20 @@
     grid-template-columns: minmax(3rem, 1fr);
   }
 }
+
+@media (width < 400px) {
+  .player-bar.compact-player-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'track controls';
+  }
+
+  .compact-player-bar .player-range {
+    display: none;
+  }
+}
+
+@media (width < 250px) {
+  .compact-player-bar .player-control-strip .transport-button-previous {
+    display: none;
+  }
+}

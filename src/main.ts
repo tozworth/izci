@@ -12,6 +12,8 @@ import { initLogging } from '$lib/services/logging';
 import './mobile/mobile.css';
 import './mobile/mobile-options.css';
 import './oda/oda.css';
+import { initializeDesktopWindow } from '$platform';
+import { warmOptionsWindow } from '$lib/services/window-manager';
 
 if (import.meta.env.PROD) {
   registerAppServiceWorker();
@@ -25,4 +27,8 @@ initLogging();
 
 mount(App, {
   target: document.getElementById('app')!
+});
+
+void initializeDesktopWindow().then(warmOptionsWindow).catch((error) => {
+  console.error('Could not present desktop window.', error);
 });

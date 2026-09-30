@@ -7,7 +7,7 @@
     "dev": "vite",
     "prebuild": "node scripts/sync-multiplayer-protocol.mjs",
     "build": "vite build",
-    "desktop:frontend": "node scripts/sync-multiplayer-protocol.mjs && vite build --mode desktop",
+    "desktop:frontend": "node scripts/sync-multiplayer-protocol.mjs && node scripts/sync-desktop-formats.mjs && vite build --mode desktop",
     "desktop:build": "node scripts/build-desktop.mjs",
     "desktop:verify": "node scripts/verify-desktop-build.mjs",
     "sites:build": "npm run build && node scripts/prepare-sites-build.mjs",

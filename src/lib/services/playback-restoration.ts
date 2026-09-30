@@ -1,6 +1,7 @@
 import type { Readable } from 'svelte/store';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import type { PlaybackSnapshot, TrackItem } from '$lib/types';
+import { logWarning } from '$lib/services/logging';
 
 const PLAYBACK_RESTORATION_STORAGE_KEY = 'izci.playback-restoration';
 const CHECKPOINT_DELAY_MS = 500;
@@ -21,6 +22,7 @@ interface CreatePlaybackRestorationControllerOptions {
     track: TrackItem,
     options: { autoPlay: boolean; initialPosition: number }
   ) => Promise<void>;
+  prepareFileAccess?: (track: TrackItem) => Promise<void>;
 }
 
 export function normalizePlaybackRestorationCheckpoint(
@@ -63,13 +65,15 @@ export function createPlaybackRestorationController({
   getQueueTrack,
   ensureLoaded,
   selectTrack,
-  loadTrack
+  loadTrack,
+  prepareFileAccess = async () => undefined
 }: CreatePlaybackRestorationControllerOptions) {
   let currentTrack: TrackItem | null = null;
   let currentSnapshot: PlaybackSnapshot | null = null;
   let checkpoint = readCheckpoint();
   let restoring = checkpoint !== null && playbackSettings.getSnapshot().restoreMode !== 'disabled';
   let pageHidden = false;
+  let restoreFailed = false;
   let checkpointTimer: ReturnType<typeof setTimeout> | null = null;
 
   function clearStoredCheckpoint(): void {
@@ -83,7 +87,7 @@ export function createPlaybackRestorationController({
       checkpointTimer = null;
     }
 
-    if (restoring || playbackSettings.getSnapshot().restoreMode === 'disabled') {
+    if (restoring || restoreFailed || playbackSettings.getSnapshot().restoreMode === 'disabled') {
       return;
     }
 
@@ -114,11 +118,15 @@ export function createPlaybackRestorationController({
   });
   const unsubscribeSnapshot = snapshot.subscribe((value) => {
     currentSnapshot = value;
+    if (!restoring && currentTrack && (value.state === 'playing' || value.state === 'paused')) {
+      restoreFailed = false;
+    }
     scheduleCheckpoint();
   });
   const unsubscribeSettings = playbackSettings.subscribe((settings) => {
     if (settings.restoreMode === 'disabled') {
       restoring = false;
+      restoreFailed = false;
       clearStoredCheckpoint();
       return;
     }
@@ -153,8 +161,11 @@ export function createPlaybackRestorationController({
           return false;
         }
 
+        await prepareFileAccess(storedTrack);
         const playableTrack = await ensureLoaded(storedTrack.id);
         if (!playableTrack) {
+          restoreFailed = true;
+          logWarning('playback', 'Playback restoration deferred because file access is unavailable');
           return false;
         }
 
@@ -164,6 +175,10 @@ export function createPlaybackRestorationController({
           initialPosition: savedCheckpoint.currentTime
         });
         return true;
+      } catch (error) {
+        restoreFailed = true;
+        logWarning('playback', 'Playback restoration failed', { error });
+        return false;
       } finally {
         restoring = false;
         flushCheckpoint();

@@ -1,6 +1,7 @@
 import { inferExtension, inferKind } from '$lib/utils/files';
 import { logDebug, logWarning } from '$lib/services/logging';
 import type { TrackItem } from '$lib/types';
+import { isDesktop, materializePlatformFile } from '$platform';
 
 /**
  * Chromium on Android pays a large fixed cost per blob slice over FSA-backed
@@ -60,6 +61,16 @@ export async function materializeTrackItem(item: TrackItem, prompt = false): Pro
   if (item.file && (item.kind === 'module' || item.objectUrl)) {
     logDebug('files', 'Track already materialized', { id: item.id, kind: item.kind });
     return item;
+  }
+
+  if (isDesktop && item.desktopFile && item.path && !item.fileHandle) {
+    const file = await materializePlatformFile(item.path);
+    if (!file) return null;
+    const extension = inferExtension(file.name);
+    const kind = inferKind(extension);
+    if (!kind) return null;
+    return { ...item, file, extension, kind, size: file.size, lastModified: file.lastModified,
+      objectUrl: await createObjectUrl({ kind }, file) };
   }
 
   if (!item.fileHandle) {
