@@ -14,7 +14,7 @@ pub struct TrayMenuState {
 pub fn remove(app: &AppHandle) {
     app.remove_tray_by_id("izci");
     if let Some(window) = app.get_webview_window("tray-menu") {
-        let _ = window.hide();
+        let _ = crate::window_resources::hide(&window);
     }
 }
 
@@ -131,6 +131,7 @@ pub fn desktop_tray_menu_ready(
         app.emit_to("tray-menu", "izci:desktop-tray-open", ())
             .map_err(|error| error.to_string())?;
     }
+    crate::window_resources::set_active(&window, false);
     Ok(())
 }
 
@@ -196,14 +197,14 @@ pub fn show_desktop_tray_menu(
             ),
         ))
         .map_err(|error| error.to_string())?;
-    window.show().map_err(|error| error.to_string())?;
+    crate::window_resources::show(&window)?;
     window.set_focus().map_err(|error| error.to_string())
 }
 
 #[tauri::command]
 pub fn hide_desktop_tray_menu(window: WebviewWindow) -> Result<(), String> {
     require_menu(&window)?;
-    window.hide().map_err(|error| error.to_string())
+    crate::window_resources::hide(&window)
 }
 
 #[cfg(test)]

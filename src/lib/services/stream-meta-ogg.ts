@@ -271,7 +271,7 @@ async function readOggMetadataImpl(
   return metadata;
 }
 
-async function findOggPacketRanges(
+export async function findOggPacketRanges(
   file: File,
   targetPacketIndex: number,
   options: { readBytes(offset: number, length: number): Promise<Uint8Array>; scanLimitBytes: number }
@@ -300,6 +300,8 @@ async function findOggPacketRanges(
     const pageSegments = header[26];
     const segmentTable = await options.readBytes(offset + 27, pageSegments);
     if (segmentTable.byteLength !== pageSegments) return null;
+    const pageEnd = offset + 27 + pageSegments + segmentTable.reduce((total, length) => total + length, 0);
+    if (pageEnd > file.size || pageEnd > options.scanLimitBytes) return null;
 
     const streamSerial = view.getUint32(14, true);
     activeStreamSerial ??= streamSerial;
