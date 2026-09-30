@@ -47,6 +47,10 @@
     margin: 0; padding: 0; border-radius: 0;
     overflow: hidden; pointer-events: none;
   }
+  :global(.app-shell:not(.compact-workspace) .main-workspace-menu-bar.desktop-titlebar .menu-brand) {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    width: max-content;
+  }
   :global(.desktop-titlebar .menu-groups),
   :global(.desktop-titlebar .compact-menu-trigger) {
     flex-shrink: 0;

@@ -4,7 +4,7 @@ import { fitDesktopTitlebar } from './titlebar-overflow';
 afterEach(() => vi.unstubAllGlobals());
 
 describe('desktop titlebar overflow', () => {
-  function setup() {
+  function setup(centeredOnWindow = false) {
     const classes = new Set<string>();
     const resize = { observe: vi.fn(), disconnect: vi.fn() };
     const mutation = { observe: vi.fn(), disconnect: vi.fn() };
@@ -25,7 +25,7 @@ describe('desktop titlebar overflow', () => {
     const mini = {};
     const buttons = [mini, {}, {}, {}];
     vi.stubGlobal('getComputedStyle', (node: unknown) => node === brand
-      ? { columnGap: '8px' } : { width: '40px' });
+      ? { columnGap: '8px', position: centeredOnWindow ? 'absolute' : 'static' } : { width: '40px' });
     const bar = {
       clientWidth: 272,
       querySelector: (selector: string) => selector === '.menu-brand' ? brand : menu,
@@ -71,6 +71,19 @@ describe('desktop titlebar overflow', () => {
     expect(state.resize.disconnect).toHaveBeenCalled();
     expect(state.mutation.disconnect).toHaveBeenCalledOnce();
     expect([...state.classes]).toEqual([]);
+  });
+
+  it('reserves equal space on both sides of a window-centered brand', () => {
+    const state = setup(true);
+    expect(state.classes.has('desktop-titlebar-hide-brand')).toBe(true);
+    state.bar.clientWidth = 392;
+    state.resized();
+    expect(state.classes.has('desktop-titlebar-hide-brand')).toBe(false);
+    state.bar.clientWidth = 391;
+    state.resized();
+    expect(state.classes.has('desktop-titlebar-hide-brand')).toBe(true);
+    expect(state.classes.has('desktop-titlebar-hide-mini')).toBe(false);
+    state.action.destroy();
   });
 
   it('leaves non-menu titlebars alone', () => {
