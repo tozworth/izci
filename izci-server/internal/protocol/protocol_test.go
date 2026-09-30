@@ -8,6 +8,30 @@ import (
 	"testing"
 )
 
+func TestPlaybackPreparationValidation(t *testing.T) {
+	for _, delivery := range []string{"source-file", "render", "none"} {
+		raw := []byte(`{"kind":"playback.prepare","preparation":{"generationId":"generation","trackId":"track","delivery":"` + delivery + `"}}`)
+		if ok, _, _, _ := ValidateMessage(raw); !ok {
+			t.Errorf("valid delivery %q rejected", delivery)
+		}
+	}
+	for _, preparation := range []string{
+		`null`,
+		`{}`,
+		`{"generationId":"generation","trackId":"track","delivery":"stream"}`,
+		`{"generationId":"","trackId":"track","delivery":"render"}`,
+		`{"generationId":"generation","trackId":"","delivery":"render"}`,
+		`{"generationId":"` + strings.Repeat("g", 81) + `","trackId":"track","delivery":"render"}`,
+		`{"generationId":"generation","trackId":"` + strings.Repeat("t", 201) + `","delivery":"render"}`,
+		`{"generationId":123,"trackId":"track","delivery":"render"}`,
+	} {
+		raw := []byte(`{"kind":"playback.prepare","preparation":` + preparation + `}`)
+		if ok, _, _, _ := ValidateMessage(raw); ok {
+			t.Errorf("invalid preparation accepted: %s", preparation)
+		}
+	}
+}
+
 // TestSharedMessageFixtures replays tests/multiplayer-protocol/*.json through
 // ValidateMessage in parity with the TypeScript fixture test.
 func TestSharedMessageFixtures(t *testing.T) {

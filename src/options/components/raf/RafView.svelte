@@ -133,6 +133,21 @@
     appearanceMenuY = event.detail.y;
   }
 
+  $: colorLabels = {
+    white: $t('options.loadouts.colors.white', { default: 'White' }),
+    red: $t('options.loadouts.colors.red', { default: 'Red' }),
+    orange: $t('options.loadouts.colors.orange', { default: 'Orange' }),
+    amber: $t('options.loadouts.colors.amber', { default: 'Amber' }),
+    lime: $t('options.loadouts.colors.lime', { default: 'Lime' }),
+    green: $t('options.loadouts.colors.green', { default: 'Green' }),
+    teal: $t('options.loadouts.colors.teal', { default: 'Teal' }),
+    cyan: $t('options.loadouts.colors.cyan', { default: 'Cyan' }),
+    blue: $t('options.loadouts.colors.blue', { default: 'Blue' }),
+    indigo: $t('options.loadouts.colors.indigo', { default: 'Indigo' }),
+    violet: $t('options.loadouts.colors.violet', { default: 'Violet' }),
+    magenta: $t('options.loadouts.colors.magenta', { default: 'Magenta' })
+  };
+
   $: selectedPreset = $rafPresets.presets.find((preset) => preset.id === $rafPresets.selectedPresetId) ?? null;
   $: presetDirty = isRafPresetDirty($rafPresets, $rafSettings);
   $: appearancePreset = $rafPresets.presets.find((preset) => preset.id === appearancePresetId);
@@ -152,7 +167,7 @@
     icon: 'palette',
     colorPicker: LOADOUT_COLORS.map((color) => ({
       id: `color:${color}`,
-      label: $t(`options.loadouts.colors.${color}`),
+      label: colorLabels[color],
       color: LOADOUT_COLOR_VALUES[color],
       checked: appearancePreset?.color === color
     }))

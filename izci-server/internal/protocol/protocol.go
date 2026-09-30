@@ -391,6 +391,18 @@ func validateKnownKind(kind string, msg map[string]json.RawMessage) bool {
 		return s, true
 	}
 	switch kind {
+	case "playback.prepare":
+		var preparation struct {
+			GenerationID string `json:"generationId"`
+			TrackID      string `json:"trackId"`
+			Delivery     string `json:"delivery"`
+		}
+		if json.Unmarshal(msg["preparation"], &preparation) != nil {
+			return false
+		}
+		return len(preparation.GenerationID) > 0 && len(preparation.GenerationID) <= 80 &&
+			len(preparation.TrackID) > 0 && len(preparation.TrackID) <= 200 &&
+			(preparation.Delivery == "source-file" || preparation.Delivery == "render" || preparation.Delivery == "none")
 	case "track.info.request":
 		trackID, ok := str("trackId")
 		return ok && len(trackID) > 0 && len(trackID) <= 200
