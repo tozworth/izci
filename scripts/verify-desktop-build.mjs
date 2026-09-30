@@ -7,7 +7,7 @@ const browser = join(root, 'dist');
 const desktop = join(root, 'dist-desktop');
 assert(existsSync(join(browser, 'sw.js')), 'Build the PWA first with npm run build.');
 assert(existsSync(join(desktop, 'mini-player.html')), 'Build desktop assets with npm run desktop:frontend.');
-const nativeMarkers = /__TAURI_INTERNALS__|izci:desktop-mini-|open_mini_player|pin_mini_player|restore_main_window/;
+const nativeMarkers = /__TAURI_INTERNALS__|izci:desktop-mini-|open_mini_player|pin_mini_player|restore_main_window|plugin:window\|(?:minimize|toggle_maximize|start_dragging|is_maximized|is_focused|close)/;
 function files(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
     entry.isDirectory() ? files(join(directory, entry.name)) : [join(directory, entry.name)]);

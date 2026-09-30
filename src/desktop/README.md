@@ -18,7 +18,13 @@ This profile is separate from the installed/browser PWA. Native permission
 handling allows file access selected by the user; remote navigation and frames
 are blocked. Launch folder scans retain their existing permission checks.
 
-Open the existing Mini player menu action to show a frameless native window and
+The main window has a custom titlebar sharing the existing application menus,
+with centered branding/version and native minimize, maximize/restore, and close
+controls. Drag empty titlebar space to move it; double-click to maximize/restore.
+The titlebar's Mini player button uses the same action as the application menu.
+Options and tool windows retain their native frames.
+
+Open the Mini player button or menu action to show a frameless native window and
 minimize the main window. Drag it by the track text or empty space. Always-on-top,
 restore, and close controls appear on hover or keyboard focus without reserving
 a titlebar row. Native shadows are disabled to avoid Windows' nonclient border.

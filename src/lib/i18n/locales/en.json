@@ -1,5 +1,11 @@
 {
   "main": {
+    "windowControls": {
+      "minimize": "Minimize",
+      "maximize": "Maximize",
+      "restore": "Restore",
+      "close": "Close"
+    },
     "playbackErrors": {
       "fileAccess": "Could not access this file. Re-add it or grant file access.",
       "moduleDecode": "libopenmpt failed to decode this module.",
