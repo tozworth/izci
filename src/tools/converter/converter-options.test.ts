@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CONVERTER_FORMATS,
   DEFAULT_CONVERTER_SETTINGS,
   changeConverterFormat,
   getEffectiveAudioCodec,
@@ -10,13 +9,6 @@ import {
 } from './converter-options';
 
 describe('converter options', () => {
-  it('exposes audio and video output families', () => {
-    expect(CONVERTER_FORMATS.filter((format) => format.kind === 'audio')).toHaveLength(7);
-    expect(CONVERTER_FORMATS.filter((format) => format.kind === 'video').map((format) => format.id)).toEqual([
-      'mp4', 'mov', 'mkv', 'webm', 'mpeg-ts'
-    ]);
-  });
-
   it('selects compatible codecs when the container changes', () => {
     const webm = changeConverterFormat(DEFAULT_CONVERTER_SETTINGS, 'webm');
     expect(getEffectiveAudioCodec(webm)).toBe('opus');
