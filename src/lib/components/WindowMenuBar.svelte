@@ -2,6 +2,7 @@
   import { createEventDispatcher, onDestroy } from 'svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
+  import { DesktopWindowControls, desktopTitlebar } from '$platform';
   import type {
     MenuActionItem,
     WindowMenuGroup,
@@ -14,6 +15,8 @@
   export let groups: WindowMenuGroup[] = [];
   export let title = '';
   export let mainWorkspace = false;
+  export let miniPlayerSupported = false;
+  export let miniPlayerActive = false;
   export let subtitle = '';
   export let subtitleTone: WindowMenuSubtitleTone = 'muted';
   export let ariaLabel = 'Application menu';
@@ -24,6 +27,7 @@
     action: string;
     menuopen: string;
     menuclose: void;
+    miniplayer: void;
   }>();
 
   let activeMenuId: string | null = null;
@@ -41,6 +45,8 @@
   const triggerElements = new Map<string, HTMLButtonElement>();
 
   $: overlayState = $windowControlsOverlayState;
+  $: nativeTitlebar = mainWorkspace && DesktopWindowControls !== null;
+  $: nativeControlsWidth = miniPlayerSupported ? 160 : 120;
   $: overlayRect = overlayState.titlebarAreaRect;
   $: overlayInlineStyle = overlayState.visible
     ? `--window-controls-overlay-x: ${overlayRect.x}px; --window-controls-overlay-y: ${overlayRect.y}px; --window-controls-overlay-width: ${overlayRect.width}px; --window-controls-overlay-height: ${overlayRect.height}px;`
@@ -49,7 +55,9 @@
     ? Math.max(0, overlayRect.width)
     : menuBarWidth;
   $: resolvedMenuGroupsWidth = menuGroupsWidth || 140;
-  $: compactMenuThreshold = resolvedMenuGroupsWidth + MENU_TITLE_RESERVE + MENU_EDGE_RESERVE;
+  $: compactMenuThreshold = (nativeTitlebar
+    ? 2 * Math.max(resolvedMenuGroupsWidth, nativeControlsWidth)
+    : resolvedMenuGroupsWidth) + MENU_TITLE_RESERVE + MENU_EDGE_RESERVE;
   $: isCompactMenu = availableTitlebarWidth < compactMenuThreshold;
   $: applicationGroup = groups.find((group) => group.application) ?? groups[0];
   $: compactMenuItems = createCompactMenuItems(groups, applicationGroup?.id);
@@ -253,7 +261,9 @@
   bind:this={menuBarElement}
   bind:clientWidth={menuBarWidth}
   bind:clientHeight={height}
+  use:desktopTitlebar={nativeTitlebar}
   class="menu-bar"
+  class:desktop-titlebar={nativeTitlebar}
   class:main-workspace-menu-bar={mainWorkspace}
   class:window-controls-overlay-active={overlayState.visible}
   class:menu-bar-compact={isCompactMenu}
@@ -261,7 +271,7 @@
   class:multiplayer-reconnecting={multiplayerConnectionTone === 'reconnecting'}
   class:multiplayer-relayed={multiplayerConnectionTone === 'relayed'}
   class:multiplayer-disconnected={multiplayerConnectionTone === 'disconnected'}
-  style={overlayInlineStyle}
+  style={`${overlayInlineStyle} ${nativeTitlebar ? `--desktop-title-reserve: ${Math.max(isCompactMenu ? 48 : resolvedMenuGroupsWidth, nativeControlsWidth)}px; --desktop-controls-width: ${nativeControlsWidth}px;` : ''}`}
   aria-label={ariaLabel}
 >
   {#if isCompactMenu}
@@ -350,6 +360,10 @@
       >{subtitle}</span>
     {/if}
   </div>
+  {#if nativeTitlebar}
+    <svelte:component this={DesktopWindowControls} {miniPlayerSupported} {miniPlayerActive}
+      on:miniplayer={() => dispatch('miniplayer')} />
+  {/if}
 </nav>
 
 <style>

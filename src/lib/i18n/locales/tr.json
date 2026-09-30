@@ -1,5 +1,11 @@
 {
   "main": {
+    "windowControls": {
+      "minimize": "Simge durumuna küçült",
+      "maximize": "Ekranı kapla",
+      "restore": "Önceki boyuta getir",
+      "close": "Kapat"
+    },
     "playbackErrors": {
       "fileAccess": "Bu dosyaya erişilemedi. Tekrar ekleyin veya erişim izin verin.",
       "moduleDecode": "libopenmpt, bu modülü çözemedi.",

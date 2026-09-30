@@ -179,6 +179,8 @@
   groups={menuGroups}
   title="izci"
   mainWorkspace={true}
+  {miniPlayerSupported}
+  {miniPlayerActive}
   subtitle={menuSubtitle}
   subtitleTone={menuSubtitleTone}
   ariaLabel={$t('main.menu.applicationMenu', { default: 'Application menu' })}
@@ -196,5 +198,6 @@
     }
   }}
   on:menuclose={() => installHintPresentedInOpenMenu = false}
+  on:miniplayer={() => dispatch('toggleMiniPlayer')}
   on:action={(event) => menuActions.runMenuAction(event.detail as MenuActionId)}
 />

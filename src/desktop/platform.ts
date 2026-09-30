@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 export { createDesktopMiniPlayerController } from './mini-player-controller';
+export { default as DesktopWindowControls } from './DesktopWindowControls.svelte';
+export { desktopTitlebar } from './window-titlebar';
 
 export const isDesktop = true;
 
