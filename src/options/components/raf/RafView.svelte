@@ -22,6 +22,8 @@
   let transferMenu: HTMLDetailsElement;
   let presetMenuOpen = false;
   let appearancePresetId: string | null = null;
+  let appearanceMenuX = 0;
+  let appearanceMenuY = 0;
   let presetMenuX = 0;
   let presetMenuY = 0;
   let presetMenuDismissedAt = 0;
@@ -127,8 +129,8 @@
 
   function openPresetAppearance(event: CustomEvent<{ id: string; x: number; y: number }>) {
     appearancePresetId = event.detail.id;
-    presetMenuX = event.detail.x;
-    presetMenuY = event.detail.y;
+    appearanceMenuX = event.detail.x;
+    appearanceMenuY = event.detail.y;
   }
 
   $: selectedPreset = $rafPresets.presets.find((preset) => preset.id === $rafPresets.selectedPresetId) ?? null;
@@ -177,7 +179,7 @@
     }))
   ];
 
-  function handlePresetMenuAction(actionId: string) {
+  function handlePresetAppearanceAction(actionId: string) {
     if (appearancePresetId) {
       if (actionId.startsWith('icon:')) {
         const value = actionId.slice('icon:'.length);
@@ -189,6 +191,10 @@
       if (color && appearancePreset) rafPresets.setColor(appearancePresetId, appearancePreset.color === color ? undefined : color);
       return;
     }
+  }
+
+  function handlePresetMenuAction(actionId: string) {
+    appearancePresetId = null;
     if (actionId === 'new') {
       createPreset();
       return;
@@ -273,7 +279,7 @@
 
   {#if presetMenuOpen}
     <MenuSurface
-      items={appearancePresetId ? appearanceMenuItems : presetMenuItems}
+      items={presetMenuItems}
       x={presetMenuX}
       y={presetMenuY}
       enableOverflowSubmenuFallback
@@ -281,13 +287,26 @@
       on:action={(event) => handlePresetMenuAction(event.detail)}
       on:contextaction={openPresetAppearance}
       on:dismiss={closePresetMenu}
-    />
+    >
+      {#if appearancePresetId}
+        <div class="preset-appearance-menu" style:left={`${appearanceMenuX}px`} style:top={`${appearanceMenuY}px`}>
+          <MenuSurface
+            nested
+            items={appearanceMenuItems}
+            ariaLabel={appearancePreset?.name}
+            on:action={(event) => handlePresetAppearanceAction(event.detail)}
+            on:dismiss={() => appearancePresetId = null}
+          />
+        </div>
+      {/if}
+    </MenuSurface>
   {/if}
 
   <RafEffectsWorkspace />
 </article>
 
 <style>
+  .preset-appearance-menu { position: fixed; width: 0; z-index: 1; }
   .raf-view { width: 100%; height: 100%; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
   .raf-toolbar {
     position: sticky;
