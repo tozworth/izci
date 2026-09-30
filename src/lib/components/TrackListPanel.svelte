@@ -663,7 +663,6 @@
       role="group"
       class:library-mode={libraryMode}
       class:compact-heading={hideEyebrow}
-      class:has-secondary-library-row={libraryMode && (showSearchInput || Boolean(selectedLibraryGroup))}
       class:is-covered={queueHeaderCovered}
       class:has-column-header={showTrackRows && filteredItems.length > 0 && presentationLayout === 'columns' && !isCompactColumnLayout}
       on:contextmenu={openPanelHeaderContextMenu}
@@ -867,21 +866,16 @@
   }
 
   .track-list-panel-header.library-mode {
+    min-height: 1.7rem;
     padding: 0.025rem 0.45rem;
   }
 
-  .track-list-panel-header.compact-heading:not(.has-column-header),
-  .track-list-panel-header.library-mode:not(.has-column-header):not(.has-secondary-library-row) {
+  .track-list-panel-header.compact-heading:not(.library-mode):not(.has-column-header) {
     height: 1.7rem;
   }
 
-  .track-list-panel-header.has-column-header {
+  .track-list-panel-header.has-column-header:not(.library-mode) {
     padding-bottom: 0;
-  }
-
-  .track-list-panel-header.library-mode.has-column-header {
-    gap: 0;
-    padding-top: 0.05rem;
   }
 
   .track-list-filter-empty {

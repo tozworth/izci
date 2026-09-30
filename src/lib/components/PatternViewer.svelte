@@ -314,10 +314,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: 0.5rem;
     min-width: 0;
-    min-height: 2rem;
-    padding: 0.28rem 0.64rem;
+    padding: 0.25rem 0.4rem;
     border-bottom: 1px solid var(--border-soft);
     background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
     backdrop-filter: blur(14px);
@@ -336,7 +335,7 @@
   .pattern-position {
     flex: 0 0 auto;
     display: flex;
-    gap: 0.62rem;
+    gap: 0.45rem;
     font: 650 0.76rem/1 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
   }
 
@@ -375,7 +374,6 @@
     position: sticky;
     top: 0;
     z-index: 2;
-    min-height: 1.8rem;
     border-bottom: 1px solid var(--border-soft);
     background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
     backdrop-filter: blur(12px);
@@ -386,7 +384,7 @@
     display: flex;
     align-items: center;
     min-width: 0;
-    padding: 0 0.3rem;
+    padding: 0.25rem 0.3rem;
     border-right: 1px solid var(--border-faint);
     color: var(--muted);
     font: 650 0.62rem/1 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
