@@ -68,6 +68,14 @@ Vite will print the local address, which you can then open in "any browser" (see
 
 Multiplayer uses a self-hosted izci-server for signaling. Official builds have no server configured; hosts configure their server under Hosting and guests join with an izci-server invitation. Firebase Hosting serves the PWA; Firebase Auth and Realtime Database signaling are retired.
 
+### Windows executable
+
+`npm run desktop:build` builds a single `.local/desktop/izci.exe` with all frontend assets and playback runtimes embedded. It needs Windows and an installed WebView2 Runtime; no application DLLs or adjacent asset files are required. Building requires the Rust MSVC toolchain and Microsoft C++ Build Tools.
+
+Release builds optimize native code for size, omit unused Tauri commands, Brotli-compress embedded assets, and pack the executable with [UPX](https://upx.github.io/) using LZMA. The pinned, checksum-verified UPX build tool downloads on the first build and is cached under `.local/desktop-toolchain/` for subsequent offline builds. It is not needed to run izci. Packing adds a small decompression step at launch. `npm run desktop:build -- --no-compress` produces an unpacked executable for diagnostics. Rust panics abort the release process rather than unwinding.
+
+The build checks for external DLL imports before packing and checks the packed executable's integrity. If the current executable is running, the new build is saved to `.local/desktop-next/izci.exe`.
+
 ## Built with
 
 [Svelte](https://svelte.dev/), [Vite](https://vite.dev/), [Howler.js](https://howlerjs.com/) (standard audio formats), [Chiptune3](https://github.com/DrSnuggles/chiptune) (tracker modules; based on libopenmpt WASM), and the [HivelyTracker](https://github.com/pete-gordon/hivelytracker) replayer (`ahx` and `hvl`).

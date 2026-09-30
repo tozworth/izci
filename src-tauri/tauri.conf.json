@@ -4,6 +4,7 @@
   "version": "0.3.2",
   "identifier": "app.izci.desktop",
   "build": {
+    "removeUnusedCommands": true,
     "windows": { "staticVCRuntime": true },
     "beforeBuildCommand": "npm run desktop:frontend",
     "frontendDist": "../dist-desktop"
