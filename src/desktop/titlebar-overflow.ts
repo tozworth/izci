@@ -18,7 +18,11 @@ export function fitDesktopTitlebar(controls: HTMLElement) {
       width + child.getBoundingClientRect().width, 0)
       + Math.max(0, brandChildren.length - 1) * Number.parseFloat(brand ? getComputedStyle(brand).columnGap : '0');
 
-    bar.classList.toggle('desktop-titlebar-hide-brand', menuWidth + controlsWidth + brandWidth > bar.clientWidth);
+    const centeredOnWindow = brand !== null && getComputedStyle(brand).position === 'absolute';
+    const requiredBrandWidth = centeredOnWindow
+      ? 2 * Math.max(menuWidth, controlsWidth) + brandWidth
+      : menuWidth + controlsWidth + brandWidth;
+    bar.classList.toggle('desktop-titlebar-hide-brand', requiredBrandWidth > bar.clientWidth);
     bar.classList.toggle('desktop-titlebar-hide-mini', mini !== null && menuWidth + controlsWidth > bar.clientWidth);
   }
 
