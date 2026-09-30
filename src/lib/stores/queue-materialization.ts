@@ -2,21 +2,21 @@ import { inferExtension, inferKind } from '$lib/utils/files';
 import { logDebug, logWarning } from '$lib/services/logging';
 import type { TrackItem } from '$lib/types';
 import { isDesktop, materializePlatformFile } from '$platform';
+import { useAndroidFileSnapshot } from '$lib/utils/file-read-policy';
 
 /**
  * Chromium on Android pays a large fixed cost per blob slice over FSA-backed
  * Files (~150-200 ms measured on S23U), while a single whole-file read is fast.
- * Streams small enough to hold in memory are therefore snapshotted once and
- * played from the snapshot; videos stay on direct FSA-backed URLs.
+ * Only small Android streams use this optimization. Desktop streams and all
+ * videos stay on direct disk-backed File URLs.
  */
-const STREAM_INLINE_MAX_BYTES = 128 * 1024 * 1024;
 
 function createObjectUrl(item: Pick<TrackItem, 'kind'>, file: File): Promise<string | undefined> {
   if (item.kind !== 'stream' && item.kind !== 'video' && item.kind !== 'image') {
     return Promise.resolve(undefined);
   }
 
-  if (item.kind === 'stream' && file.size <= STREAM_INLINE_MAX_BYTES) {
+  if (item.kind === 'stream' && useAndroidFileSnapshot(file.size)) {
     return file
       .arrayBuffer()
       .then((buffer) => URL.createObjectURL(new Blob([buffer])))

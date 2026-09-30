@@ -30,7 +30,7 @@ impl WindowPresentation {
 }
 
 fn present(window: &WebviewWindow) -> Result<(), String> {
-    window.show().map_err(|error| error.to_string())?;
+    crate::window_resources::show(window)?;
     window.unminimize().map_err(|error| error.to_string())?;
     window.set_focus().map_err(|error| error.to_string())
 }
@@ -67,6 +67,8 @@ pub fn desktop_window_ready(
         crate::window_state::restore(&window.as_ref().window());
         present(&window)?;
         crate::window_state::capture(&window.as_ref().window());
+    } else {
+        crate::window_resources::set_active(&window, false);
     }
     Ok(())
 }

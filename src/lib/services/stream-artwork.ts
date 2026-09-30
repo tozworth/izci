@@ -1,9 +1,11 @@
 import type { TrackItem, TrackMetadata } from '$lib/types';
 
 import { toArrayBuffer } from './stream-meta-binary';
-import { parseFlacData, readFlacMetadata } from './stream-meta-flac';
-import { parseOpusData, readOggMetadata } from './stream-meta-ogg';
+import { readFlacMetadata } from './stream-meta-flac';
+import { readOggMetadata } from './stream-meta-ogg';
 import { readMp3Metadata } from './stream-meta-mp3';
+import { withMediaFileReader, type ReadFileBytes } from './media-file-reader';
+import { readFlacArtwork, readOpusArtwork } from './stream-artwork-reader';
 
 export interface LoadedStreamArtwork {
   url: string;
@@ -26,11 +28,13 @@ interface ReadStreamMetadataOptions {
   vorbisTextCommentLimitBytes: number;
 }
 
-async function readStreamMetadata(file: File, extension: string, options: ReadStreamMetadataOptions = DEFAULT_STREAM_METADATA_OPTIONS): Promise<TrackMetadata> {
-  if (extension === 'flac') return readFlacMetadata(file, flacOptions(file, options));
-  if (extension === 'opus' || extension === 'ogg') return readOggMetadata(file, extension as 'opus' | 'ogg', oggOptions(file, options));
-  if (extension === 'mp3') return readMp3Metadata(file, mp3Options(file, options));
-  return {};
+async function readStreamMetadata(file: File, extension: string, trackId: string, options: ReadStreamMetadataOptions = DEFAULT_STREAM_METADATA_OPTIONS): Promise<TrackMetadata> {
+  return withMediaFileReader(file, trackId, async (readBytes) => {
+    if (extension === 'flac') return readFlacMetadata(file, flacOptions(readBytes, options));
+    if (extension === 'opus' || extension === 'ogg') return readOggMetadata(file, extension as 'opus' | 'ogg', oggOptions(readBytes, options));
+    if (extension === 'mp3') return readMp3Metadata(file, mp3Options(readBytes, options));
+    return {};
+  });
 }
 
 const DEFAULT_STREAM_METADATA_OPTIONS: ReadStreamMetadataOptions = {
@@ -43,9 +47,9 @@ const DEFAULT_STREAM_METADATA_OPTIONS: ReadStreamMetadataOptions = {
   vorbisTextCommentLimitBytes: 256 * 1024
 };
 
-function flacOptions(file: File, options: ReadStreamMetadataOptions): { readBytes(offset: number, length: number): Promise<Uint8Array>; maxHeadBytes: number; eagerHeadBytes: number; commentKeyProbeBytes: number; textCommentLimitBytes: number } {
+function flacOptions(readBytes: ReadFileBytes, options: ReadStreamMetadataOptions): { readBytes(offset: number, length: number): Promise<Uint8Array>; maxHeadBytes: number; eagerHeadBytes: number; commentKeyProbeBytes: number; textCommentLimitBytes: number } {
   return {
-    readBytes: (offset, length) => readFileBytes(file, offset, length),
+    readBytes,
     maxHeadBytes: options.maxHeadBytes,
     eagerHeadBytes: options.eagerHeadBytes,
     commentKeyProbeBytes: options.vorbisCommentKeyProbeBytes,
@@ -53,7 +57,7 @@ function flacOptions(file: File, options: ReadStreamMetadataOptions): { readByte
   };
 }
 
-function oggOptions(file: File, options: ReadStreamMetadataOptions): {
+function oggOptions(readBytes: ReadFileBytes, options: ReadStreamMetadataOptions): {
   readBytes(offset: number, length: number): Promise<Uint8Array>;
   eagerHeadBytes: number;
   scanLimitBytes: number;
@@ -62,7 +66,7 @@ function oggOptions(file: File, options: ReadStreamMetadataOptions): {
   textCommentLimitBytes: number;
 } {
   return {
-    readBytes: (offset, length) => readFileBytes(file, offset, length),
+    readBytes,
     eagerHeadBytes: options.eagerHeadBytes,
     scanLimitBytes: options.oggScanLimitBytes,
     durationTailBytes: options.oggDurationTailBytes,
@@ -71,51 +75,16 @@ function oggOptions(file: File, options: ReadStreamMetadataOptions): {
   };
 }
 
-function mp3Options(file: File, options: ReadStreamMetadataOptions): {
+function mp3Options(readBytes: ReadFileBytes, options: ReadStreamMetadataOptions): {
   readBytes(offset: number, length: number): Promise<Uint8Array>;
   maxHeadBytes: number;
   tailBytes: number;
 } {
   return {
-    readBytes: (offset, length) => readFileBytes(file, offset, length),
+    readBytes,
     maxHeadBytes: options.maxHeadBytes,
     tailBytes: options.mp3TailBytes
   };
-}
-
-/**
- * Chromium on Android pays a large fixed cost per blob slice over FSA-backed
- * Files (~150-200 ms per read on S23U), while one whole-file arrayBuffer() is
- * fast. Metadata parsers issue dozens of small ranged reads, so the first
- * caller snapshots the file once and every reader is served from memory.
- */
-const SNAPSHOT_CACHE_LIMIT = 4;
-const snapshotCache = new Map<File, Promise<Uint8Array>>();
-
-function snapshotFileBytes(file: File): Promise<Uint8Array> {
-  let snapshot = snapshotCache.get(file);
-
-  if (!snapshot) {
-    snapshot = file.arrayBuffer().then((buffer) => new Uint8Array(buffer));
-    snapshot.catch(() => snapshotCache.delete(file));
-    snapshotCache.set(file, snapshot);
-
-    if (snapshotCache.size > SNAPSHOT_CACHE_LIMIT) {
-      const oldest = snapshotCache.keys().next().value;
-
-      if (oldest !== undefined) {
-        snapshotCache.delete(oldest);
-      }
-    }
-  }
-
-  return snapshot;
-}
-
-async function readFileBytes(file: File, offset: number, length: number): Promise<Uint8Array> {
-  if (length <= 0 || offset >= file.size) return new Uint8Array();
-  const bytes = await snapshotFileBytes(file);
-  return bytes.subarray(offset, Math.min(bytes.byteLength, offset + length));
 }
 
 function canLoadStreamMetadata(extension: string): boolean {
@@ -154,7 +123,7 @@ export async function loadTrackMetadata(track: TrackItem | null): Promise<TrackM
   }
 
   const metadata: TrackMetadata = {
-    ...(await readStreamMetadata(file, track.extension)),
+    ...(await readStreamMetadata(file, track.extension, track.id)),
     embeddedMetadataLoaded: true
   };
 
@@ -172,8 +141,8 @@ export async function loadEmbeddedStreamArtwork(track: TrackItem | null): Promis
     return null;
   }
 
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const artwork = (track.extension === 'flac' ? parseFlacData(bytes) : parseOpusData(bytes)).artwork;
+  const artwork = await withMediaFileReader(file, track.id, (readBytes) =>
+    track.extension === 'flac' ? readFlacArtwork(file, readBytes) : readOpusArtwork(file, readBytes));
 
   if (!artwork || artwork.data.byteLength === 0) {
     return null;

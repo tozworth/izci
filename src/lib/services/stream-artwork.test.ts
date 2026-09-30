@@ -233,16 +233,15 @@ describe('stream artwork metadata helpers', () => {
     });
   });
 
-  it('snapshots the file once and serves background metadata reads from memory', async () => {
+  it('uses ranged desktop metadata reads without copying the whole file', async () => {
     const file = mp3File([id3UserTextFrame('replaygain_track_gain', '-4.00 dB')]);
     const fullRead = vi.spyOn(file, 'arrayBuffer');
     const sliceRead = vi.spyOn(file, 'slice');
 
     await loadTrackMetadata(item({ name: file.name, extension: 'mp3', file }));
 
-    // One whole-file snapshot; every ranged read is served from it (no per-read slices).
-    expect(fullRead).toHaveBeenCalledTimes(1);
-    expect(sliceRead).not.toHaveBeenCalled();
+    expect(fullRead).not.toHaveBeenCalled();
+    expect(sliceRead).toHaveBeenCalled();
   });
 
   it('skips embedded picture payloads during background metadata reads', async () => {

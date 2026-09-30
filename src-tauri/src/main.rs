@@ -10,6 +10,7 @@ mod playback_restoration;
 mod tray;
 mod window_lifecycle;
 mod window_presentation;
+mod window_resources;
 mod window_state;
 mod windows;
 
@@ -30,14 +31,14 @@ fn open_mini_player(app: AppHandle, window: WebviewWindow) -> Result<(), String>
     let mini = app
         .get_webview_window("mini-player")
         .ok_or("Miniplayer is unavailable")?;
-    mini.show().map_err(|error| error.to_string())?;
+    window_resources::show(&mini)?;
     mini.set_focus().map_err(|error| error.to_string())?;
     window.minimize().map_err(|error| error.to_string())
 }
 
 fn close_mini(app: &AppHandle) -> Result<(), String> {
     if let Some(mini) = app.get_webview_window("mini-player") {
-        mini.hide().map_err(|error| error.to_string())?;
+        window_resources::hide(&mini)?;
     }
     app.emit_to("main", "izci:desktop-mini-closed", ())
         .map_err(|error| error.to_string())?;
@@ -147,7 +148,9 @@ fn main() {
                 window_lifecycle::close_player(window.app_handle());
             }
             ("tray-menu", WindowEvent::Focused(false)) => {
-                let _ = window.hide();
+                if let Some(webview) = window.app_handle().get_webview_window("tray-menu") {
+                    let _ = window_resources::hide(&webview);
+                }
                 let _ = window.emit("izci:desktop-tray-dismiss", ());
             }
             ("tray-menu", WindowEvent::Destroyed) => {
@@ -166,7 +169,7 @@ fn main() {
                 if let Some(webview) = window.app_handle().get_webview_window(window.label()) {
                     if windows::is_options_window(&webview) {
                         api.prevent_close();
-                        let _ = window.hide();
+                        let _ = window_resources::hide(&webview);
                     }
                 }
             }

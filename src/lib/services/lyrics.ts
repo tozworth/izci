@@ -1,4 +1,5 @@
-import { extractStreamVorbisComments } from '$lib/services/stream-meta-ogg';
+import { withMediaFileReader } from './media-file-reader';
+import { MAX_EMBEDDED_LYRICS_BYTES, readStreamLyrics } from './stream-lyrics-reader';
 import type { TrackItem } from '$lib/types';
 
 interface TimedLyricLine {
@@ -20,7 +21,6 @@ export interface LoadedLyrics {
   source: 'vorbis-comments' | 'embedded-metadata';
 }
 
-const VORBIS_LYRICS_KEYS = ['LYRICS', 'SYNCEDLYRICS', 'SYNCED LYRICS'];
 const LRC_TIMESTAMP_PATTERN = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
 const DEFAULT_DOWNTIME_THRESHOLD_SECONDS = 10;
 const lyricsLoadCache = new Map<string, Promise<LoadedLyrics | null>>();
@@ -222,19 +222,6 @@ export function getTrackLyricsLoadKey(track: TrackItem | null): string {
   return `${key}:${remoteLyrics.get(key)?.revision ?? 0}`;
 }
 
-function findVorbisLyricsComment(comments: Array<{ key: string; value: string }>): string {
-  for (const key of VORBIS_LYRICS_KEYS) {
-    const comment = comments.find((entry) => entry.key.trim().toUpperCase() === key);
-    const value = comment?.value.trim();
-
-    if (value) {
-      return value;
-    }
-  }
-
-  return '';
-}
-
 async function loadTrackLyricsUncached(track: TrackItem): Promise<LoadedLyrics | null> {
   const file = await resolveTrackFile(track);
 
@@ -242,11 +229,10 @@ async function loadTrackLyricsUncached(track: TrackItem): Promise<LoadedLyrics |
     return null;
   }
 
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  let raw = findVorbisLyricsComment(extractStreamVorbisComments(bytes, track.extension));
+  let raw = await withMediaFileReader(file, track.id, (readBytes) => readStreamLyrics(file, track.extension, readBytes));
   let source: LoadedLyrics['source'] = 'vorbis-comments';
 
-  if (!raw) {
+  if (raw === null) {
     const { ALL_FORMATS, BlobSource, Input } = await import('mediabunny');
     const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
     try {
@@ -257,7 +243,7 @@ async function loadTrackLyricsUncached(track: TrackItem): Promise<LoadedLyrics |
     }
   }
 
-  if (!raw) {
+  if (!raw || raw.length > MAX_EMBEDDED_LYRICS_BYTES) {
     return null;
   }
 
@@ -300,5 +286,6 @@ export async function loadTrackLyrics(track: TrackItem | null): Promise<LoadedLy
   });
 
   lyricsLoadCache.set(cacheKey, lyricsPromise);
+  if (lyricsLoadCache.size > 32) lyricsLoadCache.delete(lyricsLoadCache.keys().next().value!);
   return lyricsPromise;
 }

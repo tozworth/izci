@@ -13,17 +13,67 @@ mod window_lifecycle;
 #[path = "../src/window_presentation.rs"]
 mod window_presentation;
 #[allow(dead_code)]
+#[path = "../src/window_resources.rs"]
+mod window_resources;
+#[allow(dead_code)]
 #[path = "../src/window_state.rs"]
 mod window_state;
 #[allow(dead_code)]
 #[path = "../src/windows.rs"]
 mod windows;
 
+use ::windows::core::{Interface, BOOL};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
 };
 use tauri::{utils::config::WindowConfig, Emitter, Manager, WindowEvent};
+use webview2_com::Microsoft::Web::WebView2::Win32::{
+    ICoreWebView2_19, COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW,
+    COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL,
+};
+
+async fn check_resources(window: &tauri::WebviewWindow, visible: bool) -> Result<(), String> {
+    let (sender, mut receiver) = tauri::async_runtime::channel(1);
+    window
+        .with_webview(move |webview| {
+            let result = (|| unsafe {
+                let controller = webview.controller();
+                let mut actual = BOOL::default();
+                controller
+                    .IsVisible(&mut actual)
+                    .map_err(|error| error.to_string())?;
+                if actual.as_bool() != visible {
+                    return Err(
+                        "WebView2 controller visibility did not follow the native window".into(),
+                    );
+                }
+                let core = controller
+                    .CoreWebView2()
+                    .map_err(|error| error.to_string())?;
+                if let Ok(core) = core.cast::<ICoreWebView2_19>() {
+                    let expected = if visible {
+                        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL
+                    } else {
+                        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW
+                    };
+                    let mut actual = COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL;
+                    core.MemoryUsageTargetLevel(&mut actual)
+                        .map_err(|error| error.to_string())?;
+                    if actual != expected {
+                        return Err("WebView2 memory target did not follow visibility".into());
+                    }
+                }
+                Ok(())
+            })();
+            let _ = sender.try_send(result);
+        })
+        .map_err(|error| error.to_string())?;
+    receiver
+        .recv()
+        .await
+        .ok_or("WebView2 resource check did not complete")?
+}
 
 fn close_mini(app: &tauri::AppHandle) -> Result<(), String> {
     windows::restore_main(app)
@@ -48,6 +98,36 @@ fn smoke_error(error: String) {
 }
 
 #[tauri::command]
+async fn smoke_utilities(app: tauri::AppHandle) -> Result<(), String> {
+    let owner = app.get_webview_window("main").ok_or("Missing owner")?;
+    window_resources::set_active(&owner, false);
+    check_resources(&owner, true).await?;
+    for label in ["mini-player", "tray-menu"] {
+        let window = app.get_webview_window(label).ok_or("Missing utility")?;
+        check_resources(&window, false).await?;
+        if label == "tray-menu" {
+            app.state::<Mutex<tray::TrayMenuState>>()
+                .lock()
+                .map_err(|error| error.to_string())?
+                .position = Some(tauri::PhysicalPosition::new(500.0, 500.0));
+            tray::show_desktop_tray_menu(app.clone(), window.clone(), 220.0, 200.0, app.state())?;
+        } else {
+            window_resources::show(&window)?;
+        }
+        check_resources(&window, true).await?;
+        if label == "tray-menu" {
+            tray::hide_desktop_tray_menu(window.clone())?;
+        } else {
+            window_resources::hide(&window)?;
+        }
+        check_resources(&window, false).await?;
+        println!("Verified {label} controller visibility and low/normal memory targets.");
+    }
+    check_resources(&owner, true).await?;
+    Ok(())
+}
+
+#[tauri::command]
 async fn smoke_popup(app: tauri::AppHandle, visible: bool, destroy: bool) -> Result<(), String> {
     let popup = app
         .webview_windows()
@@ -64,6 +144,13 @@ async fn smoke_popup(app: tauri::AppHandle, visible: bool, destroy: bool) -> Res
         || !windows::is_options_window(&popup)
     {
         return Err("Options navigation, visibility or lifecycle role is incorrect".into());
+    }
+    check_resources(&popup, visible).await?;
+    if visible {
+        window_resources::hide(&popup)?;
+        check_resources(&popup, false).await?;
+        window_resources::show(&popup)?;
+        check_resources(&popup, true).await?;
     }
     if destroy {
         popup.destroy().map_err(|error| error.to_string())?;
@@ -100,6 +187,7 @@ const DRIVER: &str = r#"(async () => {
             await invoke('present_desktop_popup', { path: '/options.html' });
             await invoke('smoke_popup', { visible: true, destroy: true });
         }
+        await invoke('smoke_utilities');
         for (const enabled of [true, false, true]) {
             await invoke('configure_desktop_tray', { enabled });
             await invoke('smoke_check', { enabled });
@@ -135,6 +223,7 @@ fn main() {
             fonts::local_font_families,
             smoke_check,
             smoke_popup,
+            smoke_utilities,
             smoke_error
         ])
         .setup(move |app| {
@@ -167,6 +256,7 @@ fn main() {
                                 .into();
                     })
                     .on_page_load(move |window, payload| {
+                        window_resources::set_active(&window, window.is_visible().unwrap_or(false));
                         if label == "main"
                             && payload.event() == tauri::webview::PageLoadEvent::Finished
                         {

@@ -76,6 +76,8 @@ Release builds optimize native code for size, omit unused Tauri commands, Brotli
 
 The build checks for external DLL imports before packing and checks the packed executable's integrity. If the current executable is running, the new build is saved to `.local/desktop-next/izci.exe`.
 
+Desktop and PWA media playback use disk-backed file URLs without copying entire streams or videos into memory. Metadata, embedded FLAC/Opus artwork, and Vorbis lyrics use bounded file-range reads; artwork pictures are limited to 16 MiB and lyrics comments to 1 MiB. Android alone retains small-file snapshots for faster provider reads, with metadata snapshots bounded to 16 MiB per file and 32 MiB across active jobs. Hidden desktop utility WebViews stop rendering and request WebView2's lower memory target, then restore normal rendering when opened. Hardware acceleration remains enabled, and the playback owner's WebView stays active.
+
 ## Built with
 
 [Svelte](https://svelte.dev/), [Vite](https://vite.dev/), [Howler.js](https://howlerjs.com/) (standard audio formats), [Chiptune3](https://github.com/DrSnuggles/chiptune) (tracker modules; based on libopenmpt WASM), and the [HivelyTracker](https://github.com/pete-gordon/hivelytracker) replayer (`ahx` and `hvl`).

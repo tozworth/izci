@@ -10,7 +10,7 @@ const METADATA_BLOCK_PICTURE_KEY = 'METADATA_BLOCK_PICTURE';
 
 const FLAC_MARKER = 'fLaC';
 
-interface ParsedArtwork {
+export interface ParsedArtwork {
   mimeType: string;
   data: Uint8Array;
   width?: number;
@@ -96,7 +96,7 @@ export function applyVorbisComment(metadata: TrackMetadata, key: string, value: 
   }
 }
 
-function parsePictureBlock(block: Uint8Array): ParsedArtwork | null {
+export function parsePictureBlock(block: Uint8Array): ParsedArtwork | null {
   if (block.byteLength < 32) {
     return null;
   }
@@ -110,7 +110,7 @@ function parsePictureBlock(block: Uint8Array): ParsedArtwork | null {
   const mimeLength = view.getUint32(offset);
   offset += 4;
 
-  if (offset + mimeLength > block.byteLength) {
+  if (offset + mimeLength + 4 > block.byteLength) {
     return null;
   }
 
