@@ -10,6 +10,8 @@ describe('AHX AudioWorklet', () => {
         [key: string]: unknown;
       } | null);
       handleMessage: (message: unknown) => Promise<void>;
+      playing: boolean;
+      process: (inputs: unknown[], outputs: Float32Array[][]) => boolean;
       port: { messages: unknown[] };
       publishPatternData: () => void;
       publishPatternProgress: (force?: boolean) => void;
@@ -47,6 +49,66 @@ describe('AHX AudioWorklet', () => {
     const bytes = new Uint8Array([0, 0x53, 0x69, 0x44, 0x56, 0x69, 0x42, 0x45, 0x53, 0x21, 0]);
     player.exports = { memory: { buffer: bytes.buffer } };
     expect(player.readString(1)).toBe('SiDViBES!');
+  });
+
+  it.each(['ahx', 'hvl'])('recovers %s playback after natural and seeked endings', async (format) => {
+    const Processor = loadProcessor();
+    const player = new Processor();
+    // One blank row, four channels, no instruments: exercise the real replay core.
+    const headerLength = format === 'hvl' ? 16 : 14;
+    const namesOffset = headerLength + 8;
+    const module = new Uint8Array(namesOffset + 5);
+    module.set(new TextEncoder().encode(format === 'hvl' ? 'HVL' : 'THX'));
+    module[3] = 1;
+    new DataView(module.buffer).setUint16(4, namesOffset);
+    module[6] = 0x80;
+    module[7] = 1;
+    module[10] = 1;
+    module.set(new TextEncoder().encode('End\0'), namesOffset);
+    await player.handleMessage({
+      type: 'load', format, module: module.buffer,
+      wasm: readFileSync('public/vendor/hively-replay.wasm')
+    });
+    expect(player.port.messages).not.toContainEqual(expect.objectContaining({ type: 'error' }));
+    const output = [[new Float32Array(128), new Float32Array(128)]];
+    const render = () => player.process([], output);
+    const endedCount = () => player.port.messages.filter((message) =>
+      (message as { type: string }).type === 'ended').length;
+    const progress = () => player.port.messages.filter((message) =>
+      (message as { type: string }).type === 'progress').at(-1) as { currentTime: number; duration: number };
+
+    await player.handleMessage({ type: 'play' });
+    for (let block = 0; block < 1000 && player.playing; block++) render();
+    expect(player.playing).toBe(false);
+    expect(endedCount()).toBe(1);
+    render();
+    expect(endedCount()).toBe(1);
+
+    await player.handleMessage({ type: 'play' });
+    expect(progress().currentTime).toBe(0);
+    render();
+    expect(player.playing).toBe(true);
+
+    await player.handleMessage({ type: 'seek', seconds: progress().duration });
+    render();
+    expect(player.playing).toBe(false);
+    expect(endedCount()).toBe(2);
+    await player.handleMessage({ type: 'play' });
+    expect(progress().currentTime).toBe(0);
+    render();
+    expect(player.playing).toBe(true);
+
+    await player.handleMessage({ type: 'seek', seconds: progress().duration });
+    render();
+    await player.handleMessage({ type: 'seek', seconds: 0.04 });
+    await player.handleMessage({ type: 'play' });
+    expect(progress().currentTime).toBe(0.04);
+    render();
+    await player.handleMessage({ type: 'pause' });
+    const pausedTime = progress().currentTime;
+    await player.handleMessage({ type: 'play' });
+    await player.handleMessage({ type: 'pause' });
+    expect(progress().currentTime).toBe(pausedTime);
   });
 
   it('applies interpolation changes while playing', async () => {

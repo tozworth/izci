@@ -27,6 +27,7 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
           await this.load(message);
           break;
         case 'play':
+          if (this.exports?.ahx_ended()) this.seek(0);
           this.playing = true;
           break;
         case 'pause':
