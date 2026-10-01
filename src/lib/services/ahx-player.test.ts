@@ -49,7 +49,7 @@ async function createPlayer() {
   return new HivelyPlayerService(vi.fn(), vi.fn(), vi.fn(), vi.fn());
 }
 
-describe('Hively runtime asset retries', () => {
+describe('Hively player', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -57,6 +57,49 @@ describe('Hively runtime asset retries', () => {
   });
 
   afterEach(() => vi.unstubAllGlobals());
+
+  it('publishes ended before notifying listeners and preserves a synchronous restart', async () => {
+    const gain = { disconnect: vi.fn() };
+    harness.context = {
+      audioWorklet: { addModule: vi.fn(async () => undefined) },
+      createGain: () => gain
+    } as unknown as AudioContext;
+    vi.stubGlobal('fetch', vi.fn(async () => response(true, 200)));
+    vi.stubGlobal('window', { setTimeout, clearTimeout, addEventListener: vi.fn() });
+    const messages: unknown[] = [];
+    let receive: (message: { type: string }) => void = () => {};
+    vi.stubGlobal('AudioWorkletNode', class {
+      port = {
+        onmessage: null as ((event: { data: { type: string } }) => void) | null,
+        postMessage: (message: { type: string }) => {
+          messages.push(message);
+          if (message.type === 'load') queueMicrotask(() => this.port.onmessage?.({ data: { type: 'loaded' } }));
+        }
+      };
+      constructor() { receive = (data) => this.port.onmessage?.({ data }); }
+      connect() {}
+    });
+    const { HivelyPlayerService } = await import('./ahx-player');
+    const { mediaSessionService } = await import('./media-session');
+    const states: string[] = [];
+    const onEnded = vi.fn(() => {
+      expect(states.at(-1)).toBe('ended');
+      player.seek(0);
+      player.play();
+    });
+    const player = new HivelyPlayerService((snapshot) => {
+      if (snapshot.state) states.push(snapshot.state);
+    }, vi.fn(), vi.fn(), onEnded);
+    await player.load(track);
+    player.play();
+    receive({ type: 'ended' });
+
+    expect(states).toEqual(['loading', 'playing', 'ended', 'playing']);
+    expect(onEnded).toHaveBeenCalledOnce();
+    expect(messages.slice(-2)).toEqual([{ type: 'seek', seconds: 0 }, { type: 'play' }]);
+    expect(vi.mocked(mediaSessionService.pauseTransportAnchor).mock.invocationCallOrder.at(-1))
+      .toBeLessThan(vi.mocked(mediaSessionService.playTransportAnchor).mock.invocationCallOrder.at(-1)!);
+  });
 
   it('retries a rejected worklet load while retaining successful WASM bytes', async () => {
     const addModule = vi.fn()

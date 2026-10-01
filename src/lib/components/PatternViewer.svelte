@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, tick } from 'svelte';
   import { t } from 'svelte-i18n';
+  import HoverTooltip from './HoverTooltip.svelte';
   import { isPatternCellEmpty, splitPatternCell } from '$lib/services/pattern-presentation';
   import { SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE } from '$lib/services/scrollbar-visibility';
   import { patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
@@ -20,7 +21,6 @@
   const dispatch = createEventDispatcher<{
     toggleChannelMute: { trackId: string; index: number };
     toggleChannelSolo: { trackId: string; index: number };
-    resetChannels: string;
   }>();
 
   let viewport: HTMLDivElement | null = null;
@@ -48,7 +48,6 @@
   }));
   $: channelControlsAvailable = isCurrentModule && channelSnapshot.trackId === track?.id;
   $: channelStates = channelControlsAvailable ? channelSnapshot.channels : [];
-  $: hasChannelChanges = channelStates.some((channel) => channel.muted || channel.solo);
   $: orderCount = song?.orders.length ?? 0;
   $: rowCount = pattern?.rows.length ?? 0;
   $: activeRow = Math.min(Math.max(snapshot.row, 0), Math.max(rowCount - 1, 0));
@@ -203,12 +202,6 @@
           default: '{count, plural, one {# channel} other {# channels}}',
           values: { count: channelCount }
         })}</span>
-        <button
-          type="button"
-          class="pattern-reset"
-          disabled={!hasChannelChanges}
-          on:click={() => track && dispatch('resetChannels', track.id)}
-        >{$t('main.patterns.resetChannels', { default: 'Reset channels' })}</button>
       </div>
 
       <div class="pattern-position" aria-label={$t('main.patterns.playbackPosition', { default: 'Pattern playback position' })}>
@@ -240,12 +233,14 @@
             class:muted={channelStates[channel.index]?.effectiveMuted}
             class:solo={channelStates[channel.index]?.solo}
             role="columnheader"
-            title={channel.name || $t('main.patterns.channelLabel', {
-              default: 'Channel {number}',
-              values: { number: channel.index + 1 }
-            })}
           >
-            <span class="pattern-channel-label">
+            <span
+              class="pattern-channel-label"
+              title={channel.name || $t('main.patterns.channelLabel', {
+                default: 'Channel {number}',
+                values: { number: channel.index + 1 }
+              })}
+            >
               <b>{$t('main.patterns.channelAbbreviation', { default: 'CH' })} {String(channel.index + 1).padStart(2, '0')}</b>
               {#if $patternViewerSettings.showChannelNames && channel.name}
                 <small>{channel.name}</small>
@@ -257,19 +252,27 @@
                 class:pressed={channelStates[channel.index]?.muted}
                 aria-pressed={channelStates[channel.index]?.muted ?? false}
                 aria-label={$t('main.patterns.muteChannel', { default: 'Mute channel {number}', values: { number: channel.index + 1 } })}
-                title={$t('main.patterns.muteChannel', { default: 'Mute channel {number}', values: { number: channel.index + 1 } })}
                 disabled={!channelControlsAvailable || !channelStates[channel.index]}
                 on:click={() => track && dispatch('toggleChannelMute', { trackId: track.id, index: channel.index })}
-              >{$t('main.patterns.muteAbbreviation', { default: 'M' })}</button>
+              >
+                {$t('main.patterns.muteAbbreviation', { default: 'M' })}
+                <HoverTooltip align="center" nowrap>
+                  {$t('main.patterns.muteChannel', { default: 'Mute channel {number}', values: { number: channel.index + 1 } })}
+                </HoverTooltip>
+              </button>
               <button
                 type="button"
                 class:pressed={channelStates[channel.index]?.solo}
                 aria-pressed={channelStates[channel.index]?.solo ?? false}
                 aria-label={$t('main.patterns.soloChannel', { default: 'Solo channel {number}', values: { number: channel.index + 1 } })}
-                title={$t('main.patterns.soloChannel', { default: 'Solo channel {number}', values: { number: channel.index + 1 } })}
                 disabled={!channelControlsAvailable || !channelStates[channel.index]}
                 on:click={() => track && dispatch('toggleChannelSolo', { trackId: track.id, index: channel.index })}
-              >{$t('main.patterns.soloAbbreviation', { default: 'S' })}</button>
+              >
+                {$t('main.patterns.soloAbbreviation', { default: 'S' })}
+                <HoverTooltip align="center" nowrap>
+                  {$t('main.patterns.soloChannel', { default: 'Solo channel {number}', values: { number: channel.index + 1 } })}
+                </HoverTooltip>
+              </button>
             </span>
           </span>
         {/each}
@@ -405,12 +408,6 @@
 
   .pattern-viewer button:disabled { opacity: 0.45; }
 
-  .pattern-viewer .pattern-reset {
-    flex: 0 0 auto;
-    padding: 0.2rem 0.3rem;
-    font-size: 9px;
-  }
-
   .pattern-channel-controls {
     display: flex;
     gap: 2px;
@@ -419,6 +416,18 @@
   .pattern-channel-controls button {
     width: 18px;
     height: 18px;
+    opacity: 0;
+  }
+
+  .pattern-channel-heading:hover .pattern-channel-controls button,
+  .pattern-channel-heading:focus-within .pattern-channel-controls button,
+  .pattern-channel-controls button.pressed {
+    opacity: 1;
+  }
+
+  .pattern-channel-heading:hover .pattern-channel-controls button:disabled,
+  .pattern-channel-heading:focus-within .pattern-channel-controls button:disabled {
+    opacity: 0.45;
   }
 
   .pattern-channel-controls button.pressed {

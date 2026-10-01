@@ -301,8 +301,9 @@ export class HivelyPlayerService {
     }
     if (message.type === 'ended') {
       this.#playing = false;
-      this.#onEnded();
       mediaSessionService.pauseTransportAnchor();
+      this.#onSnapshot({ state: 'ended' });
+      this.#onEnded();
     }
   }
 
