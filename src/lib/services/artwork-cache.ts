@@ -7,7 +7,8 @@ const DATABASE_NAME = 'izci-artwork-cache';
 const DATABASE_VERSION = 1;
 const SOURCE_STORE_NAME = 'sources';
 const RENDITION_STORE_NAME = 'renditions';
-const EXTRACTION_VERSION = 1;
+// Recheck negatives recorded before restored native paths were readable.
+const EXTRACTION_VERSION = 2;
 const RENDITION_VERSION = 1;
 const MAX_RENDITION_BYTES = 48 * 1024 * 1024;
 
@@ -328,7 +329,7 @@ async function loadArtworkThumbnail(
   const rendered = await createRendition(embeddedArtwork.blob, maxEdge);
 
   if (!rendered) {
-    await writeSourceAndRendition({ sourceKey, fingerprint, assetId: null, checkedAt: Date.now() });
+    // Decoding/rendering failures do not prove the source lacks artwork.
     return null;
   }
 

@@ -20,6 +20,21 @@ export interface AudioLoadProgress {
 }
 
 const moduleRenderCache = new Map<string, AudioBuffer>();
+const MODULE_CACHE_BYTES = 128 * 1024 * 1024;
+
+function rememberModuleRender(key: string, buffer: AudioBuffer): void {
+  const bytes = (value: AudioBuffer) => value.length * value.numberOfChannels * Float32Array.BYTES_PER_ELEMENT;
+  if (bytes(buffer) > MODULE_CACHE_BYTES) return;
+  moduleRenderCache.delete(key);
+  let retained = [...moduleRenderCache.values()].reduce((total, value) => total + bytes(value), 0);
+  while (moduleRenderCache.size >= 2 || retained + bytes(buffer) > MODULE_CACHE_BYTES) {
+    const oldest = moduleRenderCache.entries().next().value;
+    if (!oldest) break;
+    retained -= bytes(oldest[1]);
+    moduleRenderCache.delete(oldest[0]);
+  }
+  moduleRenderCache.set(key, buffer);
+}
 
 function fileCacheKey(file: File): string {
   return `${file.name}\u0000${file.size}\u0000${file.lastModified}`;
@@ -102,78 +117,6 @@ export function replaceSelectionRanges(state: ClipEditState, insertedRanges: Cli
   };
 }
 
-function createCompatibleBuffer(source: AudioBuffer, length: number): AudioBuffer {
-  return new AudioBuffer({
-    length: Math.max(1, length),
-    numberOfChannels: source.numberOfChannels,
-    sampleRate: source.sampleRate
-  });
-}
-
-export function sliceAudioBuffer(source: AudioBuffer, start: number, end: number): AudioBuffer {
-  const readStart = Math.min(source.length, Math.max(0, Math.round(start * source.sampleRate)));
-  const readEnd = Math.min(source.length, Math.max(readStart, Math.round(end * source.sampleRate)));
-  const output = createCompatibleBuffer(source, readEnd - readStart);
-  for (let channel = 0; channel < source.numberOfChannels; channel += 1) {
-    output.copyToChannel(source.getChannelData(channel).subarray(readStart, readEnd), channel);
-  }
-  return output;
-}
-
-export function replaceAudioBufferRange(
-  source: AudioBuffer,
-  start: number,
-  end: number,
-  replacement: AudioBuffer | null
-): AudioBuffer {
-  if (replacement && (
-    replacement.sampleRate !== source.sampleRate
-    || replacement.numberOfChannels !== source.numberOfChannels
-  )) {
-    throw new Error('Pasted audio must use the same sample rate and channel layout.');
-  }
-
-  const readStart = Math.min(source.length, Math.max(0, Math.round(start * source.sampleRate)));
-  const readEnd = Math.min(source.length, Math.max(readStart, Math.round(end * source.sampleRate)));
-  const replacementLength = replacement?.length ?? 0;
-  const output = createCompatibleBuffer(source, source.length - (readEnd - readStart) + replacementLength);
-
-  for (let channel = 0; channel < source.numberOfChannels; channel += 1) {
-    const outputData = output.getChannelData(channel);
-    outputData.set(source.getChannelData(channel).subarray(0, readStart), 0);
-    if (replacement) outputData.set(replacement.getChannelData(channel), readStart);
-    outputData.set(source.getChannelData(channel).subarray(readEnd), readStart + replacementLength);
-  }
-  return output;
-}
-
-export function materializeClip(source: AudioBuffer, state: ClipEditState): AudioBuffer {
-  const frameCount = state.ranges.reduce(
-    (total, range) => total + Math.max(0, Math.round((range.end - range.start) * source.sampleRate)),
-    0
-  );
-  const output = new AudioBuffer({
-    length: Math.max(frameCount, 1),
-    numberOfChannels: source.numberOfChannels,
-    sampleRate: source.sampleRate
-  });
-  let writeOffset = 0;
-
-  for (const range of state.ranges) {
-    const readStart = Math.max(0, Math.round(range.start * source.sampleRate));
-    const readEnd = Math.min(source.length, Math.round(range.end * source.sampleRate));
-    const length = Math.max(0, readEnd - readStart);
-
-    for (let channel = 0; channel < source.numberOfChannels; channel += 1) {
-      output.getChannelData(channel).set(source.getChannelData(channel).subarray(readStart, readEnd), writeOffset);
-    }
-
-    writeOffset += length;
-  }
-
-  return output;
-}
-
 interface ModuleRenderWorkerMessage {
   type: 'progress' | 'complete' | 'error';
   progress?: number | null;
@@ -191,7 +134,9 @@ async function renderModuleOffline(
   onProgress: (progress: AudioLoadProgress) => void,
   signal?: AbortSignal
 ): Promise<AudioBuffer> {
+  signal?.throwIfAborted();
   const moduleBytes = await file.arrayBuffer();
+  signal?.throwIfAborted();
   const renderer = new Worker(new URL('./module-render.worker.ts', import.meta.url), { type: 'module' });
 
   return await new Promise<AudioBuffer>((resolve, reject) => {
@@ -268,6 +213,7 @@ export async function loadAudioFile(
   onProgress: (progress: AudioLoadProgress) => void = () => undefined,
   signal?: AbortSignal
 ): Promise<{ buffer: AudioBuffer; renderedModule: boolean; fromCache: boolean }> {
+  signal?.throwIfAborted();
   const extension = inferExtension(file.name);
   const isModule = MODULE_EXTENSIONS.includes(extension as (typeof MODULE_EXTENSIONS)[number]);
   logDebug('tools', 'Editor audio load started', { name: file.name, size: file.size, isModule });
@@ -276,10 +222,14 @@ export async function loadAudioFile(
     onProgress({ phase: 'decoding', progress: null, detail: 'Decoding audio' });
     const context = new AudioContext();
     try {
-      const buffer = await context.decodeAudioData(await file.arrayBuffer());
+      const bytes = await file.arrayBuffer();
+      signal?.throwIfAborted();
+      const buffer = await context.decodeAudioData(bytes);
+      signal?.throwIfAborted();
       logInfo('tools', 'Editor audio decoded', { name: file.name, duration: buffer.duration, channels: buffer.numberOfChannels, sampleRate: buffer.sampleRate });
       return { buffer, renderedModule: false, fromCache: false };
     } catch (error) {
+      if (signal?.aborted) throw error;
       logError('tools', 'Editor audio decode failed', { name: file.name, error });
       throw error;
     } finally {
@@ -290,13 +240,17 @@ export async function loadAudioFile(
   const key = fileCacheKey(file);
   const cached = moduleRenderCache.get(key);
   if (cached) {
+    // Refresh the bounded session LRU without copying PCM.
+    moduleRenderCache.delete(key);
+    moduleRenderCache.set(key, cached);
     logDebug('tools', 'Editor module render cache hit', { name: file.name });
     return { buffer: cached, renderedModule: true, fromCache: true };
   }
 
   onProgress({ phase: 'rendering', progress: 0, detail: 'Preparing module renderer' });
   const buffer = await renderModuleOffline(file, extension, onProgress, signal);
-  moduleRenderCache.set(key, buffer);
+  signal?.throwIfAborted();
+  rememberModuleRender(key, buffer);
   logInfo('tools', 'Module rendered for editing', { name: file.name, duration: buffer.duration });
   return { buffer, renderedModule: true, fromCache: false };
 }

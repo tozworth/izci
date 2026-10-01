@@ -224,7 +224,7 @@
         <span class="material-symbols-outlined" aria-hidden="true">
           {isLoading ? 'progress_activity' : snapshot.state === 'playing' ? 'pause' : 'play_arrow'}
         </span>
-        {#if showTooltips}<HoverTooltip nowrap>{$t(snapshot.state === 'playing' ? 'main.player.pausePlayback' : 'main.player.playPlayback')}</HoverTooltip>{/if}
+        {#if showTooltips}<HoverTooltip nowrap>{snapshot.state === 'playing' ? $t('main.player.pausePlayback') : $t('main.player.playPlayback')}</HoverTooltip>{/if}
       </button>
       <button
         type="button"
@@ -269,7 +269,7 @@
       on:wheel|preventDefault={handleVolumeWheel}
     >
       <span class="material-symbols-outlined" aria-hidden="true">{getVolumeIcon()}</span>
-      {#if showTooltips}<HoverTooltip placement="above" nowrap>{$t(snapshot.muted || snapshot.volume <= 0 ? 'main.player.unmute' : 'main.player.mute')}</HoverTooltip>{/if}
+      {#if showTooltips}<HoverTooltip placement="above" nowrap>{snapshot.muted || snapshot.volume <= 0 ? $t('main.player.unmute') : $t('main.player.mute')}</HoverTooltip>{/if}
     </button>
     <div
       class="mini-player-range mini-player-volume-range"

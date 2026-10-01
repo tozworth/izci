@@ -185,6 +185,7 @@
   let innerWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
   let innerHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
   const modulePatternStore = playerController.modulePattern;
+  const patternChannelStore = playerController.patternChannels.state;
   const mediaElementsStore = playerController.mediaElements;
 
   let previousPlaybackState: PlaybackSnapshot['state'] = 'idle';
@@ -353,6 +354,12 @@
     patternTrack: livePlayingTrack,
     lyricsTrack: livePlayingTrack,
     modulePatternSnapshot: $modulePatternStore,
+    patternChannelControls: {
+      snapshot: $patternChannelStore,
+      toggleMute: playerController.patternChannels.toggleMute,
+      toggleSolo: playerController.patternChannels.toggleSolo,
+      reset: playerController.patternChannels.reset
+    },
     detailsArtwork: artworkPresentationState.visibleDetailsArtwork,
     detailsLibraryTargets,
     navigateTrackDetailsToLibrary: (target) => workspaceShell.showLibraryGroup(target),

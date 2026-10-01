@@ -98,6 +98,7 @@
 - `src/desktop/` and `src-tauri/` own Windows Tauri integration and the native shell. `npm run desktop:build` builds this target.
 - Native shell features stay behind `$platform`; native code/assets must stay out of PWA bundles and precache (`npm run desktop:verify`).
 - Desktop file-association launches use disk-backed Chromium Files and native path references in queue/library IndexedDB; never synthesize File System Access handles.
+- "Start headless tauri" means `npm run desktop:headless -- start`; use the resident hidden/muted runtime and its `eval`/`probe`/`status`/`stop` commands (see `src/desktop/README.md`). It copies the desktop profile, reuses unchanged builds, and never restarts the ordinary player. Use `start --fresh` after source edits or when a new profile snapshot is needed.
 
 ## Mobile mode
 

@@ -1,109 +1,46 @@
-import {
-  AudioBufferSource as MediaAudioBufferSource,
-  BufferTarget,
-  canEncodeAudio,
-  FlacOutputFormat,
-  Mp3OutputFormat,
-  OggOutputFormat,
-  Output,
-  Quality,
-  WavOutputFormat,
-  type AudioCodec,
-  type AudioEncodingConfig,
-  type OutputFormat
-} from 'mediabunny';
-import { editableTagsToMetadata } from './clip-metadata';
-import {
-  ClipExportUnavailableError,
-  type ClipExportOptions
-} from './clip-export-options';
+import type { AudioDocument } from './audio-document';
+import { EDITOR_PCM_CHUNK_FRAMES, readDocumentPcm } from './audio-document-pcm';
+import { ClipExportUnavailableError, type ClipExportOptions } from './clip-export-options';
+import type { EditorExportRequest, EditorExportResponse } from './clip-export-protocol';
 import type { EditableTags } from './tag-writer';
 
-interface ResolvedOutputConfig {
-  codec: AudioCodec;
-  mimeType: string;
-  outputFormat: OutputFormat;
-}
-
-function resolveOutputConfig(options: ClipExportOptions): ResolvedOutputConfig {
-  switch (options.format) {
-    case 'wav':
-      return {
-        codec: options.bitDepth === 32 ? 'pcm-f32' : options.bitDepth === 24 ? 'pcm-s24' : 'pcm-s16',
-        mimeType: 'audio/wav',
-        outputFormat: new WavOutputFormat({ metadataFormat: 'id3' })
-      };
-    case 'mp3':
-      return { codec: 'mp3', mimeType: 'audio/mpeg', outputFormat: new Mp3OutputFormat() };
-    case 'flac':
-      return { codec: 'flac', mimeType: 'audio/flac', outputFormat: new FlacOutputFormat() };
-    case 'opus':
-      return { codec: 'opus', mimeType: 'audio/ogg', outputFormat: new OggOutputFormat() };
-  }
-}
-
-async function registerFallbackEncoder(codec: AudioCodec): Promise<void> {
-  if (await canEncodeAudio(codec)) return;
-  if (codec === 'mp3') {
-    const { registerMp3Encoder } = await import('@mediabunny/mp3-encoder');
-    registerMp3Encoder();
-  } else if (codec === 'flac') {
-    const { registerFlacEncoder } = await import('@mediabunny/flac-encoder');
-    registerFlacEncoder();
-  }
-}
-
+/** Encoding and resampling run off the UI thread; PCM is supplied on demand. */
 export async function encodeAudioExport(
-  buffer: AudioBuffer,
+  document: AudioDocument,
   options: ClipExportOptions,
   tags: EditableTags,
-  artwork: Blob | null
+  artwork: Blob | null,
+  signal?: AbortSignal
 ): Promise<Blob> {
-  const config = resolveOutputConfig(options);
-  await registerFallbackEncoder(config.codec);
-
-  const maximumChannels = options.format === 'mp3' || options.format === 'opus' ? 2 : 8;
-  const numberOfChannels = options.channels === 'source'
-    ? Math.min(buffer.numberOfChannels, maximumChannels)
-    : Math.min(options.channels, maximumChannels);
-  const sampleRate = options.format === 'opus'
-    ? 48_000
-    : options.sampleRate === 'source' ? buffer.sampleRate : options.sampleRate;
-  const quality = options.format === 'mp3' || options.format === 'opus'
-    ? new Quality({ bitrate: options.bitrateKbps * 1000, bitrateMode: options.bitrateMode })
-    : undefined;
-  if (!await canEncodeAudio(config.codec, { numberOfChannels, sampleRate, quality })) {
-    throw new ClipExportUnavailableError(options.format);
-  }
-
-  const target = new BufferTarget();
-  const output = new Output({ format: config.outputFormat, target });
-  const encodingConfig: AudioEncodingConfig = {
-    codec: config.codec,
-    quality,
-    transform: {
-      numberOfChannels,
-      sampleRate,
-      ...(options.format === 'flac'
-        ? { sampleFormat: options.bitDepth === 16 ? 's16' as const : 's32' as const }
-        : {})
-    }
-  };
-  const source = new MediaAudioBufferSource(encodingConfig);
-  output.addAudioTrack(source);
-  output.setMetadataTags(await editableTagsToMetadata(tags, artwork, options.format));
-
-  await output.start();
-  try {
-    await source.add(buffer);
-    source.close();
-    await output.finalize();
-  } catch (error) {
-    source.close();
-    await output.cancel();
-    throw error;
-  }
-
-  if (!target.buffer) throw new Error('The encoded audio buffer was not produced.');
-  return new Blob([target.buffer], { type: config.mimeType });
+  signal?.throwIfAborted();
+  const worker = new Worker(new URL('./clip-export.worker.ts', import.meta.url), { type: 'module' });
+  return new Promise<Blob>((resolve, reject) => {
+    let offset = 0;
+    let settled = false;
+    const finish = () => { settled = true; worker.terminate(); signal?.removeEventListener('abort', abort); };
+    const abort = () => { finish(); reject(signal?.reason ?? new DOMException('Audio export cancelled.', 'AbortError')); };
+    const post = (request: EditorExportRequest, transfer: Transferable[] = []) => worker.postMessage(request, transfer);
+    signal?.addEventListener('abort', abort, { once: true });
+    worker.onerror = () => { finish(); reject(new Error('The audio encoder failed to start.')); };
+    worker.onmessage = (event: MessageEvent<EditorExportResponse>) => {
+      if (settled) return;
+      const message = event.data;
+      try {
+        if (message.type === 'ready') {
+          if (offset >= Math.max(1, document.length)) { post({ type: 'finish' }); return; }
+          const frames = Math.min(EDITOR_PCM_CHUNK_FRAMES, Math.max(1, document.length) - offset);
+          const data = document.length === 0 ? new Float32Array(document.numberOfChannels) : readDocumentPcm(document, offset, frames);
+          post({ type: 'chunk', data: data.buffer, timestamp: offset / document.sampleRate }, [data.buffer]);
+          offset += frames;
+        } else if (message.type === 'complete') {
+          finish(); resolve(new Blob([message.buffer], { type: message.mimeType }));
+        } else if (message.type === 'error') {
+          finish(); reject(message.unavailable ? new ClipExportUnavailableError(options.format) : new Error(message.message));
+        }
+      } catch (error) { finish(); reject(error); }
+    };
+    try {
+      post({ type: 'start', options, tags, artwork, sampleRate: document.sampleRate, numberOfChannels: document.numberOfChannels });
+    } catch (error) { finish(); reject(error); }
+  });
 }

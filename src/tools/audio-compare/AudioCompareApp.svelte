@@ -505,7 +505,7 @@
       noticeMessage = loaded.renderedModule
         ? loaded.fromCache
           ? $t('audioCompare.moduleCached', { default: 'Loaded cached module render.' })
-          : $t('audioCompare.moduleRendered', { default: 'Module render cached for this session.' })
+          : $t('audioCompare.moduleRendered', { default: 'Module rendered for comparison.' })
         : '';
     } catch (error) {
       if (loadTokens[id] !== token) return;

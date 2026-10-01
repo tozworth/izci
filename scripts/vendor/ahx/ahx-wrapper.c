@@ -14,6 +14,7 @@
 #define AHX_INTERPOLATION_COEFFICIENT_SCALE 16384
 
 extern void hvl_play_irq(struct hvl_tune *tune);
+extern void hvl_mixchunk(struct hvl_tune *tune, uint32_t samples, int8_t *left, int8_t *right, int32_t stride);
 
 static struct hvl_tune *tune = NULL;
 static uint8_t *file_data = NULL;
@@ -27,6 +28,7 @@ static uint32_t active_subsong = 0;
 static uint32_t display_order = 0;
 static uint32_t display_row = 0;
 static uint32_t interpolation_filter = 1;
+static uint8_t channel_muted[MAX_CHANNELS];
 static int32_t interpolation_4tap[AHX_INTERPOLATION_PHASES][4];
 static int32_t interpolation_8tap[AHX_INTERPOLATION_PHASES][8];
 static int initialized = 0;
@@ -143,7 +145,7 @@ static void mix_interpolated_chunk(
     ring_source[channel] = voice->vc_RingMixSource;
     delta[channel] = voice->vc_Delta;
     ring_delta[channel] = voice->vc_RingDelta;
-    volume[channel] = voice->vc_VoiceVolume;
+    volume[channel] = channel_muted[channel] ? 0 : voice->vc_VoiceVolume;
     position[channel] = voice->vc_SamplePos;
     ring_position[channel] = voice->vc_RingSamplePos;
     pan_left[channel] = voice->vc_PanMultLeft;
@@ -196,7 +198,7 @@ static void mix_interpolated_chunk(
   }
 }
 
-static void decode_interpolated_frame(struct hvl_tune *active_tune) {
+static void decode_audio_frame(struct hvl_tune *active_tune) {
   uint32_t samples = active_tune->ht_Frequency /
     AHX_FRAMES_PER_SECOND /
     active_tune->ht_SpeedMultiplier;
@@ -206,7 +208,20 @@ static void decode_interpolated_frame(struct hvl_tune *active_tune) {
 
   do {
     hvl_play_irq(active_tune);
-    mix_interpolated_chunk(active_tune, samples, left, right, 4);
+    if (interpolation_filter == 1) {
+      int32_t volumes[MAX_CHANNELS];
+      uint32_t channel;
+      for (channel = 0; channel < active_tune->ht_Channels; channel++) {
+        volumes[channel] = active_tune->ht_Voices[channel].vc_VoiceVolume;
+        if (channel_muted[channel]) active_tune->ht_Voices[channel].vc_VoiceVolume = 0;
+      }
+      hvl_mixchunk(active_tune, samples, left, right, 4);
+      for (channel = 0; channel < active_tune->ht_Channels; channel++) {
+        active_tune->ht_Voices[channel].vc_VoiceVolume = volumes[channel];
+      }
+    } else {
+      mix_interpolated_chunk(active_tune, samples, left, right, 4);
+    }
     left += samples * 4;
     right += samples * 4;
     loops--;
@@ -230,6 +245,7 @@ static void release_tune(void) {
   active_subsong = 0;
   display_order = 0;
   display_row = 0;
+  memset(channel_muted, 0, sizeof(channel_muted));
 }
 
 static uint32_t measure_duration(uint32_t subsong) {
@@ -306,17 +322,18 @@ int ahx_decode_frame(void) {
   if (!tune || !mix_buffer || tune->ht_SongEndReached) return 0;
   display_order = tune->ht_PosNr;
   display_row = tune->ht_NoteNr;
-  if (interpolation_filter == 1) {
-    hvl_DecodeFrame(tune, mix_buffer, &mix_buffer[2], 4);
-  } else {
-    decode_interpolated_frame(tune);
-  }
+  decode_audio_frame(tune);
   current_frame++;
   return 1;
 }
 
 void ahx_set_interpolation(uint32_t taps) {
   interpolation_filter = taps == 2 || taps == 4 || taps == 8 ? taps : 1;
+}
+
+void ahx_set_channel_mute(uint32_t channel, uint32_t muted) {
+  if (!tune || channel >= tune->ht_Channels || channel >= MAX_CHANNELS) return;
+  channel_muted[channel] = muted != 0;
 }
 
 void ahx_seek_frame(uint32_t target_frame) {

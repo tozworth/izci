@@ -103,6 +103,10 @@
     track={content.patternTrack}
     snapshot={content.modulePatternSnapshot}
     playbackSnapshot={content.playbackSnapshot}
+    channelSnapshot={content.patternChannelControls.snapshot}
+    on:toggleChannelMute={(event) => content.patternChannelControls.toggleMute(event.detail.trackId, event.detail.index)}
+    on:toggleChannelSolo={(event) => content.patternChannelControls.toggleSolo(event.detail.trackId, event.detail.index)}
+    on:resetChannels={(event) => content.patternChannelControls.reset(event.detail)}
   />
 {:else if tab === 'chat'}
   <ChatPanel

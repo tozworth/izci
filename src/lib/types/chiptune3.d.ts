@@ -70,6 +70,7 @@ declare module 'chiptune3' {
     setRepeatCount(value: number): void;
     setPitch(value: number): void;
     setTempo(value: number): void;
+    setChannelMutes(muted: boolean[]): void;
     setPos(value: number): void;
     setOrderRow(order: number, row: number): void;
     seek(value: number): void;

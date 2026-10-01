@@ -240,6 +240,11 @@
       "patternLabel": "Pattern {position}",
       "channelLabel": "Channel {number}",
       "channelAbbreviation": "CH",
+      "muteChannel": "Mute channel {number}",
+      "soloChannel": "Solo channel {number}",
+      "muteAbbreviation": "M",
+      "soloAbbreviation": "S",
+      "resetChannels": "Reset channels",
       "cellDescription": "Channel {number}: {value}",
       "noModule": "Play a tracker module to view its patterns.",
       "unsupported": "Pattern data is not available for this tracker module."
@@ -1680,7 +1685,7 @@
     "unsupported": "This file type is not supported by Audio Compare.",
     "measuringLoudness": "Measuring integrated loudness",
     "moduleCached": "Loaded cached module render.",
-    "moduleRendered": "Module render cached for this session.",
+    "moduleRendered": "Module rendered for comparison.",
     "loadFailed": "The audio file could not be opened.",
     "tabs": {
       "label": "Audio comparison tools",
@@ -1761,6 +1766,8 @@
       "export": "Export {format}",
       "exportOpen": "Export...",
       "waveform": "Editable audio waveform and selection",
+      "preparingWaveform": "Preparing waveform...",
+      "waveformFailed": "The waveform could not be prepared.",
       "waveformOverview": "Full waveform overview and seek bar"
     },
     "effects": {
@@ -1874,7 +1881,7 @@
     "emptyHint": "Open or drop an audio file to begin.",
     "unsupported": "This file type is not supported by Editor.",
     "moduleCached": "Loaded cached module render.",
-    "moduleRendered": "Module render cached for this session.",
+    "moduleRendered": "Module rendered for editing.",
     "loadFailed": "The audio file could not be opened.",
     "clipSaved": "Audio exported.",
     "encoderUnavailable": "{format} encoding is not available in this browser.",

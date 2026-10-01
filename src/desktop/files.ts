@@ -6,7 +6,17 @@ type RestorationWindow = Window & {
   __izciRestoreFileAccess?: () => Promise<FileSystemPermissionState>;
 };
 
-export async function preparePlaybackRestoration(track: TrackItem): Promise<void> {
+let pendingPermission: Promise<unknown> = Promise.resolve();
+
+export function preparePlaybackRestoration(track: TrackItem): Promise<void> {
+  // Playback, metadata, and artwork can restore different handles together.
+  // The native command invokes one window callback, so serialize its ownership.
+  const result = pendingPermission.then(() => restoreFileAccess(track));
+  pendingPermission = result.catch(() => undefined);
+  return result;
+}
+
+async function restoreFileAccess(track: TrackItem): Promise<void> {
   const handle = track.fileHandle;
   if (!handle || typeof handle.queryPermission !== 'function'
     || await handle.queryPermission({ mode: 'read' }) === 'granted') return;

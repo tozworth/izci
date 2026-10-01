@@ -4,6 +4,7 @@
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import type { ComparisonSourceId } from '$lib/services/audio-comparison';
   import WaveformEditor from '../editor/WaveformEditor.svelte';
+  import { createAudioDocument, type AudioDocument } from '../editor/audio-document';
 
   export let id: ComparisonSourceId;
   export let file: File | null = null;
@@ -34,6 +35,9 @@
   }>();
 
   let dragActive = false;
+  let waveformAudio: AudioDocument | null = null;
+  $: if (!buffer) waveformAudio = null;
+  else if (waveformAudio?.segments[0]?.buffer !== buffer) waveformAudio = createAudioDocument(buffer);
   $: sourceLabel = id.toUpperCase();
   $: details = buffer
     ? `${formatTime(buffer.duration)} · ${(buffer.sampleRate / 1000).toFixed(1)} kHz · ${buffer.numberOfChannels} ch`
@@ -96,7 +100,7 @@
   >
     {#if buffer}
       <WaveformEditor
-        {buffer}
+        audio={waveformAudio}
         {selectionStart}
         {selectionEnd}
         {playhead}

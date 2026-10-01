@@ -266,6 +266,10 @@ export class HivelyPlayerService {
     audioBusService.setSourceGain(this.#gain, this.#transitionGain, durationSeconds);
   }
 
+  setChannelMutes(muted: boolean[]): void {
+    this.#node?.port.postMessage({ type: 'channel-mutes', muted });
+  }
+
   #handleWorkletMessage(message: AhxWorkletMessage): void {
     if (message.type === 'metadata' && message.metadata) {
       this.#subsongCount = this.#normalizeSubsongCount(message.metadata.subsongs);

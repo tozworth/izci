@@ -135,8 +135,9 @@ export class FileRangeReader {
   async #readViaWindow(offset: number, length: number): Promise<Uint8Array> {
     const buffered = await this.#ensureWindow(length);
     if (buffered) {
-      const start = offset - this.#windowOffset;
-      return buffered.subarray(start, start + length).slice();
+      // ensureWindow already returns a view starting at the current position.
+      // Applying the file offset again truncates reads across Ogg page ranges.
+      return buffered.subarray(0, length).slice();
     }
     return this.#readBytes(offset, length);
   }

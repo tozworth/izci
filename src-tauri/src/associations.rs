@@ -1,3 +1,4 @@
+use crate::file_icons::{icon_for, icon_location, prog_id};
 use std::{collections::BTreeMap, path::Path};
 use tauri::WebviewWindow;
 use windows::{
@@ -18,9 +19,6 @@ pub fn formats() -> BTreeMap<String, String> {
         .expect("Canonical desktop media formats")
 }
 
-fn prog_id(kind: &str) -> String {
-    format!("app.izci.desktop.{kind}")
-}
 fn open_command(executable: &Path) -> String {
     format!("\"{}\" --open \"%1\"", executable.display())
 }
@@ -45,7 +43,10 @@ fn configure(enabled: bool) -> Result<(), String> {
             .map_err(|error| error.to_string())?
             .0;
         for (extension, kind) in &formats {
-            let id = prog_id(kind);
+            let id = prog_id(extension, kind);
+            let label = icon_for(extension, kind)
+                .and_then(|icon| icon.extension.as_ref())
+                .map_or_else(|| kind.clone(), |extension| extension.to_uppercase());
             associations
                 .set_value(format!(".{extension}"), &id)
                 .map_err(|error| error.to_string())?;
@@ -54,13 +55,13 @@ fn configure(enabled: bool) -> Result<(), String> {
                 .map_err(|error| error.to_string())?
                 .0;
             class
-                .set_value("", &format!("izci {kind}"))
+                .set_value("", &format!("izci {label}"))
                 .map_err(|error| error.to_string())?;
             class
                 .create_subkey("DefaultIcon")
                 .map_err(|error| error.to_string())?
                 .0
-                .set_value("", &format!("\"{}\",0", executable.display()))
+                .set_value("", &icon_location(&executable, extension, kind))
                 .map_err(|error| error.to_string())?;
             class
                 .create_subkey("shell\\open\\command")
@@ -68,10 +69,11 @@ fn configure(enabled: bool) -> Result<(), String> {
                 .0
                 .set_value("", &open_command(&executable))
                 .map_err(|error| error.to_string())?;
-            current_user
+            let open_with = current_user
                 .create_subkey(format!("{CLASSES}\\.{extension}\\OpenWithProgids"))
                 .map_err(|error| error.to_string())?
-                .0
+                .0;
+            open_with
                 .set_raw_value(
                     &id,
                     &RegValue {
@@ -80,6 +82,12 @@ fn configure(enabled: bool) -> Result<(), String> {
                     },
                 )
                 .map_err(|error| error.to_string())?;
+            // Advertise the current registration, without changing an existing
+            // UserChoice that may still reference the shared media-kind class.
+            let shared_id = format!("app.izci.desktop.{kind}");
+            if id != shared_id {
+                let _ = open_with.delete_value(shared_id);
+            }
         }
         current_user
             .create_subkey("Software\\RegisteredApplications")
@@ -94,11 +102,16 @@ fn configure(enabled: bool) -> Result<(), String> {
                 format!("{CLASSES}\\.{extension}\\OpenWithProgids"),
                 winreg::enums::KEY_SET_VALUE,
             ) {
-                let _ = key.delete_value(prog_id(kind));
+                let _ = key.delete_value(prog_id(extension, kind));
+                let _ = key.delete_value(format!("app.izci.desktop.{kind}"));
             }
         }
+        for (extension, kind) in &formats {
+            let _ =
+                current_user.delete_subkey_all(format!("{CLASSES}\\{}", prog_id(extension, kind)));
+        }
         for kind in ["stream", "module", "video", "image"] {
-            let _ = current_user.delete_subkey_all(format!("{CLASSES}\\{}", prog_id(kind)));
+            let _ = current_user.delete_subkey_all(format!("{CLASSES}\\app.izci.desktop.{kind}"));
         }
         let _ = current_user.delete_subkey_all(CAPABILITIES);
         if let Ok(key) = current_user.open_subkey_with_flags(

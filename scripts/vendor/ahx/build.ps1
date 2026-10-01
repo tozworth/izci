@@ -8,7 +8,7 @@ $sourceRevision = 'f393ca7c6416f00bcb574b334a7e8b57dcb19eb2'
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\..')
 $scratch = Join-Path ([System.IO.Path]::GetTempPath()) ('izci-ahx-build-' + [guid]::NewGuid().ToString('N'))
 $source = Join-Path $scratch 'hivelytracker'
-$emcc = Join-Path $EmsdkRoot 'upstream\emscripten\emcc.exe'
+$emcc = Join-Path $EmsdkRoot 'upstream\emscripten\emcc.bat'
 
 if (-not (Test-Path -LiteralPath $emcc)) {
   throw "Emscripten compiler not found at $emcc"
@@ -31,7 +31,7 @@ New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
   -s STANDALONE_WASM=1 `
   -s FILESYSTEM=0 `
   -s ALLOW_MEMORY_GROWTH=1 `
-  -s EXPORTED_FUNCTIONS=_malloc,_free,_ahx_init,_ahx_load,_ahx_unload,_ahx_select_subsong,_ahx_decode_frame,_ahx_set_interpolation,_ahx_seek_frame,_ahx_ended,_ahx_mix_buffer,_ahx_frame_samples,_ahx_current_frame,_ahx_duration_frames,_ahx_subsong_count,_ahx_channel_count,_ahx_instrument_count,_ahx_order_count,_ahx_title,_ahx_track_length,_ahx_track_count,_ahx_current_order,_ahx_current_row,_ahx_position_track,_ahx_position_transpose,_ahx_step_note,_ahx_step_instrument,_ahx_step_effect,_ahx_step_effect_param,_ahx_instrument_name `
+  -s EXPORTED_FUNCTIONS=_malloc,_free,_ahx_init,_ahx_load,_ahx_unload,_ahx_select_subsong,_ahx_decode_frame,_ahx_set_interpolation,_ahx_set_channel_mute,_ahx_seek_frame,_ahx_ended,_ahx_mix_buffer,_ahx_frame_samples,_ahx_current_frame,_ahx_duration_frames,_ahx_subsong_count,_ahx_channel_count,_ahx_instrument_count,_ahx_order_count,_ahx_title,_ahx_track_length,_ahx_track_count,_ahx_current_order,_ahx_current_row,_ahx_position_track,_ahx_position_transpose,_ahx_step_note,_ahx_step_instrument,_ahx_step_effect,_ahx_step_effect_param,_ahx_instrument_name `
   -o (Join-Path $outputDirectory 'hively-replay.wasm')
 
 if ($LASTEXITCODE -ne 0) {

@@ -1,4 +1,5 @@
 import type { TrackItem, TrackMetadata } from '$lib/types';
+import { isDesktop, materializePlatformFile, preparePlaybackRestoration } from '$platform';
 
 import { toArrayBuffer } from './stream-meta-binary';
 import { readFlacMetadata } from './stream-meta-flac';
@@ -94,10 +95,16 @@ function canLoadStreamMetadata(extension: string): boolean {
 async function resolveTrackFile(track: TrackItem): Promise<File | null> {
   if (track.fileHandle) {
     try {
+      if (isDesktop && !track.file) await preparePlaybackRestoration(track);
       return await track.fileHandle.getFile();
-    } catch {
+    } catch (error) {
       // Fall back to the in-memory File when permission is unavailable or stale.
+      if (!track.file) throw error;
     }
+  }
+
+  if (!track.file && isDesktop && track.desktopFile && track.path) {
+    return materializePlatformFile(track.path);
   }
 
   return track.file ?? null;
@@ -108,7 +115,10 @@ export function getTrackArtworkLoadKey(track: TrackItem | null): string {
     return '';
   }
 
-  return track.id;
+  // File wrappers change during hydration; their presence and content version
+  // matter, but wrapper identity and metadata-only updates do not.
+  return JSON.stringify([track.id, track.extension, track.size, track.lastModified,
+    Boolean(track.file), Boolean(track.fileHandle), track.desktopFile ? track.path : null]);
 }
 
 export async function loadTrackMetadata(track: TrackItem | null): Promise<TrackMetadata | null> {
@@ -138,7 +148,8 @@ export async function loadEmbeddedStreamArtwork(track: TrackItem | null): Promis
   const file = await resolveTrackFile(track);
 
   if (!file) {
-    return null;
+    // A negative cache entry requires a successful read of the source file.
+    throw new Error('Artwork source file is unavailable.');
   }
 
   const artwork = await withMediaFileReader(file, track.id, (readBytes) =>

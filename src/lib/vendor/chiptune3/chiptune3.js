@@ -110,6 +110,7 @@ export class ChiptuneJsPlayer {
 	setRepeatCount(val) { this.postMsg('repeatCount', val) }
 	setPitch(val) { this.postMsg('setPitch', val) }
 	setTempo(val) { this.postMsg('setTempo', val) }
+	setChannelMutes(val) { this.postMsg('setChannelMutes', val) }
 	selectSubsong(val) { this.postMsg('selectSubsong', val) }
 	setPos(val) { this.postMsg('setPos', val) }
 	setVol(val) { this.gain.gain.value = val }

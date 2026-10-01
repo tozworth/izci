@@ -248,6 +248,11 @@
       "patternLabel": "Örüntü {position}",
       "channelLabel": "Kanal {number}",
       "channelAbbreviation": "KNL",
+      "muteChannel": "Kanal {number} sesini kapat",
+      "soloChannel": "Kanal {number} solo",
+      "muteAbbreviation": "M",
+      "soloAbbreviation": "S",
+      "resetChannels": "Kanalları sıfırla",
       "cellDescription": "Kanal {number}: {value}",
       "noModule": "Örüntülerini görüntülemek için bir tracker modülü oynatın.",
       "unsupported": "Bu tracker modülü için örüntü verileri kullanılamıyor."
@@ -1688,7 +1693,7 @@
     "unsupported": "Bu dosya türü Ses Karşılaştırma tarafından desteklenmiyor.",
     "measuringLoudness": "Bütünleşik ses yüksekliği ölçülüyor",
     "moduleCached": "Önbellekteki modül ses çıktısı yüklendi.",
-    "moduleRendered": "Modül ses çıktısı bu oturum için önbelleğe alındı.",
+    "moduleRendered": "Modül karşılaştırma için işlendi.",
     "loadFailed": "Ses dosyası açılamadı.",
     "tabs": {
       "label": "Ses karşılaştırma araçları",
@@ -1769,6 +1774,8 @@
       "export": "{format} olarak aktar",
       "exportOpen": "Dışa aktar...",
       "waveform": "Düzenlenebilir ses dalga biçimi ve seçim",
+      "preparingWaveform": "Dalga biçimi hazırlanıyor...",
+      "waveformFailed": "Dalga biçimi hazırlanamadı.",
       "waveformOverview": "Tam dalga biçimi özeti ve konum çubuğu"
     },
     "effects": {
@@ -1882,7 +1889,7 @@
     "emptyHint": "Başlamak için bir ses dosyası açın veya buraya bırakın.",
     "unsupported": "Bu dosya türü Düzenleyici tarafından desteklenmiyor.",
     "moduleCached": "Önbellekteki modül işlemesi yüklendi.",
-    "moduleRendered": "Modül işlemesi bu oturum için önbelleğe alındı.",
+    "moduleRendered": "Modül düzenleme için işlendi.",
     "loadFailed": "Ses dosyası açılamadı.",
     "clipSaved": "Ses dışa aktarıldı.",
     "encoderUnavailable": "{format} kodlama bu tarayıcıda kullanılamıyor.",

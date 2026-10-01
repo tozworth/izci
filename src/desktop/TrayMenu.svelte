@@ -9,7 +9,19 @@
   let state: TrayState = { playing: false, canControl: false };
   let visible = false;
   let menuElement: HTMLDivElement;
-  $: items = trayItems(state, (key) => $t(key));
+  let labels: Record<string, string>;
+  $: labels = {
+    'main.player.previousTrack': $t('main.player.previousTrack'),
+    'desktop.tray.pause': $t('desktop.tray.pause'),
+    'desktop.tray.play': $t('desktop.tray.play'),
+    'main.player.nextTrack': $t('main.player.nextTrack'),
+    'desktop.tray.open': $t('desktop.tray.open'),
+    'main.menu.options': $t('main.menu.options'),
+    'desktop.tray.oda': $t('desktop.tray.oda'),
+    'main.menu.miniPlayer': $t('main.menu.miniPlayer'),
+    'desktop.tray.exit': $t('desktop.tray.exit')
+  };
+  $: items = trayItems(state, (key) => labels[key]);
   $: transport = items.slice(0, 3);
   $: commands = items.slice(3);
 

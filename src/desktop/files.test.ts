@@ -67,4 +67,37 @@ describe('native launch File input', () => {
     await expect(preparePlaybackRestoration({ fileHandle } as TrackItem)).rejects.toThrow('Permission denied');
     expect(window).not.toHaveProperty('__izciRestoreFileAccess');
   });
+
+  it('serializes concurrent saved-handle requests and releases each callback', async () => {
+    const { preparePlaybackRestoration } = await import('./files');
+    let finishFirst!: () => void;
+    const gate = new Promise<void>((resolve) => { finishFirst = resolve; });
+    const first = vi.fn(async () => 'granted' as const);
+    const second = vi.fn(async () => 'granted' as const);
+    const handle = (requestPermission: typeof first) => ({
+      queryPermission: vi.fn(async () => 'prompt'), requestPermission
+    }) as unknown as FileSystemFileHandle;
+    const observed: string[] = [];
+    invoke.mockImplementation(async () => {
+      const target = window as unknown as { __izciRestoreFileAccess: () => Promise<string> };
+      if (observed.length === 0) {
+        observed.push('first');
+        await gate;
+        expect(await target.__izciRestoreFileAccess()).toBe('granted');
+        expect(first).toHaveBeenCalledOnce();
+        expect(second).not.toHaveBeenCalled();
+      } else {
+        observed.push('second');
+        expect(await target.__izciRestoreFileAccess()).toBe('granted');
+        expect(second).toHaveBeenCalledOnce();
+      }
+    });
+    const one = preparePlaybackRestoration({ fileHandle: handle(first) } as TrackItem);
+    const two = preparePlaybackRestoration({ fileHandle: handle(second) } as TrackItem);
+    await vi.waitFor(() => expect(observed).toEqual(['first']));
+    finishFirst();
+    await Promise.all([one, two]);
+    expect(observed).toEqual(['first', 'second']);
+    expect(window).not.toHaveProperty('__izciRestoreFileAccess');
+  });
 });

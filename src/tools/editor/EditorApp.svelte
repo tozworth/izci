@@ -4,32 +4,26 @@
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { MODULE_EXTENSIONS, STREAM_EXTENSIONS } from '$lib/types';
-  import { loadTrackLyrics } from '$lib/services/lyrics';
   import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
   import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
-  import { loadEmbeddedStreamArtwork, loadTrackMetadata } from '$lib/services/stream-artwork';
-  import { inferArtistTitleFromFileName, inferExtension, stripFileExtension } from '$lib/utils/files';
+  import { inferExtension, stripFileExtension } from '$lib/utils/files';
   import EditorMenuBar from './EditorMenuBar.svelte';
   import ClipEffectDialog from './ClipEffectDialog.svelte';
   import ClipExportDialog from './ClipExportDialog.svelte';
   import WaveformEditor from './WaveformEditor.svelte';
   import {
-    clipDuration,
     createInitialClipState,
     cutSelection,
     keepSelection,
     loadAudioFile,
-    materializeClip,
-    replaceAudioBufferRange,
     replaceSelectionRanges,
     saveBlob,
-    sliceAudioBuffer,
     sliceClipRanges,
     updateSelection,
     type AudioLoadProgress,
     type ClipEditState
   } from './clip-audio';
-  import { EMPTY_TAGS, parseId3, type EditableTags } from './tag-writer';
+  import { EMPTY_TAGS, type EditableTags } from './tag-writer';
   import { createEditorFileLoadCoordinator } from './editor-file-load';
   import { remapLyricsToClip } from './lyrics-editor';
   import {
@@ -41,16 +35,21 @@
   import { MAX_WAVEFORM_ZOOM, zoomWaveformViewport } from './waveform-viewport';
   import type { MenuActionItem, RafEffectType } from '$lib/types';
 
-  type TagField = Exclude<keyof EditableTags, 'lyrics'>;
+  import {
+    createAudioDocument, documentFrameAt, sliceAudioDocument, replaceAudioDocumentRange, materializeAudioDocument,
+    type AudioDocument
+  } from './audio-document';
+  import { createEditorPreview } from './editor-preview';
+  import { loadEditorMetadata } from './editor-metadata';
+  import { retainEditorHistory } from './editor-history';
   interface EditSnapshot {
     state: ClipEditState;
-    buffer: AudioBuffer;
+    audio: AudioDocument;
   }
   interface AudioClipboard {
-    buffer: AudioBuffer;
+    audio: AudioDocument;
     ranges: ClipEditState['ranges'];
   }
-  const MAX_EDIT_HISTORY = 12;
   const ACCEPTED_EXTENSIONS = [...STREAM_EXTENSIONS, ...MODULE_EXTENSIONS];
   const FILE_ACCEPT = ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`).join(',');
   const OPEN_FILE_PICKER_OPTIONS: OpenFilePickerOptions = {
@@ -60,24 +59,13 @@
       accept: { 'audio/*': ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`) }
     }]
   };
-  const TAG_FIELDS: Array<{ key: TagField; wide?: boolean }> = [
-    { key: 'title', wide: true },
-    { key: 'artist' },
-    { key: 'albumArtist' },
-    { key: 'album', wide: true },
-    { key: 'composer' },
-    { key: 'genre' },
-    { key: 'year' },
-    { key: 'trackNumber' },
-    { key: 'discNumber' }
-  ];
+
 
   let fileInput: HTMLInputElement;
   let exportDialog: ClipExportDialog;
   let effectDialog: ClipEffectDialog;
   let sourceFile: File | null = null;
-  let sourceBuffer: AudioBuffer | null = null;
-  let waveformBuffer: AudioBuffer | null = null;
+  let audio: AudioDocument | null = null;
   let editState: ClipEditState = createInitialClipState(0);
   let undoStack: EditSnapshot[] = [];
   let redoStack: EditSnapshot[] = [];
@@ -88,15 +76,8 @@
   let noticeMessage = '';
   let tags: EditableTags = { ...EMPTY_TAGS };
   let artwork: Blob | null = null;
-  let previewContext: AudioContext | null = null;
-  let previewSource: AudioBufferSourceNode | null = null;
-  let previewStartedAt = 0;
-  let previewOffset = 0;
-  let previewEnd = 0;
-  let previewMode: 'clip' = 'clip';
   let previewPlaying = false;
   let playhead = 0;
-  let previewFrame = 0;
   let exporting = false;
   let exportingFormat: ClipExportFormat = 'wav';
   let processingEffect = false;
@@ -106,14 +87,20 @@
   let contextMenuOpen = false;
   let contextMenuX = 0;
   let contextMenuY = 0;
+  let metadataTask: Promise<void> = Promise.resolve();
+  let operation: AbortController | null = null;
+  const preview = createEditorPreview({
+    position: (position) => { playhead = position; },
+    playing: (playing) => { previewPlaying = playing; }
+  });
   const fileLoads = createEditorFileLoadCoordinator();
 
-  $: duration = clipDuration(editState);
+  $: duration = audio?.duration ?? 0;
   $: selectionDuration = Math.max(0, editState.selectionEnd - editState.selectionStart);
   $: hasSelection = selectionDuration > 0.001;
   $: canUndo = undoStack.length > 0;
   $: canRedo = redoStack.length > 0;
-  $: canEdit = Boolean(sourceBuffer && waveformBuffer && !loading && !exporting && !processingEffect);
+  $: canEdit = Boolean(audio && !loading && !exporting && !processingEffect);
   $: canPaste = Boolean(canEdit && audioClipboard);
   $: statusText = errorMessage || (processingEffect
     ? $t('editor.effects.rendering', { default: 'Rendering selection...' })
@@ -122,7 +109,7 @@
     : noticeMessage) || (loadProgress
     ? loadProgress.detail
     : sourceFile
-      ? `${formatTime(duration)} · ${waveformBuffer?.sampleRate.toLocaleString() ?? 0} Hz · ${waveformBuffer?.numberOfChannels ?? 0} ch`
+      ? `${formatTime(duration)} · ${audio?.sampleRate.toLocaleString() ?? 0} Hz · ${audio?.numberOfChannels ?? 0} ch`
       : $t('editor.emptyHint', { default: 'Open or drop an audio file to begin.' }));
   $: contextMenuItems = contextMenuOpen ? buildWaveformContextMenu() : [];
 
@@ -140,7 +127,7 @@
   function setWaveformZoom(nextZoom: number): void {
     const next = zoomWaveformViewport(
       waveformScrollStart,
-      waveformBuffer?.duration ?? 0,
+      audio?.duration ?? 0,
       waveformZoom,
       nextZoom
     );
@@ -160,14 +147,14 @@
         label: $t('editor.menu.undo', { default: 'Undo' }),
         icon: 'undo',
         shortcut: 'Ctrl+Z',
-        disabled: !canUndo
+        disabled: !canEdit || !canUndo
       },
       {
         id: 'redo',
         label: $t('editor.menu.redo', { default: 'Redo' }),
         icon: 'redo',
         shortcut: 'Ctrl+Y',
-        disabled: !canRedo
+        disabled: !canEdit || !canRedo
       },
       {
         id: 'cut',
@@ -226,10 +213,10 @@
       },
       {
         id: 'play',
-        label: previewPlaying && previewMode === 'clip'
+        label: previewPlaying
           ? $t('audioCompare.stop', { default: 'Stop' })
           : $t('editor.edit.play', { default: 'Play from cursor' }),
-        icon: previewPlaying && previewMode === 'clip' ? 'stop' : 'play_arrow',
+        icon: previewPlaying ? 'stop' : 'play_arrow',
         shortcut: 'Space',
         disabled: !canEdit,
         separatorBefore: true
@@ -289,55 +276,63 @@
   }
 
   function snapshot(): EditSnapshot | null {
-    return waveformBuffer ? { state: editState, buffer: waveformBuffer } : null;
+    return audio ? { state: editState, audio } : null;
   }
 
-  function commitEdit(nextState: ClipEditState, nextBuffer: AudioBuffer, notice = ''): void {
+  function commitEdit(nextState: ClipEditState, nextAudio: AudioDocument, notice = ''): void {
     const previous = snapshot();
     if (!previous) return;
     stopPreview();
-    undoStack = [...undoStack, previous].slice(-MAX_EDIT_HISTORY);
+    undoStack = retainEditorHistory([...undoStack, previous], nextAudio);
     redoStack = [];
     editState = nextState;
-    waveformBuffer = nextBuffer;
-    playhead = Math.min(nextState.selectionStart, nextBuffer.duration);
+    audio = nextAudio;
+    playhead = Math.min(nextState.selectionStart, nextAudio.duration);
     noticeMessage = notice;
   }
 
   function undo(): void {
+    if (!canEdit) return;
     const previous = undoStack.at(-1);
     const current = snapshot();
     if (!previous || !current) return;
     stopPreview();
-    redoStack = [current, ...redoStack].slice(0, MAX_EDIT_HISTORY);
+    redoStack = retainEditorHistory([current, ...redoStack], previous.audio, true);
     undoStack = undoStack.slice(0, -1);
     editState = previous.state;
-    waveformBuffer = previous.buffer;
-    playhead = Math.min(editState.selectionStart, waveformBuffer.duration);
+    audio = previous.audio;
+    playhead = Math.min(editState.selectionStart, audio.duration);
     noticeMessage = $t('editor.edit.undoNotice', { default: 'Edit undone.' });
   }
 
   function redo(): void {
+    if (!canEdit) return;
     const next = redoStack[0];
     const current = snapshot();
     if (!next || !current) return;
     stopPreview();
-    undoStack = [...undoStack, current].slice(-MAX_EDIT_HISTORY);
+    undoStack = retainEditorHistory([...undoStack, current], next.audio);
     redoStack = redoStack.slice(1);
     editState = next.state;
-    waveformBuffer = next.buffer;
-    playhead = Math.min(editState.selectionStart, waveformBuffer.duration);
+    audio = next.audio;
+    playhead = Math.min(editState.selectionStart, audio.duration);
     noticeMessage = $t('editor.edit.redoNotice', { default: 'Edit restored.' });
   }
 
   function selectAll(): void {
-    editState = updateSelection(editState, 0, duration);
+    if (canEdit) setSelection(0, duration);
+  }
+
+  function setSelection(start: number, end: number): void {
+    if (!canEdit || !audio) return;
+    editState = updateSelection(editState,
+      documentFrameAt(audio, start) / audio.sampleRate, documentFrameAt(audio, end) / audio.sampleRate);
   }
 
   function copySelection(): boolean {
-    if (!waveformBuffer || !hasSelection) return false;
+    if (!canEdit || !audio || !hasSelection) return false;
     audioClipboard = {
-      buffer: sliceAudioBuffer(waveformBuffer, editState.selectionStart, editState.selectionEnd),
+      audio: sliceAudioDocument(audio, editState.selectionStart, editState.selectionEnd),
       ranges: sliceClipRanges(editState.ranges, editState.selectionStart, editState.selectionEnd)
     };
     noticeMessage = $t('editor.edit.copied', {
@@ -348,17 +343,17 @@
   }
 
   function deleteSelection(copyFirst = false): void {
-    if (!waveformBuffer || !hasSelection || (copyFirst && !copySelection())) return;
+    if (!canEdit || !audio || !hasSelection || (copyFirst && !copySelection())) return;
     const nextState = cutSelection(editState);
-    const nextBuffer = replaceAudioBufferRange(
-      waveformBuffer,
+    const nextAudio = replaceAudioDocumentRange(
+      audio,
       editState.selectionStart,
       editState.selectionEnd,
       null
     );
     commitEdit(
       nextState,
-      nextBuffer,
+      nextAudio,
       copyFirst
         ? $t('editor.edit.cutNotice', { default: 'Selection cut.' })
         : $t('editor.edit.deletedNotice', { default: 'Selection deleted.' })
@@ -366,29 +361,25 @@
   }
 
   function pasteAudio(): void {
-    if (!waveformBuffer || !audioClipboard) return;
-    const nextBuffer = replaceAudioBufferRange(
-      waveformBuffer,
+    if (!canEdit || !audio || !audioClipboard) return;
+    const nextAudio = replaceAudioDocumentRange(
+      audio,
       editState.selectionStart,
       editState.selectionEnd,
-      audioClipboard.buffer
+      audioClipboard.audio
     );
     const nextState = replaceSelectionRanges(editState, audioClipboard.ranges);
-    commitEdit(nextState, nextBuffer, $t('editor.edit.pastedNotice', { default: 'Audio pasted.' }));
+    commitEdit(nextState, nextAudio, $t('editor.edit.pastedNotice', { default: 'Audio pasted.' }));
   }
 
   function trimToSelection(): void {
-    if (!waveformBuffer || !hasSelection) return;
+    if (!canEdit || !audio || !hasSelection) return;
     commitEdit(
       keepSelection(editState),
-      sliceAudioBuffer(waveformBuffer, editState.selectionStart, editState.selectionEnd),
+      sliceAudioDocument(audio, editState.selectionStart, editState.selectionEnd),
       $t('editor.edit.trimmedNotice', { default: 'Trimmed to selection.' })
     );
     resetWaveformViewport();
-  }
-
-  function replaceArtwork(next: Blob | null): void {
-    artwork = next;
   }
 
   async function openFile(file: File): Promise<void> {
@@ -399,6 +390,10 @@
     }
 
     const load = fileLoads.begin();
+    operation?.abort();
+    operation = null;
+    processingEffect = false;
+    exporting = false;
 
     stopPreview();
     resetWaveformViewport();
@@ -407,61 +402,32 @@
     errorMessage = '';
     noticeMessage = '';
     sourceFile = file;
-    sourceBuffer = null;
-    waveformBuffer = null;
+    audio = null;
     undoStack = [];
     redoStack = [];
     audioClipboard = null;
     tags = { ...EMPTY_TAGS };
-    replaceArtwork(null);
+    artwork = null;
+    editState = createInitialClipState(0);
+    playhead = 0;
 
-    try {
-      const bytes = new Uint8Array(await file.arrayBuffer());
+    metadataTask = loadEditorMetadata(file, load.signal).then((metadata) => {
       if (!load.isCurrent()) return;
-      const parsed = extension === 'mp3' ? parseId3(bytes) : { tags: { ...EMPTY_TAGS }, artwork: null };
-      if ((STREAM_EXTENSIONS as readonly string[]).includes(extension)) {
-        const track = {
-          id: `editor:${file.name}:${file.size}:${file.lastModified}`,
-          file,
-          name: file.name,
-          extension,
-          kind: 'stream' as const,
-          size: file.size,
-          lastModified: file.lastModified
-        };
-        const [metadata, embeddedArtwork, embeddedLyrics] = await Promise.all([
-          loadTrackMetadata(track),
-          loadEmbeddedStreamArtwork(track),
-          loadTrackLyrics(track).catch(() => null)
-        ]);
-        if (!load.isCurrent()) return;
-        if (metadata) {
-          for (const { key } of TAG_FIELDS) {
-            parsed.tags[key] = metadata[key] ?? parsed.tags[key];
-          }
-        }
-        if (embeddedArtwork) parsed.artwork = embeddedArtwork.blob;
-        if (embeddedLyrics) parsed.tags.lyrics = embeddedLyrics.raw;
-      }
-      const inferred = inferArtistTitleFromFileName(file.name);
-      tags = {
-        ...parsed.tags,
-        title: parsed.tags.title || inferred?.title || stripFileExtension(file.name),
-        artist: parsed.tags.artist || inferred?.artist || ''
-      };
-      replaceArtwork(parsed.artwork);
+      tags = metadata.tags;
+      artwork = metadata.artwork;
+    }).catch(() => undefined);
+    try {
       const loaded = await loadAudioFile(file, (progress) => {
         if (load.isCurrent()) loadProgress = progress;
       }, load.signal);
       if (!load.isCurrent()) return;
-      sourceBuffer = loaded.buffer;
       playhead = 0;
       editState = createInitialClipState(loaded.buffer.duration);
-      waveformBuffer = materializeClip(loaded.buffer, editState);
+      audio = createAudioDocument(loaded.buffer);
       noticeMessage = loaded.renderedModule
         ? loaded.fromCache
           ? $t('editor.moduleCached', { default: 'Loaded cached module render.' })
-          : $t('editor.moduleRendered', { default: 'Module render cached for this session.' })
+          : $t('editor.moduleRendered', { default: 'Module rendered for editing.' })
         : '';
     } catch (error) {
       if (!load.isCurrent()) return;
@@ -471,6 +437,9 @@
       if (load.isCurrent()) {
         loading = false;
         loadProgress = null;
+        // The waveform can be used while tags finish in the background. Export waits
+        // for this task; a new file still invalidates its metadata callback.
+        await metadataTask;
         load.finish();
       }
     }
@@ -517,63 +486,24 @@
     if (file) await openFile(file);
   }
 
-  function tickPreview(): void {
-    if (!previewPlaying) return;
-    playhead = Math.min(previewOffset + (performance.now() - previewStartedAt) / 1000, previewEnd);
-    previewFrame = requestAnimationFrame(tickPreview);
-  }
-
-  function getPreviewPosition(): number {
-    if (!previewPlaying) return playhead;
-    return Math.min(previewOffset + (performance.now() - previewStartedAt) / 1000, previewEnd);
-  }
-
   function stopPreview(): void {
-    if (previewPlaying) playhead = getPreviewPosition();
-    previewSource?.stop();
-    previewSource?.disconnect();
-    previewSource = null;
-    previewPlaying = false;
-    cancelAnimationFrame(previewFrame);
-  }
-
-  async function startBufferPreview(buffer: AudioBuffer, start: number, end: number, mode: 'clip'): Promise<void> {
-    stopPreview();
-    previewContext ??= new AudioContext();
-    await previewContext.resume();
-    const source = previewContext.createBufferSource();
-    source.buffer = buffer;
-    source.connect(previewContext.destination);
-    source.onended = () => {
-      if (previewSource !== source) return;
-      previewSource = null;
-      previewPlaying = false;
-      playhead = end;
-      cancelAnimationFrame(previewFrame);
-    };
-    previewSource = source;
-    previewOffset = start;
-    previewEnd = end;
-    previewMode = mode;
-    previewStartedAt = performance.now();
-    previewPlaying = true;
-    playhead = start;
-    source.start(0, start, Math.max(0.001, end - start));
-    previewFrame = requestAnimationFrame(tickPreview);
+    preview.stop();
   }
 
   async function startPreview(selectionOnly: boolean): Promise<void> {
-    if (!waveformBuffer) return;
+    if (!canEdit || !audio) return;
     const start = selectionOnly && hasSelection
       ? editState.selectionStart
-      : playhead >= waveformBuffer.duration - 0.001 ? 0 : Math.max(0, playhead);
-    const end = selectionOnly && hasSelection ? editState.selectionEnd : waveformBuffer.duration;
-    await startBufferPreview(waveformBuffer, start, end, 'clip');
+      : playhead >= audio.duration - 0.001 ? 0 : Math.max(0, playhead);
+    const end = selectionOnly && hasSelection ? editState.selectionEnd : audio.duration;
+    await preview.start(audio, start, end);
   }
 
   function toggleEditorPreview(selectionOnly = false): void {
-    if (previewPlaying && previewMode === 'clip') stopPreview();
-    else void startPreview(selectionOnly);
+    if (previewPlaying) stopPreview();
+    else void startPreview(selectionOnly).catch((error) => {
+      errorMessage = error instanceof Error ? error.message : $t('editor.loadFailed', { default: 'The audio file could not be opened.' });
+    });
   }
 
   function seekEditor(position: number): void {
@@ -597,57 +527,65 @@
     settings: ClipEffectSettings,
     edgeBlendMs: number
   ): Promise<AudioBuffer | null> {
-    if (!waveformBuffer || !hasSelection || processingEffect) return null;
-    const currentBuffer = waveformBuffer;
+    if (!canEdit || !audio || !hasSelection || processingEffect) return null;
+    const currentAudio = audio;
     const start = editState.selectionStart;
     const end = editState.selectionEnd;
+    const job = new AbortController();
+    operation?.abort();
+    operation = job;
     processingEffect = true;
     errorMessage = '';
     noticeMessage = '';
     stopPreview();
     try {
-      const original = sliceAudioBuffer(currentBuffer, start, end);
-      const processed = await renderClipEffect(original, settings);
+      const original = await materializeAudioDocument(sliceAudioDocument(currentAudio, start, end), job.signal);
+      const processed = await renderClipEffect(original, settings, job.signal);
+      job.signal.throwIfAborted();
       return isClipSpeedEffect(settings) ? processed : blendRenderedEdges(
         original,
         processed,
         edgeBlendMs,
         start > 0.0005,
-        end < currentBuffer.duration - 0.0005
+        end < currentAudio.duration - 0.0005
       );
     } catch (error) {
+      if (job.signal.aborted) return null;
       errorMessage = error instanceof Error
         ? error.message
         : $t('editor.effects.failed', { default: 'The effect could not be rendered.' });
       return null;
     } finally {
-      processingEffect = false;
+      if (operation === job) { operation = null; processingEffect = false; }
     }
   }
 
   async function previewEffect(settings: ClipEffectSettings, edgeBlendMs: number): Promise<void> {
-    if (previewPlaying && previewMode === 'clip') {
+    if (previewPlaying) {
       stopPreview();
       return;
     }
+    const currentAudio = audio;
     const processed = await processEffect(settings, edgeBlendMs);
-    if (processed) await startBufferPreview(processed, 0, processed.duration, 'clip');
+    if (processed && audio === currentAudio) await preview.start(createAudioDocument(processed), 0, processed.duration);
+
   }
 
   async function applyEffect(settings: ClipEffectSettings, edgeBlendMs: number): Promise<void> {
-    if (!waveformBuffer) return;
-    const currentBuffer = waveformBuffer;
+    if (!audio) return;
+    const currentAudio = audio;
+    const currentState = editState;
     const start = editState.selectionStart;
     const end = editState.selectionEnd;
     const processed = await processEffect(settings, edgeBlendMs);
-    if (!processed || waveformBuffer !== currentBuffer) return;
-    const nextBuffer = replaceAudioBufferRange(currentBuffer, start, end, processed);
+    if (!processed || audio !== currentAudio) return;
+    const nextAudio = replaceAudioDocumentRange(currentAudio, start, end, createAudioDocument(processed));
     const nextState = isClipSpeedEffect(settings)
-      ? replaceSelectionRanges(editState, [{ start, end: start + processed.duration }])
-      : editState;
+      ? replaceSelectionRanges(currentState, [{ start, end: start + processed.duration }])
+      : currentState;
     commitEdit(
       nextState,
-      nextBuffer,
+      nextAudio,
       $t('editor.effects.applied', {
         default: '{effect} applied to selection.',
         values: { effect: settings.displayName || (isClipSpeedEffect(settings) ? 'Speed' : RAF_EFFECT_REGISTRY[settings.type].name) }
@@ -663,20 +601,30 @@
   }
 
   async function exportClip(options: ClipExportOptions): Promise<void> {
-    if (!waveformBuffer || !sourceFile || exporting) return;
+    if (!canEdit || !audio || !sourceFile || exporting) return;
+    const currentAudio = audio;
+    const currentFile = sourceFile;
+    const ranges = editState.ranges;
+    const job = new AbortController();
+    operation?.abort();
+    operation = job;
     exporting = true;
     exportingFormat = options.format;
     errorMessage = '';
     noticeMessage = '';
     try {
+      await metadataTask;
+      job.signal.throwIfAborted();
       const { encodeAudioExport } = await import('./clip-export');
-      const exportTags = { ...tags, lyrics: remapLyricsToClip(tags.lyrics, editState.ranges) };
-      const blob = await encodeAudioExport(waveformBuffer, options, exportTags, artwork);
-      await saveBlob(blob, `${stripFileExtension(sourceFile.name)}-clip.${options.format}`);
+      const exportTags = { ...tags, lyrics: remapLyricsToClip(tags.lyrics, ranges) };
+      const blob = await encodeAudioExport(currentAudio, options, exportTags, artwork, job.signal);
+      job.signal.throwIfAborted();
+      await saveBlob(blob, `${stripFileExtension(currentFile.name)}-clip.${options.format}`);
+      if (job.signal.aborted) return;
       noticeMessage = $t('editor.clipSaved', { default: 'Audio exported.' });
       exportDialog.close();
     } catch (error) {
-      if ((error as DOMException)?.name !== 'AbortError') {
+      if (!job.signal.aborted && (error as DOMException)?.name !== 'AbortError') {
         errorMessage = error instanceof ClipExportUnavailableError
           ? $t('editor.encoderUnavailable', {
               default: '{format} encoding is not available in this browser.',
@@ -685,7 +633,7 @@
           : $t('editor.saveFailed', { default: 'The file could not be saved.' });
       }
     } finally {
-      exporting = false;
+      if (operation === job) { operation = null; exporting = false; }
     }
   }
 
@@ -737,13 +685,15 @@
     };
     const interval = window.setInterval(closeIfOrphaned, 1000);
     window.addEventListener('keydown', handleKeydown);
-    window.addEventListener('dragover', (event) => event.preventDefault());
+    const preventDragover = (event: DragEvent) => event.preventDefault();
+    window.addEventListener('dragover', preventDragover);
     window.addEventListener('drop', handleWindowDrop);
     window.addEventListener('focus', closeIfOrphaned);
     return () => {
       stopListeningForTrack();
       window.clearInterval(interval);
       window.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('dragover', preventDragover);
       window.removeEventListener('drop', handleWindowDrop);
       window.removeEventListener('focus', closeIfOrphaned);
     };
@@ -752,7 +702,8 @@
   onDestroy(() => {
     fileLoads.cancel();
     stopPreview();
-    void previewContext?.close();
+    operation?.abort();
+    preview.destroy();
   });
 </script>
 
@@ -765,8 +716,8 @@
   <EditorMenuBar
     fileName={sourceFile?.name ?? ''}
     canSaveClip={canEdit}
-    {canUndo}
-    {canRedo}
+    canUndo={canEdit && canUndo}
+    canRedo={canEdit && canRedo}
     canCut={canEdit && hasSelection}
     {canPaste}
     {twoChannelView}
@@ -788,8 +739,8 @@
   <main class="clip-workbench" aria-label={$t('editor.tabs.edit', { default: 'Edit' })}>
         <div class="tool-row tool-toolbar clip-toolbar" role="toolbar" aria-label={$t('editor.edit.toolbar', { default: 'Audio editing tools' })}>
           <div class="toolbar-group" aria-label={$t('editor.edit.history', { default: 'History' })}>
-            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canUndo} aria-label={$t('editor.menu.undo', { default: 'Undo' })} on:click={undo}><span class="material-symbols-outlined" aria-hidden="true">undo</span><HoverTooltip>{$t('editor.menu.undo', { default: 'Undo' })}</HoverTooltip></button>
-            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canRedo} aria-label={$t('editor.menu.redo', { default: 'Redo' })} on:click={redo}><span class="material-symbols-outlined" aria-hidden="true">redo</span><HoverTooltip>{$t('editor.menu.redo', { default: 'Redo' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !canUndo} aria-label={$t('editor.menu.undo', { default: 'Undo' })} on:click={undo}><span class="material-symbols-outlined" aria-hidden="true">undo</span><HoverTooltip>{$t('editor.menu.undo', { default: 'Undo' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !canRedo} aria-label={$t('editor.menu.redo', { default: 'Redo' })} on:click={redo}><span class="material-symbols-outlined" aria-hidden="true">redo</span><HoverTooltip>{$t('editor.menu.redo', { default: 'Redo' })}</HoverTooltip></button>
           </div>
           <span class="toolbar-separator" aria-hidden="true"></span>
           <div class="toolbar-group" aria-label={$t('editor.edit.clipboard', { default: 'Clipboard' })}>
@@ -804,7 +755,7 @@
           <span class="toolbar-separator" aria-hidden="true"></span>
           <div class="toolbar-group transport-group" aria-label={$t('editor.edit.transport', { default: 'Navigation and preview' })}>
             <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit} aria-label={$t('editor.edit.selectionStart', { default: 'Go to selection start' })} on:click={() => seekEditor(hasSelection ? editState.selectionStart : 0)}><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><HoverTooltip>{$t('editor.edit.selectionStart', { default: 'Go to selection start' })}</HoverTooltip></button>
-            <button class="icon-button transport-play hover-tooltip-anchor" class:is-active={previewPlaying && previewMode === 'clip'} type="button" disabled={!canEdit} aria-label={$t('editor.edit.play', { default: 'Play from cursor' })} on:click={() => toggleEditorPreview(false)}><span class="material-symbols-outlined" aria-hidden="true">{previewPlaying && previewMode === 'clip' ? 'stop' : 'play_arrow'}</span><HoverTooltip>{$t('editor.edit.playShortcut', { default: 'Play from cursor · Space' })}</HoverTooltip></button>
+            <button class="icon-button transport-play hover-tooltip-anchor" class:is-active={previewPlaying} type="button" disabled={!canEdit} aria-label={$t('editor.edit.play', { default: 'Play from cursor' })} on:click={() => toggleEditorPreview(false)}><span class="material-symbols-outlined" aria-hidden="true">{previewPlaying ? 'stop' : 'play_arrow'}</span><HoverTooltip>{$t('editor.edit.playShortcut', { default: 'Play from cursor · Space' })}</HoverTooltip></button>
             <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !hasSelection} aria-label={$t('editor.edit.playSelection', { default: 'Play selection' })} on:click={() => toggleEditorPreview(true)}><span class="material-symbols-outlined" aria-hidden="true">play_circle</span><HoverTooltip>{$t('editor.edit.playSelection', { default: 'Play selection' })}</HoverTooltip></button>
             <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit} aria-label={$t('editor.edit.selectionEnd', { default: 'Go to selection end' })} on:click={() => seekEditor(hasSelection ? editState.selectionEnd : duration)}><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><HoverTooltip>{$t('editor.edit.selectionEnd', { default: 'Go to selection end' })}</HoverTooltip></button>
             <span class="transport-time">{formatTime(playhead)} / {formatTime(duration)}</span>
@@ -827,16 +778,18 @@
           on:contextmenu|preventDefault={openContextMenu}
         >
           <WaveformEditor
-            buffer={waveformBuffer}
+            {audio}
             selectionStart={editState.selectionStart}
             selectionEnd={editState.selectionEnd}
             {playhead}
+            playbackPosition={previewPlaying ? preview.position : null}
             disabled={!canEdit}
             {twoChannelView}
             bind:zoom={waveformZoom}
             bind:scrollStart={waveformScrollStart}
-            on:selection={(event) => (editState = updateSelection(editState, event.detail.start, event.detail.end))}
+            on:selection={(event) => setSelection(event.detail.start, event.detail.end)}
             on:seek={(event) => seekEditor(event.detail)}
+            on:error={() => (errorMessage = $t('editor.clip.waveformFailed', { default: 'The waveform could not be prepared.' }))}
           />
           {#if !sourceFile && !loading}
             <button class="tool-empty-state empty-drop-target" type="button" on:click={() => void chooseAudioFile()}>
@@ -873,7 +826,7 @@
   <ClipEffectDialog
     bind:this={effectDialog}
     busy={processingEffect}
-    previewing={previewPlaying && previewMode === 'clip'}
+    previewing={previewPlaying}
     {selectionDuration}
     on:preview={(event) => void previewEffect(event.detail.settings, event.detail.edgeBlendMs)}
     on:apply={(event) => void applyEffect(event.detail.settings, event.detail.edgeBlendMs)}
@@ -884,8 +837,8 @@
     bind:this={exportDialog}
     busy={exporting}
     {errorMessage}
-    sourceSampleRate={waveformBuffer?.sampleRate ?? 0}
-    sourceChannels={waveformBuffer?.numberOfChannels ?? 0}
+    sourceSampleRate={audio?.sampleRate ?? 0}
+    sourceChannels={audio?.numberOfChannels ?? 0}
     on:export={(event) => void exportClip(event.detail)}
     on:close={() => { if (!exporting) errorMessage = ''; }}
   />

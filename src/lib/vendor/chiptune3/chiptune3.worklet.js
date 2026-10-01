@@ -51,6 +51,8 @@ class MPT extends AudioWorkletProcessor {
 		}
 		this.channels = 0
 		this.selectedSubsong = 0
+		this.channelMutes = []
+		this.setChannelMute = null
 	}
 
 	process(inputList, outputList, parameters) {
@@ -138,9 +140,14 @@ class MPT extends AudioWorkletProcessor {
 			case 'selectSubsong':
 				this.selectSubsong(v)
 				break
+			case 'setChannelMutes':
+				this.channelMutes = Array.isArray(v) ? v.map(value => value === true) : []
+				this.applyChannelMutes()
+				break
 			case 'setPos':
 				if (!this.modulePtr) return
 				libopenmpt._openmpt_module_set_position_seconds(this.modulePtr, v)
+				this.applyChannelMutes()
 				break
 			default:
 				console.log('Received unknown message',msg.data)
@@ -154,7 +161,8 @@ class MPT extends AudioWorkletProcessor {
 		const byteArray = new Int8Array(buffer)
 		this.filePtr = libopenmpt._malloc(byteArray.byteLength)
 		libopenmpt.HEAPU8.set(byteArray, this.filePtr)
-		this.modulePtr = libopenmpt._openmpt_module_create_from_memory(this.filePtr, byteArray.byteLength, 0, 0, 0)
+		this.moduleExtPtr = libopenmpt._openmpt_module_ext_create_from_memory(this.filePtr, byteArray.byteLength, 0, 0, 0, 0, 0, 0, 0)
+		this.modulePtr = this.moduleExtPtr ? libopenmpt._openmpt_module_ext_get_module(this.moduleExtPtr) : 0
 		this.selectedSubsong = 0
 
 		if(this.modulePtr === 0) {
@@ -164,6 +172,7 @@ class MPT extends AudioWorkletProcessor {
 			this.port.postMessage({cmd:'err',val:'ptr'})
 			return
 		}
+		this.initializeChannelMute()
 
 		if (libopenmpt.stackSave) {
 			const stack = libopenmpt.stackSave()
@@ -187,10 +196,13 @@ class MPT extends AudioWorkletProcessor {
 		this.meta()
 	}
 	stop() {
-		if (this.modulePtr) {
-			libopenmpt._openmpt_module_destroy(this.modulePtr)
-			this.modulePtr = 0
+		if (this.moduleExtPtr) {
+			libopenmpt._openmpt_module_ext_destroy(this.moduleExtPtr)
+			this.moduleExtPtr = 0
 		}
+		this.modulePtr = 0
+		this.setChannelMute = null
+		this.channelMutes = []
 		if (this.leftPtr) {
 			libopenmpt._free(this.leftPtr)
 			this.leftPtr = 0
@@ -211,8 +223,29 @@ class MPT extends AudioWorkletProcessor {
 		if (count <= 0) return
 		const selected = Math.max(0, Math.min(Math.trunc(Number(index) || 0), count - 1))
 		libopenmpt._openmpt_module_select_subsong(this.modulePtr, selected)
+		this.applyChannelMutes()
 		this.selectedSubsong = selected
 		this.meta()
+	}
+	initializeChannelMute() {
+		// libopenmpt_ext.h's interactive interface has 16 wasm32 function pointers.
+		// set_channel_mute_status is entry 10. Keep this ABI detail at the worklet boundary.
+		const stack = libopenmpt.stackSave()
+		try {
+			const iface = libopenmpt.stackAlloc(16 * 4)
+			if (libopenmpt._openmpt_module_ext_get_interface(this.moduleExtPtr, asciiToStack('interactive'), iface, 16 * 4)) {
+				this.setChannelMute = libopenmpt.getWasmTableEntry(libopenmpt.HEAPU32[iface / 4 + 10])
+			}
+		} finally {
+			libopenmpt.stackRestore(stack)
+		}
+	}
+	applyChannelMutes() {
+		if (!this.modulePtr || !this.setChannelMute) return
+		const count = libopenmpt._openmpt_module_get_num_channels(this.modulePtr)
+		for (let channel = 0; channel < count; channel++) {
+			this.setChannelMute(this.moduleExtPtr, channel, this.channelMutes[channel] === true ? 1 : 0)
+		}
 	}
 	meta() {
 		this.port.postMessage({cmd: 'meta', meta: this.getMeta()})

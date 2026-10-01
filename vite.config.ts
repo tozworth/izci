@@ -55,12 +55,13 @@ export default defineConfig(({ mode }) => {
         name: 'emit-chiptune3-runtime',
         apply: 'build',
         generateBundle() {
-          // chiptune3.worklet.js imports this file with a fixed relative path, so it must be emitted unchanged.
+          // Emit the local runtime, including izci's interactive-interface bridge,
+          // at the fixed relative path imported by chiptune3.worklet.js.
           this.emitFile({
             type: 'asset',
             fileName: 'assets/libopenmpt.worklet.js',
             source: readFileSync(
-              fileURLToPath(new URL('./node_modules/chiptune3/libopenmpt.worklet.js', import.meta.url))
+              fileURLToPath(new URL('./src/lib/vendor/chiptune3/libopenmpt.worklet.js', import.meta.url))
             )
           });
         }

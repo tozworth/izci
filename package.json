@@ -7,9 +7,11 @@
     "dev": "vite",
     "prebuild": "node scripts/sync-multiplayer-protocol.mjs",
     "build": "vite build",
-    "desktop:frontend": "node scripts/sync-multiplayer-protocol.mjs && node scripts/sync-desktop-formats.mjs && vite build --mode desktop",
+    "desktop:icons": "node scripts/sync-desktop-file-icons.mjs",
+    "desktop:frontend": "node scripts/sync-multiplayer-protocol.mjs && node scripts/sync-desktop-formats.mjs && npm run desktop:icons && vite build --mode desktop",
     "desktop:build": "node scripts/build-desktop.mjs",
     "desktop:verify": "node scripts/verify-desktop-build.mjs",
+    "desktop:headless": "node scripts/desktop/headless.mjs",
     "sites:build": "npm run build && node scripts/prepare-sites-build.mjs",
     "i18n:extract": "svelte-i18n extract \"src/**/*.svelte\" src/lib/i18n/locales/en.json --overwrite",
     "i18n:sync": "npm run i18n:extract && node scripts/sync-i18n.mjs",
@@ -38,6 +40,7 @@
     "svelte-i18n": "^4.0.1"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
     "@sveltejs/vite-plugin-svelte": "^6.1.3",
     "@tauri-apps/cli": "^2.12.0",
     "@tsconfig/svelte": "^5.0.4",
