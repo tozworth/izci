@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="638" viewBox="0 0 940 638" role="img" aria-label="Revised izci folded document icons: full detail and simplified 16, 24, and 32 pixel variants, enlarged four times and at actual size on light and dark backgrounds">
+  <title>izci folded document — revised size variants</title>
+  <defs><symbol id="01-document-stream" viewBox="0 0 128 128">
+  <title>Folded document · Stream · OPUS</title>
+  <path d="M28 7h48l28 28v80a6 6 0 0 1-6 6H28a6 6 0 0 1-6-6V13a6 6 0 0 1 6-6Z" fill="#fff8e9" stroke="#122437" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M76 7v22a6 6 0 0 0 6 6h22" fill="#d8e0e5" stroke="#122437" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M34 69h6l7-14 8 33 10-43 9 34 8-17 6 7h6" fill="none" stroke="#ff5a1f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <g aria-label="OPUS" transform="translate(40.5 98)" fill="none" stroke="#122437" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect width="8" height="14" rx="4"/>
+    <path d="M13 14V0h4.5a3.5 3.5 0 0 1 0 7H13M26 0v10a4 4 0 0 0 8 0V0M47 0h-4a3.5 3.5 0 0 0 0 7h.5a3.5 3.5 0 0 1 0 7H39"/>
+  </g>
+</symbol>
+<symbol id="01-document-stream-16" viewBox="0 0 16 16">
+  <title>Folded document · stream · 16 px</title>
+  <path d="M3.5.5h6l4 4v11h-10Z" fill="#fff8e9" stroke="#122437" stroke-linejoin="round"/><path d="M9.5.5v4h4" fill="#d8e0e5" stroke="#122437" stroke-linejoin="round"/>
+  <path d="M5 9.5h1l1-2 1.5 4 1.5-5 1 3h1" fill="none" stroke="#ff5a1f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="01-document-stream-24" viewBox="0 0 24 24">
+  <title>Folded document · stream · 24 px</title>
+  <path d="M4.5 1.5h10l5 5v16h-15Z" fill="#fff8e9" stroke="#122437" stroke-linejoin="round"/><path d="M14.5 1.5v5h5" fill="#d8e0e5" stroke="#122437" stroke-linejoin="round"/>
+  <path d="M7 13h1l2-4 2 8 2-10 2 6h1" fill="none" stroke="#ff5a1f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="01-document-stream-32" viewBox="0 0 32 32">
+  <title>Folded document · stream · 32 px</title>
+  <path d="M6 2h13l7 7v21H6Z" fill="#fff8e9" stroke="#122437" stroke-width="2" stroke-linejoin="round"/><path d="M19 2v7h7" fill="#d8e0e5" stroke="#122437" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M9 17h2l2-4 2 9 3-12 2 9 2-2h1" fill="none" stroke="#ff5a1f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="01-document-module" viewBox="0 0 128 128">
+  <title>Folded document · Module · MPTM</title>
+  <path d="M28 7h48l28 28v80a6 6 0 0 1-6 6H28a6 6 0 0 1-6-6V13a6 6 0 0 1 6-6Z" fill="#fff8e9" stroke="#122437" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M76 7v22a6 6 0 0 0 6 6h22" fill="#d8e0e5" stroke="#122437" stroke-width="4" stroke-linejoin="round"/>
+  <rect x="34" y="47" width="60" height="42" rx="3" fill="#122437"/>
+  <path d="M54 47v42m20-42v42M34 61h60M34 75h60" stroke="#fff8e9" stroke-opacity=".22" stroke-width="2"/>
+  <path d="M39 54h10m30 0h10M59 68h10M39 82h10m40 0H79" stroke="#fff8e9" stroke-width="4"/>
+  <path d="M35 68h18m21 0h19" stroke="#ff5a1f" stroke-width="6"/>
+  <g aria-label="MPTM" transform="translate(37.5 98)" fill="none" stroke="#122437" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M0 14V0l5 7 5-7v14M15 14V0h4.5a3.5 3.5 0 0 1 0 7H15M28 0h10m-5 0v14M43 14V0l5 7 5-7v14"/>
+  </g>
+</symbol>
+<symbol id="01-document-module-16" viewBox="0 0 16 16">
+  <title>Folded document · module · 16 px</title>
+  <path d="M3.5.5h6l4 4v11h-10Z" fill="#fff8e9" stroke="#122437" stroke-linejoin="round"/><path d="M9.5.5v4h4" fill="#d8e0e5" stroke="#122437" stroke-linejoin="round"/>
+  <path d="M5 6h7v7H5Z" fill="#122437"/><path d="M5 6h7v3H5Z" fill="#ff5a1f"/><path d="M8.5 6v7M5 9.5h7" fill="none" stroke="#fff8e9"/>
+</symbol>
+<symbol id="01-document-module-24" viewBox="0 0 24 24">
+  <title>Folded document · module · 24 px</title>
+  <path d="M4.5 1.5h10l5 5v16h-15Z" fill="#fff8e9" stroke="#122437" stroke-linejoin="round"/><path d="M14.5 1.5v5h5" fill="#d8e0e5" stroke="#122437" stroke-linejoin="round"/>
+  <path d="M7 9h10v10H7Z" fill="#122437"/><path d="M7 9h10v4H7Z" fill="#ff5a1f"/><path d="M11.5 9v10M7 13.5h10" fill="none" stroke="#fff8e9"/>
+</symbol>
+<symbol id="01-document-module-32" viewBox="0 0 32 32">
+  <title>Folded document · module · 32 px</title>
+  <path d="M6 2h13l7 7v21H6Z" fill="#fff8e9" stroke="#122437" stroke-width="2" stroke-linejoin="round"/><path d="M19 2v7h7" fill="#d8e0e5" stroke="#122437" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M9 12h14v12H9Z" fill="#122437"/><path d="M9 16h14v4H9Z" fill="#ff5a1f"/><path d="M13.5 12v12m5-12v12M9 15.5h14M9 20.5h14" fill="none" stroke="#fff8e9"/>
+</symbol></defs>
+  <rect width="940" height="638" fill="#fff8e9"/>
+  <g font-family="Segoe UI, Arial, sans-serif" fill="#122437">
+    <text x="24" y="40" font-size="25" font-weight="600">izci / folded document</text>
+    <text x="24" y="65" font-size="13" fill="#64727e">Full detail: OPUS / MPTM extension labels. Small icons: bolder waveform and plain tracker table.</text>
+    <text x="172" y="105" text-anchor="middle" font-size="18" font-weight="600">Full detail · 48 px and up</text>
+    <rect x="24" y="118" width="320" height="356" rx="4" fill="#eef1f3"/>
+    <text x="184" y="140" text-anchor="middle" font-size="11" fill="#64727e">STREAM · 128 PX</text>
+    <use href="#01-document-stream" x="120" y="148" width="128" height="128"/>
+    <text x="184" y="316" text-anchor="middle" font-size="11" fill="#64727e">MODULE · 128 PX</text>
+    <use href="#01-document-module" x="120" y="324" width="128" height="128"/>
+    <text x="24" y="499" font-size="11" fill="#64727e">ACTUAL SIZE · LIGHT / DARK</text>
+    <rect x="24" y="510" width="320" height="48" rx="4" fill="#eef1f3"/>
+    <use href="#01-document-stream" x="112" y="510" width="48" height="48"/>
+    <use href="#01-document-module" x="208" y="510" width="48" height="48"/>
+    <rect x="24" y="566" width="320" height="48" rx="4" fill="#20272e"/>
+    <use href="#01-document-stream" x="112" y="566" width="48" height="48"/>
+    <use href="#01-document-module" x="208" y="566" width="48" height="48"/>
+      <g transform="translate(372)">
+    <text x="80" y="105" text-anchor="middle" font-size="18" font-weight="600">16 px</text>
+    <rect y="118" width="160" height="356" rx="4" fill="#eef1f3"/>
+    <text x="80" y="140" text-anchor="middle" font-size="11" fill="#64727e">STREAM · 4×</text>
+    <use href="#01-document-stream-16" x="48" y="180" width="64" height="64"/>
+    <text x="80" y="316" text-anchor="middle" font-size="11" fill="#64727e">MODULE · 4×</text>
+    <use href="#01-document-module-16" x="48" y="356" width="64" height="64"/>
+    <rect y="510" width="160" height="48" rx="4" fill="#eef1f3"/>
+    <use href="#01-document-stream-16" x="39" y="526" width="16" height="16"/>
+    <use href="#01-document-module-16" x="105" y="526" width="16" height="16"/>
+    <rect y="566" width="160" height="48" rx="4" fill="#20272e"/>
+    <use href="#01-document-stream-16" x="39" y="582" width="16" height="16"/>
+    <use href="#01-document-module-16" x="105" y="582" width="16" height="16"/>
+  </g>
+  <g transform="translate(556)">
+    <text x="80" y="105" text-anchor="middle" font-size="18" font-weight="600">24 px</text>
+    <rect y="118" width="160" height="356" rx="4" fill="#eef1f3"/>
+    <text x="80" y="140" text-anchor="middle" font-size="11" fill="#64727e">STREAM · 4×</text>
+    <use href="#01-document-stream-24" x="32" y="164" width="96" height="96"/>
+    <text x="80" y="316" text-anchor="middle" font-size="11" fill="#64727e">MODULE · 4×</text>
+    <use href="#01-document-module-24" x="32" y="340" width="96" height="96"/>
+    <rect y="510" width="160" height="48" rx="4" fill="#eef1f3"/>
+    <use href="#01-document-stream-24" x="35" y="522" width="24" height="24"/>
+    <use href="#01-document-module-24" x="101" y="522" width="24" height="24"/>
+    <rect y="566" width="160" height="48" rx="4" fill="#20272e"/>
+    <use href="#01-document-stream-24" x="35" y="578" width="24" height="24"/>
+    <use href="#01-document-module-24" x="101" y="578" width="24" height="24"/>
+  </g>
+  <g transform="translate(740)">
+    <text x="80" y="105" text-anchor="middle" font-size="18" font-weight="600">32 px</text>
+    <rect y="118" width="160" height="356" rx="4" fill="#eef1f3"/>
+    <text x="80" y="140" text-anchor="middle" font-size="11" fill="#64727e">STREAM · 4×</text>
+    <use href="#01-document-stream-32" x="16" y="148" width="128" height="128"/>
+    <text x="80" y="316" text-anchor="middle" font-size="11" fill="#64727e">MODULE · 4×</text>
+    <use href="#01-document-module-32" x="16" y="324" width="128" height="128"/>
+    <rect y="510" width="160" height="48" rx="4" fill="#eef1f3"/>
+    <use href="#01-document-stream-32" x="31" y="518" width="32" height="32"/>
+    <use href="#01-document-module-32" x="97" y="518" width="32" height="32"/>
+    <rect y="566" width="160" height="48" rx="4" fill="#20272e"/>
+    <use href="#01-document-stream-32" x="31" y="574" width="32" height="32"/>
+    <use href="#01-document-module-32" x="97" y="574" width="32" height="32"/>
+  </g>
+  </g>
+</svg>

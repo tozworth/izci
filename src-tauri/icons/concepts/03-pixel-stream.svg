@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="izci stream file — pixel file" shape-rendering="crispEdges">
+  <title>Pixel file · Stream</title>
+  <path d="M20 4h64v8h8v8h8v8h8v8h8v88H20Z" fill="#122437"/>
+  <path d="M24 8h56v32h32v80H24Z" fill="#fff8e9"/>
+  <path d="M84 16h4v8h8v8h8v4H84Z" fill="#d8e0e5"/>
+  <path d="M28 12h44v20H28Z" fill="#ff5a1f"/>
+  <path d="M32 16h8v4h-4v4h4v4h-8Zm12 0h8v4h-4v4h4v4h-8Zm12 0h12v4h-4v4h-4v4h-4Z" fill="#122437"/>
+  <path d="M32 68h8V56h8v24h8V44h8v52h8V56h8v24h8V64h8v4h8v8H92v12H76V64h-4v40H56V88H40V76h-8Z" fill="#122437"/>
+  <path d="M56 44h8v60h-8Z" fill="#ff5a1f"/>
+  <path d="M32 112h44v4H32Z" fill="#b9c5cb"/>
+  <path d="M88 100h8v-8h12v4h-8v8h-8v8H80v-4h8Z" fill="#ff5a1f"/>
+</svg>

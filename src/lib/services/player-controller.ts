@@ -6,6 +6,7 @@ import { ImageViewerService } from '$lib/services/image-viewer';
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import { mediaSessionService } from '$lib/services/media-session';
 import { ModulePlayerService } from '$lib/services/module-player';
+import { createPatternChannelControls } from '$lib/services/pattern-channel-controls';
 import { loadTrackMetadata } from '$lib/services/stream-artwork';
 import { VideoPlayerService } from '$lib/services/video-player';
 import { metadataSettings } from '$lib/stores/metadata-settings';
@@ -124,6 +125,13 @@ function createPlayerController() {
   let preparedBundle: PlaybackBundle | null = null;
   let outgoingBundle: PlaybackBundle | null = null;
 
+  const patternChannels = createPatternChannelControls((mutedChannels) => {
+    const track = activeBundle?.track;
+    if (track?.kind !== 'module') return;
+    (isHivelyModule(track) ? activeBundle.hively : activeBundle.module)
+      .setChannelMutes(mutedChannels);
+  });
+
   function publishActiveMediaElements(): void {
     mediaElements.set({
       video: activeBundle.track?.kind === 'video' ? activeBundle.video.element : null,
@@ -185,7 +193,10 @@ function createPlayerController() {
     partial: Partial<ModulePatternSnapshot> | null
   ): void {
     if (bundle !== activeBundle || !partial || bundle.track?.kind !== 'module') {
-      if (bundle === activeBundle) modulePattern.set({ ...initialModulePatternSnapshot });
+      if (bundle === activeBundle) {
+        modulePattern.set({ ...initialModulePatternSnapshot });
+        patternChannels.setTrack(null);
+      }
       return;
     }
 
@@ -194,6 +205,7 @@ function createPlayerController() {
       ...partial,
       trackId: bundle.track?.id ?? null
     }));
+    if (partial.song) patternChannels.setTrack(bundle.track.id, partial.song.channels.length);
   }
 
   function createBundle(): PlaybackBundle {
@@ -525,6 +537,8 @@ function createPlayerController() {
     const incoming = preparedBundle;
     preparedBundle = null;
     activeBundle = incoming;
+    modulePattern.set({ ...initialModulePatternSnapshot });
+    patternChannels.setTrack(null);
     publishActiveMediaElements();
     outgoingBundle = previous;
     desiredPlaybackState = autoPlay ? 'playing' : 'paused';
@@ -573,6 +587,7 @@ function createPlayerController() {
     status,
     currentTrack,
     modulePattern,
+    patternChannels,
     mediaElements,
     get videoElement() {
       return activeBundle.video.element;

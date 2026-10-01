@@ -97,6 +97,12 @@ export interface WorkspaceTabContentProps {
   lyricsTrack: TrackItem | null;
   patternTrack: TrackItem | null;
   modulePatternSnapshot: ModulePatternSnapshot;
+  patternChannelControls: {
+    snapshot: import('$lib/services/pattern-channel-controls').PatternChannelSnapshot;
+    toggleMute: (trackId: string, index: number) => void;
+    toggleSolo: (trackId: string, index: number) => void;
+    reset: (trackId: string) => void;
+  };
   detailsArtwork: LoadedStreamArtwork | null;
   detailsLibraryTargets: TrackLibraryNavigationTargets;
   navigateTrackDetailsToLibrary: (target: TrackLibraryNavigationTarget) => void;

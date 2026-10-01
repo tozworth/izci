@@ -3,7 +3,16 @@ import { loadEmbeddedStreamArtwork } from './stream-artwork';
 import { loadTrackLyrics } from './lyrics';
 import type { TrackItem } from '$lib/types';
 
-afterEach(() => vi.unstubAllGlobals());
+const { materializePlatformFile, preparePlaybackRestoration } = vi.hoisted(() => ({
+  materializePlatformFile: vi.fn(), preparePlaybackRestoration: vi.fn()
+}));
+vi.mock('$platform', () => ({ isDesktop: true, materializePlatformFile, preparePlaybackRestoration }));
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  materializePlatformFile.mockReset();
+  preparePlaybackRestoration.mockReset();
+});
 const encoder = new TextEncoder();
 const concatenate = (...chunks: Uint8Array[]): Uint8Array<ArrayBuffer> => {
   const result = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
@@ -24,13 +33,13 @@ function picture(type: number, data: Uint8Array) {
 function block(type: number, bytes: Uint8Array, last = false) {
   return concatenate(new Uint8Array([type | (last ? 0x80 : 0), bytes.length >> 16, bytes.length >> 8, bytes.length]), bytes);
 }
-function ogg(packets: Uint8Array[]) {
+function ogg(packets: Uint8Array[], maxPageSegments = 255) {
   const pages: Uint8Array[] = [];
   for (const packet of packets) {
     const laces = [...Array(Math.floor(packet.length / 255)).fill(255), packet.length % 255];
     let offset = 0;
-    for (let index = 0; index < laces.length; index += 255) {
-      const segments = laces.slice(index, index + 255);
+    for (let index = 0; index < laces.length; index += maxPageSegments) {
+      const segments = laces.slice(index, index + maxPageSegments);
       const length = segments.reduce((sum, n) => sum + n, 0);
       const header = new Uint8Array(27);
       header.set(encoder.encode('OggS'));
@@ -59,6 +68,47 @@ function reads(file: File) {
 }
 
 describe('ranged embedded artwork', () => {
+  it.each(['flac', 'opus'])('reads artwork from restored native %s paths without playback', async (extension) => {
+    const cover = new Uint8Array([1, 2, 3, 4]);
+    const encoded = btoa(String.fromCharCode(...picture(3, cover)));
+    const bytes = extension === 'flac'
+      ? concatenate(encoder.encode('fLaC'), block(6, picture(3, cover), true))
+      : ogg([encoder.encode('OpusHead'), opusComments([encoder.encode(`METADATA_BLOCK_PICTURE=${encoded}`)])]);
+    const file = new File([bytes], `restored.${extension}`);
+    const restored = { ...track(file), file: undefined, desktopFile: true as const, path: `C:/Music/${file.name}` };
+    materializePlatformFile.mockResolvedValue(file);
+
+    const artwork = await loadEmbeddedStreamArtwork(restored);
+
+    expect(materializePlatformFile).toHaveBeenCalledWith(restored.path);
+    expect(new Uint8Array(await artwork!.blob.arrayBuffer())).toEqual(cover);
+    expect(restored.file).toBeUndefined();
+  });
+
+  it('distinguishes an unavailable source from a readable file without artwork', async () => {
+    const file = new File([encoder.encode('fLaC'), block(1, new Uint8Array(8), true)], 'empty.flac');
+    await expect(loadEmbeddedStreamArtwork(track(file))).resolves.toBeNull();
+    await expect(loadEmbeddedStreamArtwork({ ...track(file), file: undefined })).rejects.toThrow();
+    const fileHandle = { getFile: vi.fn().mockRejectedValue(new Error('Permission unavailable')) } as unknown as FileSystemFileHandle;
+    await expect(loadEmbeddedStreamArtwork({ ...track(file), file: undefined, fileHandle })).rejects.toThrow('Permission unavailable');
+    await expect(loadEmbeddedStreamArtwork({ ...track(file), fileHandle })).resolves.toBeNull();
+  });
+
+  it('restores desktop handle permissions before reading artwork without starting playback', async () => {
+    const cover = new Uint8Array([1, 2, 3]);
+    const file = new File([concatenate(encoder.encode('fLaC'), block(6, picture(3, cover), true))], 'saved.flac');
+    let granted = false;
+    const fileHandle = { getFile: vi.fn(async () => {
+      if (!granted) throw new Error('Permission unavailable');
+      return file;
+    }) } as unknown as FileSystemFileHandle;
+    const saved = { ...track(file), file: undefined, fileHandle };
+    preparePlaybackRestoration.mockImplementation(async () => { granted = true; });
+    const artwork = await loadEmbeddedStreamArtwork(saved);
+    expect(preparePlaybackRestoration).toHaveBeenCalledWith(saved);
+    expect(new Uint8Array(await artwork!.blob.arrayBuffer())).toEqual(cover);
+  });
+
   it('skips FLAC padding and audio and prefers the front cover over a fallback', async () => {
     const cover = new Uint8Array([1, 2, 3, 4]);
     const file = new File([concatenate(encoder.encode('fLaC'), block(6, picture(4, new Uint8Array([9]))),
@@ -83,6 +133,17 @@ describe('ranged embedded artwork', () => {
     expect(new Uint8Array(await artwork!.blob.arrayBuffer())).toEqual(cover);
     expect(io.full).not.toHaveBeenCalled();
     expect(io.total()).toBeLessThan(40 * 1024);
+  });
+
+  it('reads pictures starting partway through small continued OpusTags pages', async () => {
+    const cover = new Uint8Array(6000).fill(7);
+    const encoded = btoa(String.fromCharCode(...picture(3, cover)));
+    const tags = opusComments([encoder.encode(`LYRICS=${'x'.repeat(5000)}`),
+      encoder.encode(`METADATA_BLOCK_PICTURE=${encoded}`)]);
+    const file = new File([ogg([encoder.encode('OpusHead'), tags], 32)], 'small-pages.opus');
+    const artwork = await loadEmbeddedStreamArtwork(track(file));
+    expect(artwork).not.toBeNull();
+    expect(new Uint8Array(await artwork!.blob.arrayBuffer())).toEqual(cover);
   });
 
   it('handles truncated pictures and malformed page lengths without reading the whole file', async () => {

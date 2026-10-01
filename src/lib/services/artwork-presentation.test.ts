@@ -131,6 +131,24 @@ describe('artwork presentation helpers', () => {
     controller.destroy();
   });
 
+  it('retries Details artwork when the selected track is materialized without changing selection', async () => {
+    const artwork = { url: 'blob:ready', mediaImage: { src: 'blob:ready' } };
+    const controller = createArtworkPresentationController({
+      resolveTrackSnapshot: (track) => track,
+      isPlaybackDetailsPending: () => false,
+      loadArtwork: (track) => Promise.resolve(track?.file ? artwork : null)
+    });
+    const restored = item('restored');
+    controller.syncSelection(restored, true);
+    await controller.syncDetailsDisplay();
+    expect(controller.getSnapshot().visibleDetailsArtwork).toBeNull();
+
+    controller.syncSelection({ ...restored, file: new File(['a'], restored.name) }, true);
+    await controller.syncDetailsDisplay();
+    expect(controller.getSnapshot().visibleDetailsArtwork).toBe(artwork);
+    controller.destroy();
+  });
+
   it('reloads artwork for the same track when its external artwork key changes', async () => {
     let artworkVersion = 'missing';
     const controller = createArtworkPresentationController({

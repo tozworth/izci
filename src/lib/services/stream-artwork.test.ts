@@ -128,9 +128,14 @@ function item(overrides: Partial<TrackItem>): TrackItem {
 }
 
 describe('stream artwork metadata helpers', () => {
-  it('uses stable item ids as artwork load keys', () => {
+  it('keeps artwork load keys stable across metadata and File wrapper changes', () => {
     expect(getTrackArtworkLoadKey(null)).toBe('');
-    expect(getTrackArtworkLoadKey(item({ id: 'stable-id' }))).toBe('stable-id');
+    const track = item({ id: 'stable-id', file: new File(['a'], 'cover.flac') });
+    expect(getTrackArtworkLoadKey(track)).toBe(getTrackArtworkLoadKey({
+      ...track, file: new File(['a'], 'cover.flac'), metadata: { title: 'Updated' }
+    }));
+    expect(getTrackArtworkLoadKey(track)).not.toBe(getTrackArtworkLoadKey({ ...track, file: undefined }));
+    expect(getTrackArtworkLoadKey(track)).not.toBe(getTrackArtworkLoadKey({ ...track, lastModified: 2 }));
   });
 
   it('loads textual metadata from FLAC Vorbis comments', async () => {

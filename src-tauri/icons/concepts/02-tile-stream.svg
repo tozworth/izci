@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="izci stream file — media tile">
+  <title>Media tile · Stream</title>
+  <defs>
+    <path id="segment" d="M246 88A168 168 0 0 0 88 246h104a64 64 0 0 1 54-54Z"/>
+    <mask id="notches"><use href="#segment" fill="#fff"/><path d="m137 171 18-18 20 20-18 18Zm28 28 18-18 20 20-18 18Zm28 28 18-18 20 20-18 18Z" fill="#000"/></mask>
+    <g id="mark" fill="#fff8e9"><g mask="url(#notches)"><use href="#segment"/></g><g transform="rotate(-90 256 256)" mask="url(#notches)"><use href="#segment"/></g><g transform="rotate(180 256 256)" mask="url(#notches)"><use href="#segment"/></g><path d="M254 191A65 65 0 0 0 191 254h28a37 37 0 0 1 50-34L424 76l-91 179a83 83 0 0 1-79 66v-28a55 55 0 0 0 48-34l46-91-74 69a65 65 0 0 0-20-9Z" fill="#ff5a1f"/><circle cx="256" cy="256" r="14" fill="#ff5a1f"/></g>
+  </defs>
+  <path d="M20 9h68l31 31v68a11 11 0 0 1-11 11H20a11 11 0 0 1-11-11V20A11 11 0 0 1 20 9Z" fill="#122437" stroke="#fff8e9" stroke-width="2"/>
+  <path d="M89 10v29h29" fill="#2a4054"/>
+  <use href="#mark" transform="translate(12 12) scale(.0625)"/>
+  <path d="M29 70a35 35 0 0 1 68 0m-68 0a35 35 0 0 0 68 0" fill="none" stroke="#fff8e9" stroke-width="6"/>
+  <path d="M39 70a25 25 0 0 1 48-8m-48 8a25 25 0 0 0 48 8" fill="none" stroke="#fff8e9" stroke-opacity=".35" stroke-width="3"/>
+  <path d="M23 70h20l7-14 8 28 10-36 9 28 7-6h21" fill="none" stroke="#122437" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M23 70h20l7-14 8 28 10-36 9 28 7-6h21" fill="none" stroke="#ff5a1f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

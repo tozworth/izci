@@ -5,6 +5,8 @@ mod associations;
 #[allow(dead_code)]
 #[path = "../src/desktop_files.rs"]
 mod desktop_files;
+#[path = "../src/file_icons.rs"]
+mod file_icons;
 
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use webview2_com::CallDevToolsProtocolMethodCompletedHandler;

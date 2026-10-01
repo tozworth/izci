@@ -81,6 +81,15 @@ current path is refreshed at launch; no installer or administrator rights are
 required. `scripts/sync-desktop-formats.mjs` generates Rust's format map from
 `src/lib/types.ts` during the desktop frontend build.
 
+File icons are embedded in the EXE: every stream and AHX/HVL/MPTM/MOD/S3M/XM/IT/MO3
+has an extension-labelled document, other modules share an underlined document,
+and videos/images retain the application icon. `npm run desktop:icons` regenerates
+the outlined SVGs and multi-resolution ICOs from `src-tauri/icons/file-types/`;
+16/24/32 px use simplified artwork without labels. Desktop frontend builds run
+this generator automatically. Existing defaults pointing to a shared stream or
+module ProgID may need selecting izci again in Windows Default Apps to use a new
+extension-specific registration. Registration never rewrites that user choice.
+
 Single-instance activation delivers Explorer/command-line files to the playback
 owner, honoring the existing associated-file add/replace preference. WebView2's
 file-input bridge yields real disk-backed Chromium Files without copying media
@@ -88,7 +97,53 @@ bytes through IPC. Native path references persist in queue/library IndexedDB and
 materialize on demand; directory handles and picker imports continue using real
 File System Access handles. The browser build rejects native references.
 
-Validation:
+## Invisible debugging
+
+"Start headless tauri" is the project shorthand for:
+
+```powershell
+npm run desktop:headless -- start
+npm run desktop:headless -- status
+npm run desktop:headless -- eval --expression "({title: document.title, ready: document.readyState, headless: window.__izciHeadless})"
+npm run desktop:headless -- probe --entry scripts/desktop/headless/artwork.ts
+npm run desktop:headless -- stop
+```
+
+`start` mounts the packaged main app in a resident hidden, muted WebView2 window.
+It copies `%LOCALAPPDATA%/app.izci.desktop/EBWebView` into a new
+`.local/desktop-headless/sessions/` directory. The normal player, its executable,
+and its profile remain untouched. Media files are still the real files referenced
+by the copied handles/paths: probes should read them, not edit them. Saved autoplay
+and Multiplayer restoration are disabled only in the copy; system media-key
+integration, native registry/tray/focus operations, and popups are suppressed.
+This harness tests the main runtime and its real native file/permission bridge;
+it is not a test of native window presentation or multi-window shell behavior.
+
+An unchanged build is reused, and `start` reuses an already-running session when
+its source fingerprint is current. Source edits automatically replace the harness
+with a fresh build/profile copy. Use `start --fresh` to take a new profile snapshot
+even when the code is unchanged. Changes while
+the snapshot is copied can make it inconsistent; copy/launch failures are reported
+without closing the ordinary player. No dev server, browser debugging port, mouse,
+or keyboard automation is involved.
+
+`eval --script <file.js>` evaluates a script in the mounted app. Expressions may
+return promises. `probe --entry <file.ts>` bundles a module exporting `run()` with
+the desktop aliases, so it can exercise actual services/stores rather than rebuild
+their logic. The checked-in artwork probe verifies extraction, image decoding,
+album thumbnails, Details state, and independently checks missing covers. Probes
+that return a `summary` print it concisely; their full results remain in the response file.
+Bundled probes have their own module instances. Use `eval` and DOM events to
+inspect/control the mounted app; do not import singleton playback owners into probes.
+Results and native logs stay in the session directory; command responses include
+their saved response path. Requests time out after 30 seconds (override with
+`--timeout <seconds>`, up to 300), but the session
+remains available and long probes can finish into that response file. Do not dump
+signaling credentials, keys, tokens, SDP, or other secrets into diagnostic results.
+Sessions use a local file inbox; `stop` exits only the harness and preserves its
+profile/results for inspection. A failed or stale session is replaced on next start.
+
+## Validation
 
 ```powershell
 npm run build

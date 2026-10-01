@@ -45,6 +45,15 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
         case 'interpolation':
           this.exports?.ahx_set_interpolation(message.filter);
           break;
+        case 'channel-mutes': {
+          const core = this.exports;
+          if (!core) break;
+          const muted = Array.isArray(message.muted) ? message.muted : [];
+          for (let channel = 0; channel < core.ahx_channel_count(); channel++) {
+            core.ahx_set_channel_mute(channel, muted[channel] === true ? 1 : 0);
+          }
+          break;
+        }
         case 'dispose':
           this.exports?.ahx_unload();
           this.exports = null;

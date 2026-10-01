@@ -39,6 +39,7 @@ export class ModulePlayerService {
   #lastPublishedRow = -1;
   #settings = modulePlaybackSettings.getSnapshot();
   #transitionGain = 1;
+  #channelMutes: boolean[] = [];
   #onSnapshot: SnapshotHandler;
   #onMetadata: MetadataHandler;
   #onPattern: PatternHandler;
@@ -66,6 +67,7 @@ export class ModulePlayerService {
     const loadToken = ++this.#loadToken;
     this.#buffer = null;
     this.#trackExtension = track.extension.toLowerCase();
+    this.#channelMutes = [];
     this.#playing = false;
     this.#started = false;
     this.#currentTime = 0;
@@ -165,6 +167,7 @@ export class ModulePlayerService {
     this.#subsongCount = 1;
     this.#buffer = null;
     this.#trackExtension = null;
+    this.#channelMutes = [];
     this.#resetPublishedProgress();
     this.#onPattern(null);
     this.#disposePlayer();
@@ -235,6 +238,11 @@ export class ModulePlayerService {
   setTransitionGain(gain: number, durationSeconds = 0): void {
     this.#transitionGain = Math.max(gain, 0);
     audioBusService.setSourceGain(this.#player?.gain ?? null, this.#transitionGain, durationSeconds);
+  }
+
+  setChannelMutes(muted: boolean[]): void {
+    this.#channelMutes = [...muted];
+    if (this.#started) this.#player?.setChannelMutes(this.#channelMutes);
   }
 
   async #createPlayer(loadToken: number = this.#loadToken): Promise<ChiptuneJsPlayer> {
@@ -341,6 +349,7 @@ export class ModulePlayerService {
 
     this.#player.setTempo(this.#settings.tempoFactor);
     this.#player.setPitch(this.#settings.pitchFactor);
+    this.#player.setChannelMutes(this.#channelMutes);
   }
 
   #attachHandlers(player: ChiptuneJsPlayer, loadToken: number): void {

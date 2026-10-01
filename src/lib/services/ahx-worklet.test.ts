@@ -63,6 +63,22 @@ describe('AHX AudioWorklet', () => {
     expect(filters).toEqual([8]);
   });
 
+  it('applies channel masks and clears any channels missing from a later mask', async () => {
+    const Processor = loadProcessor();
+    const player = new Processor();
+    const mutes: number[][] = [];
+    player.exports = {
+      memory: { buffer: new ArrayBuffer(0) },
+      ahx_channel_count: () => 4,
+      ahx_set_channel_mute: (channel: number, muted: number) => mutes.push([channel, muted])
+    };
+    await player.handleMessage({ type: 'channel-mutes', muted: [false, true, true, false] });
+    expect(mutes).toEqual([[0, 0], [1, 1], [2, 1], [3, 0]]);
+    mutes.length = 0;
+    await player.handleMessage({ type: 'channel-mutes', muted: [] });
+    expect(mutes).toEqual([[0, 0], [1, 0], [2, 0], [3, 0]]);
+  });
+
   it('publishes compact pattern data and deduplicated playback positions', () => {
     const Processor = loadProcessor();
     const player = new Processor();

@@ -5,6 +5,7 @@ compile_error!("The izci desktop MVP currently supports Windows only.");
 
 mod associations;
 mod desktop_files;
+mod file_icons;
 mod fonts;
 mod playback_restoration;
 mod player_windows;

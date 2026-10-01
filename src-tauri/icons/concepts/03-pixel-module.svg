@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="izci module file — pixel file" shape-rendering="crispEdges">
+  <title>Pixel file · Module</title>
+  <path d="M20 4h64v8h8v8h8v8h8v8h8v88H20Z" fill="#122437"/>
+  <path d="M24 8h56v32h32v80H24Z" fill="#fff8e9"/>
+  <path d="M84 16h4v8h8v8h8v4H84Z" fill="#d8e0e5"/>
+  <path d="M28 12h44v20H28Z" fill="#ff5a1f"/>
+  <path d="M32 16h8v4h-4v4h4v4h-8Zm12 0h8v4h-4v4h4v4h-8Zm12 0h12v4h-4v4h-4v4h-4Z" fill="#122437"/>
+  <path d="M32 44h72v56H32Z" fill="#122437"/>
+  <path d="M52 44h4v56h-4Zm24 0h4v56h-4ZM32 60h72v4H32Zm0 20h72v4H32Z" fill="#425566"/>
+  <path d="M36 48h12v8H36Zm48 0h16v8H84ZM60 88h12v8H60Z" fill="#fff8e9"/>
+  <path d="M28 64h80v16H28Z" fill="#ff5a1f"/>
+  <path d="M36 68h12v8H36Zm24 0h12v8H60Zm24 0h16v8H84Z" fill="#122437"/>
+  <path d="M32 112h44v4H32Z" fill="#b9c5cb"/>
+  <path d="M88 100h8v-8h12v4h-8v8h-8v8H80v-4h8Z" fill="#ff5a1f"/>
+</svg>

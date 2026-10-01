@@ -1,0 +1,16 @@
+[
+  { "name": "module", "kind": "module", "extension": null, "resourceId": 32600 },
+  { "name": "mp3", "kind": "stream", "extension": "mp3", "resourceId": 32601 },
+  { "name": "wav", "kind": "stream", "extension": "wav", "resourceId": 32602 },
+  { "name": "flac", "kind": "stream", "extension": "flac", "resourceId": 32603 },
+  { "name": "ogg", "kind": "stream", "extension": "ogg", "resourceId": 32604 },
+  { "name": "opus", "kind": "stream", "extension": "opus", "resourceId": 32605 },
+  { "name": "ahx", "kind": "module", "extension": "ahx", "resourceId": 32606 },
+  { "name": "hvl", "kind": "module", "extension": "hvl", "resourceId": 32607 },
+  { "name": "mptm", "kind": "module", "extension": "mptm", "resourceId": 32608 },
+  { "name": "mod", "kind": "module", "extension": "mod", "resourceId": 32609 },
+  { "name": "s3m", "kind": "module", "extension": "s3m", "resourceId": 32610 },
+  { "name": "xm", "kind": "module", "extension": "xm", "resourceId": 32611 },
+  { "name": "it", "kind": "module", "extension": "it", "resourceId": 32612 },
+  { "name": "mo3", "kind": "module", "extension": "mo3", "resourceId": 32613 }
+]

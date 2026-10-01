@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
-import type { PlaybackSnapshot, TrackItem, TrackMetadata } from '$lib/types';
+import type { ModulePatternSnapshot, PlaybackSnapshot, TrackItem, TrackMetadata } from '$lib/types';
 
 const harness = vi.hoisted(() => {
   interface PendingLoad {
@@ -37,6 +37,7 @@ const harness = vi.hoisted(() => {
     snapshotCallback: ((partial: Partial<PlaybackSnapshot>) => void) | undefined;
     metadataCallback: ((metadata: TrackMetadata) => void) | undefined;
     endedCallback: (() => void) | undefined;
+    patternCallback: ((partial: Partial<ModulePatternSnapshot> | null) => void) | undefined;
     load = vi.fn((track: TrackItem) => new Promise<void>((resolve, reject) => {
       pendingLoads.push({ instance: this, track, resolve, reject });
     }));
@@ -49,6 +50,7 @@ const harness = vi.hoisted(() => {
     setPlaybackRate = vi.fn();
     setTransitionGain = vi.fn();
     setVolume = vi.fn();
+    setChannelMutes = vi.fn();
     setFallbackVolume = vi.fn();
     applySettings = vi.fn(() => Promise.resolve());
     stepSubsong = vi.fn(() => null);
@@ -61,6 +63,9 @@ const harness = vi.hoisted(() => {
       if (this.role === 'video') this.element = {} as HTMLVideoElement;
       this.snapshotCallback = callbacks[0] as ((partial: Partial<PlaybackSnapshot>) => void);
       this.metadataCallback = callbacks[1] as ((metadata: TrackMetadata) => void);
+      if (this.role === 'module' || this.role === 'hively') {
+        this.patternCallback = callbacks[2] as ((partial: Partial<ModulePatternSnapshot> | null) => void);
+      }
       this.endedCallback = callbacks.at(-1) as (() => void);
       instances.push(this);
     }
@@ -234,6 +239,28 @@ afterAll(() => {
 });
 
 describe('player controller supersession characterization', () => {
+  it.each(['module', 'hively'] as const)('routes %s channel controls to the active tracker only', async (backend) => {
+    const loaded = await loadInitial('tracker', backend);
+    const song = { channels: ['', '', '', ''], instruments: [], samples: [], orders: [], patterns: [], numSubsongs: 1 };
+    loaded.instance.patternCallback?.({ song });
+    playerController.patternChannels.toggleSolo('tracker', 1);
+    expect(loaded.instance.setChannelMutes).toHaveBeenLastCalledWith([true, false, true, true]);
+    const preparing = playerController.prepareNext(backendTrack('next', backend));
+    await flushUntilPending('next');
+    const next = resolvePending('next');
+    next.instance.patternCallback?.({ song });
+    await preparing;
+    expect(get(playerController.patternChannels.state).trackId).toBe('tracker');
+    expect(next.instance.setChannelMutes).not.toHaveBeenCalled();
+    playerController.commitPrepared('next');
+    expect(get(playerController.patternChannels.state).channels).toEqual([]);
+    next.instance.patternCallback?.({ song });
+    playerController.patternChannels.toggleMute('tracker', 0);
+    expect(next.instance.setChannelMutes).toHaveBeenLastCalledWith([false, false, false, false]);
+    playerController.patternChannels.toggleMute('next', 2);
+    expect(next.instance.setChannelMutes).toHaveBeenLastCalledWith([false, false, true, false]);
+  });
+
   it('commits only C when crossfade preparation A then B then C resolves out of order', async () => {
     await loadInitial();
     const transitions = [] as Array<Promise<void>>;
