@@ -1,4 +1,5 @@
 import type { MultiplayerSettings } from '$lib/types';
+import { isDesktop } from '$platform';
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
 const MULTIPLAYER_SETTINGS_STORAGE_KEY = 'izci.multiplayer-settings';
@@ -45,6 +46,12 @@ function normalizeSingleLine(value: unknown, maxLength: number): string {
 const defaultIzciName = createDefaultIzciName();
 
 export const DEFAULT_MULTIPLAYER_SETTINGS: MultiplayerSettings = {
+  multiplayerSignaling: isDesktop ? 'builtin' : 'external',
+  multiplayerBuiltinPort: 8787,
+  multiplayerBuiltinPublicUrl: '',
+  multiplayerBuiltinUpnp: false,
+  multiplayerBuiltinIceUrls: 'stun:stun.l.google.com:19302',
+  multiplayerBuiltinAllowedOrigins: '',
   multiplayer: false,
   izciName: defaultIzciName,
   multiplayerServerEndpoint: '',
@@ -114,6 +121,13 @@ export function normalizeMultiplayerSettings(value: unknown): MultiplayerSetting
     : {};
 
   return {
+    multiplayerSignaling: source.multiplayerSignaling === 'builtin' || source.multiplayerSignaling === 'external'
+      ? source.multiplayerSignaling : DEFAULT_MULTIPLAYER_SETTINGS.multiplayerSignaling,
+    multiplayerBuiltinPort: normalizeBoundedInteger(source.multiplayerBuiltinPort, 8787, 1, 65535),
+    multiplayerBuiltinPublicUrl: normalizeSingleLine(source.multiplayerBuiltinPublicUrl, 512),
+    multiplayerBuiltinUpnp: normalizeBoolean(source.multiplayerBuiltinUpnp, false),
+    multiplayerBuiltinIceUrls: normalizeSingleLine(source.multiplayerBuiltinIceUrls, 2048),
+    multiplayerBuiltinAllowedOrigins: normalizeSingleLine(source.multiplayerBuiltinAllowedOrigins, 2048),
     multiplayer: normalizeBoolean(source.multiplayer, DEFAULT_MULTIPLAYER_SETTINGS.multiplayer),
     izciName: normalizeIzciName(source.izciName, defaultIzciName),
     multiplayerServerEndpoint: typeof source.multiplayerServerEndpoint === 'string'

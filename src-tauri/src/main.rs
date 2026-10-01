@@ -9,6 +9,8 @@ mod file_icons;
 mod fonts;
 mod playback_restoration;
 mod player_windows;
+mod signaling;
+mod signaling_transport;
 mod tray;
 mod window_lifecycle;
 mod window_presentation;
@@ -87,6 +89,8 @@ fn main() {
             });
         }))
         .manage(window_lifecycle::WindowLifecycle::default())
+        .manage(signaling::Signaling::default())
+        .manage(signaling_transport::Transport::default())
         .manage(window_state::WindowState::default())
         .manage(player_windows::PlayerWindowMode::default())
         .manage(desktop_files::LaunchFiles(std::sync::Mutex::new(
@@ -106,6 +110,12 @@ fn main() {
             restore_main_window,
             pin_mini_player,
             exit_desktop,
+            signaling::start_builtin_signaling,
+            signaling::stop_builtin_signaling,
+            signaling_transport::signaling_http,
+            signaling_transport::cancel_signaling_http,
+            signaling_transport::open_signaling_socket,
+            signaling_transport::send_signaling_socket,
             playback_restoration::prepare_desktop_playback_restoration,
             window_presentation::desktop_window_ready,
             window_presentation::present_desktop_popup,

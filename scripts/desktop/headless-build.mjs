@@ -49,7 +49,7 @@ export function sourceFingerprint(root) {
       else if (entry.isFile()) { hash.update(next); hash.update(readFileSync(join(root, next))); }
     }
   }
-  for (const directory of ['src', 'src-tauri', 'public', 'scripts']) visit(directory);
+  for (const directory of ['src', 'src-tauri', 'izci-server', 'public', 'scripts']) visit(directory);
   for (const file of ['package.json', 'package-lock.json', 'vite.config.ts', 'tsconfig.json', 'svelte.config.js']) {
     if (existsSync(join(root, file))) { hash.update(file); hash.update(readFileSync(join(root, file))); }
   }

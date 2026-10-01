@@ -174,6 +174,11 @@ function buildMultiplayerMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
         label: deps.translate('main.multiplayer.stopHosting', { default: 'Stop hosting' }),
         icon: 'stop_circle'
       },
+      ...(deps.multiplayerInviteCode ? [{
+        id: 'multiplayerHostWithCode',
+        label: deps.translate('main.multiplayer.server.manageParty', { default: 'Manage party and invitation' }),
+        icon: 'settings'
+      } satisfies MenuActionItem] : []),
       {
         id: 'multiplayerFreeplayPreference',
         label: deps.translate('main.multiplayer.freeplay.label', { default: 'Freeplay' }),

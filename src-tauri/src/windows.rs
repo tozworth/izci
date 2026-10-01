@@ -33,7 +33,11 @@ pub fn builder<'a>(
         // Keep transport timers running while the playback owner is minimized.
         // Retain Wry's default disabled browser UI features when adding arguments.
         .additional_browser_args("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows")
-        .on_page_load(|window, _| {
+        .on_page_load(|window, payload| {
+            if window.label() == "main" && payload.event() == tauri::webview::PageLoadEvent::Started {
+                crate::signaling_transport::stop(window.app_handle());
+                crate::signaling::stop(window.app_handle(), None);
+            }
             // Initial native surfaces and prewarmed Options are hidden. Their
             // startup timers still run with the WebView controller hidden.
             crate::window_resources::set_active(&window, window.is_visible().unwrap_or(false));

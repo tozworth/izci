@@ -33,6 +33,8 @@ import type {
   MultiplayerCollection
 } from './multiplayer-protocol';
 import { closeServerHostRoom } from './multiplayer-server-host';
+import { isDesktop, stopBuiltinSignaling } from '$platform';
+import { serverSetup } from './multiplayer-server-setup';
 
 export function createMultiplayerSession({
   handleHostCommand,
@@ -280,6 +282,8 @@ export function createMultiplayerSession({
       } catch {
         // The lease lapses server-side; local state is already cleared.
       }
+      if (isDesktop) await stopBuiltinSignaling(serverHost.room.endpoint).catch(() => undefined);
+      serverSetup.clearHosted(serverHost.room.endpoint);
     }
     core.lastCatalogSources = null;
     core.lastPlaybackSource = null;
@@ -395,14 +399,14 @@ export function createMultiplayerSession({
     if (core.state.mode !== 'idle') return core.state.mode;
     const last = multiplayerLastSession.getSnapshot();
     if (!last) return null;
-    // Hosting stops at login after reload. Guests restore only when the
+    // Hosting requires an explicit start after reload. Guests restore only when the
     // invitation was explicitly retained on this device.
     if (last.mode === 'hosting') {
       core.publish({
         mode: 'idle',
         connectionStatus: 'idle',
-        connectionDetail: 'Open Server setup to log in and resume hosting.',
-        message: 'Open Server setup to log in and resume hosting.'
+        connectionDetail: 'Start hosting again from the Multiplayer menu.',
+        message: 'Start hosting again from the Multiplayer menu.'
       });
       return 'idle' as const;
     }

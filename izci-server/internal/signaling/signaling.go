@@ -86,6 +86,7 @@ type Server struct {
 	proxies []netip.Prefix
 	allowed map[string]struct{}
 	closed  atomic.Bool
+	owned   bool
 
 	// now is the clock for expiry. Tests inject a manual clock via
 	// NewWithClock; production uses time.Now.
@@ -247,7 +248,13 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 	s.markShuttingDown()
 	s.logger.Printf("izci-server shutting down")
 	if err := srv.Shutdown(shutCtx); err != nil {
+		// Shutdown can time out on slow or speculative HTTP connections. Always
+		// close those connections before releasing the process-owned listener.
+		_ = srv.Close()
 		close(cleanupDone)
+		if s.owned && errors.Is(err, context.DeadlineExceeded) {
+			return nil
+		}
 		return err
 	}
 	err := <-errCh

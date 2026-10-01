@@ -10,6 +10,9 @@
   import { describeServerEndpoint } from '$lib/services/multiplayer-server-invite';
 import ServerJoinChoices from './ServerJoinChoices.svelte';
 import SettingsField from '$lib/components/options/SettingsField.svelte';
+  import { isDesktop } from '$platform';
+  import SignalingSettings from './SignalingSettings.svelte';
+  import BuiltinSignalingStatus from './BuiltinSignalingStatus.svelte';
 
   export let mode: 'full' | 'config' = 'full';
 
@@ -18,6 +21,7 @@ import SettingsField from '$lib/components/options/SettingsField.svelte';
   let copyTimer: number | null = null;
 
   $: setup = $serverSetup;
+  $: builtin = isDesktop && $multiplayerSettings.multiplayerSignaling === 'builtin';
   $: myRecents = $serverRecents.filter(
     (entry) => !setup.endpoint || entry.endpoint === setup.endpoint
   );
@@ -106,7 +110,11 @@ import SettingsField from '$lib/components/options/SettingsField.svelte';
 </script>
 
 <div class="server-setup" class:config={mode === 'config'}>
+  {#if !setup.pendingInvitation && !setup.hosted}
+    <SignalingSettings config={mode === 'config'} disabled={setup.busy !== null} />
+  {/if}
   {#if mode === 'config'}
+    {#if !builtin}
     <SettingsField
       title={$t('options.multiplayer.server.serverLabel', { default: 'Server address' })}
       controlClass="server-address-control"
@@ -228,9 +236,11 @@ import SettingsField from '$lib/components/options/SettingsField.svelte';
         })}
       />
     </SettingsField>
+    {/if}
   {:else}
     {#if setup.hosted}
       <section aria-label={$t('options.multiplayer.server.loginTitle', { default: 'Host login' })}>
+          <BuiltinSignalingStatus />
           <p class="field-hint">{$t('options.multiplayer.server.hostInviteHint', { default: '' })}</p>
           {#if setup.inviteLink}
             <div class="row">
@@ -249,11 +259,13 @@ import SettingsField from '$lib/components/options/SettingsField.svelte';
             <button type="button" disabled={setup.busy !== null} on:click={closeRoom}>
               {$t('options.multiplayer.server.closeRoom', { default: 'Close room' })}
             </button>
-            <button type="button" class="quiet" disabled={setup.busy !== null} on:click={logout}>
-              {$t('options.multiplayer.server.logout', { default: 'Log out' })}
-            </button>
           </div>
       </section>
+    {:else if builtin && !setup.pendingInvitation}
+      <button type="button" disabled={setup.busy !== null} on:click={() => serverSetup.hostConfigured().catch(() => undefined)}>
+        {$t('main.multiplayer.host')}
+      </button>
+      {#if setup.error}<p class="error" role="alert">{setup.error}</p>{/if}
     {:else if setup.hasLogin}
       <section aria-label={$t('options.multiplayer.server.loginTitle', { default: 'Host login' })}>
           {#if setup.dedicatedInviteLink}
@@ -340,7 +352,7 @@ import SettingsField from '$lib/components/options/SettingsField.svelte';
       </section>
     {/if}
 
-  <section aria-label={$t('options.multiplayer.server.forceRelay', { default: 'Prefer relayed routes' })}>
+  {#if !builtin && !setup.pendingInvitation}<section aria-label={$t('options.multiplayer.server.forceRelay', { default: 'Prefer relayed routes' })}>
     <label class="check">
       <input
         type="checkbox"
@@ -352,7 +364,7 @@ import SettingsField from '$lib/components/options/SettingsField.svelte';
       {$t('options.multiplayer.server.forceRelay', { default: 'Prefer relayed routes' })}
     </label>
     <p class="field-hint">{$t('options.multiplayer.server.forceRelayHint', { default: '' })}</p>
-  </section>
+  </section>{/if}
 
   {/if}
 </div>

@@ -24,6 +24,10 @@ function makePayload(overrides: { endpoint?: string; roomId?: string; secret?: s
 }
 
 describe('server invitations', () => {
+  it('uses a shareable web origin for desktop-generated invitations', () => {
+    const link = buildServerInviteLink({ endpoint: 'https://signal.example.com', roomId: ROOM, secret: SECRET, title: null }, 'https://tauri.localhost');
+    expect(link).toMatch(/^https:\/\/izci\.xn--ala-hsa\.net\//);
+  });
   it('round-trips a minimal invitation', () => {
     const raw = buildServerInvitationPayload({
       endpoint: 'https://server.example.com/',
@@ -102,7 +106,7 @@ describe('server invitations', () => {
 
   it('requires HTTPS outside loopback and rejects smuggled parts', () => {
     expect(() => normalizeServerInviteEndpoint('http://server.example.com')).toThrowError(
-      expect.objectContaining({ code: 'bad-endpoint' })
+      expect.objectContaining({ code: 'desktop-required' })
     );
     expect(normalizeServerInviteEndpoint('http://127.0.0.1:8787/')).toBe('http://127.0.0.1:8787');
     expect(normalizeServerInviteEndpoint('http://localhost:8787/prefix/')).toBe(

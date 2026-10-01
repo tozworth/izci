@@ -14,6 +14,7 @@ import {
   ServerInviteError
 } from '$lib/services/multiplayer-server-invite';
 import { serverSetup } from '$lib/services/multiplayer-server-setup';
+import { isDesktop } from '$platform';
 import { getRememberedServerHostKey } from '$lib/stores/multiplayer-server-host-keys';
 import type {
   MultiplayerSettings,
@@ -102,6 +103,7 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   let lastPrunedRemoteCatalog: MultiplayerSessionState['remoteCatalog'] | null = null;
   let inviteLinkListenerAttached = false;
   const listeners = new Set<(ui: MultiplayerWindowUiState) => void>();
+  let connectionAttempt = 0;
 
   function publish(): void {
     const ui: MultiplayerWindowUiState = {
@@ -139,6 +141,7 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   }
 
   function beginConnection(operation: 'hosting' | 'joining', targetName: string | null = null): void {
+    connectionAttempt += 1;
     dialog.operation = operation;
     dialog.targetName = targetName;
     dialog.error = null;
@@ -341,6 +344,7 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   }
 
   function isServerHostConfigured(): boolean {
+    if (isDesktop && deps.getMultiplayerSettings().multiplayerSignaling === 'builtin') return true;
     const endpoint = deps.getMultiplayerSettings().multiplayerServerEndpoint;
     if (!endpoint) return false;
     return getRememberedServerHostKey(endpoint) !== null;
@@ -348,7 +352,7 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
 
   async function host(): Promise<void> {
     if (deps.getSession().getSnapshot().mode === 'hosting') {
-      await copyInvite();
+      serverSetup.openSetup();
       return;
     }
     // No configuration popup: an unconfigured server goes straight to
@@ -359,10 +363,12 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
       return;
     }
     beginConnection('hosting');
+    const attempt = connectionAttempt;
     try {
       await serverSetup.hostConfigured();
+      if (attempt === connectionAttempt) serverSetup.openSetup();
     } catch (error) {
-      failConnection(error, 'Could not start Server hosting.');
+      if (attempt === connectionAttempt) failConnection(error, 'Could not start Server hosting.');
     }
     return;
   }
@@ -381,6 +387,10 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
         deps.getMultiplayerSettings().multiplayerServerEndpoint
       );
     } catch (error) {
+      if (error instanceof ServerInviteError && error.code === 'desktop-required') {
+        failConnection(new Error(deps.translate('main.multiplayer.server.desktopRequired')), '');
+        return;
+      }
       failConnection(error, 'That Server invitation could not be read.');
       return;
     }
@@ -427,7 +437,7 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
     } catch (error) {
       logError('multiplayer', 'Server invitation link could not be parsed', error);
       if (error instanceof ServerInviteError) {
-        showToast(deps.translate('main.multiplayer.server.inviteInvalid', {
+        showToast(deps.translate(error.code === 'desktop-required' ? 'main.multiplayer.server.desktopRequired' : 'main.multiplayer.server.inviteInvalid', {
           default: 'That party invitation link could not be read.'
         }));
       }
@@ -481,6 +491,8 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   }
 
   function dismissConnectionDialog(): void {
+    connectionAttempt += 1;
+    serverSetup.cancelCurrent();
     dialog.open = false;
     dialog.error = null;
     if (state?.mode === 'client') {

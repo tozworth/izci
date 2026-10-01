@@ -86,6 +86,12 @@ export function resetOptionsView(view: OptionsViewName): void {
       break;
     case 'hosting':
       multiplayerSettings.update({
+        multiplayerSignaling: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerSignaling,
+        multiplayerBuiltinPort: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerBuiltinPort,
+        multiplayerBuiltinPublicUrl: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerBuiltinPublicUrl,
+        multiplayerBuiltinUpnp: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerBuiltinUpnp,
+        multiplayerBuiltinIceUrls: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerBuiltinIceUrls,
+        multiplayerBuiltinAllowedOrigins: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerBuiltinAllowedOrigins,
         multiplayerMotd: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerMotd,
         multiplayerChatHistoryLines: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerChatHistoryLines,
         multiplayerWaitForClients: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerWaitForClients,

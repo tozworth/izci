@@ -1,6 +1,15 @@
 import type { MiniPlayerController, MiniPlayerControllerOptions } from '$lib/services/mini-player-types';
 import type { PlatformIntegrationOptions } from '$lib/services/platform-integration-types';
 import type { TrackItem } from '$lib/types';
+import type { BuiltinSignalingOptions, BuiltinSignalingReady, SignalingSocket } from '$lib/services/platform-signaling-types';
+
+export async function startBuiltinSignaling(_options: BuiltinSignalingOptions): Promise<BuiltinSignalingReady> {
+  throw new Error('Built-in signaling requires izci.exe.');
+}
+export async function stopBuiltinSignaling(_endpoint?: string): Promise<void> {}
+export function isBuiltinSignalingEndpoint(_endpoint: string): boolean { return false; }
+export function fetchSignaling(url: string, init?: RequestInit): Promise<Response> { return fetch(url, init); }
+export function createSignalingSocket(url: string): SignalingSocket { return new WebSocket(url); }
 
 // Vite resolves this module for browser builds. No desktop imports belong here.
 export const isDesktop = false;
