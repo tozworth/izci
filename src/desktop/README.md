@@ -17,16 +17,28 @@ Tools with the Desktop development with C++ workload. The build script defaults
 to `stable-x86_64-pc-windows-msvc`, honors an MSVC `RUSTUP_TOOLCHAIN` override,
 and recognizes workspace-local Rust under `.local/desktop-toolchain/`.
 
-Desktop builds also require the Go version declared in `izci-server/go.mod`.
-Cargo builds `cmd/izci-desktop-signal` with CGO disabled and embeds the stripped
-Windows binary into izci.exe. There is no distributed sidecar, Go runtime,
+Ordinary `desktop:build` builds omit the embedded signaling server, do not read
+or build `izci-server/`, and do not require Go. They use the previous browser
+HTTP/WebSocket transport for external signaling, with no native signaling
+dependencies.
+
+To include built-in signaling, run `npm run desktop:build:signaling` (equivalently,
+`npm run desktop:build -- --with-signaling`). Both variants publish to the same
+`.local/desktop/izci.exe`; run the ordinary command again to return to the small
+build. `--no-compress` works with either variant. The signaling build enables
+Cargo's opt-in `builtin-signaling` feature, synchronizes the Go app protocol,
+and requires the Go version declared in `izci-server/go.mod`. Cargo builds
+`cmd/izci-desktop-signal` with CGO disabled and embeds the stripped Windows binary
+into izci.exe. There is no distributed sidecar, Go runtime,
 dedicated host, database, decoder, or renderer in this signaling target.
 
-Multiplayer > Hosting defaults to **Built-in server**, with **External signaling**
-in the same dropdown. Host starts one app-owned room without an operator key,
+In signaling-enabled builds, Multiplayer > Hosting defaults to **Built-in server**,
+with **External signaling** in the same dropdown. Host starts one app-owned room without an operator key,
 then opens the party/invitation dialog. Joining always uses the invitation's
-endpoint, independently of this hosting preference. Desktop HTTP signaling
-uses narrow native HTTP/WebSocket commands; WebView security flags stay intact.
+endpoint, independently of this hosting preference. Signaling-enabled builds use
+narrow native HTTP/WebSocket commands for plain HTTP/LAN endpoints; WebView
+security flags stay intact. Ordinary builds need HTTPS
+for non-loopback endpoints, as browser clients do.
 Invitations use the public izci web origin rather than the local Tauri origin
 and can be pasted into another izci.exe. Browser clients need an HTTPS endpoint
 (a reverse proxy or external signaling); custom browser origins can be allowed
@@ -191,6 +203,10 @@ npm run test -- src/desktop src/lib/stores/queue-materialization.test.ts src/lib
 code/assets, and checks that the desktop build contains no service worker.
 Native source formatting and the native origin test use `cargo fmt` and
 `cargo test --release` from `src-tauri/` (add the relevant Windows target if needed).
+Add `--features builtin-signaling` to test the embedded server's native lifecycle;
+the default native tests and headless harness skip Go and the server source tree.
+Frontend builds also skip Go protocol synchronization; use
+`npm run multiplayer:protocol:sync` when preparing an independent server build.
 `cargo run --example file_launch_smoke` from `src-tauri/` checks a Unicode path
 and reads the selected disk-backed File through a hidden WebView2 window with a
 disposable profile. It does not register file types or touch the player's data.
@@ -212,5 +228,5 @@ or change file-type registrations.
 Manual acceptance: import a file and a managed folder, restart and play restored
 items, then test stream/module/Hively/video playback while minimized and control
 it from the miniplayer. Check writable handles with a tool export, tray menu
-actions, and file activation through Explorer. This MVP does not add server
-packaging, notifications, or installers.
+actions, and file activation through Explorer. This MVP does not add
+notifications or installers.

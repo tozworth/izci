@@ -1,14 +1,51 @@
 use serde_json::{json, Value};
 use std::{
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex,
+    },
 };
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 use webview2_com::CallDevToolsProtocolMethodCompletedHandler;
 use windows::core::HSTRING;
 
-#[derive(Default)]
-pub struct LaunchFiles(pub Mutex<Vec<String>>);
+pub struct LaunchFiles {
+    pending: Mutex<Vec<String>>,
+    focus: AtomicBool,
+}
+
+impl Default for LaunchFiles {
+    fn default() -> Self {
+        Self::new(Vec::new())
+    }
+}
+
+impl LaunchFiles {
+    pub fn new(paths: Vec<String>) -> Self {
+        Self {
+            pending: Mutex::new(paths),
+            focus: AtomicBool::new(true),
+        }
+    }
+
+    fn should_present(&self, has_files: bool) -> bool {
+        !has_files || self.focus.load(Ordering::Relaxed)
+    }
+}
+
+#[tauri::command]
+pub fn configure_desktop_file_launch(
+    window: WebviewWindow,
+    state: tauri::State<'_, LaunchFiles>,
+    focus: bool,
+) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Only the playback owner configures file launches".into());
+    }
+    state.focus.store(focus, Ordering::Relaxed);
+    Ok(())
+}
 
 fn canonical_media_path(path: &Path) -> Option<String> {
     let extension = path.extension()?.to_str()?.to_ascii_lowercase();
@@ -41,12 +78,15 @@ pub fn launch_paths(args: impl Iterator<Item = String>, cwd: &Path) -> Vec<Strin
         .collect()
 }
 
-pub fn enqueue(app: &AppHandle, args: Vec<String>, cwd: &str) {
+pub fn enqueue(app: &AppHandle, args: Vec<String>, cwd: &str) -> bool {
     let paths = launch_paths(args.into_iter(), Path::new(cwd));
-    if let Ok(mut pending) = app.state::<LaunchFiles>().0.lock() {
+    let state = app.state::<LaunchFiles>();
+    let present = state.should_present(!paths.is_empty());
+    if let Ok(mut pending) = state.pending.lock() {
         pending.extend(paths);
     }
     let _ = app.emit_to("main", "izci:desktop-files-available", ());
+    present
 }
 
 #[tauri::command]
@@ -58,7 +98,7 @@ pub fn take_desktop_launch_paths(
         return Err("Only the playback owner imports launch files".into());
     }
     Ok(std::mem::take(
-        &mut *state.0.lock().map_err(|error| error.to_string())?,
+        &mut *state.pending.lock().map_err(|error| error.to_string())?,
     ))
 }
 
@@ -154,6 +194,18 @@ pub async fn materialize_desktop_files(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn background_file_launches_leave_plain_launches_visible() {
+        let state = super::LaunchFiles::default();
+        assert!(state.should_present(true));
+        assert!(state.should_present(false));
+        state.focus.store(false, super::Ordering::Relaxed);
+        assert!(!state.should_present(true));
+        assert!(state.should_present(false));
+        state.focus.store(true, super::Ordering::Relaxed);
+        assert!(state.should_present(true));
+    }
+
     #[test]
     fn launch_filters_flags_non_media_and_directories_and_preserves_unicode() {
         let folder = std::env::temp_dir().join(format!("izci-file-launch-{}", std::process::id()));

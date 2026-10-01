@@ -70,6 +70,7 @@ fn main() {
             desktop_window_ready, configure_desktop_associations, configure_desktop_visibility,
             playback_restoration::prepare_desktop_playback_restoration,
             desktop_files::take_desktop_launch_paths, desktop_files::materialize_desktop_files,
+            desktop_files::configure_desktop_file_launch,
             fonts::local_font_families
         ])
         .setup(move |app| {

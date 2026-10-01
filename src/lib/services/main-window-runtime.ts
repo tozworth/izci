@@ -734,6 +734,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
   const displayPlaybackSnapshotStore = writable<PlaybackSnapshot>(state.playbackSnapshot);
   const stopPlatformIntegration = createPlatformIntegration({
     snapshot: displayPlaybackSnapshotStore,
+    track: miniPlayerTrack,
     canControl: () => state.queueItems.length > 0 || state.playbackSnapshot.backend !== null,
     handlers: {
       togglePlayback: () => transport.togglePlayback(),

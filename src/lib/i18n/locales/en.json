@@ -91,7 +91,7 @@
         "inviteInvalid": "That party invitation link could not be read.",
         "legacyRetired": "Legacy multiplayer invitations have been retired. Ask the host for an izci-server invitation.",
         "manageParty": "Manage party and invitation",
-        "desktopRequired": "This party uses HTTP signaling. Paste the invitation into izci.exe, or ask the host for an HTTPS address to join in a browser."
+        "desktopRequired": "This party uses HTTP signaling. Open the invitation in an izci build with built-in signaling, or ask the host for an HTTPS address."
       }
     },
     "common": {
@@ -718,6 +718,10 @@
         "visualizer": "Visualizer",
         "both": "Both"
       },
+      "trackInfoBubble": {
+        "title": "Track info bubble",
+        "hint": "Show the title and artist beside the tray icon for five seconds when a new track starts. Requires a tray icon."
+      },
       "heading": "Backdrop Zones",
       "artworkBlur": {
         "title": "Artwork blur strength"
@@ -921,20 +925,20 @@
         "signalingHint": "Used only when hosting. Joining always follows the invitation address.",
         "builtin": "Built-in server",
         "external": "External signaling",
-        "builtinHint": "Starts with your party and stops when you stop hosting or close izci. Only this izci can host on it. No operator key is needed.",
+        "builtinHint": "Included in builds with built-in signaling. Starts with your party and stops when you stop hosting or close izci. Only this izci can host on it. No operator key is needed.",
         "port": "Listen port",
         "portHint": "TCP port for invitations and signaling. Changes apply to the next party.",
         "upnp": "Map signaling port with UPnP",
         "upnpHint": "Asks your router to forward this TCP port while hosting. The mapping is removed on stop and expires after an unexpected exit. WebRTC still needs a working peer route.",
         "publicUrl": "Advertised address",
-        "publicUrlHint": "Optional http(s)://host:port for invitations. Leave blank for LAN discovery or the UPnP public address. HTTP parties require izci.exe clients; browser clients need an HTTPS reverse proxy and their origin allowed below.",
+        "publicUrlHint": "Optional http(s)://host:port for invitations. Leave blank for LAN discovery or the UPnP public address. HTTP parties require builds with built-in signaling; other clients need an HTTPS reverse proxy and their origin allowed below.",
         "automaticAddress": "Automatic LAN / UPnP address",
         "stun": "STUN providers",
         "stunHint": "Comma-separated stun: URLs for peer discovery. Empty uses local candidates only. The built-in server has no TURN relay.",
         "clientOrigins": "Additional browser origins",
         "clientOriginsHint": "Comma-separated exact http(s) origins allowed through an HTTPS reverse proxy. The official web app and izci.exe are already allowed.",
         "inviteAddress": "Invite address",
-        "inviteAddressHint": "Choose a LAN address for nearby clients if your router cannot reach its own public address. HTTP invitations can be pasted into izci.exe.",
+        "inviteAddressHint": "Choose a LAN address for nearby clients if your router cannot reach its own public address. HTTP invitations require an izci build with built-in signaling.",
         "mapping": {
           "off": "Built-in signaling is running. UPnP is off; use LAN access or your own port forwarding.",
           "mapped": "Built-in signaling is running. The signaling port is mapped with UPnP.",
@@ -1657,6 +1661,10 @@
       "associations": {
         "title": "Register file types",
         "hint": "Makes izci available in Open with for supported audio, tracker, video and image files."
+      },
+      "focusOnFileLaunch": {
+        "title": "Bring izci forward when opening files",
+        "hint": "When izci is already running, restore and focus its window when files are opened from Windows. Turn off to keep it minimized, in the tray, or in the background."
       },
       "defaults": {
         "title": "Default player",

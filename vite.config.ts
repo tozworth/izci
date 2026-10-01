@@ -26,7 +26,8 @@ export default defineConfig(({ mode }) => {
           main: fileURLToPath(new URL('./index.html', import.meta.url)),
           ...(desktop ? {
             miniPlayer: fileURLToPath(new URL('./mini-player.html', import.meta.url)),
-            trayMenu: fileURLToPath(new URL('./tray-menu.html', import.meta.url))
+            trayMenu: fileURLToPath(new URL('./tray-menu.html', import.meta.url)),
+            trayBubble: fileURLToPath(new URL('./tray-bubble.html', import.meta.url))
           } : {}),
           options: fileURLToPath(new URL('./options.html', import.meta.url)),
           audioCompare: fileURLToPath(new URL('./audio-compare.html', import.meta.url)),

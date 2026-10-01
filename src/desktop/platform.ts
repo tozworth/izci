@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-export { startBuiltinSignaling, stopBuiltinSignaling, isBuiltinSignalingEndpoint, fetchSignaling, createSignalingSocket } from './signaling';
+export { hasBuiltinSignaling, startBuiltinSignaling, stopBuiltinSignaling, isBuiltinSignalingEndpoint, fetchSignaling, createSignalingSocket } from './signaling';
 export { createDesktopMiniPlayerController } from './mini-player-controller';
 export { default as DesktopWindowControls } from './DesktopWindowControls.svelte';
 export { desktopTitlebar } from './window-titlebar';

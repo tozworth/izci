@@ -1,15 +1,19 @@
 import { Channel, invoke } from '@tauri-apps/api/core';
 import type { BuiltinSignalingOptions, BuiltinSignalingReady, SignalingSocket } from '$lib/services/platform-signaling-types';
 
+export const hasBuiltinSignaling = typeof window !== 'undefined' && window.__izciBuiltinSignaling === true;
+
 let builtinEndpoint: string | null = null;
 
 export async function startBuiltinSignaling(options: BuiltinSignalingOptions): Promise<BuiltinSignalingReady> {
+  if (!hasBuiltinSignaling) throw new Error('Built-in signaling is unavailable in this build.');
   const ready = await invoke<BuiltinSignalingReady>('start_builtin_signaling', { options });
   builtinEndpoint = ready.endpoint;
   return ready;
 }
 
 export async function stopBuiltinSignaling(endpoint?: string): Promise<void> {
+  if (!hasBuiltinSignaling) return;
   if (endpoint && endpoint !== builtinEndpoint) return;
   await invoke('stop_builtin_signaling', { endpoint });
   builtinEndpoint = null;
@@ -18,7 +22,7 @@ export async function stopBuiltinSignaling(endpoint?: string): Promise<void> {
 export function isBuiltinSignalingEndpoint(endpoint: string): boolean { return endpoint === builtinEndpoint; }
 
 export async function fetchSignaling(url: string, init: RequestInit = {}): Promise<Response> {
-  if (!url.startsWith('http:')) return fetch(url, init);
+  if (!hasBuiltinSignaling || !url.startsWith('http:')) return fetch(url, init);
   const id = crypto.randomUUID();
   const signal = init.signal;
   signal?.throwIfAborted();
@@ -101,5 +105,5 @@ class NativeSignalingSocket extends EventTarget {
 }
 
 export function createSignalingSocket(url: string): SignalingSocket {
-  return url.startsWith('ws:') ? new NativeSignalingSocket(url) as SignalingSocket : new WebSocket(url);
+  return hasBuiltinSignaling && url.startsWith('ws:') ? new NativeSignalingSocket(url) as SignalingSocket : new WebSocket(url);
 }

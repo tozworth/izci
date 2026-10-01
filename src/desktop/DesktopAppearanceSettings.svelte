@@ -12,3 +12,8 @@
     <option value="both">{$t('desktop.appearance.showIn.both')}</option>
   </select>
 </SettingsField>
+
+<SettingsField title={$t('desktop.appearance.trackInfoBubble.title')} hint={$t('desktop.appearance.trackInfoBubble.hint')} checkbox>
+  <input type="checkbox" checked={$desktopSettings.trackInfoBubble}
+    on:change={(event) => desktopSettings.update({ trackInfoBubble: event.currentTarget.checked })} />
+</SettingsField>

@@ -16,6 +16,10 @@ pub fn remove(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("tray-menu") {
         let _ = crate::window_resources::hide(&window);
     }
+    if let Some(window) = app.get_webview_window("tray-bubble") {
+        let _ = crate::window_resources::hide(&window);
+        let _ = window.emit("izci:desktop-tray-bubble-dismiss", ());
+    }
 }
 
 // Create utility WebViews before the playback owner starts its JavaScript.

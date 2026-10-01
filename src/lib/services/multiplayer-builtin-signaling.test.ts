@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('$platform', () => ({
-  isDesktop: true, startBuiltinSignaling: vi.fn(), stopBuiltinSignaling: vi.fn(),
+  isDesktop: true, hasBuiltinSignaling: true, startBuiltinSignaling: vi.fn(), stopBuiltinSignaling: vi.fn(),
   fetchSignaling: (url: string, init?: RequestInit) => fetch(url, init)
 }));
 
@@ -33,6 +33,16 @@ function connector(): ServerSessionConnector {
 beforeEach(() => { multiplayerSettings.reset(); serverHostKeys.set([]); serverRecents.set([]); });
 
 describe('desktop built-in signaling flow', () => {
+  it('uses external setup in builds without the server even when built-in is saved', async () => {
+    const native = { ...runtime(), available: false };
+    const controller = createServerSetupController(undefined, native);
+    controller.setSessionConnector(connector());
+    multiplayerSettings.update({ multiplayerSignaling: 'builtin', multiplayerServerEndpoint: '' });
+    await expect(controller.hostConfigured()).rejects.toThrow('Options > Multiplayer');
+    expect(native.start).not.toHaveBeenCalled();
+    expect(controller.getSnapshot().builtin).toBeNull();
+  });
+
   it('defaults to built-in and bounds persisted server preferences', () => {
     expect(DEFAULT_MULTIPLAYER_SETTINGS.multiplayerSignaling).toBe('builtin');
     expect(normalizeMultiplayerSettings({ multiplayerBuiltinPort: 70000 }).multiplayerBuiltinPort).toBe(65535);
