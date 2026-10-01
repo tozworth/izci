@@ -12,7 +12,7 @@
 
 .clip-workbench {
   display: grid;
-  grid-template-rows: auto minmax(210px, 1fr);
+  grid-template-rows: auto minmax(210px, 1fr) auto;
   min-height: 0;
   padding: 0;
   background: var(--editor-view-background);
@@ -24,17 +24,9 @@
   border-radius: 0;
 }
 
-.effects-button {
-  flex: 0 0 auto;
-  border-color: color-mix(in srgb, var(--accent-strong) 48%, var(--border-soft));
-  background: color-mix(in srgb, var(--accent-strong) 12%, var(--bg-soft));
-  color: var(--text-strong);
-  font-weight: 600;
-}
-
-.effects-button:hover:not(:disabled) {
-  border-color: var(--accent-strong);
-  background: color-mix(in srgb, var(--accent-strong) 18%, var(--bg-soft));
+.preview-toolbar {
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 0;
 }
 
 .transport-play {

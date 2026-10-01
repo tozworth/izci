@@ -12,7 +12,7 @@
 
   type ActionId = 'open' | 'saveClip' | 'close' | 'undo' | 'redo' | 'selectAll'
     | 'cut' | 'copy' | 'paste' | 'delete' | 'trim' | 'toggleTwoChannelView'
-    | 'openOptions' | 'openLoadouts' | 'openAbout' | `applyLoadout:${string}` | `effect:${RafEffectType | 'speed'}`;
+    | 'play' | 'playFromCursor' | 'openOptions' | 'openLoadouts' | 'openAbout' | `applyLoadout:${string}` | `effect:${RafEffectType | 'speed'}`;
 
   export let fileName = '';
   export let canSaveClip = false;
@@ -21,8 +21,11 @@
   export let canCut = false;
   export let canPaste = false;
   export let twoChannelView = false;
+  export let previewPlaying = false;
 
   const dispatch = createEventDispatcher<{
+    play: void;
+    playFromCursor: void;
     open: void;
     saveClip: void;
     close: void;
@@ -71,7 +74,9 @@
     { id: 'paste', label: $t('editor.edit.paste', { default: 'Paste' }), icon: 'content_paste', shortcut: 'Ctrl+V', disabled: !canPaste },
     { id: 'delete', label: $t('editor.edit.delete', { default: 'Delete' }), icon: 'delete', shortcut: 'Del', disabled: !canCut },
     { id: 'trim', label: $t('editor.edit.trim', { default: 'Trim to selection' }), icon: 'crop', disabled: !canCut, separatorBefore: true },
-    { id: 'selectAll', label: $t('editor.menu.selectAll', { default: 'Select all' }), icon: 'select_all', shortcut: 'Ctrl+A', disabled: !canSaveClip }
+    { id: 'selectAll', label: $t('editor.menu.selectAll', { default: 'Select all' }), icon: 'select_all', shortcut: 'Ctrl+A', disabled: !canSaveClip },
+    { id: 'play', label: previewPlaying ? $t('audioCompare.stop', { default: 'Stop' }) : $t('editor.edit.play', { default: 'Play' }), icon: previewPlaying ? 'stop' : 'play_arrow', shortcut: 'Space', disabled: !canSaveClip, separatorBefore: true },
+    { id: 'playFromCursor', label: $t('editor.edit.playFromCursor', { default: 'Play from cursor' }), icon: 'play_arrow', shortcut: 'Shift+Space', disabled: !canSaveClip }
   ] satisfies MenuActionItem[];
   $: effectItems = [...RAF_EFFECT_DEFINITIONS, SPEED_EFFECT].map((definition) => ({
     id: `effect:${definition.type}`,
@@ -140,7 +145,7 @@
     }
     if (action === 'open' || action === 'saveClip' || action === 'close'
       || action === 'undo' || action === 'redo' || action === 'selectAll' || action === 'cut' || action === 'copy'
-      || action === 'paste' || action === 'delete' || action === 'trim') {
+      || action === 'paste' || action === 'delete' || action === 'trim' || action === 'play' || action === 'playFromCursor') {
       dispatch(action);
     }
   }

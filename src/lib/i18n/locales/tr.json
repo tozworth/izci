@@ -1744,8 +1744,8 @@
       "paste": "Yapıştır",
       "delete": "Sil",
       "trim": "Seçime göre kırp",
-      "play": "İmleçten oynat",
-      "playSelection": "Seçimi oynat",
+      "play": "Oynat",
+      "playFromCursor": "İmleçten oynat",
       "zoomSelection": "Seçime yakınlaştır",
       "undoNotice": "Düzenleme geri alındı.",
       "redoNotice": "Düzenleme yeniden uygulandı.",
@@ -1763,7 +1763,8 @@
       "deleteShortcut": "Seçimi sil · Del",
       "transport": "Gezinme ve önizleme",
       "selectionStart": "Seçim başlangıcına git",
-      "playShortcut": "İmleçten oynat · Boşluk",
+      "playShortcut": "Oynat · Boşluk",
+      "stopShortcut": "Durdur · Boşluk",
       "selectionEnd": "Seçim sonuna git"
     },
     "clip": {
