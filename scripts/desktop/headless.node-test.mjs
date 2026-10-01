@@ -13,13 +13,16 @@ function fixture(t) {
   return root;
 }
 
-test('fingerprint includes native/frontend/probe inputs and ignores Cargo output', (t) => {
+test('fingerprint includes native/frontend/probe inputs and ignores Cargo output and optional server sources', (t) => {
   const root = fixture(t);
   mkdirSync(join(root, 'src'), { recursive: true });
   mkdirSync(join(root, 'src-tauri/target'), { recursive: true });
   writeFileSync(join(root, 'src/runtime.ts'), 'before');
   const before = sourceFingerprint(root);
   writeFileSync(join(root, 'src-tauri/target/generated'), 'ignored');
+  assert.equal(sourceFingerprint(root), before);
+  mkdirSync(join(root, 'izci-server'), { recursive: true });
+  writeFileSync(join(root, 'izci-server/go.mod'), 'ignored');
   assert.equal(sourceFingerprint(root), before);
   writeFileSync(join(root, 'src/runtime.ts'), 'after');
   assert.notEqual(sourceFingerprint(root), before);

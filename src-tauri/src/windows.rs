@@ -26,6 +26,7 @@ pub fn builder<'a>(
     };
     window_lifecycle::record(app, &config.label, initial_role);
     Ok(WebviewWindowBuilder::from_config(app, config)?
+        .initialization_script(format!("window.__izciBuiltinSignaling = {};", cfg!(feature = "builtin-signaling")))
         // Popups start at about:blank before the opener primes their theme.
         // Set both the native surface and WebView2's creation-time background
         // so neither window creation nor page navigation exposes default white.
@@ -35,7 +36,9 @@ pub fn builder<'a>(
         .additional_browser_args("--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows")
         .on_page_load(|window, payload| {
             if window.label() == "main" && payload.event() == tauri::webview::PageLoadEvent::Started {
+                #[cfg(feature = "builtin-signaling")]
                 crate::signaling_transport::stop(window.app_handle());
+                #[cfg(feature = "builtin-signaling")]
                 crate::signaling::stop(window.app_handle(), None);
             }
             // Initial native surfaces and prewarmed Options are hidden. Their
@@ -95,6 +98,7 @@ pub fn is_options_window(window: &tauri::WebviewWindow) -> bool {
 
 pub fn create_player_windows(app: &AppHandle) -> tauri::Result<()> {
     crate::tray::create_menu(app)?;
+    crate::tray_bubble::create(app)?;
     // The playback owner can immediately request an Options popup. Finish all
     // utility controller creation before allowing its frontend to run.
     for config in app

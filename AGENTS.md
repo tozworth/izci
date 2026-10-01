@@ -97,7 +97,7 @@
 
 - `src/desktop/` and `src-tauri/` own Windows Tauri integration and the native shell. `npm run desktop:build` builds this target.
 - Native shell features stay behind `$platform`; native code/assets must stay out of PWA bundles and precache (`npm run desktop:verify`).
-- Built-in signaling is a lazy, signaling-only Go child embedded in the exe. Its private parent pipe and Windows job own bootstrap/shutdown; public host login is disabled. Desktop builds require Go, PWA builds do not.
+- Built-in signaling is opt-in via `npm run desktop:build:signaling` / Cargo's `builtin-signaling` feature; ordinary desktop/PWA builds skip izci-server and do not require Go. The lazy, signaling-only Go child uses a private parent pipe and Windows job for bootstrap/shutdown; public host login is disabled.
 - Desktop file-association launches use disk-backed Chromium Files and native path references in queue/library IndexedDB; never synthesize File System Access handles.
 - "Start headless tauri" means `npm run desktop:headless -- start`; use the resident hidden/muted runtime and its `eval`/`probe`/`status`/`stop` commands (see `src/desktop/README.md`). It copies the desktop profile, reuses unchanged builds, and never restarts the ordinary player. Use `start --fresh` after source edits or when a new profile snapshot is needed.
 
@@ -151,7 +151,7 @@
 
 ## izci-server
 
-- `izci-server/` is an independent Go module: `internal/signaling` owns rooms, admission, WebRTC negotiation, ICE issuance, and deployment examples; `internal/host` owns dedicated hosting (peers, sessions, Pion answerer) with `serve` (both), `signal` (signaling only), and `host` (remote signal) modes. Official builds ship without a configured external server; desktop bundles `cmd/izci-desktop-signal` with lifecycle/UPnP under `internal/desktopserver`.
+- `izci-server/` is an independent Go module: `internal/signaling` owns rooms, admission, WebRTC negotiation, ICE issuance, and deployment examples; `internal/host` owns dedicated hosting (peers, sessions, Pion answerer) with `serve` (both), `signal` (signaling only), and `host` (remote signal) modes. Official builds ship without a configured external server; only signaling-enabled desktop builds bundle `cmd/izci-desktop-signal` with lifecycle/UPnP under `internal/desktopserver`.
 - Browser-side HTTP, socket, invitation, setup, identity, pairing, and reconnect-proof behavior stays in focused `multiplayer-server-*` services/stores. Login bearers are transient; remembered operator keys, invitations, identities, and per-pair secrets stay in their existing server-specific local settings boundaries.
 - Keep the izci-server signaling protocol version separate from the Multiplayer app protocol. Protocol shapes live in code, representative shared fixtures live under `tests/multiplayer-server-contract/`, and app-protocol changes must keep `scripts/sync-multiplayer-protocol.mjs` in sync.
 - Treat keys, tokens, invitation and owner secrets, SDP, ICE candidates, and request bodies as sensitive: never put socket tickets in URLs, log these values, or persist transient signaling. Preserve strict JSON decoding, origin/path checks, rate limits, bounded messages, and clean shutdown.

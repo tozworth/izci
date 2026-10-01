@@ -1,8 +1,9 @@
 import type { Readable } from 'svelte/store';
-import type { PlaybackSnapshot } from '$lib/types';
+import type { PlaybackSnapshot, TrackItem } from '$lib/types';
 
 export interface PlatformIntegrationOptions {
   snapshot: Readable<PlaybackSnapshot>;
+  track: Readable<TrackItem | null>;
   canControl: () => boolean;
   handlers: {
     togglePlayback: () => void; previousTrack: () => void; nextTrack: () => void;

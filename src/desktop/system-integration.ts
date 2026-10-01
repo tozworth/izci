@@ -4,6 +4,7 @@ import { get } from 'svelte/store';
 import type { PlatformIntegrationOptions } from '$lib/services/platform-integration-types';
 import { desktopSettings, type DesktopShowIn } from './settings';
 import { readDesktopFiles } from './files';
+import { createTrackBubblePublisher } from './track-bubble-publisher';
 import { parseTrayAction, trayState, TRAY_ACTION_EVENT, TRAY_REQUEST_EVENT, TRAY_STATE_EVENT, type TrayState } from './tray-protocol';
 
 function reportError(error: unknown): void { console.error('Desktop integration failed.', error); }
@@ -13,6 +14,7 @@ export function createPlatformIntegration(options: PlatformIntegrationOptions): 
   let disposed = false;
   let previousShowIn: DesktopShowIn | undefined;
   let previousAssociations: boolean | undefined;
+  let previousFocusOnFileLaunch: boolean | undefined;
   let settingsWork: Promise<unknown> = Promise.resolve();
   let importWork: Promise<unknown> = Promise.resolve();
   let launchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -43,6 +45,10 @@ export function createPlatformIntegration(options: PlatformIntegrationOptions): 
   const unsubscribeSettings = desktopSettings.subscribe((settings) => {
     settingsWork = settingsWork.then(async () => {
       if (disposed) return;
+      if (settings.focusOnFileLaunch !== previousFocusOnFileLaunch) {
+        await invoke('configure_desktop_file_launch', { focus: settings.focusOnFileLaunch });
+        previousFocusOnFileLaunch = settings.focusOnFileLaunch;
+      }
       if (settings.showIn !== previousShowIn) {
         await invoke('configure_desktop_visibility', { showIn: settings.showIn });
         previousShowIn = settings.showIn;
@@ -54,6 +60,7 @@ export function createPlatformIntegration(options: PlatformIntegrationOptions): 
     }).catch(reportError);
   });
   const unsubscribeSnapshot = options.snapshot.subscribe(() => { void publish().catch(reportError); });
+  const stopTrackBubble = createTrackBubblePublisher(options, () => settingsWork);
   void Promise.all([
     listen(TRAY_REQUEST_EVENT, () => { void publish(true).catch(reportError); }),
     listen<unknown>(TRAY_ACTION_EVENT, ({ payload }) => {
@@ -76,5 +83,6 @@ export function createPlatformIntegration(options: PlatformIntegrationOptions): 
     disposed = true;
     if (launchTimer !== undefined) clearTimeout(launchTimer);
     unsubscribeSettings(); unsubscribeSnapshot(); releases.forEach((release) => release());
+    stopTrackBubble();
   };
 }

@@ -13,7 +13,7 @@
  * UI text, errors, or diagnostics.
  */
 import { writable } from 'svelte/store';
-import { isDesktop, startBuiltinSignaling, stopBuiltinSignaling } from '$platform';
+import { hasBuiltinSignaling, startBuiltinSignaling, stopBuiltinSignaling } from '$platform';
 import type { BuiltinSignalingOptions, BuiltinSignalingReady } from './platform-signaling-types';
 import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
 import {
@@ -222,7 +222,7 @@ export interface BuiltinSignalingRuntime {
 
 export function createServerSetupController(
   network: ServerSetupNetwork = DEFAULT_NETWORK,
-  builtinRuntime: BuiltinSignalingRuntime = { available: isDesktop, start: startBuiltinSignaling, stop: stopBuiltinSignaling }
+  builtinRuntime: BuiltinSignalingRuntime = { available: hasBuiltinSignaling, start: startBuiltinSignaling, stop: stopBuiltinSignaling }
 ) {
   let state = initialSnapshot();
   let loginState: ServerLoginState | null = null;
@@ -447,7 +447,7 @@ export function createServerSetupController(
 
   async function hostBuiltin(): Promise<void> {
     const session = requireConnector();
-    if (!builtinRuntime.available) throw new Error('Built-in signaling requires izci.exe.');
+    if (!builtinRuntime.available) throw new Error('Built-in signaling is unavailable in this build.');
     const settings = multiplayerSettings.getSnapshot();
     const signal = takeSignal('host-builtin');
     let ready: BuiltinSignalingReady | null = null;

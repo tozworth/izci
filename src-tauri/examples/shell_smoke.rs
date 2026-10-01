@@ -3,9 +3,11 @@
 #[allow(dead_code)]
 #[path = "../src/fonts.rs"]
 mod fonts;
+#[cfg(feature = "builtin-signaling")]
 mod signaling {
     pub fn stop(_: &tauri::AppHandle, _: Option<&str>) {}
 }
+#[cfg(feature = "builtin-signaling")]
 mod signaling_transport {
     pub fn stop(_: &tauri::AppHandle) {}
 }
@@ -15,6 +17,9 @@ mod player_windows;
 #[allow(dead_code)]
 #[path = "../src/tray.rs"]
 mod tray;
+#[allow(dead_code)]
+#[path = "../src/tray_bubble.rs"]
+mod tray_bubble;
 #[allow(dead_code)]
 #[path = "../src/window_lifecycle.rs"]
 mod window_lifecycle;

@@ -1,4 +1,5 @@
 fn main() {
+    #[cfg(feature = "builtin-signaling")]
     build_signaling();
     println!("cargo:rerun-if-changed=icons/file-types/manifest.json");
     let icons: serde_json::Value =
@@ -25,6 +26,7 @@ fn main() {
     }
 }
 
+#[cfg(feature = "builtin-signaling")]
 fn build_signaling() {
     let server = std::env::current_dir().unwrap().join("../izci-server");
     for path in ["cmd/izci-desktop-signal", "internal", "go.mod", "go.sum"] {

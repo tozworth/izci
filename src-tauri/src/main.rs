@@ -9,9 +9,12 @@ mod file_icons;
 mod fonts;
 mod playback_restoration;
 mod player_windows;
+#[cfg(feature = "builtin-signaling")]
 mod signaling;
+#[cfg(feature = "builtin-signaling")]
 mod signaling_transport;
 mod tray;
+mod tray_bubble;
 mod window_lifecycle;
 mod window_presentation;
 mod window_resources;
@@ -81,7 +84,12 @@ fn exit_desktop(window: WebviewWindow) -> Result<(), String> {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
-            desktop_files::enqueue(app, args, &cwd);
+            let present = desktop_files::enqueue(app, args, &cwd);
+            // A surviving workbench may keep the process alive after the player
+            // closes. Recreate the playback owner for that launch as usual.
+            if !present && app.get_webview_window("main").is_some() {
+                return;
+            }
             let app = app.clone();
             tauri::async_runtime::spawn_blocking(move || {
                 let _ = windows::create_player_windows(&app);
@@ -89,16 +97,14 @@ fn main() {
             });
         }))
         .manage(window_lifecycle::WindowLifecycle::default())
-        .manage(signaling::Signaling::default())
-        .manage(signaling_transport::Transport::default())
         .manage(window_state::WindowState::default())
         .manage(player_windows::PlayerWindowMode::default())
-        .manage(desktop_files::LaunchFiles(std::sync::Mutex::new(
+        .manage(desktop_files::LaunchFiles::new(
             desktop_files::launch_paths(
                 std::env::args(),
                 &std::env::current_dir().unwrap_or_default(),
             ),
-        )))
+        ))
         .manage(std::sync::Mutex::new(tray::TrayMenuState::default()))
         .manage(std::sync::Mutex::new(
             window_presentation::WindowPresentation::default(),
@@ -110,11 +116,17 @@ fn main() {
             restore_main_window,
             pin_mini_player,
             exit_desktop,
+            #[cfg(feature = "builtin-signaling")]
             signaling::start_builtin_signaling,
+            #[cfg(feature = "builtin-signaling")]
             signaling::stop_builtin_signaling,
+            #[cfg(feature = "builtin-signaling")]
             signaling_transport::signaling_http,
+            #[cfg(feature = "builtin-signaling")]
             signaling_transport::cancel_signaling_http,
+            #[cfg(feature = "builtin-signaling")]
             signaling_transport::open_signaling_socket,
+            #[cfg(feature = "builtin-signaling")]
             signaling_transport::send_signaling_socket,
             playback_restoration::prepare_desktop_playback_restoration,
             window_presentation::desktop_window_ready,
@@ -123,13 +135,20 @@ fn main() {
             associations::configure_desktop_associations,
             associations::open_desktop_default_apps,
             desktop_files::take_desktop_launch_paths,
+            desktop_files::configure_desktop_file_launch,
             desktop_files::materialize_desktop_files,
             tray::configure_desktop_visibility,
             tray::desktop_tray_menu_ready,
             tray::show_desktop_tray_menu,
-            tray::hide_desktop_tray_menu
+            tray::hide_desktop_tray_menu,
+            tray_bubble::show_desktop_track_bubble,
+            tray_bubble::hide_desktop_track_bubble
         ])
         .setup(|app| {
+            #[cfg(feature = "builtin-signaling")]
+            app.manage(signaling::Signaling::default());
+            #[cfg(feature = "builtin-signaling")]
+            app.manage(signaling_transport::Transport::default());
             windows::create_player_windows(app.handle())?;
             Ok(())
         })

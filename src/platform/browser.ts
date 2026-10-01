@@ -3,8 +3,9 @@ import type { PlatformIntegrationOptions } from '$lib/services/platform-integrat
 import type { TrackItem } from '$lib/types';
 import type { BuiltinSignalingOptions, BuiltinSignalingReady, SignalingSocket } from '$lib/services/platform-signaling-types';
 
+export const hasBuiltinSignaling = false;
 export async function startBuiltinSignaling(_options: BuiltinSignalingOptions): Promise<BuiltinSignalingReady> {
-  throw new Error('Built-in signaling requires izci.exe.');
+  throw new Error('Built-in signaling is unavailable in this build.');
 }
 export async function stopBuiltinSignaling(_endpoint?: string): Promise<void> {}
 export function isBuiltinSignalingEndpoint(_endpoint: string): boolean { return false; }

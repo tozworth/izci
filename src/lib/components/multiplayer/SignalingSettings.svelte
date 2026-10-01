@@ -1,15 +1,15 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
-  import { isDesktop } from '$platform';
+  import { hasBuiltinSignaling } from '$platform';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
   import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
   export let disabled = false;
   export let config = false;
-  $: builtin = isDesktop && $multiplayerSettings.multiplayerSignaling === 'builtin';
+  $: builtin = hasBuiltinSignaling && $multiplayerSettings.multiplayerSignaling === 'builtin';
 </script>
 
-{#if isDesktop}
+{#if hasBuiltinSignaling}
   <SettingsField title={$t('options.multiplayer.server.signaling')} hint={$t('options.multiplayer.server.signalingHint')}>
     <ThemedSelect
       label={$t('options.multiplayer.server.signaling')}

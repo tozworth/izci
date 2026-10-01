@@ -99,7 +99,7 @@
         "inviteInvalid": "Bu parti davet bağlantısı okunamadı.",
         "legacyRetired": "Eski çok oyunculu davetler kullanımdan kaldırıldı. Sunucudan bir izci-server daveti isteyin.",
         "manageParty": "Partiyi ve daveti yönet",
-        "desktopRequired": "Bu parti HTTP sinyalleşmesi kullanıyor. Daveti izci.exe içine yapıştırın veya tarayıcıdan katılmak için ev sahibinden HTTPS adresi isteyin."
+        "desktopRequired": "Bu parti HTTP sinyalleşmesi kullanıyor. Daveti yerleşik sinyalleşme içeren bir izci derlemesinde açın veya ev sahibinden HTTPS adresi isteyin."
       }
     },
     "common": {
@@ -726,6 +726,10 @@
         "visualizer": "Görselleştirici",
         "both": "Her ikisi"
       },
+      "trackInfoBubble": {
+        "title": "Parça bilgisi baloncuğu",
+        "hint": "Yeni bir parça başladığında başlığı ve sanatçıyı sistem tepsisi simgesinin yanında beş saniye gösterir. Sistem tepsisi simgesi gerektirir."
+      },
       "heading": "Artalanlar",
       "artworkBlur": {
         "title": "Albüm resmi bulanıklığı"
@@ -929,20 +933,20 @@
         "signalingHint": "Yalnızca ev sahipliği yaparken kullanılır. Katılma işlemi her zaman davet adresini izler.",
         "builtin": "Yerleşik sunucu",
         "external": "Harici sinyalleşme",
-        "builtinHint": "Partinizle birlikte başlar; ev sahipliğini durdurduğunuzda veya izci’yi kapattığınızda durur. Yalnızca bu izci üzerinde ev sahipliği yapabilir. Operatör anahtarı gerekmez.",
+        "builtinHint": "Yerleşik sinyalleşme içeren derlemelerde bulunur. Partinizle birlikte başlar; ev sahipliğini durdurduğunuzda veya izci’yi kapattığınızda durur. Yalnızca bu izci üzerinde ev sahipliği yapabilir. Operatör anahtarı gerekmez.",
         "port": "Dinleme portu",
         "portHint": "Davetler ve sinyalleşme için TCP portu. Değişiklikler bir sonraki partide uygulanır.",
         "upnp": "Sinyalleşme portunu UPnP ile yönlendir",
         "upnpHint": "Ev sahipliği sırasında yönlendiricinizden bu TCP portunu yönlendirmesini ister. Eşleme durdurunca kaldırılır; beklenmedik kapanıştan sonra süresi dolar. WebRTC için yine çalışan bir eş bağlantısı gerekir.",
         "publicUrl": "Davet adresi",
-        "publicUrlHint": "Davetler için isteğe bağlı http(s)://sunucu:port. LAN keşfi veya UPnP genel adresi için boş bırakın. HTTP partileri izci.exe istemcileri gerektirir; tarayıcı istemcileri için HTTPS ters vekili ve aşağıda izin verilen köken gerekir.",
+        "publicUrlHint": "Davetler için isteğe bağlı http(s)://sunucu:port. LAN keşfi veya UPnP genel adresi için boş bırakın. HTTP partileri yerleşik sinyalleşme içeren derlemeleri gerektirir; diğer istemciler için HTTPS ters vekili ve aşağıda izin verilen köken gerekir.",
         "automaticAddress": "Otomatik LAN / UPnP adresi",
         "stun": "STUN sağlayıcıları",
         "stunHint": "Eş keşfi için virgülle ayrılmış stun: adresleri. Boş bırakılırsa yalnızca yerel adaylar kullanılır. Yerleşik sunucuda TURN aktarıcısı yoktur.",
         "clientOrigins": "Ek tarayıcı kökenleri",
         "clientOriginsHint": "HTTPS ters vekili üzerinden izin verilen, virgülle ayrılmış tam http(s) kökenleri. Resmî web uygulaması ve izci.exe zaten izinlidir.",
         "inviteAddress": "Davet adresi",
-        "inviteAddressHint": "Yönlendiriciniz kendi genel adresine ulaşamıyorsa yakındaki istemciler için bir LAN adresi seçin. HTTP davetleri izci.exe içine yapıştırılabilir.",
+        "inviteAddressHint": "Yönlendiriciniz kendi genel adresine ulaşamıyorsa yakındaki istemciler için bir LAN adresi seçin. HTTP davetleri yerleşik sinyalleşme içeren bir izci derlemesi gerektirir.",
         "mapping": {
           "off": "Yerleşik sinyalleşme çalışıyor. UPnP kapalı; LAN erişimini veya kendi port yönlendirmenizi kullanın.",
           "mapped": "Yerleşik sinyalleşme çalışıyor. Sinyalleşme portu UPnP ile yönlendirildi.",
@@ -1665,6 +1669,10 @@
       "associations": {
         "title": "Dosya türlerini kaydet",
         "hint": "Desteklenen ses, modül, video ve görsel dosyaları için izci'yi Birlikte aç seçeneklerine ekler."
+      },
+      "focusOnFileLaunch": {
+        "title": "Dosya açarken izci'yi öne getir",
+        "hint": "izci zaten çalışırken Windows'tan dosya açıldığında penceresini geri yükleyip odaklar. Simge durumunda, sistem tepsisinde veya arka planda kalması için kapatın."
       },
       "defaults": {
         "title": "Varsayılan oynatıcı",

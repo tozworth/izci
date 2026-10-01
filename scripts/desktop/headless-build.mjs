@@ -49,7 +49,7 @@ export function sourceFingerprint(root) {
       else if (entry.isFile()) { hash.update(next); hash.update(readFileSync(join(root, next))); }
     }
   }
-  for (const directory of ['src', 'src-tauri', 'izci-server', 'public', 'scripts']) visit(directory);
+  for (const directory of ['src', 'src-tauri', 'public', 'scripts']) visit(directory);
   for (const file of ['package.json', 'package-lock.json', 'vite.config.ts', 'tsconfig.json', 'svelte.config.js']) {
     if (existsSync(join(root, file))) { hash.update(file); hash.update(readFileSync(join(root, file))); }
   }
@@ -69,7 +69,6 @@ export async function ensureHeadlessBuild(root) {
   if (existsSync(executable) && existsSync(stamp) && readFileSync(stamp, 'utf8') === fingerprint) return { executable, cached: true, fingerprint };
   console.log('Building packaged desktop assets and the hidden harness; ordinary izci.exe stays untouched.');
   const env = desktopEnvironment(root);
-  await run(process.execPath, ['scripts/sync-multiplayer-protocol.mjs'], { cwd: root, env });
   await run(process.execPath, ['scripts/sync-desktop-formats.mjs'], { cwd: root, env });
   const preparedFingerprint = sourceFingerprint(root);
   const log = await run(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'build', '--mode', 'desktop'], { cwd: root, env });

@@ -8,7 +8,8 @@ import { publishDesktopBuild } from './desktop/publish-build.mjs';
 if (process.platform !== 'win32') throw new Error('The desktop MVP is Windows-only.');
 const root = resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
-if (args.some((arg) => arg !== '--no-compress')) throw new Error('Usage: npm run desktop:build -- [--no-compress]');
+if (args.some((arg) => !['--no-compress', '--with-signaling'].includes(arg))) throw new Error('Usage: npm run desktop:build -- [--no-compress] [--with-signaling]');
+const signaling = args.includes('--with-signaling');
 const packer = args.includes('--no-compress') ? null : await ensureDesktopPacker(root);
 const env = { ...process.env };
 // Windows treats PATH names case-insensitively; plain JS objects do not.
@@ -31,7 +32,14 @@ if (rust.error || rust.status !== 0) throw new Error('Install the Rust MSVC tool
 const target = rust.stdout.match(/^host: (.+)$/m)?.[1].trim();
 if (target !== 'x86_64-pc-windows-msvc') throw new Error(`Single-file desktop builds require x86_64-pc-windows-msvc; selected toolchain: ${target}`);
 const cli = join(root, 'node_modules', '@tauri-apps', 'cli', 'tauri.js');
-const result = spawnSync(process.execPath, [cli, 'build', '--no-bundle', '--target', target], { cwd: root, env, stdio: 'inherit' });
+console.log(`Building desktop ${signaling ? 'with built-in signaling (requires Go)' : 'without built-in signaling (no Go required)'}.`);
+if (signaling) {
+  const sync = spawnSync(process.execPath, ['scripts/sync-multiplayer-protocol.mjs'], { cwd: root, env, stdio: 'inherit' });
+  if (sync.error) throw sync.error;
+  if (sync.status !== 0) process.exit(sync.status ?? 1);
+}
+const result = spawnSync(process.execPath, [cli, 'build', '--no-bundle', '--target', target,
+  ...(signaling ? ['--features', 'builtin-signaling'] : [])], { cwd: root, env, stdio: 'inherit' });
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status ?? 1);
 const release = join(root, 'src-tauri', 'target', target, 'release');

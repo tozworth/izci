@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "desktop",
   "description": "Local desktop views exchange transient player state and control their native windows.",
-  "windows": ["main", "mini-player", "popup-*", "tray-menu"],
+  "windows": ["main", "mini-player", "popup-*", "tray-menu", "tray-bubble"],
   "permissions": [
     "core:event:allow-listen",
     "core:event:allow-unlisten",

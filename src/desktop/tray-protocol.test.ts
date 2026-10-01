@@ -4,10 +4,13 @@ import { normalizeDesktopSettings } from './settings';
 
 describe('desktop tray', () => {
   it('defaults to taskbar only and normalizes desktop preferences independently of loadouts', () => {
-    expect(normalizeDesktopSettings(null)).toEqual({ showIn: 'taskbar', fileAssociations: true });
-    expect(normalizeDesktopSettings({ showIn: 'invalid' })).toEqual({ showIn: 'taskbar', fileAssociations: true });
-    expect(normalizeDesktopSettings({ showIn: 'both', fileAssociations: false })).toEqual({ showIn: 'both', fileAssociations: false });
-    expect(normalizeDesktopSettings({ showIn: 'tray' })).toEqual({ showIn: 'tray', fileAssociations: true });
+    expect(normalizeDesktopSettings(null)).toEqual({ showIn: 'taskbar', trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
+    expect(normalizeDesktopSettings({ showIn: 'invalid' })).toEqual({ showIn: 'taskbar', trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
+    expect(normalizeDesktopSettings({ showIn: 'both', trackInfoBubble: false, fileAssociations: false, focusOnFileLaunch: true })).toEqual({ showIn: 'both', trackInfoBubble: false, fileAssociations: false, focusOnFileLaunch: true });
+    expect(normalizeDesktopSettings({ showIn: 'tray' })).toEqual({ showIn: 'tray', trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
+    expect(normalizeDesktopSettings({ trackInfoBubble: 'false' }).trackInfoBubble).toBe(true);
+    expect(normalizeDesktopSettings({ focusOnFileLaunch: false }).focusOnFileLaunch).toBe(false);
+    expect(normalizeDesktopSettings({ focusOnFileLaunch: 'false' }).focusOnFileLaunch).toBe(true);
   });
   it('keeps the requested menu order and separators', () => {
     const items = trayItems({ playing: true, canControl: true }, (key) => key);

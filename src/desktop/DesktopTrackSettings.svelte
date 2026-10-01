@@ -9,6 +9,10 @@
   <input type="checkbox" checked={$desktopSettings.fileAssociations}
     on:change={(event) => desktopSettings.update({ fileAssociations: event.currentTarget.checked })} />
 </SettingsField>
+<SettingsField title={$t('desktop.tracks.focusOnFileLaunch.title')} hint={$t('desktop.tracks.focusOnFileLaunch.hint')} checkbox>
+  <input type="checkbox" checked={$desktopSettings.focusOnFileLaunch}
+    on:change={(event) => desktopSettings.update({ focusOnFileLaunch: event.currentTarget.checked })} />
+</SettingsField>
 <SettingsField title={$t('desktop.tracks.defaults.title')} hint={$t('desktop.tracks.defaults.hint')}>
   <button class="defaults-button" type="button" disabled={!$desktopSettings.fileAssociations}
     on:click={openDesktopDefaultApps}>{$t('desktop.tracks.defaults.button')}</button>

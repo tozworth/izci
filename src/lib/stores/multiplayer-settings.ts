@@ -1,5 +1,5 @@
 import type { MultiplayerSettings } from '$lib/types';
-import { isDesktop } from '$platform';
+import { hasBuiltinSignaling } from '$platform';
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
 const MULTIPLAYER_SETTINGS_STORAGE_KEY = 'izci.multiplayer-settings';
@@ -46,7 +46,7 @@ function normalizeSingleLine(value: unknown, maxLength: number): string {
 const defaultIzciName = createDefaultIzciName();
 
 export const DEFAULT_MULTIPLAYER_SETTINGS: MultiplayerSettings = {
-  multiplayerSignaling: isDesktop ? 'builtin' : 'external',
+  multiplayerSignaling: hasBuiltinSignaling ? 'builtin' : 'external',
   multiplayerBuiltinPort: 8787,
   multiplayerBuiltinPublicUrl: '',
   multiplayerBuiltinUpnp: false,

@@ -14,7 +14,7 @@ import {
   ServerInviteError
 } from '$lib/services/multiplayer-server-invite';
 import { serverSetup } from '$lib/services/multiplayer-server-setup';
-import { isDesktop } from '$platform';
+import { hasBuiltinSignaling } from '$platform';
 import { getRememberedServerHostKey } from '$lib/stores/multiplayer-server-host-keys';
 import type {
   MultiplayerSettings,
@@ -344,7 +344,7 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   }
 
   function isServerHostConfigured(): boolean {
-    if (isDesktop && deps.getMultiplayerSettings().multiplayerSignaling === 'builtin') return true;
+    if (hasBuiltinSignaling && deps.getMultiplayerSettings().multiplayerSignaling === 'builtin') return true;
     const endpoint = deps.getMultiplayerSettings().multiplayerServerEndpoint;
     if (!endpoint) return false;
     return getRememberedServerHostKey(endpoint) !== null;

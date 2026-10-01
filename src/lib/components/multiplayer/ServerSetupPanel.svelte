@@ -10,7 +10,7 @@
   import { describeServerEndpoint } from '$lib/services/multiplayer-server-invite';
 import ServerJoinChoices from './ServerJoinChoices.svelte';
 import SettingsField from '$lib/components/options/SettingsField.svelte';
-  import { isDesktop } from '$platform';
+  import { hasBuiltinSignaling } from '$platform';
   import SignalingSettings from './SignalingSettings.svelte';
   import BuiltinSignalingStatus from './BuiltinSignalingStatus.svelte';
 
@@ -21,7 +21,7 @@ import SettingsField from '$lib/components/options/SettingsField.svelte';
   let copyTimer: number | null = null;
 
   $: setup = $serverSetup;
-  $: builtin = isDesktop && $multiplayerSettings.multiplayerSignaling === 'builtin';
+  $: builtin = hasBuiltinSignaling && $multiplayerSettings.multiplayerSignaling === 'builtin';
   $: myRecents = $serverRecents.filter(
     (entry) => !setup.endpoint || entry.endpoint === setup.endpoint
   );
