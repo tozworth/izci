@@ -33,7 +33,7 @@ export const popupWindows = {
     features: {
       popup: true,
       width: 900,
-      height: 350,
+      height: 390,
       resizable: true,
       scrollbars: false
     }

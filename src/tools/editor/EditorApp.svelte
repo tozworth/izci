@@ -215,17 +215,18 @@
         id: 'play',
         label: previewPlaying
           ? $t('audioCompare.stop', { default: 'Stop' })
-          : $t('editor.edit.play', { default: 'Play from cursor' }),
+          : $t('editor.edit.play', { default: 'Play' }),
         icon: previewPlaying ? 'stop' : 'play_arrow',
         shortcut: 'Space',
         disabled: !canEdit,
         separatorBefore: true
       },
       {
-        id: 'playSelection',
-        label: $t('editor.edit.playSelection', { default: 'Play selection' }),
-        icon: 'play_circle',
-        disabled: !canEdit || !hasSelection
+        id: 'playFromCursor',
+        label: $t('editor.edit.playFromCursor', { default: 'Play from cursor' }),
+        icon: 'play_arrow',
+        shortcut: 'Shift+Space',
+        disabled: !canEdit
       },
       {
         id: 'zoom',
@@ -265,8 +266,8 @@
     else if (action === 'delete') deleteSelection();
     else if (action === 'trim') trimToSelection();
     else if (action === 'selectAll') selectAll();
-    else if (action === 'play') toggleEditorPreview(false);
-    else if (action === 'playSelection') toggleEditorPreview(true);
+    else if (action === 'play') toggleEditorPreview();
+    else if (action === 'playFromCursor') toggleEditorPreview(false);
     else if (action === 'zoomIn') setWaveformZoom(waveformZoom * 2);
     else if (action === 'zoomOut') setWaveformZoom(waveformZoom / 2);
     else if (action === 'fit') resetWaveformViewport();
@@ -499,7 +500,7 @@
     await preview.start(audio, start, end);
   }
 
-  function toggleEditorPreview(selectionOnly = false): void {
+  function toggleEditorPreview(selectionOnly = true): void {
     if (previewPlaying) stopPreview();
     else void startPreview(selectionOnly).catch((error) => {
       errorMessage = error instanceof Error ? error.message : $t('editor.loadFailed', { default: 'The audio file could not be opened.' });
@@ -644,7 +645,7 @@
     const key = event.key.toLowerCase();
     if (!editingText && key === ' ' && !event.ctrlKey && !event.metaKey) {
       event.preventDefault();
-      toggleEditorPreview(false);
+      toggleEditorPreview(!event.shiftKey);
       return;
     }
     if (!editingText && (key === 'delete' || key === 'backspace')) {
@@ -721,6 +722,9 @@
     canCut={canEdit && hasSelection}
     {canPaste}
     {twoChannelView}
+    {previewPlaying}
+    on:play={() => toggleEditorPreview()}
+    on:playFromCursor={() => toggleEditorPreview(false)}
     on:open={() => void chooseAudioFile()}
     on:saveClip={openExportDialog}
     on:close={() => window.close()}
@@ -750,23 +754,7 @@
             <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !hasSelection} aria-label={$t('editor.edit.delete', { default: 'Delete' })} on:click={() => deleteSelection()}><span class="material-symbols-outlined" aria-hidden="true">delete</span><HoverTooltip>{$t('editor.edit.deleteShortcut', { default: 'Delete selection · Del' })}</HoverTooltip></button>
             <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !hasSelection} aria-label={$t('editor.edit.trim', { default: 'Trim to selection' })} on:click={trimToSelection}><span class="material-symbols-outlined" aria-hidden="true">content_cut</span><HoverTooltip>{$t('editor.edit.trim', { default: 'Trim to selection' })}</HoverTooltip></button>
           </div>
-          <span class="toolbar-separator" aria-hidden="true"></span>
-          <button class="text-button effects-button" type="button" disabled={!canEdit || !hasSelection} on:click={() => openEffectDialog()}><span class="material-symbols-outlined" aria-hidden="true">auto_fix_high</span>{$t('editor.effects.button', { default: 'Effects...' })}</button>
-          <span class="toolbar-separator" aria-hidden="true"></span>
-          <div class="toolbar-group transport-group" aria-label={$t('editor.edit.transport', { default: 'Navigation and preview' })}>
-            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit} aria-label={$t('editor.edit.selectionStart', { default: 'Go to selection start' })} on:click={() => seekEditor(hasSelection ? editState.selectionStart : 0)}><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><HoverTooltip>{$t('editor.edit.selectionStart', { default: 'Go to selection start' })}</HoverTooltip></button>
-            <button class="icon-button transport-play hover-tooltip-anchor" class:is-active={previewPlaying} type="button" disabled={!canEdit} aria-label={$t('editor.edit.play', { default: 'Play from cursor' })} on:click={() => toggleEditorPreview(false)}><span class="material-symbols-outlined" aria-hidden="true">{previewPlaying ? 'stop' : 'play_arrow'}</span><HoverTooltip>{$t('editor.edit.playShortcut', { default: 'Play from cursor · Space' })}</HoverTooltip></button>
-            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !hasSelection} aria-label={$t('editor.edit.playSelection', { default: 'Play selection' })} on:click={() => toggleEditorPreview(true)}><span class="material-symbols-outlined" aria-hidden="true">play_circle</span><HoverTooltip>{$t('editor.edit.playSelection', { default: 'Play selection' })}</HoverTooltip></button>
-            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit} aria-label={$t('editor.edit.selectionEnd', { default: 'Go to selection end' })} on:click={() => seekEditor(hasSelection ? editState.selectionEnd : duration)}><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><HoverTooltip>{$t('editor.edit.selectionEnd', { default: 'Go to selection end' })}</HoverTooltip></button>
-            <span class="transport-time">{formatTime(playhead)} / {formatTime(duration)}</span>
-          </div>
           <div class="toolbar-spacer"></div>
-          <div class="toolbar-group zoom-group" aria-label={$t('editor.edit.zoom', { default: 'Zoom' })}>
-            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom <= 1} aria-label={$t('editor.clip.zoomOut', { default: 'Zoom out' })} on:click={() => setWaveformZoom(waveformZoom / 2)}><span class="material-symbols-outlined" aria-hidden="true">zoom_out</span><HoverTooltip>{$t('editor.clip.zoomOut', { default: 'Zoom out' })}</HoverTooltip></button>
-            <button class="text-button zoom-level-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom <= 1} aria-label={$t('editor.clip.fitWaveform', { default: 'Fit waveform (Ctrl+wheel to zoom)' })} on:click={resetWaveformViewport}>{formatWaveformZoom(waveformZoom)}<HoverTooltip>{$t('editor.clip.fitWaveform', { default: 'Fit waveform (Ctrl+wheel to zoom)' })}</HoverTooltip></button>
-            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom >= MAX_WAVEFORM_ZOOM} aria-label={$t('editor.clip.zoomIn', { default: 'Zoom in' })} on:click={() => setWaveformZoom(waveformZoom * 2)}><span class="material-symbols-outlined" aria-hidden="true">zoom_in</span><HoverTooltip>{$t('editor.clip.zoomIn', { default: 'Zoom in' })}</HoverTooltip></button>
-            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !hasSelection} aria-label={$t('editor.edit.zoomSelection', { default: 'Zoom to selection' })} on:click={zoomToSelection}><span class="material-symbols-outlined" aria-hidden="true">zoom_in_map</span><HoverTooltip>{$t('editor.edit.zoomSelection', { default: 'Zoom to selection' })}</HoverTooltip></button>
-          </div>
           <span class="toolbar-separator" aria-hidden="true"></span>
           <button class="text-button primary export-button" type="button" disabled={!canEdit} on:click={openExportDialog}><span class="material-symbols-outlined" aria-hidden="true">save</span>{$t('editor.clip.exportOpen', { default: 'Export...' })}</button>
         </div>
@@ -807,6 +795,22 @@
               <span>{loadProgress?.detail ?? ''}</span>
             </div>
           {/if}
+        </div>
+
+        <div class="tool-row tool-toolbar clip-toolbar preview-toolbar" role="toolbar" aria-label={$t('editor.edit.transport', { default: 'Navigation and preview' })}>
+          <div class="toolbar-group transport-group" aria-label={$t('editor.edit.transport', { default: 'Navigation and preview' })}>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit} aria-label={$t('editor.edit.selectionStart', { default: 'Go to selection start' })} on:click={() => seekEditor(hasSelection ? editState.selectionStart : 0)}><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><HoverTooltip>{$t('editor.edit.selectionStart', { default: 'Go to selection start' })}</HoverTooltip></button>
+            <button class="icon-button transport-play hover-tooltip-anchor" class:is-active={previewPlaying} type="button" disabled={!canEdit} aria-label={previewPlaying ? $t('audioCompare.stop', { default: 'Stop' }) : $t('editor.edit.play', { default: 'Play' })} on:click={() => toggleEditorPreview()}><span class="material-symbols-outlined" aria-hidden="true">{previewPlaying ? 'stop' : 'play_arrow'}</span><HoverTooltip>{previewPlaying ? $t('editor.edit.stopShortcut', { default: 'Stop · Space' }) : $t('editor.edit.playShortcut', { default: 'Play · Space' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit} aria-label={$t('editor.edit.selectionEnd', { default: 'Go to selection end' })} on:click={() => seekEditor(hasSelection ? editState.selectionEnd : duration)}><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><HoverTooltip>{$t('editor.edit.selectionEnd', { default: 'Go to selection end' })}</HoverTooltip></button>
+            <span class="transport-time">{formatTime(playhead)} / {formatTime(duration)}</span>
+          </div>
+          <div class="toolbar-spacer"></div>
+          <div class="toolbar-group zoom-group" aria-label={$t('editor.edit.zoom', { default: 'Zoom' })}>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom <= 1} aria-label={$t('editor.clip.zoomOut', { default: 'Zoom out' })} on:click={() => setWaveformZoom(waveformZoom / 2)}><span class="material-symbols-outlined" aria-hidden="true">zoom_out</span><HoverTooltip>{$t('editor.clip.zoomOut', { default: 'Zoom out' })}</HoverTooltip></button>
+            <button class="text-button zoom-level-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom <= 1} aria-label={$t('editor.clip.fitWaveform', { default: 'Fit waveform (Ctrl+wheel to zoom)' })} on:click={resetWaveformViewport}>{formatWaveformZoom(waveformZoom)}<HoverTooltip>{$t('editor.clip.fitWaveform', { default: 'Fit waveform (Ctrl+wheel to zoom)' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom >= MAX_WAVEFORM_ZOOM} aria-label={$t('editor.clip.zoomIn', { default: 'Zoom in' })} on:click={() => setWaveformZoom(waveformZoom * 2)}><span class="material-symbols-outlined" aria-hidden="true">zoom_in</span><HoverTooltip>{$t('editor.clip.zoomIn', { default: 'Zoom in' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !hasSelection} aria-label={$t('editor.edit.zoomSelection', { default: 'Zoom to selection' })} on:click={zoomToSelection}><span class="material-symbols-outlined" aria-hidden="true">zoom_in_map</span><HoverTooltip>{$t('editor.edit.zoomSelection', { default: 'Zoom to selection' })}</HoverTooltip></button>
+          </div>
         </div>
 
   </main>

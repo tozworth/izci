@@ -1736,8 +1736,8 @@
       "paste": "Paste",
       "delete": "Delete",
       "trim": "Trim to selection",
-      "play": "Play from cursor",
-      "playSelection": "Play selection",
+      "play": "Play",
+      "playFromCursor": "Play from cursor",
       "zoomSelection": "Zoom to selection",
       "undoNotice": "Edit undone.",
       "redoNotice": "Edit restored.",
@@ -1755,7 +1755,8 @@
       "deleteShortcut": "Delete selection · Del",
       "transport": "Navigation and preview",
       "selectionStart": "Go to selection start",
-      "playShortcut": "Play from cursor · Space",
+      "playShortcut": "Play · Space",
+      "stopShortcut": "Stop · Space",
       "selectionEnd": "Go to selection end"
     },
     "clip": {
