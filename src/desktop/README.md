@@ -17,6 +17,40 @@ Tools with the Desktop development with C++ workload. The build script defaults
 to `stable-x86_64-pc-windows-msvc`, honors an MSVC `RUSTUP_TOOLCHAIN` override,
 and recognizes workspace-local Rust under `.local/desktop-toolchain/`.
 
+Desktop builds also require the Go version declared in `izci-server/go.mod`.
+Cargo builds `cmd/izci-desktop-signal` with CGO disabled and embeds the stripped
+Windows binary into izci.exe. There is no distributed sidecar, Go runtime,
+dedicated host, database, decoder, or renderer in this signaling target.
+
+Multiplayer > Hosting defaults to **Built-in server**, with **External signaling**
+in the same dropdown. Host starts one app-owned room without an operator key,
+then opens the party/invitation dialog. Joining always uses the invitation's
+endpoint, independently of this hosting preference. Desktop HTTP signaling
+uses narrow native HTTP/WebSocket commands; WebView security flags stay intact.
+Invitations use the public izci web origin rather than the local Tauri origin
+and can be pasted into another izci.exe. Browser clients need an HTTPS endpoint
+(a reverse proxy or external signaling); custom browser origins can be allowed
+in Hosting's advanced tweaks.
+
+The built-in listener binds IPv4 interfaces on the configured TCP port (8787
+by default). Invitation addresses default to a LAN address, or the router's
+public address when **Map signaling port with UPnP** succeeds. An advertised
+address override supports port forwarding and HTTPS reverse proxies; the party
+dialog can choose a LAN address when a router lacks NAT loopback. UPnP is off
+by default. It maps only signaling TCP, never audio or WebRTC UDP, uses a short
+renewable lease, and removes only the mapping created by this process. Failed
+mapping keeps LAN hosting available. STUN providers are configurable; the
+built-in server does not supply TURN.
+
+The child is unpacked into a unique temporary directory only while hosting.
+The private parent pipe supplies a transient owner bearer; the public host-login
+endpoint rejects every caller, even localhost. One room is permitted and other
+izci instances can join only as guests. Stop, switching to a client session,
+reloading the playback window, or closing the player shuts down the child and
+cleans up its files/mapping. A kill-on-close Windows job ties forced termination
+to izci.exe; the short mapping lease covers an ungraceful exit. Owner credentials
+and the native readiness snapshot are never persisted.
+
 This target uses the existing File System Access pickers and **real Chromium
 filesystem handles**, including writable handles used by the tools. Queue and
 library records remain in their separate IndexedDB databases; remembered folder

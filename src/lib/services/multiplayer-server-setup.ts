@@ -4,13 +4,17 @@
  * start with no endpoint and this controller makes no network requests
  * until an explicit user action (Connect, Log in, Create, Join) runs.
  *
- * Login bearers live in memory only. Operator keys may be remembered in a
+ * Desktop built-in hosting lazily provisions a pipe-owned server bearer; no
+ * operator key, owner secret, or native readiness state is persisted.
+ * Login bearers live in memory only. External operator keys may be remembered in a
  * separate device-local store when the user opts in; remembered rooms keep
  * owner/invitation secrets when room remembering or session restore is enabled. All surfaced
  * errors pass through `redactServerSecrets` so invitations never reach
  * UI text, errors, or diagnostics.
  */
 import { writable } from 'svelte/store';
+import { isDesktop, startBuiltinSignaling, stopBuiltinSignaling } from '$platform';
+import type { BuiltinSignalingOptions, BuiltinSignalingReady } from './platform-signaling-types';
 import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
 import {
   forgetServerInvitation,
@@ -26,6 +30,7 @@ import {
 } from '$lib/stores/multiplayer-server-host-keys';
 import {
   buildServerInviteLink,
+  SERVER_INVITE_WEB_ORIGIN,
   describeServerEndpoint,
   normalizeServerInviteEndpoint,
   redactServerSecrets,
@@ -60,6 +65,7 @@ export interface ServerLoginState {
 }
 
 export interface ServerHostedState {
+  inviteEndpoint?: string;
   endpoint: string;
   roomId: string;
   invitationSecret: string;
@@ -72,6 +78,7 @@ export type ServerGuestStatus = 'idle' | 'loading-info' | 'awaiting-providers' |
 export type ServerJoinMode = 'coop' | 'freeplay';
 
 export interface ServerSetupSnapshot {
+  builtin: Omit<BuiltinSignalingReady, 'sessionToken'> | null;
   dialogOpen: boolean;
   serverInput: string;
   endpoint: string | null;
@@ -164,6 +171,7 @@ const DEFAULT_NETWORK: ServerSetupNetwork = {
 
 function initialSnapshot(): ServerSetupSnapshot {
   return {
+    builtin: null,
     dialogOpen: false,
     serverInput: '',
     endpoint: null,
@@ -206,8 +214,15 @@ export function readServerIceAck(): { endpoint: string; urls: string[] } | null 
   }
 }
 
+export interface BuiltinSignalingRuntime {
+  available: boolean;
+  start(options: BuiltinSignalingOptions): Promise<BuiltinSignalingReady>;
+  stop(endpoint?: string): Promise<void>;
+}
+
 export function createServerSetupController(
-  network: ServerSetupNetwork = DEFAULT_NETWORK
+  network: ServerSetupNetwork = DEFAULT_NETWORK,
+  builtinRuntime: BuiltinSignalingRuntime = { available: isDesktop, start: startBuiltinSignaling, stop: stopBuiltinSignaling }
 ) {
   let state = initialSnapshot();
   let loginState: ServerLoginState | null = null;
@@ -411,6 +426,10 @@ export function createServerSetupController(
 
   async function hostConfigured(): Promise<void> {
     const settings = multiplayerSettings.getSnapshot();
+    if (builtinRuntime.available && settings.multiplayerSignaling === 'builtin') {
+      await hostBuiltin();
+      return;
+    }
     if (!settings.multiplayerServerEndpoint) {
       throw new Error('Set up a Server server in Options > Multiplayer first.');
     }
@@ -424,6 +443,54 @@ export function createServerSetupController(
     }
     await login('');
     await createRoom();
+  }
+
+  async function hostBuiltin(): Promise<void> {
+    const session = requireConnector();
+    if (!builtinRuntime.available) throw new Error('Built-in signaling requires izci.exe.');
+    const settings = multiplayerSettings.getSnapshot();
+    const signal = takeSignal('host-builtin');
+    let ready: BuiltinSignalingReady | null = null;
+    try {
+      // Teardown the previous party before acquiring this process's one server.
+      await session.stopHosting();
+      if (signal.aborted) return;
+      ready = await builtinRuntime.start({
+        port: settings.multiplayerBuiltinPort,
+        publicUrl: settings.multiplayerBuiltinPublicUrl,
+        upnp: settings.multiplayerBuiltinUpnp,
+        iceUrls: settings.multiplayerBuiltinIceUrls.split(/[\s,]+/).filter(Boolean),
+        allowedOrigins: settings.multiplayerBuiltinAllowedOrigins.split(/[\s,]+/).filter(Boolean)
+      });
+      signal.throwIfAborted();
+      const invitation = await session.startHosting({
+        endpoint: ready.endpoint, hostKey: '', sessionToken: ready.sessionToken,
+        capacity: settings.multiplayerMaxListeners, signal
+      });
+      signal.throwIfAborted();
+      loginState = null;
+      const { sessionToken: _token, ...presentation } = ready;
+      set({
+        builtin: presentation, hasLogin: false, loginEndpoint: null,
+        hosted: { endpoint: ready.endpoint, inviteEndpoint: ready.publicEndpoint, roomId: invitation.roomId, invitationSecret: invitation.secret, expiresAt: '' },
+        inviteLink: buildServerInviteLink({
+          endpoint: ready.publicEndpoint, roomId: invitation.roomId, secret: invitation.secret, title: null
+        }, SERVER_INVITE_WEB_ORIGIN),
+        dedicatedInviteLink: null, dialogOpen: false
+      });
+    } catch (error) {
+      // Cancellation during native startup must still reclaim the child, its
+      // mapping, and any newly attached room before another attempt can run.
+      if (ready) {
+        await session.stopHosting().catch(() => undefined);
+        await builtinRuntime.stop(ready.endpoint).catch(() => undefined);
+      }
+      if (!signal.aborted) set({ error: toUserError(error, 'Could not start built-in signaling.') });
+      throw error;
+    } finally {
+      if (currentAbort?.signal === signal) clearBusy();
+      publish();
+    }
   }
 
   async function resumeRoom(roomId: string, ownerSecret: string): Promise<void> {
@@ -571,12 +638,12 @@ export function createServerSetupController(
         hosted,
         inviteLink: buildServerInviteLink(
           {
-            endpoint: hosted.endpoint,
+            endpoint: hosted.inviteEndpoint ?? hosted.endpoint,
             roomId: hosted.roomId,
             secret,
             title: null
           },
-          typeof window !== 'undefined' ? window.location.origin : ''
+          state.builtin ? SERVER_INVITE_WEB_ORIGIN : typeof window !== 'undefined' ? window.location.origin : ''
         )
       });
     } catch (error) {
@@ -596,7 +663,7 @@ export function createServerSetupController(
     try {
       await session.stopHosting();
       if (signal.aborted) return;
-      set({ hosted: null, inviteLink: null });
+      set({ hosted: null, inviteLink: null, builtin: null });
     } finally {
       clearBusy();
       publish();
@@ -790,6 +857,17 @@ export function createServerSetupController(
     logout,
     createRoom,
     hostConfigured,
+    hostBuiltin,
+    useBuiltinInviteEndpoint(endpoint: string): void {
+      if (!state.builtin || !state.hosted || ![state.builtin.publicEndpoint, ...state.builtin.lanEndpoints].includes(endpoint)) return;
+      set({
+        hosted: { ...state.hosted, inviteEndpoint: endpoint },
+        inviteLink: buildServerInviteLink({ endpoint, roomId: state.hosted.roomId, secret: state.hosted.invitationSecret, title: null }, SERVER_INVITE_WEB_ORIGIN)
+      });
+    },
+    clearHosted(endpoint: string): void {
+      if (state.hosted?.endpoint === endpoint) set({ hosted: null, inviteLink: null, builtin: null });
+    },
     resumeRoom,
     resumeOrRecreateRoom,
     rotateInvitation,

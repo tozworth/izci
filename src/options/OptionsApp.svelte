@@ -12,6 +12,7 @@
   } from '$lib/services/options-window-state';
   import { appearanceSettings, DEFAULT_APPEARANCE_SETTINGS } from '$lib/stores/appearance-settings';
   import { DEFAULT_METADATA_SETTINGS, metadataSettings } from '$lib/stores/metadata-settings';
+  import { DEFAULT_MULTIPLAYER_SETTINGS, multiplayerSettings } from '$lib/stores/multiplayer-settings';
   import { DEFAULT_PLAYBACK_SETTINGS, playbackSettings } from '$lib/stores/playback-settings';
   import { DEFAULT_PATTERN_VIEWER_SETTINGS, patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
   import { DEFAULT_ODA_SETTINGS, odaSettings } from '$lib/stores/oda-settings';
@@ -198,6 +199,11 @@
       case 'metadata':
         advancedTweaksModified =
           $metadataSettings.playCountThresholdSeconds !== DEFAULT_METADATA_SETTINGS.playCountThresholdSeconds;
+        break;
+      case 'hosting':
+        advancedTweaksModified =
+          $multiplayerSettings.multiplayerBuiltinIceUrls !== DEFAULT_MULTIPLAYER_SETTINGS.multiplayerBuiltinIceUrls ||
+          $multiplayerSettings.multiplayerBuiltinAllowedOrigins !== DEFAULT_MULTIPLAYER_SETTINGS.multiplayerBuiltinAllowedOrigins;
         break;
       default:
         advancedTweaksModified = false;

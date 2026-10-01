@@ -4,11 +4,13 @@ import { serverSetup } from './multiplayer-server-setup';
 import { serverHostKeys } from '$lib/stores/multiplayer-server-host-keys';
 import { buildServerInvitationPayload } from './multiplayer-server-invite';
 import type { MultiplayerSettings } from '$lib/types';
+import { DEFAULT_MULTIPLAYER_SETTINGS } from '$lib/stores/multiplayer-settings';
 
 const ROOM = 'd'.repeat(32);
 
 function settings(overrides: Partial<MultiplayerSettings> = {}): MultiplayerSettings {
   return {
+    ...DEFAULT_MULTIPLAYER_SETTINGS,
     multiplayer: true,
     izciName: 'Test',
     multiplayerServerEndpoint: '',
@@ -147,7 +149,7 @@ describe('multiplayer window controller server routing', () => {
     expect(serverSetup.getSnapshot().dialogOpen).toBe(false);
   });
 
-  it('runs server commands directly instead of opening the setup surface', async () => {
+  it('hosts directly, then opens party management; joins directly by invitation', async () => {
     const raw = buildServerInvitationPayload({
       endpoint: 'https://server.example.com',
       roomId: ROOM,
@@ -168,7 +170,8 @@ describe('multiplayer window controller server routing', () => {
     await controller.host();
     expect(hostConfigured).toHaveBeenCalledOnce();
     expect(session.startHosting).not.toHaveBeenCalled();
-    expect(serverSetup.getSnapshot().dialogOpen).toBe(false);
+    expect(serverSetup.getSnapshot().dialogOpen).toBe(true);
+    serverSetup.closeSetup();
     await controller.joinWithPrompt();
     expect(prompted).toEqual(['main.multiplayer.server.enterInvite']);
     expect(session.join).not.toHaveBeenCalled();

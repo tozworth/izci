@@ -52,6 +52,8 @@ fn preserve(role: WindowRole, workbench_open: bool) -> bool {
 }
 
 pub fn close_player(app: &AppHandle) {
+    crate::signaling_transport::stop(app);
+    crate::signaling::stop(app, None);
     for label in ["main", "mini-player"] {
         if let Some(window) = app.get_webview_window(label) {
             crate::window_state::save(&window.as_ref().window());

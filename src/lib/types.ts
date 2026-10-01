@@ -375,6 +375,12 @@ export interface TrackSettings {
 }
 
 export interface MultiplayerSettings {
+  multiplayerSignaling: 'builtin' | 'external';
+  multiplayerBuiltinPort: number;
+  multiplayerBuiltinPublicUrl: string;
+  multiplayerBuiltinUpnp: boolean;
+  multiplayerBuiltinIceUrls: string;
+  multiplayerBuiltinAllowedOrigins: string;
   multiplayer: boolean;
   izciName: string;
   multiplayerServerEndpoint: string;

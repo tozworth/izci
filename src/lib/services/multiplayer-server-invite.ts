@@ -7,13 +7,16 @@
  * secret-bearing fragment is then removed from the address bar. Legacy
  * `#join=` invite codes stay owned by `multiplayer-invite-link`.
  *
- * Endpoints accept HTTPS only, except loopback development addresses where
- * plain HTTP is allowed (mirroring the server's `publicBaseUrl` rule).
+ * Browser endpoints require HTTPS outside loopback. Desktop clients also
+ * accept HTTP through the native signaling transport.
  * Secrets travel in the fragment only, never in fetch URLs or logs; use
  * `redactServerSecrets` before surfacing errors or diagnostics.
  */
 
+import { isDesktop } from '$platform';
+
 export const SERVER_INVITE_MAX_BYTES = 4 * 1024;
+export const SERVER_INVITE_WEB_ORIGIN = 'https://izci.xn--ala-hsa.net';
 export const SERVER_INVITE_TITLE_MAX = 120;
 export const SERVER_INVITE_SECRET_MAX = 512;
 export const SERVER_ROOM_ID_PATTERN = /^[0-9a-f]{32}$/;
@@ -31,6 +34,7 @@ export type ServerInviteErrorCode =
   | 'bad-payload'
   | 'bad-version'
   | 'bad-endpoint'
+  | 'desktop-required'
   | 'bad-room'
   | 'bad-secret'
   | 'bad-title';
@@ -47,7 +51,7 @@ export class ServerInviteError extends Error {
 
 /**
  * Strictly validate a server endpoint and normalize it once: trim,
- * require HTTPS (HTTP only for loopback development hosts), reject URL
+ * require HTTPS in browsers (HTTP also works in desktop), reject URL
  * credentials, query/fragment components, malformed ports, and ambiguous
  * deployment paths. Returns the normalized base URL without trailing slash.
  */
@@ -71,7 +75,7 @@ export function normalizeServerInviteEndpoint(raw: string): string {
     || host === '127.0.0.1'
     || host.startsWith('127.')
     || host.endsWith('.localhost');
-  if (url.protocol === 'http:' && !isLoopback) throw new ServerInviteError('bad-endpoint');
+  if (url.protocol === 'http:' && !isLoopback && !isDesktop) throw new ServerInviteError('desktop-required');
   if (url.protocol !== 'https:' && url.protocol !== 'http:') {
     throw new ServerInviteError('bad-endpoint');
   }
@@ -141,7 +145,8 @@ export function buildServerInvitationPayload(invitation: ServerInvitation): stri
 }
 
 export function buildServerInviteLink(invitation: ServerInvitation, origin?: string): string {
-  const base = (origin ?? (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/+$/, '');
+  const candidate = origin ?? (isDesktop ? SERVER_INVITE_WEB_ORIGIN : typeof window !== 'undefined' ? window.location.origin : '');
+  const base = (candidate === 'https://tauri.localhost' ? SERVER_INVITE_WEB_ORIGIN : candidate).replace(/\/+$/, '');
   return `${base}/#party=${buildServerInvitationPayload(invitation)}`;
 }
 

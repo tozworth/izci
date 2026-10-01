@@ -9,6 +9,7 @@ import {
   SERVER_APP_PROTOCOL_MINOR,
   type ServerErrorCode
 } from './multiplayer-server-protocol';
+import { fetchSignaling, isDesktop } from '$platform';
 
 export class ServerError extends Error {
   readonly code: ServerErrorCode | string;
@@ -105,7 +106,7 @@ export function normalizeServerEndpoint(raw: string): string {
     || host === '127.0.0.1'
     || host === '::1'
     || host.endsWith('.localhost');
-  if (url.protocol === 'http:' && !isLoopback) {
+  if (url.protocol === 'http:' && !isLoopback && !isDesktop) {
     throw new ServerError('bad-request', 0);
   }
   // Keep the deployment prefix path as-is (no trailing slash).
@@ -155,7 +156,7 @@ async function requestJson<T>(
   options: RequestOptions = {}
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<T> {
-  const response = await fetch(apiUrl(endpoint, path), {
+  const response = await fetchSignaling(apiUrl(endpoint, path), {
     method,
     signal: options.signal,
     credentials: 'omit',
@@ -172,7 +173,7 @@ async function requestJson<T>(
 }
 
 export async function fetchServerInfo(endpoint: string, signal?: AbortSignal): Promise<ServerServerInfo> {
-  const response = await fetch(apiUrl(endpoint, '/v1/info'), {
+  const response = await fetchSignaling(apiUrl(endpoint, '/v1/info'), {
     method: 'GET',
     signal,
     credentials: 'omit',

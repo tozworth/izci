@@ -92,6 +92,10 @@ type sessionResponse struct {
 }
 
 func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
+	if s.owned {
+		writeError(w, http.StatusForbidden, CodeUnauthorized)
+		return
+	}
 	if !methodOnly(w, r, "POST, OPTIONS", http.MethodPost) {
 		return
 	}

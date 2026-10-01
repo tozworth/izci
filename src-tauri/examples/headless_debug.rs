@@ -16,6 +16,11 @@ mod fonts;
 mod headless_control;
 #[path = "../src/playback_restoration.rs"]
 mod playback_restoration;
+#[path = "../src/signaling.rs"]
+mod signaling;
+#[path = "../src/signaling_transport.rs"]
+#[allow(dead_code)]
+mod signaling_transport;
 mod windows {
     pub fn is_app_url(url: &tauri::Url) -> bool {
         url.scheme() == "https" && url.host_str() == Some("tauri.localhost")
@@ -114,13 +119,18 @@ fn main() {
     tauri::Builder::default()
         .manage(Session { directory: directory.clone(), ready: AtomicBool::new(false), muted: Arc::new(AtomicBool::new(false)) })
         .manage(desktop_files::LaunchFiles::default())
+        .manage(signaling::Signaling::default())
+        .manage(signaling_transport::Transport::default())
         .invoke_handler(tauri::generate_handler![
             desktop_window_ready, configure_desktop_associations, configure_desktop_visibility,
             present_desktop_popup, open_desktop_default_apps, open_mini_player,
             close_mini_player, dismiss_mini_player, restore_main_window, pin_mini_player, exit_desktop,
             playback_restoration::prepare_desktop_playback_restoration,
             desktop_files::take_desktop_launch_paths, desktop_files::materialize_desktop_files,
-            fonts::local_font_families
+            fonts::local_font_families,
+            signaling::start_builtin_signaling, signaling::stop_builtin_signaling,
+            signaling_transport::signaling_http, signaling_transport::cancel_signaling_http,
+            signaling_transport::open_signaling_socket, signaling_transport::send_signaling_socket
         ])
         .setup(move |app| {
             let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))

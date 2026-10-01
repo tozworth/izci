@@ -97,7 +97,9 @@
         "enterInvite": "izci-server davet bağlantısını veya davet kodunu yapıştırın",
         "dismiss": "Kapat",
         "inviteInvalid": "Bu parti davet bağlantısı okunamadı.",
-        "legacyRetired": "Eski çok oyunculu davetler kullanımdan kaldırıldı. Sunucudan bir izci-server daveti isteyin."
+        "legacyRetired": "Eski çok oyunculu davetler kullanımdan kaldırıldı. Sunucudan bir izci-server daveti isteyin.",
+        "manageParty": "Partiyi ve daveti yönet",
+        "desktopRequired": "Bu parti HTTP sinyalleşmesi kullanıyor. Daveti izci.exe içine yapıştırın veya tarayıcıdan katılmak için ev sahibinden HTTPS adresi isteyin."
       }
     },
     "common": {
@@ -811,7 +813,7 @@
       },
       "restoreSession": {
         "title": "Son oturumu geri yükle",
-        "hint": "Yeniden başlatıldıktan sonra hatırlanan izci-server davetine bağlanır. Sunuculuk için giriş gerekir."
+        "hint": "Yeniden başlatınca hatırlanan davete bağlanır. Ana menüden yeniden ev sahipliği başlatın."
       },
       "maxListeners": {
         "title": "Azami konuk",
@@ -860,7 +862,7 @@
       "server": {
         "setupTitle": "izci-server kurulumu",
         "serverLabel": "Sunucu adresi",
-        "serverHint": "izci-server sunucusunun HTTPS adresi; alt yoldan sunuluyorsa yol önekiyle. Bağlan'a basmadan hiçbir istek yapılmaz.",
+        "serverHint": "Harici izci-server adresini girin, ardından operatör anahtarınızı doğrulayın. Davetle katılmak için ev sahibi kurulumu gerekmez.",
         "connect": "Bağlan",
         "useServer": "Kullan",
         "noDirectory": "Sunucu adresi herkese açık oda listelemez; yalnızca işletmecinin açıklamasını gösterir.",
@@ -922,7 +924,30 @@
         "forgetInvite": "Daveti unut",
         "guideLink": "izci-server kurulum kılavuzu",
         "needsMainWindow": "Sunuculuk ve katılım ana pencereden yapılır.",
-        "loginExpired": "Bu girişin süresi doldu. Operatör anahtarını yeniden gir."
+        "loginExpired": "Bu girişin süresi doldu. Operatör anahtarını yeniden gir.",
+        "signaling": "Sinyalleşme",
+        "signalingHint": "Yalnızca ev sahipliği yaparken kullanılır. Katılma işlemi her zaman davet adresini izler.",
+        "builtin": "Yerleşik sunucu",
+        "external": "Harici sinyalleşme",
+        "builtinHint": "Partinizle birlikte başlar; ev sahipliğini durdurduğunuzda veya izci’yi kapattığınızda durur. Yalnızca bu izci üzerinde ev sahipliği yapabilir. Operatör anahtarı gerekmez.",
+        "port": "Dinleme portu",
+        "portHint": "Davetler ve sinyalleşme için TCP portu. Değişiklikler bir sonraki partide uygulanır.",
+        "upnp": "Sinyalleşme portunu UPnP ile yönlendir",
+        "upnpHint": "Ev sahipliği sırasında yönlendiricinizden bu TCP portunu yönlendirmesini ister. Eşleme durdurunca kaldırılır; beklenmedik kapanıştan sonra süresi dolar. WebRTC için yine çalışan bir eş bağlantısı gerekir.",
+        "publicUrl": "Davet adresi",
+        "publicUrlHint": "Davetler için isteğe bağlı http(s)://sunucu:port. LAN keşfi veya UPnP genel adresi için boş bırakın. HTTP partileri izci.exe istemcileri gerektirir; tarayıcı istemcileri için HTTPS ters vekili ve aşağıda izin verilen köken gerekir.",
+        "automaticAddress": "Otomatik LAN / UPnP adresi",
+        "stun": "STUN sağlayıcıları",
+        "stunHint": "Eş keşfi için virgülle ayrılmış stun: adresleri. Boş bırakılırsa yalnızca yerel adaylar kullanılır. Yerleşik sunucuda TURN aktarıcısı yoktur.",
+        "clientOrigins": "Ek tarayıcı kökenleri",
+        "clientOriginsHint": "HTTPS ters vekili üzerinden izin verilen, virgülle ayrılmış tam http(s) kökenleri. Resmî web uygulaması ve izci.exe zaten izinlidir.",
+        "inviteAddress": "Davet adresi",
+        "inviteAddressHint": "Yönlendiriciniz kendi genel adresine ulaşamıyorsa yakındaki istemciler için bir LAN adresi seçin. HTTP davetleri izci.exe içine yapıştırılabilir.",
+        "mapping": {
+          "off": "Yerleşik sinyalleşme çalışıyor. UPnP kapalı; LAN erişimini veya kendi port yönlendirmenizi kullanın.",
+          "mapped": "Yerleşik sinyalleşme çalışıyor. Sinyalleşme portu UPnP ile yönlendirildi.",
+          "unavailable": "Yerleşik sinyalleşme çalışıyor, ancak UPnP eşlemesi başarısız oldu. LAN erişimi kullanılabilir; yönlendiriciyi kontrol edin veya sinyalleşme portunu elle yönlendirin."
+        }
       }
     },
     "experimental": {

@@ -49,6 +49,8 @@
     <h2 id="server-setup-title">
       {#if hasPending}
         {$t('main.multiplayer.server.inviteTitle', { default: 'Server invitation' })}
+      {:else if $serverSetup.hosted}
+        {$t('main.multiplayer.server.manageParty', { default: 'Manage party and invitation' })}
       {:else}
         {$t('main.multiplayer.server.setupTitle', { default: 'Server setup' })}
       {/if}

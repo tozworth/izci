@@ -349,7 +349,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     getMultiplayerSettings: () => multiplayerSettings.getSnapshot(),
     pausePlayer: () => playerController.pause(),
     setActiveWorkspaceTab: (tab) => workspaceShell.setActiveWorkspaceTab(tab),
-    openMultiplayerOptions: () => deps.openOptions('multiplayer'),
+    openMultiplayerOptions: () => deps.openOptions('hosting'),
     getRemoteSelections: deps.getRemoteSelections,
     setRemoteSelections: deps.setRemoteSelections,
     translate

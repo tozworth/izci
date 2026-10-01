@@ -5,6 +5,7 @@
  * identity/presentation.
  */
 import { logError, logInfo, logWarning } from '$lib/services/logging';
+import { isBuiltinSignalingEndpoint } from '$platform';
 import { rememberMultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import {
   MULTIPLAYER_PROTOCOL_MAJOR,
@@ -316,7 +317,7 @@ async function acceptServerOffer(
       bearer: link.room.sessionToken,
       roomId: link.room.roomId,
       cacheKey: `host::${link.room.endpoint}::${link.room.roomId}`,
-      forceRelay: core.multiplayerSettings.multiplayerServerForceRelay
+      forceRelay: !isBuiltinSignalingEndpoint(link.room.endpoint) && core.multiplayerSettings.multiplayerServerForceRelay
     });
   } catch (error) {
     core.updateClient(connectionId, { status: 'disconnected' });
@@ -414,14 +415,8 @@ export async function joinServer(
 ): Promise<void> {
   const { core, transition } = ctx;
   const endpoint = normalizeServerEndpoint(args.endpoint);
-  const generation = core.transportGeneration + 1;
-  core.transportGeneration = generation;
-  core.disposeServerTransport?.();
-  core.disposeServerTransport = null;
-  core.serverHost?.dispose();
-  core.serverHost = null;
-  core.serverGuest?.dispose();
-  core.serverGuest = null;
+  // Shared teardown needs the previous host reference to revoke its room and
+  // stop app-owned signaling before this instance becomes a guest.
   await core.resetSession(true);
   const owned = core.transportGeneration;
   beginClientPlaybackSession(ctx);

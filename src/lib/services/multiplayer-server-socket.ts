@@ -19,10 +19,12 @@ import {
   type ServerReadyPayload,
   type ServerSdpPayload
 } from './multiplayer-server-protocol';
+import { createSignalingSocket } from '$platform';
+import type { SignalingSocket } from './platform-signaling-types';
 
-export type ServerSocketFactory = (url: string) => WebSocket;
+export type ServerSocketFactory = (url: string) => SignalingSocket;
 
-const DEFAULT_SOCKET_FACTORY: ServerSocketFactory = (url) => new WebSocket(url);
+const DEFAULT_SOCKET_FACTORY: ServerSocketFactory = createSignalingSocket;
 
 export interface ServerSocketEvents {
   onMessage(envelope: ServerEnvelope): void;

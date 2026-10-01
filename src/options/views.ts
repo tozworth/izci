@@ -197,6 +197,7 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       label: 'Hosting',
       icon: 'dns',
       parentLabel: 'Multiplayer',
+      hasAdvancedTweaks: true,
       hasHints: true,
       resettable: true
     },

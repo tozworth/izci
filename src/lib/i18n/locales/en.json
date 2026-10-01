@@ -89,7 +89,9 @@
         "enterInvite": "Paste the izci-server invitation link or invite code",
         "dismiss": "Dismiss",
         "inviteInvalid": "That party invitation link could not be read.",
-        "legacyRetired": "Legacy multiplayer invitations have been retired. Ask the host for an izci-server invitation."
+        "legacyRetired": "Legacy multiplayer invitations have been retired. Ask the host for an izci-server invitation.",
+        "manageParty": "Manage party and invitation",
+        "desktopRequired": "This party uses HTTP signaling. Paste the invitation into izci.exe, or ask the host for an HTTPS address to join in a browser."
       }
     },
     "common": {
@@ -803,7 +805,7 @@
       },
       "restoreSession": {
         "title": "Restore last session",
-        "hint": "Reconnects to a remembered izci-server invitation after relaunch. Hosting requires login."
+        "hint": "Reconnects to a remembered invitation after relaunch. Start hosting again from the main menu."
       },
       "maxListeners": {
         "title": "Maximum guests",
@@ -852,7 +854,7 @@
       "server": {
         "setupTitle": "izci-server setup",
         "serverLabel": "Server address",
-        "serverHint": "HTTPS address of the izci-server server, with its path prefix when it serves one. Nothing is contacted until Connect is pressed.",
+        "serverHint": "Enter the external izci-server address, then verify your operator key. Joining by invitation needs no host setup.",
         "connect": "Connect",
         "useServer": "Use",
         "noDirectory": "A server address never lists public rooms; it only shows the operator's description.",
@@ -914,7 +916,30 @@
         "forgetInvite": "Forget invitation",
         "guideLink": "izci-server setup guide",
         "needsMainWindow": "Hosting and joining run from the main window.",
-        "loginExpired": "That login expired. Enter the operator key again."
+        "loginExpired": "That login expired. Enter the operator key again.",
+        "signaling": "Signaling",
+        "signalingHint": "Used only when hosting. Joining always follows the invitation address.",
+        "builtin": "Built-in server",
+        "external": "External signaling",
+        "builtinHint": "Starts with your party and stops when you stop hosting or close izci. Only this izci can host on it. No operator key is needed.",
+        "port": "Listen port",
+        "portHint": "TCP port for invitations and signaling. Changes apply to the next party.",
+        "upnp": "Map signaling port with UPnP",
+        "upnpHint": "Asks your router to forward this TCP port while hosting. The mapping is removed on stop and expires after an unexpected exit. WebRTC still needs a working peer route.",
+        "publicUrl": "Advertised address",
+        "publicUrlHint": "Optional http(s)://host:port for invitations. Leave blank for LAN discovery or the UPnP public address. HTTP parties require izci.exe clients; browser clients need an HTTPS reverse proxy and their origin allowed below.",
+        "automaticAddress": "Automatic LAN / UPnP address",
+        "stun": "STUN providers",
+        "stunHint": "Comma-separated stun: URLs for peer discovery. Empty uses local candidates only. The built-in server has no TURN relay.",
+        "clientOrigins": "Additional browser origins",
+        "clientOriginsHint": "Comma-separated exact http(s) origins allowed through an HTTPS reverse proxy. The official web app and izci.exe are already allowed.",
+        "inviteAddress": "Invite address",
+        "inviteAddressHint": "Choose a LAN address for nearby clients if your router cannot reach its own public address. HTTP invitations can be pasted into izci.exe.",
+        "mapping": {
+          "off": "Built-in signaling is running. UPnP is off; use LAN access or your own port forwarding.",
+          "mapped": "Built-in signaling is running. The signaling port is mapped with UPnP.",
+          "unavailable": "Built-in signaling is running, but UPnP mapping failed. LAN access remains available; check the router or forward the signaling port manually."
+        }
       }
     },
     "experimental": {

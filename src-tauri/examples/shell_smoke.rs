@@ -3,6 +3,12 @@
 #[allow(dead_code)]
 #[path = "../src/fonts.rs"]
 mod fonts;
+mod signaling {
+    pub fn stop(_: &tauri::AppHandle, _: Option<&str>) {}
+}
+mod signaling_transport {
+    pub fn stop(_: &tauri::AppHandle) {}
+}
 #[allow(dead_code)]
 #[path = "../src/player_windows.rs"]
 mod player_windows;
