@@ -625,6 +625,12 @@ function buildViewMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
       icon: 'view_timeline',
       checked: isWorkspaceTabOpen('patterns')
     },
+    {
+      id: 'showVisualizer',
+      label: deps.translate('main.menu.visualizer', { default: 'Visualizer' }),
+      icon: 'graphic_eq',
+      checked: isWorkspaceTabOpen('visualizer')
+    },
     ...(deps.visualMediaActive
       ? [{
           id: 'toggleMedia',

@@ -17,6 +17,7 @@ import { DEFAULT_MODULE_PLAYBACK_SETTINGS, modulePlaybackSettings } from '$lib/s
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { rafPresets } from '$lib/stores/raf-presets';
 import { rafSettings } from '$lib/stores/raf-settings';
+import { DEFAULT_VISUALIZER_SETTINGS, visualizerSettings } from '$lib/stores/visualizer-settings';
 import type { Loadout, LoadoutPlaybackSettings, LoadoutState, LoadoutTrackContext, TrackItem } from '$lib/types';
 
 function playback(
@@ -102,6 +103,7 @@ describe('automatic loadout resolution', () => {
       appearance: {
         backdropZones: { left: 'none', center: 'none', right: 'none', player: 'none', nowPlaying: 'artwork' },
         visualizer: {
+          ...DEFAULT_VISUALIZER_SETTINGS,
           style: 'bars', colorSource: 'theme', height: 0.5, transparency: 0.4,
           frameRateLimit: 60, normalizationStrength: 0.4, triangleCount: 64,
           triangleMinSize: 0.1, triangleMaxSize: 0.5, triangleBaseSpeed: 1,
@@ -142,6 +144,7 @@ describe('automatic loadout runtime', () => {
   const originalPlayback = playbackSettings.getSnapshot();
   const originalModules = modulePlaybackSettings.getSnapshot();
   const originalRafSettings = rafSettings.getSnapshot();
+  const originalVisualizer = visualizerSettings.getSnapshot();
 
   afterEach(() => {
     loadoutStore.reset();
@@ -149,6 +152,17 @@ describe('automatic loadout runtime', () => {
     modulePlaybackSettings.set(originalModules);
     rafPresets.reset();
     rafSettings.replace(originalRafSettings);
+    visualizerSettings.set(originalVisualizer);
+  });
+
+  it('captures and reapplies MilkDrop preferences with appearance loadouts', () => {
+    visualizerSettings.update({ style: 'milkdrop', milkDropPreset: 'a', milkDropCyclePresets: false, milkDropResolution: 0.5 });
+    const captured = captureLoadoutSettings(['appearance']);
+    visualizerSettings.update({ style: 'wave', milkDropPreset: '', milkDropResolution: 1 });
+    applyLoadoutSettings(captured!);
+    expect(visualizerSettings.getSnapshot()).toMatchObject({
+      style: 'milkdrop', milkDropPreset: 'a', milkDropCyclePresets: false, milkDropResolution: 0.5
+    });
   });
 
   it('captures media and module controls as one playback category', () => {

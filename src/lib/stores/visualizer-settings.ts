@@ -11,7 +11,8 @@ export const VISUALIZER_STYLE_OPTIONS: Array<{ value: VisualizerStyle; label: st
   { value: 'bars', label: 'Spectrum bars' },
   { value: 'mirror', label: 'Mirror bloom' },
   { value: 'blocks', label: 'Pixel blocks' },
-  { value: 'triangles', label: 'Rhythm triangles' }
+  { value: 'triangles', label: 'Rhythm triangles' },
+  { value: 'milkdrop', label: 'MilkDrop' }
 ];
 
 export const VISUALIZER_COLOR_SOURCE_OPTIONS: Array<{ value: VisualizerColorSource; label: string }> = [
@@ -31,12 +32,17 @@ export const DEFAULT_VISUALIZER_SETTINGS: VisualizerSettings = {
   triangleMaxSize: 0.56,
   triangleBaseSpeed: 1,
   triangleReactiveSpeed: 1,
-  triangleBorderWidth: 1
+  triangleBorderWidth: 1,
+  milkDropPreset: '',
+  milkDropCyclePresets: true,
+  milkDropCycleSeconds: 30,
+  milkDropBlendSeconds: 3,
+  milkDropResolution: 1
 };
 
 function normalizeStyle(value: unknown): VisualizerStyle {
-  return value === 'bars' || value === 'mirror' || value === 'blocks' || value === 'triangles' || value === 'wave'
-    ? value
+  return VISUALIZER_STYLE_OPTIONS.some((option) => option.value === value)
+    ? value as VisualizerStyle
     : DEFAULT_VISUALIZER_SETTINGS.style;
 }
 
@@ -89,7 +95,13 @@ export function normalizeVisualizerSettings(value: unknown): VisualizerSettings 
       0,
       3
     ),
-    triangleBorderWidth: normalizeNumber(source.triangleBorderWidth, DEFAULT_VISUALIZER_SETTINGS.triangleBorderWidth, 0, 12)
+    triangleBorderWidth: normalizeNumber(source.triangleBorderWidth, DEFAULT_VISUALIZER_SETTINGS.triangleBorderWidth, 0, 12),
+    milkDropPreset: typeof source.milkDropPreset === 'string' ? source.milkDropPreset.trim() : '',
+    milkDropCyclePresets: typeof source.milkDropCyclePresets === 'boolean'
+      ? source.milkDropCyclePresets : DEFAULT_VISUALIZER_SETTINGS.milkDropCyclePresets,
+    milkDropCycleSeconds: normalizeNumber(source.milkDropCycleSeconds, DEFAULT_VISUALIZER_SETTINGS.milkDropCycleSeconds, 5, 300),
+    milkDropBlendSeconds: normalizeNumber(source.milkDropBlendSeconds, DEFAULT_VISUALIZER_SETTINGS.milkDropBlendSeconds, 0, 10),
+    milkDropResolution: normalizeNumber(source.milkDropResolution, DEFAULT_VISUALIZER_SETTINGS.milkDropResolution, 0.25, 2)
   };
 }
 

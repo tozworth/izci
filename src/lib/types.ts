@@ -120,12 +120,12 @@ export interface BackdropZoneArtworkSettings {
   brightness: number;
 }
 export type BackdropZoneArtworkSettingsMap = Record<BackdropZoneId, BackdropZoneArtworkSettings>;
-export type VisualizerStyle = 'wave' | 'bars' | 'mirror' | 'blocks' | 'triangles';
+export type VisualizerStyle = 'wave' | 'bars' | 'mirror' | 'blocks' | 'triangles' | 'milkdrop';
 export type VisualizerColorSource = 'theme' | 'artwork';
 export type LyricsDisplayStyle = 'plain' | 'timestamped' | 'theater';
 export type LyricsFontSizeSettings = Record<LyricsDisplayStyle, number>;
 export type WorkspaceCollection = 'queue' | 'library';
-export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics' | 'patterns' | 'media' | 'chat';
+export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics' | 'patterns' | 'visualizer' | 'media' | 'chat';
 export type MediaTabKind = 'video' | 'image';
 export type ContextualWorkspaceTab = Extract<WorkspaceTab, 'lyrics' | 'patterns'>;
 export type ContextualTabAutomation = 'manual' | 'open' | 'open-close';
@@ -137,6 +137,7 @@ export const WORKSPACE_TABS: WorkspaceTab[] = [
   'details',
   'lyrics',
   'patterns',
+  'visualizer',
   'media',
   'chat'
 ];
@@ -477,6 +478,11 @@ export interface VisualizerSettings {
   triangleBaseSpeed: number;
   triangleReactiveSpeed: number;
   triangleBorderWidth: number;
+  milkDropPreset: string;
+  milkDropCyclePresets: boolean;
+  milkDropCycleSeconds: number;
+  milkDropBlendSeconds: number;
+  milkDropResolution: number;
 }
 
 export type LoadoutType = 'file' | 'path' | 'type' | 'tags' | 'preset';

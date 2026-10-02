@@ -107,6 +107,7 @@ const allWorkspaceTabs: Record<WorkspaceTab, WorkspaceTabDefinition> = {
   details: { id: 'details', icon: 'info', label: 'Details' },
   lyrics: { id: 'lyrics', icon: 'lyrics', label: 'Lyrics' },
   patterns: { id: 'patterns', icon: 'view_timeline', label: 'Patterns' },
+  visualizer: { id: 'visualizer', icon: 'graphic_eq', label: 'Visualizer' },
   media: { id: 'media', icon: 'movie', label: 'Media', closeable: false },
   chat: { id: 'chat', icon: 'chat', label: 'Chat' }
 };
@@ -146,6 +147,7 @@ function cloneLastPanelByTab(
     details: lastPanelByTab.details,
     lyrics: lastPanelByTab.lyrics,
     patterns: lastPanelByTab.patterns,
+    visualizer: lastPanelByTab.visualizer,
     media: lastPanelByTab.media,
     chat: lastPanelByTab.chat
   };

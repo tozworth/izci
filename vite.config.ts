@@ -5,6 +5,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 import enMessages from './src/lib/i18n/locales/en.json';
 import trMessages from './src/lib/i18n/locales/tr.json';
+import { milkDropPresetsPlugin } from './scripts/vite/milkdrop-presets';
 
 export default defineConfig(({ mode }) => {
   const desktop = mode === 'desktop';
@@ -52,6 +53,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     plugins: [
+      milkDropPresetsPlugin(),
       {
         name: 'emit-chiptune3-runtime',
         apply: 'build',

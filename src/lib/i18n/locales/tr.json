@@ -165,7 +165,8 @@
       "abLoopActive": "Döngü: {start}–{end}",
       "abLoopStop": "A-B döngüsünü durdur",
       "queue": "Sıra",
-      "enterOda": "Oda'ya Gir"
+      "enterOda": "Oda'ya Gir",
+      "visualizer": "Görselleştirici"
     },
     "miniPlayer": {
       "heading": "Mini oynatıcı",
@@ -315,6 +316,12 @@
       "display": "Görsel gösterimi",
       "zoom": "%{percent} yakınlaştırma",
       "resetZoom": "Yakınlaştırmayı sıfırla"
+    },
+    "visualizer": {
+      "loading": "MilkDrop yükleniyor…",
+      "webglUnavailable": "MilkDrop için WebGL 2 gereklidir, ancak grafik bağlamı oluşturulamadı. Sağ tık menüsünden başka bir görselleştirici seçin.",
+      "contextLost": "MilkDrop grafik bağlamını kaybetti. Yeniden denemek için görselleştiriciyi değiştirin.",
+      "error": "MilkDrop yüklenemedi veya görüntü oluşturamadı. Ayrıntılar için Araçlar > Kayıtlar bölümüne bakın ya da sağ tık menüsünden başka bir görselleştirici seçin."
     }
   },
   "workspace": {
@@ -358,7 +365,8 @@
       "label": "Çalışma alanı sekmeleri",
       "close": "Kapat",
       "closeNamed": "{tab} sekmesini kapat",
-      "queue": "Sıra"
+      "queue": "Sıra",
+      "visualizer": "Görselleştirici"
     }
   },
   "pwa": {
@@ -1471,7 +1479,7 @@
     "visualizer": {
       "style": {
         "title": "Tür",
-        "hint": "Spektrum çözümleyicinin oynatıcının arkasında nasıl çizildiğini belirler."
+        "hint": "Artalan bölgelerinde ve Görselleştirici sekmesinde kullanılan görselleştiriciyi seçer."
       },
       "colorSource": {
         "title": "Renk kaynağı",
@@ -1483,7 +1491,7 @@
       },
       "opacity": {
         "title": "Opaklık",
-        "hint": "Çözümleyicinin metin, kontroller ve albüm resminin arkasında ne kadar belirgin görüneceğini ayarlar."
+        "hint": "Artalan bölgelerindeki görselleştiricinin opaklığını ayarlar. Görselleştirici sekmesi her zaman tam opaklıkta gösterilir."
       },
       "frameCap": {
         "title": "Kare hızı",
@@ -1524,9 +1532,34 @@
         "blocks": "Piksel blokları",
         "triangles": "Ritim üçgenleri",
         "theme": "Temayı izle",
-        "artwork": "Albüm resmini izle"
+        "artwork": "Albüm resmini izle",
+        "milkdrop": "MilkDrop"
       },
-      "heading": "Oynatıcı Artalanı"
+      "heading": "Görselleştirici",
+      "milkdrop": {
+        "randomPreset": "Rastgele başlangıç önayarı",
+        "preset": {
+          "title": "Önayar",
+          "hint": "Paketlenmiş bir MilkDrop önayarı seçer. Önayarlar kendi renklerini kullanır ve çevrimdışı kullanılabilir."
+        },
+        "cycle": {
+          "title": "Önayarları döngüye al",
+          "hint": "Otomatik olarak başka bir rastgele önayara geçer. Geçerli önayarı korumak için kapatın."
+        },
+        "interval": {
+          "title": "Önayar süresi",
+          "hint": "Sonraki geçişten önce her önayarın kaç saniye çalışacağını belirler."
+        },
+        "blend": {
+          "title": "Önayar geçiş süresi",
+          "hint": "MilkDrop önayarları arasındaki yumuşak geçiş süresini belirler; sıfır anında geçiş yapar."
+        },
+        "resolution": {
+          "title": "Çizim çözünürlüğü",
+          "hint": "MilkDrop çözünürlüğünü ekrana göre, bir megapiksel sınırı içinde ölçekler. Düşük değerler GPU yükünü azaltır."
+        },
+        "loadFailed": "MilkDrop önayarları yüklenemedi."
+      }
     },
     "views": {
       "appearance": "Görünüm",
