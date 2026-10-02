@@ -5,7 +5,7 @@
   import { version as appVersion } from '../../../../package.json';
   import {
     applyAvailableServiceWorkerUpdate,
-    forceServiceWorkerUpdateCheck,
+    checkServiceWorkerUpdate,
     pwaUpdateCheckState
   } from '$lib/services/pwa-updates';
   import { formatDisplayVersion } from '$lib/utils/version';
@@ -35,11 +35,12 @@
     : $t('options.about.updates.lastChecked', { default: 'Last checked {date}', values: { date: successfulCheckFormatter.format($pwaUpdateCheckState.lastSuccessfulCheck) } });
 
   onMount(() => {
-    void forceServiceWorkerUpdateCheck();
+    void checkServiceWorkerUpdate();
   });
 </script>
 
-<article class="view">
+<article class="view about-view">
+  <div class="about-content">
   <div class="section about-section">
     <div class="about-card">
       <div class="about-hero">
@@ -95,7 +96,7 @@
               type="button"
               aria-label={$t('options.about.updates.checkAgain', { default: 'Check for updates again' })}
               title={$t('options.about.updates.checkAgain', { default: 'Check for updates again' })}
-              on:click={() => void forceServiceWorkerUpdateCheck()}
+              on:click={() => void checkServiceWorkerUpdate()}
             >
               <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
             </button>
@@ -139,12 +140,16 @@
     </ul>
   </div>
 
+  </div>
+
   <footer class="about-footer">
-    {$t('options.about.credits', { default: 'izci uses Howler.js, Chiptune3 (based on libopenmpt), and Google Material Symbols.' })}
-    {$t('options.about.seeFull', { default: 'See full' })}
+    <span class="material-symbols-outlined about-heart" aria-hidden="true">favorite</span>
+    <span>
+    {$t('options.about.credits', { default: "izci wouldn't be possible without chiptune.js v3 (libopenmpt WASM), HivelyTracker, Howler.js, and Mediabunny." })}
     <a
       href={buildOptionsWindowPath('licenses')}
       on:click|preventDefault={onOpenLicenses}
-    >{$t('options.about.thirdPartyLicenses', { default: 'third-party licenses' })}</a>.
+    >{$t('options.about.seeFull', { default: 'See full' })} {$t('options.about.thirdPartyLicenses', { default: 'third-party licenses' })}</a>.
+    </span>
   </footer>
 </article>

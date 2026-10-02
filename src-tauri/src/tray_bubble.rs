@@ -1,5 +1,6 @@
 use tauri::{
-    utils::config::WindowConfig, AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewWindow,
+    utils::config::WindowConfig, AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize,
+    WebviewWindow,
 };
 
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
@@ -42,12 +43,13 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-// Anchor to the actual icon, choosing the nearest work-area edge. All inputs
-// are physical pixels, including monitors to the left of the primary display.
+// Use the work area to locate the taskbar, but clamp to the screen so its
+// inset icons can keep the requested gap. All inputs are physical pixels.
 fn position(
     icon: (i32, i32, u32, u32),
     size: (u32, u32),
     area: (i32, i32, u32, u32),
+    screen: (i32, i32, u32, u32),
     gap: i32,
 ) -> PhysicalPosition<i32> {
     let (x, y, iw, ih) = icon;
@@ -74,6 +76,9 @@ fn position(
         2 => (x + iw as i32 + gap, cy - size.1 as i32 / 2),
         _ => (x - size.0 as i32 - gap, cy - size.1 as i32 / 2),
     };
+    let (left, top, sw, sh) = screen;
+    let right = left + sw as i32;
+    let bottom = top + sh as i32;
     PhysicalPosition::new(
         px.clamp(left, right - size.0 as i32),
         py.clamp(top, bottom - size.1 as i32),
@@ -88,6 +93,23 @@ fn require_bubble(window: &WebviewWindow) -> Result<(), String> {
     }
 }
 
+fn player_is_focused(app: &AppHandle) -> bool {
+    ["main", "mini-player"].iter().any(|label| {
+        app.get_webview_window(label).is_some_and(|window| {
+            window.is_focused().unwrap_or(false)
+                && window.is_visible().unwrap_or(false)
+                && !window.is_minimized().unwrap_or(true)
+        })
+    })
+}
+
+pub fn dismiss(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("tray-bubble") {
+        let _ = crate::window_resources::hide(&window);
+        let _ = window.emit("izci:desktop-tray-bubble-dismiss", ());
+    }
+}
+
 #[tauri::command]
 pub fn show_desktop_track_bubble(
     app: AppHandle,
@@ -98,6 +120,9 @@ pub fn show_desktop_track_bubble(
     require_bubble(&window)?;
     if !width.is_finite() || !height.is_finite() {
         return Err("Invalid bubble dimensions".into());
+    }
+    if player_is_focused(&app) {
+        return Ok(false);
     }
     let Some(icon) = app.tray_by_id("izci") else {
         return Ok(false);
@@ -152,9 +177,13 @@ pub fn show_desktop_track_bubble(
                 area.size.width,
                 area.size.height,
             ),
-            (8.0 * scale).round() as i32,
+            (bounds.x, bounds.y, screen.width, screen.height),
+            (2.0 * scale).round() as i32,
         ))
         .map_err(|error| error.to_string())?;
+    if player_is_focused(&app) {
+        return Ok(false);
+    }
     crate::window_resources::set_active(&window, true);
     // Show without activating either the HWND or its WebView2 controller.
     unsafe {
@@ -180,24 +209,48 @@ mod tests {
     #[test]
     fn anchors_to_bottom_top_and_side_taskbars() {
         assert_eq!(
-            position((1800, 1040, 24, 24), (300, 36), (0, 0, 1920, 1040), 8),
-            PhysicalPosition::new(1620, 996)
+            position(
+                (1800, 1048, 24, 24),
+                (300, 28),
+                (0, 0, 1920, 1040),
+                (0, 0, 1920, 1080),
+                2
+            ),
+            PhysicalPosition::new(1620, 1018)
         );
         assert_eq!(
-            position((900, 0, 24, 24), (300, 36), (0, 40, 1920, 1040), 8),
-            PhysicalPosition::new(762, 40)
+            position(
+                (900, 8, 24, 24),
+                (300, 28),
+                (0, 40, 1920, 1040),
+                (0, 0, 1920, 1080),
+                2
+            ),
+            PhysicalPosition::new(762, 34)
         );
         assert_eq!(
-            position((0, 500, 24, 24), (300, 36), (40, 0, 1880, 1080), 8),
-            PhysicalPosition::new(40, 494)
+            position(
+                (8, 500, 24, 24),
+                (300, 28),
+                (40, 0, 1880, 1080),
+                (0, 0, 1920, 1080),
+                2
+            ),
+            PhysicalPosition::new(34, 498)
         );
     }
 
     #[test]
     fn respects_negative_monitors_and_scaled_work_areas() {
         assert_eq!(
-            position((-90, 1040, 24, 24), (450, 54), (-1920, 0, 1920, 1040), 12),
-            PhysicalPosition::new(-450, 974)
+            position(
+                (-90, 1048, 24, 24),
+                (450, 42),
+                (-1920, 0, 1920, 1040),
+                (-1920, 0, 1920, 1080),
+                3
+            ),
+            PhysicalPosition::new(-450, 1003)
         );
     }
 }

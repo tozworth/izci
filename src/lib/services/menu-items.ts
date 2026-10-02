@@ -113,6 +113,15 @@ export function buildMenuItems(deps: MenuItemsDeps): MenuItemsResult {
 }
 
 function buildMenuSubtitle(deps: MenuItemsDeps): string {
+  if (deps.pwaUpdateStatus === 'checking') {
+    return deps.translate('main.menu.updateChecking', { default: 'checking for updates…' });
+  }
+  if (deps.pwaUpdateStatus === 'updating') {
+    return deps.translate('main.menu.updateApplying', { default: 'updating…' });
+  }
+  if (deps.pwaUpdateStatus === 'available') {
+    return deps.translate('main.menu.updateAvailable', { default: 'update available' });
+  }
   return deps.pwaUpdateStatus === 'updated'
     ? deps.translate('main.menu.updateUpdated', { default: 'updated!' })
     : deps.pwaUpdateStatus === 'up-to-date'
@@ -475,11 +484,6 @@ function buildPlaybackMenuItems(
 
 function buildAppMenuItems(deps: MenuItemsDeps, multiplayerMenuItems: MenuActionItem[], loadoutMenuItems: MenuActionItem[]): MenuActionItem[] {
   return [
-    {
-      id: 'enterOda',
-      label: deps.translate('main.menu.enterOda', { default: 'Enter Oda' }),
-      icon: 'tv'
-    },
     ...(deps.installAvailable
       ? [{
           id: 'installApp',
@@ -493,13 +497,6 @@ function buildAppMenuItems(deps: MenuItemsDeps, multiplayerMenuItems: MenuAction
           attention: deps.showInstallHint || deps.installHintPresentedInOpenMenu
         } satisfies MenuActionItem]
       : []),
-    {
-      id: 'openOptions',
-      label: deps.translate('main.menu.options', { default: 'Options...' }),
-      icon: 'settings',
-      shortcut: 'Ctrl+P',
-      separatorBefore: deps.installAvailable
-    },
     {
       id: 'loadouts',
       label: deps.translate('main.menu.loadouts', { default: 'Loadouts' }),
@@ -515,10 +512,39 @@ function buildAppMenuItems(deps: MenuItemsDeps, multiplayerMenuItems: MenuAction
         } satisfies MenuActionItem]
       : []),
     {
+      id: 'tools',
+      label: deps.translate('main.menu.tools', { default: 'Tools' }),
+      icon: 'construction',
+      children: buildToolsMenuItems(deps)
+    },
+    {
+      id: 'enterOda',
+      label: deps.translate('main.menu.enterOda', { default: 'Enter Oda' }),
+      icon: 'tv',
+      separatorBefore: true
+    },
+    {
+      id: 'openOptions',
+      label: deps.translate('main.menu.options', { default: 'Options...' }),
+      icon: 'settings',
+      shortcut: 'Ctrl+P',
+      separatorBefore: true
+    },
+    {
+      id: 'exit',
+      label: deps.translate('main.menu.exit', { default: 'Exit' }),
+      icon: 'logout',
+      shortcut: 'Ctrl+Q'
+    }
+  ] satisfies MenuActionItem[];
+}
+
+function buildToolsMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
+  return [
+    {
       id: 'openTroubadour',
       label: deps.translate('main.menu.troubadour', { default: 'Troubadour...' }),
-      icon: 'library_music',
-      separatorBefore: true
+      icon: 'library_music'
     },
     {
       id: 'openAudioCompare',
@@ -536,11 +562,9 @@ function buildAppMenuItems(deps: MenuItemsDeps, multiplayerMenuItems: MenuAction
       icon: 'sync_alt'
     },
     {
-      id: 'exit',
-      label: deps.translate('main.menu.exit', { default: 'Exit' }),
-      icon: 'logout',
-      shortcut: 'Ctrl+Q',
-      separatorBefore: true
+      id: 'openLogs',
+      label: deps.translate('main.menu.logs', { default: 'Logs...' }),
+      icon: 'article'
     }
   ] satisfies MenuActionItem[];
 }
@@ -675,14 +699,10 @@ function buildVideoMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
 function buildHelpMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
   return [
     {
-      id: 'openLogs',
-      label: deps.translate('main.menu.logs', { default: 'Logs...' }),
-      icon: 'article'
-    },
-    {
       id: 'forceUpdate',
       label: deps.translate('main.menu.forceUpdate', { default: 'Force update' }),
-      icon: 'sync'
+      icon: 'sync',
+      disabled: deps.pwaUpdateStatus === 'checking' || deps.pwaUpdateStatus === 'updating'
     },
     {
       id: 'openAbout',

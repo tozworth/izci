@@ -118,6 +118,8 @@ function createPlayerController() {
     backend: null
   });
   const currentTrack = writable<TrackItem | null>(null);
+  // Transient start notifications also cover restarts and seamless bundle switches.
+  const playbackStarts = writable(0);
   const modulePattern = writable<ModulePatternSnapshot>({ ...initialModulePatternSnapshot });
   const mediaElements = writable<MediaElementsSnapshot>({ video: null, image: null });
 
@@ -140,8 +142,10 @@ function createPlayerController() {
   }
 
   function publish(partial: Partial<PlaybackSnapshot>): void {
+    const started = partial.state === 'playing' && latestState !== 'playing';
     if (partial.state !== undefined) latestState = partial.state;
     snapshot.update((state) => ({ ...state, ...partial }));
+    if (started) playbackStarts.update((sequence) => sequence + 1);
 
     if (
       partial.state !== undefined ||
@@ -544,8 +548,10 @@ function createPlayerController() {
     desiredPlaybackState = autoPlay ? 'playing' : 'paused';
     currentTrack.set(incoming.track);
     setBundleTransitionGain(incoming, crossfadeSeconds > 0 ? 0 : 1);
+    const alreadyPlaying = latestState === 'playing';
     if (autoPlay) bundleService(incoming)?.play();
     publishActiveBundle(autoPlay ? 'playing' : 'paused');
+    if (autoPlay && alreadyPlaying) playbackStarts.update((sequence) => sequence + 1);
 
     if (crossfadeSeconds > 0) {
       setBundleTransitionGain(previous, 0, crossfadeSeconds);
@@ -586,6 +592,7 @@ function createPlayerController() {
     snapshot,
     status,
     currentTrack,
+    playbackStarts: { subscribe: playbackStarts.subscribe },
     modulePattern,
     patternChannels,
     mediaElements,
@@ -665,6 +672,13 @@ function createPlayerController() {
       clearOutgoing();
       setBundleTransitionGain(activeBundle, 1);
       bundleService(activeBundle)?.seek(seconds);
+    },
+    restart() {
+      if (!activeBundle.track || activeBundle.track.kind === 'image') return;
+      clearOutgoing();
+      setBundleTransitionGain(activeBundle, 1);
+      bundleService(activeBundle)?.seek(0);
+      if (latestState === 'playing') playbackStarts.update((sequence) => sequence + 1);
     },
     stepSubsong(direction: -1 | 1) {
       const track = activeBundle.track;

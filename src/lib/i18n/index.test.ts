@@ -22,6 +22,20 @@ describe('normalizeAppLocale', () => {
 });
 
 describe('localization runtime', () => {
+  it.each([
+    ['en', 'Track info bubble'],
+    ['tr', 'Parça bilgisi baloncuğu'],
+    ['en-askew', 'Track info bubble']
+  ])('resolves desktop track bubble settings in %s', (locale, title) => {
+    initializeLocalization();
+    appLocale.set(locale);
+    expect(translate('desktop.appearance.trackInfoBubble.title')).toBe(title);
+    const hint = translate('desktop.appearance.trackInfoBubble.hint');
+    expect(hint).toBeTruthy();
+    expect(hint).not.toBe('desktop.appearance.trackInfoBubble.hint');
+    appLocale.reset();
+  });
+
   it('formats default English messages after initialization', () => {
     initializeLocalization();
     expect(translate('test.default-message', { default: 'Default message' })).toBe('Default message');

@@ -153,6 +153,9 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| match (window.label(), event) {
+            ("main" | "mini-player", WindowEvent::Focused(true)) => {
+                tray_bubble::dismiss(window.app_handle());
+            }
             ("main" | "mini-player", WindowEvent::Moved(_) | WindowEvent::Resized(_)) => {
                 window_state::capture(window);
             }

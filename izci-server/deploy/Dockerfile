@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
   && useradd --uid 65532 --create-home --shell /usr/sbin/nologin izci-server \
   && install -d -o izci-server -g izci-server /var/lib/izci-server /var/cache/izci-server /srv/izci-server/music
 COPY --from=build /out/izci-server /usr/local/bin/izci-server
+COPY LICENSE.md THIRD-PARTY-NOTICES.md /usr/share/doc/izci-server/
 USER izci-server
 EXPOSE 8787
 VOLUME ["/var/lib/izci-server", "/var/cache/izci-server", "/srv/izci-server/music"]

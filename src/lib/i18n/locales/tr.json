@@ -147,6 +147,9 @@
       "view": "Görünüm",
       "help": "Yardım",
       "updateUpdated": "güncellendi!",
+      "updateChecking": "güncellemeler denetleniyor…",
+      "updateApplying": "güncelleniyor…",
+      "updateAvailable": "güncelleme mevcut",
       "updateCurrent": "güncel",
       "updateFailed": "güncelleme başarısız",
       "tools": "Araçlar",
@@ -594,9 +597,9 @@
         "name": "\"izci\" ingilizcede \"tracker\" demek*",
         "nameNote": "*Aslında “scout”a daha yakın. Ama \"izci\" çok tatlı duruyor..."
       },
-      "credits": "izci için Howler.js, Chiptune3 (libopenmpt WASM), ve Material Symbols olmazsa olmazdır.",
+      "credits": "chiptune.js v3 (libopenmpt WASM), HivelyTracker, Howler.js ve Mediabunny olmasaydı izci mümkün olmazdı.",
       "seeFull": "Tüm",
-      "thirdPartyLicenses": "lisanslar için tıklayın"
+      "thirdPartyLicenses": "üçüncü taraf lisanslarını görün"
     },
     "appearance": {
       "themes": {
@@ -725,10 +728,6 @@
         "artwork": "Albüm resmi",
         "visualizer": "Görselleştirici",
         "both": "Her ikisi"
-      },
-      "trackInfoBubble": {
-        "title": "Parça bilgisi baloncuğu",
-        "hint": "Yeni bir parça başladığında başlığı ve sanatçıyı sistem tepsisi simgesinin yanında beş saniye gösterir. Sistem tepsisi simgesi gerektirir."
       },
       "heading": "Artalanlar",
       "artworkBlur": {
@@ -1657,12 +1656,22 @@
   },
   "desktop": {
     "appearance": {
+      "trackInfoBubble": {
+        "title": "Parça bilgisi baloncuğu",
+        "hint": "Oynatma her başladığında, baştan başladığında veya devam ettiğinde başlığı ve sanatçıyı sistem tepsisi simgesinin yanında beş saniye gösterir. Sistem tepsisi simgesi gerektirir."
+      },
       "showIn": {
         "title": "Gösterileceği yer",
         "hint": "izci'nin nerede görüneceğini seçin. Sistem tepsisi simgesi oynatma ve pencere denetimleri sunar.",
         "taskbar": "Yalnızca görev çubuğu",
         "tray": "Yalnızca sistem tepsisi",
         "both": "Her ikisi"
+      },
+      "trayIcon": {
+        "title": "Sistem tepsisi simgesi",
+        "hint": "Görev çubuğunuzla kontrast oluşturacak açık veya koyu bir izci simgesi seçin. Sistem tepsisi simgesi gerektirir.",
+        "light": "Açık",
+        "dark": "Koyu"
       }
     },
     "tracks": {

@@ -13,8 +13,9 @@
       await tick();
       await document.fonts.ready;
       // Measure independently of the previous track's native window width.
-      bubble.style.maxWidth = '560px';
-      const size = { width: bubble.offsetWidth, height: bubble.offsetHeight };
+      bubble.style.maxWidth = '440px';
+      const bounds = bubble.getBoundingClientRect();
+      const size = { width: Math.ceil(bounds.width) + 1, height: Math.ceil(bounds.height) };
       bubble.style.removeProperty('max-width');
       return size;
     },
@@ -23,6 +24,5 @@
 
 <div bind:this={bubble} class="track-bubble" class:visible role="status" aria-live="polite">
   <span class="izci-glyph" aria-hidden="true"></span>
-  <strong class="title">{track?.title ?? ''}</strong>
-  {#if track?.artist}<span class="artist">{track.artist}</span>{/if}
+  <span class="track-info"><strong class="title">{track?.title ?? ''}</strong>{#if track?.artist}<span class="artist">{track.artist}</span>{/if}</span>
 </div>

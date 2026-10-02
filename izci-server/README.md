@@ -11,6 +11,13 @@ lives in SQLite when `database.path` is set, otherwise in memory.
 Official izci builds ship with no server configured: a host enters their
 server address, logs in with the operator key, and shares an invitation.
 
+License and attribution information is in [LICENSE.md](LICENSE.md) and
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), including the Go modules,
+embedded Hively replayer, and system FFmpeg/libopenmpt distribution boundaries.
+The Docker image includes these files under `/usr/share/doc/izci-server/`;
+Debian dependency copyright/license files remain under `/usr/share/doc/` and
+`/usr/share/common-licenses`.
+
 ## Modes
 
 One process runs both roles, kept separate internally:

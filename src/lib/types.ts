@@ -78,7 +78,7 @@ export const MODULE_EXTENSIONS = [
 
 export type TrackKind = 'stream' | 'module' | 'video' | 'image';
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
-export type PwaUpdateStatus = 'idle' | 'updated' | 'up-to-date' | 'failed';
+export type PwaUpdateStatus = 'idle' | 'checking' | 'updating' | 'available' | 'updated' | 'up-to-date' | 'failed';
 export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
 export type RepeatMode = 'off' | 'one' | 'all';
 export type PlaybackRestoreMode = 'disabled' | 'position' | 'position-and-state';

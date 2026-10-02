@@ -148,29 +148,234 @@ describe('PWA update decisions', () => {
     installBrowserGlobals({ registration: currentRegistration });
     const updater = await loadUpdater();
 
-    await updater.forceServiceWorkerUpdateCheck();
+    await updater.checkServiceWorkerUpdate();
 
     expect(currentRegistration.update).toHaveBeenCalledOnce();
     expect(get(updater.pwaUpdateCheckState)).toEqual({
       status: 'available',
       lastSuccessfulCheck: Date.now()
     });
-    // Freeze the current mismatch: availability is retained in check state while
-    // the transient notice still says that the application is up to date.
-    expect(get(updater.pwaUpdateStatus)).toBe('up-to-date');
+    expect(get(updater.pwaUpdateStatus)).toBe('available');
   });
 
-  it('records updatefound as available even before registration.waiting changes', async () => {
+  it('keeps checking until a newly discovered worker finishes installing', async () => {
+    const installing = worker('installing');
     const currentRegistration = registration();
     currentRegistration.update.mockImplementation(async () => {
+      currentRegistration.installing = installing as unknown as ServiceWorker;
       currentRegistration.dispatchEvent(new Event('updatefound'));
     });
     installBrowserGlobals({ registration: currentRegistration });
     const updater = await loadUpdater();
 
-    await updater.forceServiceWorkerUpdateCheck();
+    const checking = updater.checkServiceWorkerUpdate();
+    await vi.waitFor(() => expect(currentRegistration.update).toHaveBeenCalledOnce());
+    expect(get(updater.pwaUpdateCheckState).status).toBe('checking');
+    expect(get(updater.pwaUpdateStatus)).toBe('checking');
+
+    currentRegistration.installing = null;
+    currentRegistration.waiting = installing as unknown as ServiceWorker;
+    installing.state = 'installed';
+    installing.dispatchEvent(new Event('statechange'));
+    await checking;
 
     expect(get(updater.pwaUpdateCheckState).status).toBe('available');
+    expect(get(updater.pwaUpdateStatus)).toBe('available');
+  });
+
+  it('reports up to date only after a real check finds no update', async () => {
+    const currentRegistration = registration();
+    const { browserWindow } = installBrowserGlobals({ registration: currentRegistration });
+    const updater = await loadUpdater();
+
+    await updater.forceServiceWorkerUpdateCheck();
+
+    expect(currentRegistration.update).toHaveBeenCalledOnce();
+    expect(get(updater.pwaUpdateCheckState)).toEqual({
+      status: 'up-to-date',
+      lastSuccessfulCheck: Date.now()
+    });
+    expect(get(updater.pwaUpdateStatus)).toBe('up-to-date');
+    expect(browserWindow.location.reload).not.toHaveBeenCalled();
+  });
+
+  it('force applies an already-waiting update and reloads after it takes control', async () => {
+    const waiting = worker('installed');
+    const currentRegistration = registration({ waiting: waiting as unknown as ServiceWorker });
+    const { browserWindow, container } = installBrowserGlobals({ registration: currentRegistration });
+    const updater = await loadUpdater();
+
+    const checking = updater.forceServiceWorkerUpdateCheck();
+    await vi.waitFor(() => expect(waiting.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' }));
+    expect(browserWindow.location.reload).not.toHaveBeenCalled();
+    expect(get(updater.pwaUpdateStatus)).toBe('updating');
+
+    container.dispatchEvent(new Event('controllerchange'));
+    await Promise.resolve();
+    expect(browserWindow.location.reload).not.toHaveBeenCalled();
+
+    container.controller = waiting;
+    container.dispatchEvent(new Event('controllerchange'));
+    await checking;
+
+    expect(browserWindow.location.reload).toHaveBeenCalledOnce();
+    expect(sessionStorage.getItem('izci.pwa-update-completed')).toBe('true');
+  });
+
+  it('force waits for precaching before activating a newly fetched update', async () => {
+    const installing = worker('installing');
+    const currentRegistration = registration();
+    currentRegistration.update.mockImplementation(async () => {
+      currentRegistration.installing = installing as unknown as ServiceWorker;
+      currentRegistration.dispatchEvent(new Event('updatefound'));
+    });
+    const { browserWindow, container } = installBrowserGlobals({ registration: currentRegistration });
+    installing.postMessage.mockImplementation(() => {
+      container.controller = installing;
+      container.dispatchEvent(new Event('controllerchange'));
+    });
+    const updater = await loadUpdater();
+
+    const checking = updater.forceServiceWorkerUpdateCheck();
+    await vi.waitFor(() => expect(currentRegistration.update).toHaveBeenCalledOnce());
+    expect(installing.postMessage).not.toHaveBeenCalled();
+    expect(browserWindow.location.reload).not.toHaveBeenCalled();
+    expect(get(updater.pwaUpdateStatus)).toBe('updating');
+
+    installing.state = 'installed';
+    currentRegistration.installing = null;
+    currentRegistration.waiting = installing as unknown as ServiceWorker;
+    installing.dispatchEvent(new Event('statechange'));
+    await checking;
+
+    expect(installing.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
+    expect(browserWindow.location.reload).toHaveBeenCalledOnce();
+  });
+
+  it('force waits for a worker that was already installing before the click', async () => {
+    const installing = worker('installing');
+    const currentRegistration = registration({ installing: installing as unknown as ServiceWorker });
+    const { browserWindow, container } = installBrowserGlobals({ registration: currentRegistration });
+    const updater = await loadUpdater();
+
+    const checking = updater.forceServiceWorkerUpdateCheck();
+    await vi.waitFor(() => expect(currentRegistration.update).toHaveBeenCalledOnce());
+    expect(get(updater.pwaUpdateCheckState).status).toBe('checking');
+    installing.state = 'activated';
+    currentRegistration.installing = null;
+    container.controller = installing;
+    installing.dispatchEvent(new Event('statechange'));
+    await checking;
+
+    expect(installing.postMessage).not.toHaveBeenCalled();
+    expect(browserWindow.location.reload).toHaveBeenCalledOnce();
+    expect(get(updater.pwaUpdateStatus)).not.toBe('up-to-date');
+  });
+
+  it('force can check before the registerSW callback supplies the registration', async () => {
+    const currentRegistration = registration();
+    installBrowserGlobals({ registration: currentRegistration });
+    const updater = await loadUpdater();
+    updater.registerAppServiceWorker();
+
+    await updater.forceServiceWorkerUpdateCheck();
+
+    expect(currentRegistration.update).toHaveBeenCalledOnce();
+    expect(get(updater.pwaUpdateCheckState).status).toBe('up-to-date');
+  });
+
+  it('force awaits an in-flight background check instead of silently skipping', async () => {
+    let finishUpdate!: () => void;
+    const currentRegistration = registration({
+      update: vi.fn(() => new Promise<void>((resolve) => { finishUpdate = resolve; }))
+    });
+    installBrowserGlobals({ registration: currentRegistration });
+    registerSW.mockImplementation((options) => {
+      options.onRegisteredSW?.('/sw.js', currentRegistration as unknown as ServiceWorkerRegistration);
+    });
+    const updater = await loadUpdater();
+    updater.registerAppServiceWorker();
+
+    const checking = updater.forceServiceWorkerUpdateCheck();
+    await Promise.resolve();
+    expect(currentRegistration.update).toHaveBeenCalledOnce();
+    expect(get(updater.pwaUpdateCheckState).status).toBe('checking');
+    expect(get(updater.pwaUpdateCheckState).lastSuccessfulCheck).toBeNull();
+
+    finishUpdate();
+    await checking;
+    expect(get(updater.pwaUpdateCheckState).status).toBe('up-to-date');
+  });
+
+  it('reports failure if a joined background check rejects', async () => {
+    let failUpdate!: (error: Error) => void;
+    const currentRegistration = registration({
+      update: vi.fn(() => new Promise<void>((_resolve, reject) => { failUpdate = reject; }))
+    });
+    installBrowserGlobals({ registration: currentRegistration });
+    registerSW.mockImplementation((options) => {
+      options.onRegisteredSW?.('/sw.js', currentRegistration as unknown as ServiceWorkerRegistration);
+    });
+    const updater = await loadUpdater();
+    updater.registerAppServiceWorker();
+    const checking = updater.forceServiceWorkerUpdateCheck();
+    await Promise.resolve();
+
+    failUpdate(new Error('network failed'));
+    await checking;
+
+    expect(get(updater.pwaUpdateCheckState)).toEqual({ status: 'failed', lastSuccessfulCheck: null });
+    expect(get(updater.pwaUpdateStatus)).toBe('failed');
+  });
+
+  it('does not claim success or reload when installation fails', async () => {
+    const installing = worker('installing');
+    const currentRegistration = registration({ installing: installing as unknown as ServiceWorker });
+    const { browserWindow } = installBrowserGlobals({ registration: currentRegistration });
+    const updater = await loadUpdater();
+    const checking = updater.forceServiceWorkerUpdateCheck();
+    await vi.waitFor(() => expect(currentRegistration.update).toHaveBeenCalledOnce());
+
+    installing.state = 'redundant';
+    installing.dispatchEvent(new Event('statechange'));
+    await checking;
+
+    expect(get(updater.pwaUpdateCheckState)).toEqual({ status: 'failed', lastSuccessfulCheck: null });
+    expect(browserWindow.location.reload).not.toHaveBeenCalled();
+  });
+
+  it('fails a stalled installation and removes its state listener', async () => {
+    const installing = worker('installing');
+    const removeListener = vi.spyOn(installing, 'removeEventListener');
+    const currentRegistration = registration({ installing: installing as unknown as ServiceWorker });
+    const { browserWindow } = installBrowserGlobals({ registration: currentRegistration });
+    const updater = await loadUpdater();
+    const checking = updater.forceServiceWorkerUpdateCheck();
+    await vi.waitFor(() => expect(currentRegistration.update).toHaveBeenCalledOnce());
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    await checking;
+
+    expect(get(updater.pwaUpdateCheckState).status).toBe('failed');
+    expect(browserWindow.location.reload).not.toHaveBeenCalled();
+    expect(removeListener).toHaveBeenCalledWith('statechange', expect.any(Function));
+  });
+
+  it('fails activation without reloading the old app or leaving a controller listener', async () => {
+    const waiting = worker('installed');
+    const currentRegistration = registration({ waiting: waiting as unknown as ServiceWorker });
+    const { browserWindow, container } = installBrowserGlobals({ registration: currentRegistration });
+    const removeListener = vi.spyOn(container, 'removeEventListener');
+    const updater = await loadUpdater();
+    const checking = updater.forceServiceWorkerUpdateCheck();
+    await vi.waitFor(() => expect(waiting.postMessage).toHaveBeenCalledOnce());
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    await checking;
+
+    expect(get(updater.pwaUpdateCheckState).status).toBe('failed');
+    expect(browserWindow.location.reload).not.toHaveBeenCalled();
+    expect(removeListener).toHaveBeenCalledWith('controllerchange', expect.any(Function));
   });
 
   it('retains the last successful timestamp when an online update call fails', async () => {
@@ -229,7 +434,10 @@ describe('PWA update decisions', () => {
     });
     const { browserWindow, container } = installBrowserGlobals({ registration: currentRegistration });
     waiting.postMessage.mockImplementation(() => {
-      queueMicrotask(() => container.dispatchEvent(new Event('controllerchange')));
+      queueMicrotask(() => {
+        container.controller = waiting;
+        container.dispatchEvent(new Event('controllerchange'));
+      });
     });
     const updater = await loadUpdater();
 

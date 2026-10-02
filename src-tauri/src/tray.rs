@@ -16,10 +16,7 @@ pub fn remove(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("tray-menu") {
         let _ = crate::window_resources::hide(&window);
     }
-    if let Some(window) = app.get_webview_window("tray-bubble") {
-        let _ = crate::window_resources::hide(&window);
-        let _ = window.emit("izci:desktop-tray-bubble-dismiss", ());
-    }
+    crate::tray_bubble::dismiss(app);
 }
 
 // Create utility WebViews before the playback owner starts its JavaScript.
@@ -71,11 +68,30 @@ pub enum DesktopShowIn {
     Both,
 }
 
+#[derive(Clone, Copy, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DesktopTrayIcon {
+    Light,
+    Dark,
+}
+
+impl DesktopTrayIcon {
+    fn image(self) -> tauri::image::Image<'static> {
+        let color = if matches!(self, Self::Light) { 255 } else { 0 };
+        let pixels = include_bytes!("../icons/tray-mark.alpha")
+            .iter()
+            .flat_map(|&alpha| [color, color, color, alpha])
+            .collect();
+        tauri::image::Image::new_owned(pixels, 32, 32)
+    }
+}
+
 #[tauri::command]
 pub async fn configure_desktop_visibility(
     app: AppHandle,
     window: WebviewWindow,
     show_in: DesktopShowIn,
+    tray_icon: DesktopTrayIcon,
 ) -> Result<(), String> {
     if window.label() != "main" {
         return Err("Only the player configures desktop visibility".into());
@@ -91,7 +107,9 @@ pub async fn configure_desktop_visibility(
         remove(&app);
         return Ok(());
     }
-    if app.tray_by_id("izci").is_some() {
+    if let Some(icon) = app.tray_by_id("izci") {
+        icon.set_icon(Some(tray_icon.image()))
+            .map_err(|error| error.to_string())?;
         return window
             .set_skip_taskbar(matches!(show_in, DesktopShowIn::Tray))
             .map_err(|error| error.to_string());
@@ -99,12 +117,8 @@ pub async fn configure_desktop_visibility(
     if app.get_webview_window("tray-menu").is_none() {
         return Err("Tray menu is unavailable".into());
     }
-    let icon = app
-        .default_window_icon()
-        .ok_or("Application icon is unavailable")?
-        .clone();
     TrayIconBuilder::with_id("izci")
-        .icon(icon)
+        .icon(tray_icon.image())
         .tooltip("izci")
         .show_menu_on_left_click(false)
         .on_tray_icon_event(|icon, event| {

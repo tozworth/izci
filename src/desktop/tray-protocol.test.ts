@@ -4,10 +4,12 @@ import { normalizeDesktopSettings } from './settings';
 
 describe('desktop tray', () => {
   it('defaults to taskbar only and normalizes desktop preferences independently of loadouts', () => {
-    expect(normalizeDesktopSettings(null)).toEqual({ showIn: 'taskbar', trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
-    expect(normalizeDesktopSettings({ showIn: 'invalid' })).toEqual({ showIn: 'taskbar', trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
-    expect(normalizeDesktopSettings({ showIn: 'both', trackInfoBubble: false, fileAssociations: false, focusOnFileLaunch: true })).toEqual({ showIn: 'both', trackInfoBubble: false, fileAssociations: false, focusOnFileLaunch: true });
-    expect(normalizeDesktopSettings({ showIn: 'tray' })).toEqual({ showIn: 'tray', trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
+    expect(normalizeDesktopSettings(null)).toEqual({ showIn: 'taskbar', trayIcon: 'light', trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
+    expect(normalizeDesktopSettings({ showIn: 'invalid' })).toEqual({ showIn: 'taskbar', trayIcon: 'light', trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
+    expect(normalizeDesktopSettings({ showIn: 'both', trackInfoBubble: false, fileAssociations: false, focusOnFileLaunch: true })).toEqual({ showIn: 'both', trayIcon: 'light', trackInfoBubble: false, fileAssociations: false, focusOnFileLaunch: true });
+    expect(normalizeDesktopSettings({ showIn: 'tray' })).toEqual({ showIn: 'tray', trayIcon: 'light', trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
+    expect(normalizeDesktopSettings({ trayIcon: 'dark' }).trayIcon).toBe('dark');
+    expect(normalizeDesktopSettings({ trayIcon: 'invalid' }).trayIcon).toBe('light');
     expect(normalizeDesktopSettings({ trackInfoBubble: 'false' }).trackInfoBubble).toBe(true);
     expect(normalizeDesktopSettings({ focusOnFileLaunch: false }).focusOnFileLaunch).toBe(false);
     expect(normalizeDesktopSettings({ focusOnFileLaunch: 'false' }).focusOnFileLaunch).toBe(true);

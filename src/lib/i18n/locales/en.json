@@ -139,6 +139,9 @@
       "view": "View",
       "help": "Help",
       "updateUpdated": "updated!",
+      "updateChecking": "checking for updates…",
+      "updateApplying": "updating…",
+      "updateAvailable": "update available",
       "updateCurrent": "up to date",
       "updateFailed": "update check failed",
       "tools": "Tools",
@@ -586,7 +589,7 @@
         "name": "“izci” means “tracker” in Turkish*",
         "nameNote": "*Umm actually it’s closer to “scout”. But it was cute and the name stuck"
       },
-      "credits": "izci uses Howler.js, Chiptune3 (based on libopenmpt), and Google Material Symbols.",
+      "credits": "izci wouldn't be possible without chiptune.js v3 (libopenmpt WASM), HivelyTracker, Howler.js, and Mediabunny.",
       "seeFull": "See full",
       "thirdPartyLicenses": "third-party licenses"
     },
@@ -717,10 +720,6 @@
         "artwork": "Artwork",
         "visualizer": "Visualizer",
         "both": "Both"
-      },
-      "trackInfoBubble": {
-        "title": "Track info bubble",
-        "hint": "Show the title and artist beside the tray icon for five seconds when a new track starts. Requires a tray icon."
       },
       "heading": "Backdrop Zones",
       "artworkBlur": {
@@ -1649,12 +1648,22 @@
   },
   "desktop": {
     "appearance": {
+      "trackInfoBubble": {
+        "title": "Track info bubble",
+        "hint": "Show the title and artist beside the tray icon for five seconds whenever playback starts, restarts or resumes. Requires a tray icon."
+      },
       "showIn": {
         "title": "Show in",
         "hint": "Choose where izci appears. The tray icon provides playback and window controls.",
         "taskbar": "Taskbar only",
         "tray": "Tray only",
         "both": "Both"
+      },
+      "trayIcon": {
+        "title": "Tray icon",
+        "hint": "Choose a light or dark izci glyph to contrast with your taskbar. Requires a tray icon.",
+        "light": "Light",
+        "dark": "Dark"
       }
     },
     "tracks": {

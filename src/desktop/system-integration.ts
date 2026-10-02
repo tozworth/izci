@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { emitTo, listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { get } from 'svelte/store';
 import type { PlatformIntegrationOptions } from '$lib/services/platform-integration-types';
-import { desktopSettings, type DesktopShowIn } from './settings';
+import { desktopSettings, type DesktopShowIn, type DesktopTrayIcon } from './settings';
 import { readDesktopFiles } from './files';
 import { createTrackBubblePublisher } from './track-bubble-publisher';
 import { parseTrayAction, trayState, TRAY_ACTION_EVENT, TRAY_REQUEST_EVENT, TRAY_STATE_EVENT, type TrayState } from './tray-protocol';
@@ -13,6 +13,7 @@ export function openDesktopDefaultApps(): void { void invoke('open_desktop_defau
 export function createPlatformIntegration(options: PlatformIntegrationOptions): () => void {
   let disposed = false;
   let previousShowIn: DesktopShowIn | undefined;
+  let previousTrayIcon: DesktopTrayIcon | undefined;
   let previousAssociations: boolean | undefined;
   let previousFocusOnFileLaunch: boolean | undefined;
   let settingsWork: Promise<unknown> = Promise.resolve();
@@ -49,9 +50,10 @@ export function createPlatformIntegration(options: PlatformIntegrationOptions): 
         await invoke('configure_desktop_file_launch', { focus: settings.focusOnFileLaunch });
         previousFocusOnFileLaunch = settings.focusOnFileLaunch;
       }
-      if (settings.showIn !== previousShowIn) {
-        await invoke('configure_desktop_visibility', { showIn: settings.showIn });
+      if (settings.showIn !== previousShowIn || settings.trayIcon !== previousTrayIcon) {
+        await invoke('configure_desktop_visibility', { showIn: settings.showIn, trayIcon: settings.trayIcon });
         previousShowIn = settings.showIn;
+        previousTrayIcon = settings.trayIcon;
       }
       if (settings.fileAssociations !== previousAssociations) {
         await invoke('configure_desktop_associations', { enabled: settings.fileAssociations });
