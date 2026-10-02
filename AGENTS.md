@@ -32,7 +32,7 @@
 ## Working rules
 
 - Ignore `node_modules/`, `dist/`, and `dev-dist/` unless the task explicitly concerns generated output or dependencies.
-- Documentation-only changes do not require a build.
+- Never run builds unless the user explicitly asks, including frontend, desktop, and izci-server builds. This applies to all agents; routine iteration and validation do not authorize a build.
 - Update `en.json` and `tr.json`, but **never** `en-askew.json`; Askew is a manually curated inside joke.
 - Do not start dev/preview servers or inspect the app in a browser unless explicitly asked.
 - Do NOT bloat App.svelte (or any other similarly load-bearing file). Prefer aggressive modularization over 2000-line closures.
@@ -154,7 +154,7 @@
 - Browser-side HTTP, socket, invitation, setup, identity, pairing, and reconnect-proof behavior stays in focused `multiplayer-server-*` services/stores. Login bearers are transient; remembered operator keys, invitations, identities, and per-pair secrets stay in their existing server-specific local settings boundaries.
 - Keep the izci-server signaling protocol version separate from the Multiplayer app protocol. Protocol shapes live in code, representative shared fixtures live under `tests/multiplayer-server-contract/`, and app-protocol changes must keep `scripts/sync-multiplayer-protocol.mjs` in sync.
 - Treat keys, tokens, invitation and owner secrets, SDP, ICE candidates, and request bodies as sensitive: never put socket tickets in URLs, log these values, or persist transient signaling. Preserve strict JSON decoding, origin/path checks, rate limits, bounded messages, and clean shutdown.
-- After izci-server source changes, run formatting, `go vet ./...`, `go test -race ./...`, and a CGO-disabled build from `izci-server/`; frontend work must remain buildable without Go installed.
+- After izci-server source changes, run formatting, `go vet ./...`, and `go test -race ./...` from `izci-server/`; run a CGO-disabled build only when explicitly asked. Frontend work must remain buildable without Go installed.
 
 ## Change checklist
 
@@ -162,4 +162,4 @@
 - For persisted state changes, preserve the storage boundary and cross-window behavior; do not add legacy migrations unless requested.
 - For UI changes, keep business logic out of components and avoid duplicating state already owned by a controller/store.
 - For build/PWA changes, consider offline caching, installed launch, file handlers, and libopenmpt asset emission.
-- Prefer focused tests for pure helpers/services, then run the required build.
+- Prefer focused tests for pure helpers/services; run builds only when explicitly asked.
