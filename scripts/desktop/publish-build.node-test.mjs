@@ -46,6 +46,30 @@ test('a build does not launch izci when no local player was running', async (t) 
   assert.equal(readFileSync(executable, 'utf8'), 'verified build');
 });
 
+test('signaling publication replaces and restarts only its separate output', async (t) => {
+  const { root, executable, staging } = fixture(t);
+  const signalingExecutable = join(root, '.local', 'desktop-signaling', 'izci.exe');
+  mkdirSync(join(root, '.local', 'desktop-signaling'), { recursive: true });
+  writeFileSync(signalingExecutable, 'previous signaling build');
+  let launched = false;
+  const published = await publishDesktopBuild(root, staging, {
+    signaling: true,
+    stop: (workspace, signaling) => {
+      assert.equal(workspace, root);
+      assert.equal(signaling, true);
+      return [signalingExecutable];
+    },
+    start: async (path) => {
+      assert.equal(path, signalingExecutable);
+      assert.equal(readFileSync(path, 'utf8'), 'verified build');
+      launched = true;
+    },
+  });
+  assert.equal(published, signalingExecutable);
+  assert.ok(launched);
+  assert.equal(readFileSync(executable, 'utf8'), 'previous build');
+});
+
 test('failed replacement preserves and relaunches the previous executable', async (t) => {
   const { root, executable, staging } = fixture(t);
   const failure = new Error('file is still locked');

@@ -1,10 +1,12 @@
-param([Parameter(Mandatory = $true)][string]$WorkspaceRoot)
+param([Parameter(Mandatory = $true)][string]$WorkspaceRoot, [switch]$Signaling)
 
 $ErrorActionPreference = 'Stop'
-$localExecutables = @(
+$localExecutables = if ($Signaling) {
+    @([IO.Path]::GetFullPath((Join-Path $WorkspaceRoot '.local/desktop-signaling/izci.exe')))
+} else { @(
     [IO.Path]::GetFullPath((Join-Path $WorkspaceRoot '.local/desktop/izci.exe')),
     [IO.Path]::GetFullPath((Join-Path $WorkspaceRoot '.local/desktop-next/izci.exe'))
-)
+) }
 $instances = @(Get-CimInstance Win32_Process -Filter "Name = 'izci.exe'" |
     Where-Object { $_.ExecutablePath -and $localExecutables -contains $_.ExecutablePath })
 

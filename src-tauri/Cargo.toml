@@ -26,6 +26,11 @@ futures-util = { version = "0.3", features = ["sink"], optional = true }
 winreg = "0.55"
 windows = { version = "0.62", features = ["Win32_Graphics_DirectWrite", "Win32_Graphics_Dwm", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
+# Keep Windows debug symbols and incremental caches from dominating the workspace.
+[profile.dev]
+debug = 0
+incremental = false
+
 [profile.release]
 opt-level = "z"
 codegen-units = 1

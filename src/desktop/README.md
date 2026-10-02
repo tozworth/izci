@@ -23,9 +23,11 @@ HTTP/WebSocket transport for external signaling, with no native signaling
 dependencies.
 
 To include built-in signaling, run `npm run desktop:build:signaling` (equivalently,
-`npm run desktop:build -- --with-signaling`). Both variants publish to the same
-`.local/desktop/izci.exe`; run the ordinary command again to return to the small
-build. `--no-compress` works with either variant. The signaling build enables
+`npm run desktop:build -- --with-signaling`). This variant publishes to
+`.local/desktop-signaling/izci.exe`, leaving `.local/desktop/izci.exe` untouched.
+Publication only closes and relaunches the matching variant; the regular build
+also handles its older `.local/desktop-next/izci.exe` fallback.
+`--no-compress` works with either variant. The signaling build enables
 Cargo's opt-in `builtin-signaling` feature, synchronizes the Go app protocol,
 and requires the Go version declared in `izci-server/go.mod`. Cargo builds
 `cmd/izci-desktop-signal` with CGO disabled and embeds the stripped Windows binary
