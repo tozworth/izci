@@ -113,8 +113,16 @@ store, independent of per-track loadouts. Appearance's Show in dropdown offers
 Taskbar only (the default), Tray only, and Both. Tray only hides the main window's
 taskbar entry without hiding the window. Right-click opens the actual shared MenuSurface in a transparent,
 frameless popup; transport uses the main runtime's effective playback commands.
-Closing the main window still exits normally. Taskbar only removes the tray icon.
-Owner close explicitly destroys the playback window and its hidden utilities,
+Scrolling over the tray icon changes the local player's volume by 5% per wheel
+notch (including accumulated high-resolution wheel input) and unmutes it. The
+existing tray bubble shows a volume glyph and percentage for 1.5 seconds after
+the last notch, independently of the track-info bubble preference and player
+focus. The Windows wheel hook is released when the pointer leaves or the tray
+icon is removed; other wheel input passes through.
+Closing the main window exits by default. Appearance's advanced Close to tray
+tweak hides it and keeps playback running when a tray icon is available; it is
+disabled for Taskbar only. Explicit Exit always closes the player.
+Player shutdown explicitly destroys the playback window and its hidden utilities,
 then exits the native process. Window roles are recorded during navigation so
 shutdown does not query disappearing WebView2 controllers. Hidden tray and
 miniplayer controllers are created before the playback owner; enabling the tray

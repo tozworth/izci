@@ -116,12 +116,13 @@ pub fn show_desktop_track_bubble(
     window: WebviewWindow,
     width: f64,
     height: f64,
+    volume: Option<bool>,
 ) -> Result<bool, String> {
     require_bubble(&window)?;
     if !width.is_finite() || !height.is_finite() {
         return Err("Invalid bubble dimensions".into());
     }
-    if player_is_focused(&app) {
+    if !volume.unwrap_or(false) && player_is_focused(&app) {
         return Ok(false);
     }
     let Some(icon) = app.tray_by_id("izci") else {
@@ -181,7 +182,7 @@ pub fn show_desktop_track_bubble(
             (2.0 * scale).round() as i32,
         ))
         .map_err(|error| error.to_string())?;
-    if player_is_focused(&app) {
+    if !volume.unwrap_or(false) && player_is_focused(&app) {
         return Ok(false);
     }
     crate::window_resources::set_active(&window, true);

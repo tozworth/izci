@@ -1,74 +1,50 @@
 <script lang="ts">
-  import AboutView from './components/views/AboutView.svelte';
-  import AppearanceView from './components/views/AppearanceView.svelte';
-  import BackdropsView from './components/views/BackdropsView.svelte';
-  import BackupsView from './components/views/BackupsView.svelte';
-  import CacheView from './components/views/CacheView.svelte';
-  import HostingView from './components/views/HostingView.svelte';
-  import MultiplayerView from './components/views/MultiplayerView.svelte';
-  import ExperimentalView from './components/views/ExperimentalView.svelte';
-  import LyricsView from './components/views/LyricsView.svelte';
-  import MetadataView from './components/views/MetadataView.svelte';
-  import ModulesView from './components/views/ModulesView.svelte';
-  import LoadoutsView from './components/views/LoadoutsView.svelte';
-  import NowPlayingView from './components/views/NowPlayingView.svelte';
-  import OdaView from './components/views/OdaView.svelte';
-  import PlaybackView from './components/views/PlaybackView.svelte';
-  import PatternsView from './components/views/PatternsView.svelte';
-  import TracksView from './components/views/TracksView.svelte';
-  import FoldersView from './components/views/FoldersView.svelte';
-  import LicensesView from './components/views/LicensesView.svelte';
-  import VisualizerView from './components/views/VisualizerView.svelte';
-  import VideoView from './components/views/VideoView.svelte';
-  import RafView from './components/raf/RafView.svelte';
+  import { createEventDispatcher, tick } from 'svelte';
+  import { t } from 'svelte-i18n';
+  import { loadOptionsView } from './view-loaders';
   import type { OptionsViewName } from './views';
 
   export let activeView: OptionsViewName;
   export let onSelectView: (view: OptionsViewName) => void;
+
+  const dispatch = createEventDispatcher<{ ready: void }>();
+  let content: HTMLElement | null = null;
+
+  $: viewPromise = loadOptionsView(activeView);
+
+  // Signal after the loaded page (or retry control) is mounted. Oda must not
+  // depend on a fixed number of animation frames while a chunk is loading.
+  $: if (content) void notifyReady(content);
+
+  async function notifyReady(mounted: HTMLElement): Promise<void> {
+    await tick();
+    if (content === mounted) dispatch('ready');
+  }
 </script>
 
-{#if activeView === 'appearance'}
-  <AppearanceView />
-{:else if activeView === 'backdrops'}
-  <BackdropsView />
-{:else if activeView === 'now-playing'}
-  <NowPlayingView />
-{:else if activeView === 'lyrics'}
-  <LyricsView />
-{:else if activeView === 'playback'}
-  <PlaybackView />
-{:else if activeView === 'oda'}
-  <OdaView />
-{:else if activeView === 'video'}
-  <VideoView />
-{:else if activeView === 'visualizer'}
-  <VisualizerView />
-{:else if activeView === 'patterns'}
-  <PatternsView />
-{:else if activeView === 'raf'}
-  <RafView />
-{:else if activeView === 'modules'}
-  <ModulesView />
-{:else if activeView === 'loadouts'}
-  <LoadoutsView />
-{:else if activeView === 'tracks'}
-  <TracksView />
-{:else if activeView === 'folders'}
-  <FoldersView />
-{:else if activeView === 'metadata'}
-  <MetadataView />
-{:else if activeView === 'backups'}
-  <BackupsView onOpenFolders={() => onSelectView('folders')} />
-{:else if activeView === 'multiplayer'}
-  <MultiplayerView />
-{:else if activeView === 'hosting'}
-  <HostingView />
-{:else if activeView === 'experimental'}
-  <ExperimentalView />
-{:else if activeView === 'cache'}
-  <CacheView />
-{:else if activeView === 'about'}
-  <AboutView onOpenLicenses={() => onSelectView('licenses')} />
-{:else if activeView === 'licenses'}
-  <LicensesView />
-{/if}
+{#key activeView}
+  {#await viewPromise}
+    <p role="status">{$t('options.content.loading', { default: 'Loading options…' })}</p>
+  {:then viewModule}
+    <div bind:this={content} class="options-page-host">
+      {#if viewModule.kind === 'about'}
+        <svelte:component this={viewModule.default} onOpenLicenses={() => onSelectView('licenses')} />
+      {:else if viewModule.kind === 'backups'}
+        <svelte:component this={viewModule.default} onOpenFolders={() => onSelectView('folders')} />
+      {:else}
+        <svelte:component this={viewModule.default} />
+      {/if}
+    </div>
+  {:catch}
+    <div bind:this={content} class="view">
+      <p role="alert">{$t('options.content.loadFailed', { default: 'This options page could not be loaded.' })}</p>
+      <button type="button" on:click={() => (viewPromise = loadOptionsView(activeView))}>
+        {$t('options.content.retry', { default: 'Retry' })}
+      </button>
+    </div>
+  {/await}
+{/key}
+
+<style>
+  .options-page-host { display: contents; }
+</style>

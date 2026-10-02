@@ -12,6 +12,7 @@ pub struct TrayMenuState {
 }
 
 pub fn remove(app: &AppHandle) {
+    crate::tray_scroll::hover(app, None);
     app.remove_tray_by_id("izci");
     if let Some(window) = app.get_webview_window("tray-menu") {
         let _ = crate::window_resources::hide(&window);
@@ -119,11 +120,14 @@ pub async fn configure_desktop_visibility(
     }
     TrayIconBuilder::with_id("izci")
         .icon(tray_icon.image())
-        .tooltip("izci")
         .show_menu_on_left_click(false)
         .on_tray_icon_event(|icon, event| {
             let app = icon.app_handle();
             match event {
+                TrayIconEvent::Enter { rect, .. } | TrayIconEvent::Move { rect, .. } => {
+                    crate::tray_scroll::hover(app, Some(rect));
+                }
+                TrayIconEvent::Leave { .. } => crate::tray_scroll::hover(app, None),
                 TrayIconEvent::Click {
                     button: MouseButton::Right,
                     button_state: MouseButtonState::Up,

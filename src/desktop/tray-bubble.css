@@ -29,3 +29,5 @@ body { font-size: 12px; user-select: none; }
 .track-info { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .title { font-weight: 700; }
 .artist { font-weight: 400; margin-left: 6px; }
+.volume-glyph { font-size: 18px; flex: 0 0 auto; }
+.volume-percent { min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }

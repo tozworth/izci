@@ -1,12 +1,47 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
 // Session mode survives dismissing the mini window to the tray.
 #[derive(Default)]
-pub struct PlayerWindowMode(AtomicBool);
+pub struct PlayerWindowMode {
+    mini: AtomicBool,
+    close_to_tray: AtomicBool,
+}
 
 pub fn mini_active(app: &AppHandle) -> bool {
-    app.state::<PlayerWindowMode>().0.load(Ordering::SeqCst)
+    app.state::<PlayerWindowMode>().mini.load(Ordering::SeqCst)
+}
+
+#[tauri::command]
+pub fn configure_desktop_close(window: WebviewWindow, close_to_tray: bool) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Only the player configures desktop close behavior".into());
+    }
+    window
+        .app_handle()
+        .state::<PlayerWindowMode>()
+        .close_to_tray
+        .store(close_to_tray, Ordering::SeqCst);
+    Ok(())
+}
+
+pub fn close_main(app: &AppHandle) -> Result<(), String> {
+    if app
+        .state::<PlayerWindowMode>()
+        .close_to_tray
+        .load(Ordering::SeqCst)
+        && app.tray_by_id("izci").is_some()
+    {
+        let main = app
+            .get_webview_window("main")
+            .ok_or("Main window is closed")?;
+        crate::window_state::save(&main.as_ref().window());
+        // Keep the playback owner's WebView/audio active, as in mini mode.
+        main.hide().map_err(|error| error.to_string())
+    } else {
+        crate::window_lifecycle::close_player(app);
+        Ok(())
+    }
 }
 
 pub fn activate_mini(app: &AppHandle) -> Result<(), String> {
@@ -22,7 +57,7 @@ pub fn activate_mini(app: &AppHandle) -> Result<(), String> {
     crate::window_resources::show(&mini)?;
     mini.unminimize().map_err(|error| error.to_string())?;
     app.state::<PlayerWindowMode>()
-        .0
+        .mini
         .store(true, Ordering::SeqCst);
     mini.set_focus().map_err(|error| error.to_string())
 }
@@ -71,7 +106,7 @@ pub fn dismiss_mini(app: &AppHandle) -> Result<(), String> {
 pub fn end_mini(app: &AppHandle) -> Result<(), String> {
     hide_mini(app)?;
     app.state::<PlayerWindowMode>()
-        .0
+        .mini
         .store(false, Ordering::SeqCst);
     app.emit_to("main", "izci:desktop-mini-closed", ())
         .map_err(|error| error.to_string())

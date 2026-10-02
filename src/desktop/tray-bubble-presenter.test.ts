@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BUBBLE_DISMISS_EVENT, BUBBLE_STATE_EVENT, type TrackBubbleUpdate } from './tray-bubble-protocol';
+import { BUBBLE_DISMISS_EVENT, BUBBLE_STATE_EVENT, BUBBLE_VOLUME_EVENT, type TrackBubbleUpdate } from './tray-bubble-protocol';
 
 const native = vi.hoisted(() => ({ invoke: vi.fn(async (command: string): Promise<unknown> => command.startsWith('show_') ? true : undefined), callbacks: new Map<string, (event: { payload: unknown }) => void>() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: native.invoke }));
@@ -86,6 +86,51 @@ describe('track bubble presentation', () => {
     update('First'); await flush();
     update('Next'); finish({ width: 320, height: 36 }); await flush();
     expect(native.invoke.mock.calls.filter(([command]) => command === 'show_desktop_track_bubble')).toHaveLength(1);
+    expect(render).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'Next' }), true);
+  });
+
+  it('reuses the bubble for volume, refreshing its short expiry without flickering', async () => {
+    update('First'); await flush();
+    const volume = (percent: number) => native.callbacks.get(BUBBLE_VOLUME_EVENT)!({ payload: { percent } });
+    volume(55); await flush();
+    expect(render).toHaveBeenLastCalledWith({ percent: 55 }, true);
+    expect(native.invoke).toHaveBeenLastCalledWith('show_desktop_track_bubble', { width: 320, height: 36, volume: true });
+    await vi.advanceTimersByTimeAsync(1000);
+    native.invoke.mockClear(); render.mockClear();
+    volume(60); await flush();
+    expect(render.mock.calls.every(([, visible]) => visible === true)).toBe(true);
+    expect(native.invoke).not.toHaveBeenCalledWith('hide_desktop_track_bubble');
+    update('Next'); update('Next', false);
+    native.callbacks.get(BUBBLE_STATE_EVENT)!({ payload: { track: null, announce: false } });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(render).toHaveBeenLastCalledWith({ percent: 60 }, true);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(render).toHaveBeenLastCalledWith(null, false);
+    // The replaced track's original timer must not affect the next announcement.
+    update('Third'); await flush();
+    await vi.advanceTimersByTimeAsync(2500);
+    expect(render).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'Third' }), true);
+  });
+
+  it('supersedes a pending track measurement and ignores malformed volume feedback', async () => {
+    let finish!: (size: { width: number; height: number }) => void;
+    measure.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    update('First'); await flush();
+    native.callbacks.get(BUBBLE_VOLUME_EVENT)!({ payload: { percent: 0 } });
+    finish({ width: 320, height: 28 }); await flush();
+    expect(render).toHaveBeenLastCalledWith({ percent: 0 }, true);
+    for (const payload of [null, {}, { percent: NaN }, { percent: -1 }, { percent: 101 }]) {
+      native.callbacks.get(BUBBLE_VOLUME_EVENT)!({ payload });
+    }
+    expect(render).toHaveBeenLastCalledWith({ percent: 0 }, true);
+  });
+
+  it('does not block later track announcements when the volume bubble has no usable anchor', async () => {
+    native.invoke.mockResolvedValue(false);
+    native.callbacks.get(BUBBLE_VOLUME_EVENT)!({ payload: { percent: 55 } }); await flush();
+    expect(render).toHaveBeenLastCalledWith(null, false);
+    native.invoke.mockImplementation(async (command) => command.startsWith('show_') ? true : undefined);
+    update('Next'); await flush();
     expect(render).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'Next' }), true);
   });
 });

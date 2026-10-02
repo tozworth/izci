@@ -1,4 +1,5 @@
 import { version as appVersion } from '../../../package.json';
+import { isDesktop } from '$platform';
 import { isRafPresetDirty } from '$lib/stores/raf-presets';
 import {
   getPlaybackBookmarks,
@@ -698,17 +699,17 @@ function buildVideoMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
 
 function buildHelpMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
   return [
-    {
+    ...(!isDesktop ? [{
       id: 'forceUpdate',
       label: deps.translate('main.menu.forceUpdate', { default: 'Force update' }),
       icon: 'sync',
       disabled: deps.pwaUpdateStatus === 'checking' || deps.pwaUpdateStatus === 'updating'
-    },
+    } satisfies MenuActionItem] : []),
     {
       id: 'openAbout',
       label: deps.translate('main.menu.about', { default: 'About' }),
       icon: 'info',
-      separatorBefore: true
+      separatorBefore: !isDesktop
     }
   ] satisfies MenuActionItem[];
 }

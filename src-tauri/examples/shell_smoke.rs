@@ -21,6 +21,9 @@ mod tray;
 #[path = "../src/tray_bubble.rs"]
 mod tray_bubble;
 #[allow(dead_code)]
+#[path = "../src/tray_scroll.rs"]
+mod tray_scroll;
+#[allow(dead_code)]
 #[path = "../src/window_lifecycle.rs"]
 mod window_lifecycle;
 #[allow(dead_code)]

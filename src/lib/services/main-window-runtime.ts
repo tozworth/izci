@@ -738,6 +738,11 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     playbackStarts: playerController.playbackStarts,
     canControl: () => state.queueItems.length > 0 || state.playbackSnapshot.backend !== null,
     handlers: {
+      stepVolume: (delta) => {
+        const volume = Math.min(1, Math.max(0, get(playerController.snapshot).volume + delta));
+        transport.setVolume(volume);
+        return volume;
+      },
       togglePlayback: () => transport.togglePlayback(),
       previousTrack: () => transport.stepTrack(-1),
       nextTrack: () => transport.stepTrack(1),

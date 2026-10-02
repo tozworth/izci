@@ -1,14 +1,15 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import { t } from 'svelte-i18n';
   import { createTrayBubblePresenter } from './tray-bubble-presenter';
-  import type { TrackBubble } from './tray-bubble-protocol';
+  import type { TrayBubbleContent } from './tray-bubble-protocol';
 
-  let track: TrackBubble | null = null;
+  let content: TrayBubbleContent | null = null;
   let visible = false;
   let bubble: HTMLDivElement;
 
   onMount(() => createTrayBubblePresenter(
-    (next, shown) => { track = next; visible = shown; },
+    (next, shown) => { content = next; visible = shown; },
     async () => {
       await tick();
       await document.fonts.ready;
@@ -23,6 +24,11 @@
 </script>
 
 <div bind:this={bubble} class="track-bubble" class:visible role="status" aria-live="polite">
-  <span class="izci-glyph" aria-hidden="true"></span>
-  <span class="track-info"><strong class="title">{track?.title ?? ''}</strong>{#if track?.artist}<span class="artist">{track.artist}</span>{/if}</span>
+  {#if content && 'percent' in content}
+    <span class="material-symbols-outlined volume-glyph" aria-hidden="true">{content.percent === 0 ? 'volume_off' : content.percent < 50 ? 'volume_down' : 'volume_up'}</span>
+    <strong class="volume-percent" aria-label={$t('desktop.tray.volume', { values: { percent: content.percent } })}>{content.percent}%</strong>
+  {:else}
+    <span class="izci-glyph" aria-hidden="true"></span>
+    <span class="track-info"><strong class="title">{content?.title ?? ''}</strong>{#if content?.artist}<span class="artist">{content.artist}</span>{/if}</span>
+  {/if}
 </div>

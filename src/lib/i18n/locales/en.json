@@ -572,23 +572,10 @@
         "apply": "Click to update and restart",
         "checkAgain": "Check for updates again"
       },
-      "logoAlt": "izci logo",
-      "kicker": "GOLDILOCKED / SLOPTIMIZED / WCO'D",
       "tagline": "PWA media contraption",
       "desktopTagline": "Media contraption",
       "openOnGitHub": "Open dunsparce9/izci on GitHub",
-      "features": {
-        "formats": "Plays usual streamed formats and tracker modules",
-        "formatsNote": "It plays tracker modules!!!",
-        "library": "A decent library with artwork, lyrics, and play counts",
-        "workspace": "Dockable tabbed workspace, a big moody Now Playing view, and a mini player",
-        "pwa": "PWA niceties: file associations, media keys, custom window border",
-        "pwaNote": "Only if your browser respects them (works on my machine)",
-        "backdrops": "Per-zone artwork and visualizer backdrops",
-        "raf": "Raf: a tiny effects rack",
-        "name": "“izci” means “tracker” in Turkish*",
-        "nameNote": "*Umm actually it’s closer to “scout”. But it was cute and the name stuck"
-      },
+      "openHostedPwa": "Open izci.ağla.net, the publicly hosted PWA",
       "credits": "izci wouldn't be possible without chiptune.js v3 (libopenmpt WASM), HivelyTracker, Howler.js, and Mediabunny.",
       "seeFull": "See full",
       "thirdPartyLicenses": "third-party licenses"
@@ -1558,6 +1545,11 @@
       "oda": "Oda"
     },
     "windowTitle": "izci Options",
+    "content": {
+      "loading": "Loading options…",
+      "loadFailed": "This options page could not be loaded.",
+      "retry": "Retry"
+    },
     "categories": "Options categories",
     "oda": {
       "heading": "Oda",
@@ -1648,13 +1640,17 @@
   },
   "desktop": {
     "appearance": {
+      "closeToTray": {
+        "title": "Close to tray",
+        "hint": "Hide the main window in the tray when closing it, keeping playback running. Use Exit to quit izci. Requires a tray icon."
+      },
       "trackInfoBubble": {
         "title": "Track info bubble",
         "hint": "Show the title and artist beside the tray icon for five seconds whenever playback starts, restarts or resumes. Requires a tray icon."
       },
       "showIn": {
         "title": "Show in",
-        "hint": "Choose where izci appears. The tray icon provides playback and window controls.",
+        "hint": "Choose where izci appears. The tray icon provides playback and window controls. Scroll over it to adjust volume by 5% per notch.",
         "taskbar": "Taskbar only",
         "tray": "Tray only",
         "both": "Both"
@@ -1683,6 +1679,7 @@
     },
     "tray": {
       "menu": "izci tray menu",
+      "volume": "Volume {percent}%",
       "pause": "Pause",
       "play": "Play",
       "open": "Open izci",
