@@ -50,12 +50,12 @@ console.log(`Verified standalone dependencies: ${imports.length} Windows system 
 // replaces the working build. Playback continues until publication is ready.
 const staging = join(root, '.local', `desktop-packed-${process.pid}.exe`);
 mkdirSync(join(root, '.local'), { recursive: true });
-const output = join(root, '.local', 'desktop');
+const output = join(root, '.local', signaling ? 'desktop-signaling' : 'desktop');
 mkdirSync(output, { recursive: true });
 try {
   copyFileSync(executable, staging);
   if (packer) packDesktopExecutable(packer, staging);
-  await publishDesktopBuild(root, staging);
+  await publishDesktopBuild(root, staging, { signaling });
 } finally {
   rmSync(staging, { force: true });
 }
