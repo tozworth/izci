@@ -32,7 +32,6 @@
 ## Working rules
 
 - Ignore `node_modules/`, `dist/`, and `dev-dist/` unless the task explicitly concerns generated output or dependencies.
-- After every source change, run `npm run build` so the user's hot-reload output remains current. Run focused tests and/or `npm run check` when relevant.
 - Documentation-only changes do not require a build.
 - Update `en.json` and `tr.json`, but **never** `en-askew.json`; Askew is a manually curated inside joke.
 - Do not start dev/preview servers or inspect the app in a browser unless explicitly asked.
