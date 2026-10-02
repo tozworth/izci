@@ -16,6 +16,7 @@
   export let options: readonly ThemedSelectOption[] = [];
   export let label: string;
   export let disabled = false;
+  export let maxWidth = '100%';
   export let id = `themed-select-${(instanceCounter += 1)}`;
 
   const dispatch = createEventDispatcher<{ change: string }>();
@@ -34,8 +35,8 @@
 
   let triggerMinWidth = 0;
 
-  // Size like a native select: fit the longest option so the trigger never
-  // stretches the row and never shifts when the selection changes.
+  // Fit the longest option within the available width, keeping the trigger
+  // stable when the selection changes.
   $: {
     void options;
     void triggerElement;
@@ -228,7 +229,7 @@
   });
 </script>
 
-<div class="themed-select" bind:this={rootElement}>
+<div class="themed-select" style:max-width={maxWidth} bind:this={rootElement}>
   <button
     class="themed-select-trigger"
     type="button"
@@ -239,7 +240,8 @@
     aria-controls={id}
     aria-activedescendant={open ? `${id}-option-${activeIndex}` : undefined}
     disabled={disabled}
-    style:min-width={triggerMinWidth ? `${triggerMinWidth}px` : undefined}
+    style:min-width={triggerMinWidth ? `min(${triggerMinWidth}px, 100%)` : undefined}
+    title={selectedLabel}
     bind:this={triggerElement}
     on:click={() => (open ? closeMenu() : void openMenu())}
     on:keydown={handleKeydown}
@@ -287,6 +289,7 @@
 <style>
   .themed-select {
     width: 100%;
+    min-width: 0;
   }
 
   .themed-select-trigger {

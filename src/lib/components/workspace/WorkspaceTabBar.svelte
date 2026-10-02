@@ -35,6 +35,7 @@
       case 'details': return $t('workspace.tabs.details', { default: 'Details' });
       case 'lyrics': return $t('workspace.tabs.lyrics', { default: 'Lyrics' });
       case 'patterns': return $t('workspace.tabs.patterns', { default: 'Patterns' });
+      case 'visualizer': return $t('workspace.tabs.visualizer', { default: 'Visualizer' });
       case 'media': return mediaKind === 'image'
         ? $t('workspace.tabs.image', { default: 'Image' })
         : $t('workspace.tabs.video', { default: 'Video' });

@@ -38,6 +38,7 @@ type DispatchedMenuActionId =
   | 'showLibrary'
   | 'showTrackDetails'
   | 'showLyrics'
+  | 'showVisualizer'
   | 'togglePatterns'
   | 'showChat'
   | 'toggleMedia'

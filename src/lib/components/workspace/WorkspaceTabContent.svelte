@@ -8,6 +8,7 @@
   import ChatPanel from '$lib/components/ChatPanel.svelte';
   import ImageStage from '$lib/components/workspace/ImageStage.svelte';
   import VideoStage from '$lib/components/workspace/VideoStage.svelte';
+  import VisualizerPanel from '$lib/components/workspace/VisualizerPanel.svelte';
   import type { VideoFitMode, WorkspaceTab } from '$lib/types';
   import type { WorkspaceTabContentProps } from './types';
 
@@ -107,6 +108,8 @@
     on:toggleChannelMute={(event) => content.patternChannelControls.toggleMute(event.detail.trackId, event.detail.index)}
     on:toggleChannelSolo={(event) => content.patternChannelControls.toggleSolo(event.detail.trackId, event.detail.index)}
   />
+{:else if tab === 'visualizer'}
+  <VisualizerPanel artworkUrl={content.visualizerArtworkUrl} />
 {:else if tab === 'chat'}
   <ChatPanel
     messages={content.chatMessages}

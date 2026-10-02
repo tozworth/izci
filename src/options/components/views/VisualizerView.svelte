@@ -6,10 +6,11 @@
   } from '$lib/stores/visualizer-settings';
   import type { VisualizerSettings } from '$lib/types';
   import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
+  import MilkDropSettings from '../MilkDropSettings.svelte';
 
   type SelectSetting = 'style' | 'colorSource';
-  type RangeSetting = Exclude<keyof VisualizerSettings, SelectSetting>;
-  type Visibility = 'always' | 'standard' | 'triangles';
+  type RangeSetting = { [Key in keyof VisualizerSettings]: VisualizerSettings[Key] extends number ? Key : never }[keyof VisualizerSettings];
+  type Visibility = 'always' | 'standard' | 'triangles' | 'nonMilkdrop';
   interface SelectDescriptor {
     key: SelectSetting;
     title: string;
@@ -33,7 +34,7 @@
   const SELECT_SETTINGS: SelectDescriptor[] = [
     {
       key: 'style', title: 'Style', options: VISUALIZER_STYLE_OPTIONS,
-      hint: 'Controls how the spectrum analyzer is drawn behind the full player bar.'
+      hint: 'Selects the visualizer used in backdrop zones and the Visualizer tab.'
     },
     {
       key: 'colorSource', title: 'Color source', options: VISUALIZER_COLOR_SOURCE_OPTIONS,
@@ -43,13 +44,14 @@
   const RANGE_SETTINGS: RangeDescriptor[] = [
     {
       key: 'height', title: 'Height', min: 22, max: 100, step: 1, scale: 100,
+      visibility: 'nonMilkdrop',
       format: (value) => `${Math.round(value * 100)}%`,
       hint: 'Sets how far the analyzer can rise through the player background.'
     },
     {
       key: 'transparency', title: 'Opacity', min: 0, max: 85, step: 1, scale: 100,
       format: (value) => `${Math.round(value * 100)}%`,
-      hint: 'Sets how strongly the analyzer appears behind text, controls, and artwork.'
+      hint: 'Sets visualizer opacity in backdrop zones. The Visualizer tab always uses full opacity.'
     },
     {
       key: 'frameRateLimit', title: 'Frame cap', min: MIN_VISUALIZER_FRAME_RATE_LIMIT,
@@ -127,10 +129,10 @@
   }
   function descriptorHint(setting: SelectDescriptor | RangeDescriptor): string {
     switch (setting.key) {
-      case 'style': return $t('options.visualizer.style.hint', { default: 'Controls how the spectrum analyzer is drawn behind the full player bar.' });
+      case 'style': return $t('options.visualizer.style.hint', { default: 'Selects the visualizer used in backdrop zones and the Visualizer tab.' });
       case 'colorSource': return $t('options.visualizer.colorSource.hint', { default: 'Uses the current artwork palette when available, otherwise falls back to the active theme.' });
       case 'height': return $t('options.visualizer.height.hint', { default: 'Sets how far the analyzer can rise through the player background.' });
-      case 'transparency': return $t('options.visualizer.opacity.hint', { default: 'Sets how strongly the analyzer appears behind text, controls, and artwork.' });
+      case 'transparency': return $t('options.visualizer.opacity.hint', { default: 'Sets visualizer opacity in backdrop zones. The Visualizer tab always uses full opacity.' });
       case 'frameRateLimit': return $t('options.visualizer.frameCap.hint', { default: 'Limits how often every visualizer style redraws, from battery-friendlier motion to high-refresh displays.' });
       case 'normalizationStrength': return $t('options.visualizer.normalization.hint', { default: 'Balances low, mid, and high frequency bands so bass-heavy or bright tracks still use the full visual range.' });
       case 'triangleCount': return $t('options.visualizer.triangleCount.hint', { default: 'Sets how many triangle shapes are kept active in the player background.' });
@@ -148,21 +150,26 @@
       case 'mirror': return $t('options.visualizer.options.mirror', { default: 'Mirror bloom' });
       case 'blocks': return $t('options.visualizer.options.blocks', { default: 'Pixel blocks' });
       case 'triangles': return $t('options.visualizer.options.triangles', { default: 'Rhythm triangles' });
+      case 'milkdrop': return $t('options.visualizer.options.milkdrop', { default: 'MilkDrop' });
       case 'theme': return $t('options.visualizer.options.theme', { default: 'Follow theme' });
       default: return $t('options.visualizer.options.artwork', { default: 'Follow artwork' });
     }
   }
 
-  $: visibleRangeSettings = RANGE_SETTINGS.filter(({ visibility = 'always' }) =>
-    visibility === 'always' || (visibility === 'triangles') === ($visualizerSettings.style === 'triangles')
-  );
+  $: visibleSelectSettings = SELECT_SETTINGS.filter(({ key }) => key !== 'colorSource' || $visualizerSettings.style !== 'milkdrop');
+  $: visibleRangeSettings = RANGE_SETTINGS.filter(({ visibility = 'always' }) => {
+    if (visibility === 'always') return true;
+    if (visibility === 'triangles') return $visualizerSettings.style === 'triangles';
+    if (visibility === 'nonMilkdrop') return $visualizerSettings.style !== 'milkdrop';
+    return $visualizerSettings.style !== 'triangles' && $visualizerSettings.style !== 'milkdrop';
+  });
 </script>
 
 <article class="view">
   <div class="section">
-    <h2>{$t('options.visualizer.heading', { default: 'Player Background' })}</h2>
+    <h2>{$t('options.visualizer.heading', { default: 'Visualizer' })}</h2>
     <div class="field-grid">
-      {#each SELECT_SETTINGS as setting (setting.key)}
+      {#each visibleSelectSettings as setting (setting.key)}
         <label class="field">
           <div class="field-copy">
             <span class="field-title">{descriptorTitle(setting)}</span>
@@ -200,4 +207,7 @@
       {/each}
     </div>
   </div>
+  {#if $visualizerSettings.style === 'milkdrop'}
+    <MilkDropSettings />
+  {/if}
 </article>

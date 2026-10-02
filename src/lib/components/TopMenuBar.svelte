@@ -79,6 +79,7 @@
     showLibrary: void;
     showTrackDetails: void;
     showLyrics: void;
+    showVisualizer: void;
     togglePatterns: void;
     showChat: void;
     toggleMedia: void;

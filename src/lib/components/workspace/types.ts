@@ -104,6 +104,7 @@ export interface WorkspaceTabContentProps {
     reset: (trackId: string) => void;
   };
   detailsArtwork: LoadedStreamArtwork | null;
+  visualizerArtworkUrl?: string;
   detailsLibraryTargets: TrackLibraryNavigationTargets;
   navigateTrackDetailsToLibrary: (target: TrackLibraryNavigationTarget) => void;
   lyricsDisplayStyle: LyricsDisplayStyle;

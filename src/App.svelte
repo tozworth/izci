@@ -361,6 +361,7 @@
       reset: playerController.patternChannels.reset
     },
     detailsArtwork: artworkPresentationState.visibleDetailsArtwork,
+    visualizerArtworkUrl: artworkPresentationState.displayedArtwork?.url,
     detailsLibraryTargets,
     navigateTrackDetailsToLibrary: (target) => workspaceShell.showLibraryGroup(target),
     lyricsDisplayStyle: effectiveLyricsDisplayStyle,
@@ -1145,6 +1146,7 @@
     on:showLibrary={() => toggleWorkspaceTab('library')}
     on:showTrackDetails={() => toggleWorkspaceTab('details')}
     on:showLyrics={() => toggleWorkspaceTab('lyrics')}
+    on:showVisualizer={() => toggleWorkspaceTab('visualizer')}
     on:togglePatterns={togglePatterns}
     on:showChat={() => toggleWorkspaceTab('chat')}
     on:toggleMedia={() => toggleWorkspaceTab('media')}

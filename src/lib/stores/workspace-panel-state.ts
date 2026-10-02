@@ -31,6 +31,7 @@ const DEFAULT_WORKSPACE_LAST_PANEL_BY_TAB: WorkspaceTabPanelMemorySettings = {
   details: 'right',
   lyrics: 'right',
   patterns: 'center',
+  visualizer: 'center',
   media: 'center',
   chat: 'right'
 };
@@ -52,6 +53,7 @@ function isWorkspaceTab(value: unknown): value is WorkspaceTab {
     value === 'details' ||
     value === 'lyrics' ||
     value === 'patterns' ||
+    value === 'visualizer' ||
     value === 'media' ||
     value === 'chat'
   );

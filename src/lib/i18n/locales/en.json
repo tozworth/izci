@@ -157,7 +157,8 @@
       "abLoopActive": "Looping {start}–{end}",
       "abLoopStop": "Stop A-B loop",
       "queue": "Queue",
-      "enterOda": "Enter Oda"
+      "enterOda": "Enter Oda",
+      "visualizer": "Visualizer"
     },
     "miniPlayer": {
       "heading": "Mini player",
@@ -307,6 +308,12 @@
       "display": "Image display",
       "zoom": "Zoom {percent}%",
       "resetZoom": "Reset zoom"
+    },
+    "visualizer": {
+      "loading": "Loading MilkDrop…",
+      "webglUnavailable": "MilkDrop needs WebGL 2, but a graphics context could not be created. Choose another visualizer from the context menu.",
+      "contextLost": "MilkDrop lost its graphics context. Switch visualizers to retry.",
+      "error": "MilkDrop could not load or render. See Tools > Logs for details, or choose another visualizer from the context menu."
     }
   },
   "workspace": {
@@ -350,7 +357,8 @@
       "label": "Workspace tabs",
       "close": "Close",
       "closeNamed": "Close {tab}",
-      "queue": "Queue"
+      "queue": "Queue",
+      "visualizer": "Visualizer"
     }
   },
   "pwa": {
@@ -1463,7 +1471,7 @@
     "visualizer": {
       "style": {
         "title": "Style",
-        "hint": "Controls how the spectrum analyzer is drawn behind the full player bar."
+        "hint": "Selects the visualizer used in backdrop zones and the Visualizer tab."
       },
       "colorSource": {
         "title": "Color source",
@@ -1475,7 +1483,7 @@
       },
       "opacity": {
         "title": "Opacity",
-        "hint": "Sets how strongly the analyzer appears behind text, controls, and artwork."
+        "hint": "Sets visualizer opacity in backdrop zones. The Visualizer tab always uses full opacity."
       },
       "frameCap": {
         "title": "Frame cap",
@@ -1516,9 +1524,34 @@
         "blocks": "Pixel blocks",
         "triangles": "Rhythm triangles",
         "theme": "Follow theme",
-        "artwork": "Follow artwork"
+        "artwork": "Follow artwork",
+        "milkdrop": "MilkDrop"
       },
-      "heading": "Player Background"
+      "heading": "Visualizer",
+      "milkdrop": {
+        "randomPreset": "Random initial preset",
+        "preset": {
+          "title": "Preset",
+          "hint": "Selects a bundled MilkDrop preset. Presets provide their own colors and remain available offline."
+        },
+        "cycle": {
+          "title": "Cycle presets",
+          "hint": "Automatically switches to another random preset. Turn off to keep the current preset."
+        },
+        "interval": {
+          "title": "Preset duration",
+          "hint": "Sets how many seconds each preset runs before the next transition."
+        },
+        "blend": {
+          "title": "Preset blend time",
+          "hint": "Sets the crossfade duration between MilkDrop presets; zero switches immediately."
+        },
+        "resolution": {
+          "title": "Render resolution",
+          "hint": "Scales MilkDrop resolution relative to the display, within a one-megapixel limit. Lower values reduce GPU load."
+        },
+        "loadFailed": "MilkDrop presets could not be loaded."
+      }
     },
     "views": {
       "appearance": "Appearance",
