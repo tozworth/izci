@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BUBBLE_STATE_EVENT, type TrackBubbleUpdate } from './tray-bubble-protocol';
+import { BUBBLE_DISMISS_EVENT, BUBBLE_STATE_EVENT, type TrackBubbleUpdate } from './tray-bubble-protocol';
 
 const native = vi.hoisted(() => ({ invoke: vi.fn(async (command: string): Promise<unknown> => command.startsWith('show_') ? true : undefined), callbacks: new Map<string, (event: { payload: unknown }) => void>() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: native.invoke }));
@@ -54,6 +54,30 @@ describe('track bubble presentation', () => {
     expect(render.mock.calls.some(([, visible]) => visible === true)).toBe(false);
     await vi.advanceTimersByTimeAsync(5000);
     expect(native.invoke.mock.calls.map(([command]) => command)).toEqual(['hide_desktop_track_bubble', 'show_desktop_track_bubble']);
+  });
+
+  it('does not replay a suppressed bubble after the player loses focus', async () => {
+    native.invoke.mockImplementation(async () => false);
+    update('First'); await flush();
+    native.invoke.mockImplementation(async (command) => command.startsWith('show_') ? true : undefined);
+    update('First', false); await flush();
+    expect(render.mock.calls.some(([, visible]) => visible === true)).toBe(false);
+    update('First'); await flush();
+    expect(render).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'First' }), true);
+  });
+
+  it('dismisses an existing bubble when either player gains focus and cancels pending shows', async () => {
+    update('First'); await flush();
+    native.callbacks.get(BUBBLE_DISMISS_EVENT)!({ payload: null }); await flush();
+    expect(render).toHaveBeenLastCalledWith(null, false);
+    expect(native.invoke).toHaveBeenLastCalledWith('hide_desktop_track_bubble');
+    let finish!: (size: { width: number; height: number }) => void;
+    measure.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    update('Next'); await flush(); native.invoke.mockClear();
+    native.callbacks.get(BUBBLE_DISMISS_EVENT)!({ payload: null });
+    finish({ width: 320, height: 28 }); await flush();
+    expect(render).toHaveBeenLastCalledWith(null, false);
+    expect(native.invoke).not.toHaveBeenCalledWith('show_desktop_track_bubble', expect.anything());
   });
 
   it('skips a stale show when a newer track arrives during measurement', async () => {

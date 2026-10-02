@@ -239,6 +239,26 @@ afterAll(() => {
 });
 
 describe('player controller supersession characterization', () => {
+  it.each(['stream', 'module', 'hively', 'video'] as const)('signals %s starts, same-track restarts and seamless switches, but not ordinary seeks', async (backend) => {
+    const initialSequence = get(playerController.playbackStarts);
+    const loaded = await loadInitial('repeating', backend);
+    expect(get(playerController.playbackStarts)).toBe(initialSequence + 1);
+    playerController.seek(0);
+    loaded.instance.emitSnapshot({ state: 'playing', currentTime: 0 });
+    expect(get(playerController.playbackStarts)).toBe(initialSequence + 1);
+    for (let index = 0; index < 3; index += 1) playerController.restart();
+    expect(get(playerController.playbackStarts)).toBe(initialSequence + 4);
+    expect(get(playerController.snapshot).state).toBe('playing');
+    expect(loaded.instance.seek).toHaveBeenCalledTimes(4);
+    const preparing = playerController.prepareNext(backendTrack('seamless', backend));
+    await flushUntilPending('seamless');
+    resolvePending('seamless');
+    await preparing;
+    expect(get(playerController.playbackStarts)).toBe(initialSequence + 4);
+    expect(playerController.commitPrepared('seamless')).toBe(true);
+    expect(get(playerController.playbackStarts)).toBe(initialSequence + 5);
+  });
+
   it.each(['module', 'hively'] as const)('routes %s channel controls to the active tracker only', async (backend) => {
     const loaded = await loadInitial('tracker', backend);
     const song = { channels: ['', '', '', ''], instruments: [], samples: [], orders: [], patterns: [], numSubsongs: 1 };

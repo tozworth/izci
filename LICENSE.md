@@ -25,326 +25,235 @@ SOFTWARE.
 
 ## Third-party notices
 
-The MIT license above applies only to izci's original work. Third-party code,
-fonts, and other assets remain under their respective licenses. The principal
-runtime components distributed with izci are summarized below.
+The MIT license above covers izci's original work. Third-party code, fonts,
+compiled libraries, SDK material and runtime support retain their own licenses.
+Full copyright notices, license texts and upstream NOTICE files are reproduced
+in THIRD-PARTY-NOTICES.md. The Options license page bundles both documents, so
+they can be read offline in the PWA and desktop application.
 
-### Chiptune3
+This notice snapshot was reviewed on 2026-10-02 for izci 0.3.2. Versions refer
+to the current lockfiles or to identifiers embedded in vendored binaries;
+they are not inferred from dependency version ranges. Dependencies removed by
+tree shaking and build-time/compiler support can be included conservatively
+in the notice inventory without being present in every application binary.
 
-Chiptune3 is licensed under the MIT License.
+### Frontend, localization and fonts
 
-Copyright © 2013-2024 The chiptune2.js and chiptune3 contributers.
+- Chiptune3 0.8.4: MIT. Copyright © 2013-2024 The chiptune2.js and chiptune3
+  contributers, as stated in the published package. izci vendors its JavaScript
+  runtime and adds an interactive-interface bridge; the compiled libopenmpt
+  library has its own license, described below.
+  Source: https://github.com/DrSnuggles/chiptune
+- Howler.js 2.2.4: MIT. Copyright (c) 2013-2020 James Simpson and GoldFire
+  Studios, Inc. Source: https://github.com/goldfire/howler.js
+- Svelte 5.56.1: MIT. Copyright (c) 2016-2025 Svelte Contributors.
+  Source: https://github.com/sveltejs/svelte
+- svelte-i18n 4.0.1: MIT. Copyright 2017 Christian Kaisermann.
+  Source: https://github.com/kaisermann/svelte-i18n
+- intl-messageformat 10.7.18: BSD-3-Clause. FormatJS's supporting parser,
+  locale-matching and memoization packages use MIT; tslib uses 0BSD;
+  decimal.js and deepmerge use MIT. Exact versions and notices are listed
+  in THIRD-PARTY-NOTICES.md. Source: https://github.com/formatjs/formatjs
+- fflate 0.8.3: MIT. Copyright (c) 2026 Arjun Barrett.
+  Source: https://github.com/101arrowz/fflate
+- Material Symbols font-400 0.40.2: Apache-2.0. Material Symbols are created
+  by Google. Source: https://github.com/google/material-design-icons
+- Workbox 7.4.1: MIT. Copyright 2018 Google LLC. Workbox supplies the PWA's
+  service-worker support and is not used by the desktop service-worker stub.
+  Source: https://github.com/GoogleChrome/workbox
+- @tauri-apps/api 2.12.0: MIT OR Apache-2.0. Used only by the desktop frontend.
+  Source: https://github.com/tauri-apps/tauri
 
-The MIT License text reproduced above applies to Chiptune3. Its compiled
-libopenmpt portions are covered separately below.
+### Mediabunny and encoder extensions
 
-Source: <https://github.com/DrSnuggles/chiptune>
+Mediabunny, @mediabunny/mp3-encoder and @mediabunny/flac-encoder are version
+1.52.0 and use MPL-2.0. Their source files carry the notice:
 
-### Howler.js
+Copyright (c) 2026-present, Vanilagy and contributors.
 
-Howler.js is licensed under the MIT License.
+This Source Code Form is subject to the terms of the Mozilla Public License,
+v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain
+one at https://mozilla.org/MPL/2.0/.
 
-Copyright (c) 2013-2020 James Simpson and GoldFire Studios, Inc.
+Source for the covered code, including the encoder bridges and upstream
+rebuild recipes:
 
-The MIT License text reproduced above applies to Howler.js.
+https://github.com/Vanilagy/mediabunny/tree/v1.52.0
+https://registry.npmjs.org/mediabunny/-/mediabunny-1.52.0.tgz
+https://registry.npmjs.org/@mediabunny/mp3-encoder/-/mp3-encoder-1.52.0.tgz
+https://registry.npmjs.org/@mediabunny/flac-encoder/-/flac-encoder-1.52.0.tgz
 
-Source: <https://github.com/goldfire/howler.js>
+The MPL covers these components and their covered modifications. It does not
+replace the licenses of LAME or libFLAC compiled into the extensions. The
+original izci source files retain MIT. Third-party source distributed in
+minified or compiled form remains available under its applicable source
+license; the full MPL text is reproduced in THIRD-PARTY-NOTICES.md.
 
-### Svelte
+### LAME MP3 encoding
 
-Svelte is licensed under the MIT License.
+LAME 3.100 is bundled as WebAssembly inside @mediabunny/mp3-encoder. It is used
+for MP3 export by the Converter and Editor. LAME uses the GNU Library General
+Public License, version 2 or later (LGPL-2.0-or-later). Its LGPL terms remain
+applicable even though the JavaScript extension's package metadata says MPL.
 
-Copyright (c) 2016-2025 Svelte Contributors
+LAME was originally developed by Mike Cheng, subsequently developed by Mark
+Taylor, and is maintained by the LAME Project. Copyright holders and additional
+contributors are identified in the LAME source. The full LGPL version 2 text,
+LAME's LICENSE guidance and its encoding-library license header are reproduced
+in THIRD-PARTY-NOTICES.md.
 
-The MIT License text reproduced above applies to Svelte.
+Project: https://lame.sourceforge.io/
+Source release: https://sourceforge.net/projects/lame/files/lame/3.100/lame-3.100.tar.gz
+Upstream build recipe: https://github.com/Vanilagy/mediabunny/tree/v1.52.0/packages/mp3-encoder
 
-Source: <https://github.com/sveltejs/svelte>
+The upstream encoder recipe compiles libmp3lame with:
 
-### Workbox
+    CFLAGS="-DNDEBUG -DNO_STDIO -O3 -msimd128"
+    --disable-dependency-tracking --disable-shared --disable-gtktest
+    --disable-analyzer-hooks --disable-decoder --disable-frontend
 
-Workbox is licensed under the MIT License.
+It links libmp3lame.a with the extension's MPL-licensed src/lame-bridge.c and
+uses Emscripten SINGLE_FILE output to embed the WASM. The older GPL mpglib
+decoder mentioned by LAME is excluded by this encoder-only recipe. The
+extension README describes the complete configure, compilation, bridge,
+worker and package rebuild steps. izci then bundles the extension with its
+frontend; izci does not change LAME's native encoding sources.
 
-Copyright 2018 Google LLC
+The LGPL preserves recipients' rights to modify the library and use a modified
+version. License notices and upstream links alone do not supply the required
+corresponding-source or replacement/relink materials. A distributor must meet
+the applicable LGPL requirements for the actual binaries it distributes.
+This notice update does not claim to provide a separately downloadable,
+verified corresponding-source/relink bundle, and is not a written source offer.
 
-The MIT License text reproduced above applies to Workbox.
+### FLAC encoding
 
-Source: <https://github.com/GoogleChrome/workbox>
+The libFLAC binary in @mediabunny/flac-encoder 1.52.0 identifies itself as
+"reference libFLAC git-3f1ecff8 20260304". The codec library uses the Xiph.Org
+BSD 3-Clause license, with these notices:
 
-### libopenmpt
+Copyright (C) 2000-2009 Josh Coalson
+Copyright (C) 2011-2025 Xiph.Org Foundation
 
-libopenmpt is licensed under the BSD 3-Clause License:
+Source: https://github.com/xiph/flac/tree/3f1ecff8
+Build recipe: https://github.com/Vanilagy/mediabunny/tree/v1.52.0/packages/flac-encoder
+
+The full COPYING.Xiph text is reproduced in THIRD-PARTY-NOTICES.md. The GPL
+license used by separate FLAC command-line programs is not the license of
+this embedded codec library.
+
+### Tracker replay libraries
+
+The embedded libopenmpt is version 0.8.4, licensed under BSD-3-Clause:
 
 Copyright (c) 2004-2025, OpenMPT Project Developers and Contributors
-
 Copyright (c) 1997-2003, Olivier Lapicque
-
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+Source: https://github.com/OpenMPT/openmpt/tree/libopenmpt-0.8.4
+Project: https://lib.openmpt.org/
 
-* Redistributions of source code must retain the above copyright notice,
-  this list of conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-* Neither the name of the OpenMPT project nor the names of its contributors
-  may be used to endorse or promote products derived from this software
-  without specific prior written permission.
+The vendored WASM identifies MINIZ, MINIMP3, STBVORBIS and PLUGINS build
+features. Its additional notices include miniz (MIT), minimp3 (CC0-1.0),
+stb_vorbis (MIT OR Unlicense), Ryuhei Mori's TinyFFT (BSD-2-Clause, adapted by
+OpenMPT), and the public-domain Opal OPL3 emulator released by Shayde/Reality.
+It uses minimp3 for embedded MP3 decoding; it is not a mpg123 build.
+The applicable full licenses and source-file attribution notices are included
+in THIRD-PARTY-NOTICES.md.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
-
-Source: <https://lib.openmpt.org/>
-
-### HivelyTracker replayer
-
-The HivelyTracker AHX/HVL replayer is licensed under the BSD 3-Clause License:
+The HivelyTracker AHX/HVL replayer is licensed under BSD-3-Clause:
 
 Copyright (c) 2006-2018, Pete Gordon
-
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+The replay core comes from commit f393ca7c6416f00bcb574b334a7e8b57dcb19eb2:
+https://github.com/pete-gordon/hivelytracker/tree/f393ca7c6416f00bcb574b334a7e8b57dcb19eb2
 
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-* Neither the name of the copyright holder nor the names of its contributors
-  may be used to endorse or promote products derived from this software
-  without specific prior written permission.
+izci supplies the replay wrapper and worklet. The upstream notice is also
+preserved in public/vendor/hivelytracker-LICENSE.txt and alongside the server's
+embedded replay library. Rebuild information lives in scripts/vendor/ahx/README.md.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
+### Compiled runtime support
 
-Source: <https://github.com/pete-gordon/hivelytracker>
+The shipped WASM libraries use Emscripten glue/runtime code (MIT OR NCSA) and
+applicable musl and LLVM C/C++ runtime support. These components retain their
+individual notices, including LLVM's Apache-2.0 exception and legacy terms.
+The corresponding license texts are reproduced in THIRD-PARTY-NOTICES.md.
+Exact compiler revisions were not recorded for every precompiled upstream
+codec; this document does not assert one shared toolchain revision.
 
-### Material Symbols
+Source: https://github.com/emscripten-core/emscripten
+LLVM source: https://github.com/llvm/llvm-project
 
-Material Symbols are created by Google and distributed under the Apache
-License, Version 2.0:
+### Windows desktop shell and SDK loader
 
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
+The desktop application uses Tauri, wry, tao, tray-icon, Windows API bindings,
+WebView2 COM bindings, serde and other Rust dependencies. The exact resolved
+Windows MSVC package inventory, including procedural macros and build-time
+support, appears in THIRD-PARTY-NOTICES.md. It includes their full license and
+NOTICE files, rather than applying izci's MIT license to them. MPL-licensed
+dependencies retain their covered source obligations.
 
-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+The Rust standard library is MIT OR Apache-2.0, with specific in-tree exceptions
+and additional dependency notices. The notice snapshot includes the copyright
+information and license texts supplied with the local Rust 1.98.1 toolchain,
+including target-specific entries that may not be used by the Windows build.
+Its source and licensing information are published with the Rust toolchain:
+https://www.rust-lang.org/policies/licenses
+https://github.com/rust-lang/rust
 
-   1. Definitions.
+webview2-com-sys 0.39.1 supplies the statically linked WebView2 SDK loader from
+Microsoft.Web.WebView2 1.0.3800.47. The SDK's BSD-3-Clause LICENSE.txt and its
+complete NOTICE.txt are reproduced in THIRD-PARTY-NOTICES.md. Copyright (C)
+Microsoft Corporation. All rights reserved. The SDK notice includes additional
+SDK attribution; it does not imply that every SDK tool is embedded in izci.
+The WebView2 browser runtime is separately installed on Windows.
 
-      "License" shall mean the terms and conditions for use, reproduction,
-      and distribution as defined by Sections 1 through 9 of this document.
+SDK: https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.3800.47
+Bindings: https://github.com/wravery/webview2-rs
 
-      "Licensor" shall mean the copyright owner or entity authorized by
-      the copyright owner that is granting the License.
+### UPX compressed-executable exception
 
-      "Legal Entity" shall mean the union of the acting entity and all
-      other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
-      "control" means (i) the power, direct or indirect, to cause the
-      direction or management of such entity, whether by contract or
-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
-      outstanding shares, or (iii) beneficial ownership of such entity.
+Default Windows desktop builds use the official unmodified UPX 5.2.1 packer.
+The packer is build tooling, while its decompression stub is embedded in the
+compressed izci.exe. Builds made with --no-compress do not contain that stub.
 
-      "You" (or "Your") shall mean an individual or Legal Entity
-      exercising permissions granted by this License.
+UPX/UCL use GPL-2.0-or-later with a special exception for compressed programs,
+including commercial executables. The exception requires the official,
+unmodified stub and restricts its use to startup decompression. Both the full
+GPL COPYING and the full exception in LICENSE are reproduced unchanged in
+THIRD-PARTY-NOTICES.md. This exception does not relicense izci's original code.
 
-      "Source" form shall mean the preferred form for making modifications,
-      including but not limited to software source code, documentation
-      source, and configuration files.
+Copyright (C) 1996-2026 Markus Franz Xaver Johannes Oberhumer
+Copyright (C) 1996-2026 Laszlo Molnar
+Copyright (C) 2000-2026 John F. Reiser
 
-      "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
+Source: https://github.com/upx/upx/tree/v5.2.1
 
-      "Work" shall mean the work of authorship, whether in Source or
-      Object form, made available under the License, as indicated by a
-      copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
+### Optional signaling and dedicated-server distributions
 
-      "Derivative Works" shall mean any work, whether in Source or Object
-      form, that is based on (or derived from) the Work and for which the
-      editorial revisions, annotations, elaborations, or other modifications
-      represent, as a whole, an original work of authorship. For the purposes
-      of this License, Derivative Works shall not include works that remain
-      separable from, or merely link (or bind by name) to the interfaces of,
-      the Work and Derivative Works thereof.
+Only signaling-enabled desktop builds embed the Go signaling child. Its Go
+runtime and module notices are included in THIRD-PARTY-NOTICES.md. Ordinary
+desktop builds do not embed this child or dedicated-host media dependencies.
 
-      "Contribution" shall mean any work of authorship, including
-      the original version of the Work and any modifications or additions
-      to that Work or Derivative Works thereof, that is intentionally
-      submitted to Licensor for inclusion in the Work by the copyright owner
-      or by an individual or Legal Entity authorized to submit on behalf of
-      the copyright owner. For the purposes of this definition, "submitted"
-      means any form of electronic, verbal, or written communication sent
-      to the Licensor or its representatives, including but not limited to
-      communication on electronic mailing lists, source code control systems,
-      and issue tracking systems that are managed by, or on behalf of, the
-      Licensor for the purpose of discussing and improving the Work, but
-      excluding communication that is conspicuously marked or otherwise
-      designated in writing by the copyright owner as "Not a Contribution."
+The dedicated izci-server module has its own LICENSE.md and detailed
+THIRD-PARTY-NOTICES.md under izci-server/. The server Docker image copies both
+documents into /usr/share/doc/izci-server/. Debian system packages retain their
+copyright/license documents under /usr/share/doc/<package>/copyright and
+/usr/share/common-licenses. The Docker recipe installs FFmpeg and libopenmpt;
+they are system dependencies, not linked into the CGO-disabled Go server.
+The installed FFmpeg build can use LGPL or GPL terms depending on configuration.
 
-      "Contributor" shall mean Licensor and any individual or Legal Entity
-      on behalf of whom a Contribution has been received by Licensor and
-      subsequently incorporated within the Work.
+The server notices identify module versions, SQLite and musl attribution,
+the embedded Hively replayer, Debian source locations and the boundary between
+notices and any separately required corresponding-source distribution.
 
-   2. Grant of Copyright License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      copyright license to reproduce, prepare Derivative Works of,
-      publicly display, publicly perform, sublicense, and distribute the
-      Work and such Derivative Works in Source or Object form.
+### Maintaining these notices
 
-   3. Grant of Patent License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      (except as stated in this section) patent license to make, have made,
-      use, offer to sell, sell, import, and otherwise transfer the Work,
-      where such license applies only to those patent claims licensable
-      by such Contributor that are necessarily infringed by their
-      Contribution(s) alone or by combination of their Contribution(s)
-      with the Work to which such Contribution(s) was submitted. If You
-      institute patent litigation against any entity (including a
-      cross-claim or counterclaim in a lawsuit) alleging that the Work
-      or a Contribution incorporated within the Work constitutes direct
-      or contributory patent infringement, then any patent licenses
-      granted to You under this License for that Work shall terminate
-      as of the date such litigation is filed.
-
-   4. Redistribution. You may reproduce and distribute copies of the
-      Work or Derivative Works thereof in any medium, with or without
-      modifications, and in Source or Object form, provided that You
-      meet the following conditions:
-
-      (a) You must give any other recipients of the Work or
-          Derivative Works a copy of this License; and
-
-      (b) You must cause any modified files to carry prominent notices
-          stating that You changed the files; and
-
-      (c) You must retain, in the Source form of any Derivative Works
-          that You distribute, all copyright, patent, trademark, and
-          attribution notices from the Source form of the Work,
-          excluding those notices that do not pertain to any part of
-          the Derivative Works; and
-
-      (d) If the Work includes a "NOTICE" text file as part of its
-          distribution, then any Derivative Works that You distribute must
-          include a readable copy of the attribution notices contained
-          within such NOTICE file, excluding those notices that do not
-          pertain to any part of the Derivative Works, in at least one
-          of the following places: within a NOTICE text file distributed
-          as part of the Derivative Works; within the Source form or
-          documentation, if provided along with the Derivative Works; or,
-          within a display generated by the Derivative Works, if and
-          wherever such third-party notices normally appear. The contents
-          of the NOTICE file are for informational purposes only and
-          do not modify the License. You may add Your own attribution
-          notices within Derivative Works that You distribute, alongside
-          or as an addendum to the NOTICE text from the Work, provided
-          that such additional attribution notices cannot be construed
-          as modifying the License.
-
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions for
-      use, reproduction, or distribution of Your modifications, or for any
-      such Derivative Works as a whole, provided Your use, reproduction, and
-      distribution of the Work otherwise complies with the conditions stated
-      in this License.
-
-   5. Submission of Contributions. Unless You explicitly state otherwise,
-      any Contribution intentionally submitted for inclusion in the Work
-      by You to the Licensor shall be under the terms and conditions of
-      this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
-
-   6. Trademarks. This License does not grant permission to use the trade
-      names, trademarks, service marks, or product names of the Licensor,
-      except as required for reasonable and customary use in describing the
-      origin of the Work and reproducing the content of the NOTICE file.
-
-   7. Disclaimer of Warranty. Unless required by applicable law or
-      agreed to in writing, Licensor provides the Work (and each
-      Contributor provides its Contributions) on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-      implied, including, without limitation, any warranties or conditions
-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-      PARTICULAR PURPOSE. You are solely responsible for determining the
-      appropriateness of using or redistributing the Work and assume any
-      risks associated with Your exercise of permissions under this License.
-
-   8. Limitation of Liability. In no event and under no legal theory,
-      whether in tort (including negligence), contract, or otherwise,
-      unless required by applicable law (such as deliberate and grossly
-      negligent acts) or agreed to in writing, shall any Contributor be
-      liable to You for damages, including any direct, indirect, special,
-      incidental, or consequential damages of any character arising as a
-      result of this License or out of the use or inability to use the Work
-      (including but not limited to damages for loss of goodwill, work
-      stoppage, computer failure or malfunction, or any and all other
-      commercial damages or losses), even if such Contributor has been
-      advised of the possibility of such damages.
-
-   9. Accepting Warranty or Additional Liability. While redistributing
-      the Work or Derivative Works thereof, You may choose to offer, and
-      charge a fee for, acceptance of support, warranty, indemnity, or other
-      liability obligations and/or rights consistent with this License.
-      However, in accepting such obligations, You may act only on Your own
-      behalf and on Your sole responsibility, not on behalf of any other
-      Contributor, and only if You agree to indemnify, defend, and hold each
-      Contributor harmless for any liability incurred by, or claims asserted
-      against, such Contributor by reason of your accepting any such warranty
-      or additional liability.
-
-   END OF TERMS AND CONDITIONS
-
-   APPENDIX: How to apply the Apache License to your work.
-
-      To apply the Apache License to your work, attach the following
-      boilerplate notice, with the fields enclosed by brackets "[]"
-      replaced with your own identifying information. (Don't include
-      the brackets!) The text should be enclosed in the appropriate
-      comment syntax for the file format. We also recommend that a
-      file or class name and description of purpose be included on the
-      same "printed page" as the copyright notice for easier
-      identification within third-party archives.
-
-   Copyright [yyyy] [name of copyright owner]
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-
-Source: <https://github.com/google/material-design-icons>
+When distributing a changed dependency set, update the inventory against
+package-lock.json, src-tauri/Cargo.lock and izci-server/go.mod/go.sum, and inspect
+the native libraries embedded in WASM and SDK packages. Package metadata alone
+does not identify all embedded licenses. Preserve upstream copyright and NOTICE
+text, and retain all notices applicable to compiled or generated code.
+Current sources, including izci's modifications, are available at:
+https://github.com/dunsparce9/izci

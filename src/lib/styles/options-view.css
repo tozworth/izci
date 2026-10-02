@@ -332,6 +332,25 @@ code {
   display: block;
 }
 
+.content-panel.about-content-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.about-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.about-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 10px;
+}
+
 .section + .section {
   margin-top: 12px;
 }
@@ -678,12 +697,22 @@ code {
 }
 
 .about-footer {
-  margin-top: 18px;
-  padding-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  padding: 10px;
   border-top: 1px solid var(--border-faint);
+  background: var(--bg-input);
   color: var(--muted);
   font-size: 0.7rem;
   line-height: 1.5;
+}
+
+.about-heart {
+  flex-shrink: 0;
+  color: var(--accent);
+  font-size: 1.2rem;
 }
 
 .about-footer a {

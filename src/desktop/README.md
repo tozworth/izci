@@ -131,8 +131,10 @@ required. `scripts/sync-desktop-formats.mjs` generates Rust's format map from
 
 File icons are embedded in the EXE: every stream and AHX/HVL/MPTM/MOD/S3M/XM/IT/MO3
 has an extension-labelled document, other modules share an underlined document,
-and videos/images retain the application icon. `npm run desktop:icons` regenerates
-the outlined SVGs and multi-resolution ICOs from `src-tauri/icons/file-types/`;
+and videos/images retain the application icon. The desktop application uses a
+cream background with a navy disc and orange needle, distinct from the dark PWA
+icon. `npm run desktop:icons` regenerates its PNG/ICO from `src-tauri/icons/icon.svg`
+and the outlined file SVGs and multi-resolution ICOs from `src-tauri/icons/file-types/`;
 16/24/32 px use simplified artwork without labels. Desktop frontend builds run
 this generator automatically. Existing defaults pointing to a shared stream or
 module ProgID may need selecting izci again in Windows Default Apps to use a new

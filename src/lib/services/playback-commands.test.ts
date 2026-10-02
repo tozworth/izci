@@ -8,6 +8,7 @@ const playbackMocks = vi.hoisted(() => ({
     transitionTo: vi.fn((..._args: unknown[]) => Promise.resolve()),
     load: vi.fn(() => Promise.resolve()),
     seek: vi.fn(),
+    restart: vi.fn(),
     play: vi.fn(),
     pause: vi.fn(),
     prepareNext: vi.fn(() => Promise.resolve(true)),
@@ -127,6 +128,17 @@ beforeEach(() => {
 });
 
 describe('previous-track restart behavior', () => {
+  it('restarts every Next press in a single-item repeating queue without pausing playback', async () => {
+    const { controller, tracks, setPlayingTrack } = createCommands({ getPlaybackState: () => 'playing', getRepeatMode: () => 'all' });
+    setPlayingTrack(tracks.get('a')!);
+    playbackMocks.queue.resolveStepTrack.mockReturnValue(tracks.get('a'));
+    for (let index = 0; index < 3; index += 1) await controller.stepTrack(1);
+    expect(playbackMocks.player.restart).toHaveBeenCalledTimes(3);
+    expect(playbackMocks.player.pause).not.toHaveBeenCalled();
+    expect(playbackMocks.player.load).not.toHaveBeenCalled();
+    expect(playbackMocks.player.play).not.toHaveBeenCalled();
+  });
+
   it('restarts Previous at the threshold when the setting and a current track are present', () => {
     expect(shouldRestartForPrevious(
       -1,

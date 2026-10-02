@@ -38,6 +38,37 @@ describe('desktop tray window activation', () => {
     vi.useRealTimers();
   });
 
+  it('applies the saved tray color and updates it without unrelated native changes', async () => {
+    desktopSettings.update({ showIn: 'both', trayIcon: 'dark' });
+    dispose = createPlatformIntegration({
+      track: writable(null),
+      snapshot: writable<PlaybackSnapshot>({ state: 'paused', currentTime: 0, duration: 30, volume: 1, muted: false, backend: 'stream' }),
+      canControl: () => true,
+      handlers: {
+        togglePlayback: vi.fn(), previousTrack: vi.fn(), nextTrack: vi.fn(),
+        openOptions: vi.fn(), enterOda: vi.fn(), miniPlayer: vi.fn(), exit: vi.fn()
+      },
+      importFiles: vi.fn(async () => undefined)
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(native.invoke).toHaveBeenCalledWith('configure_desktop_visibility', { showIn: 'both', trayIcon: 'dark' });
+    native.invoke.mockClear();
+    desktopSettings.update({ trayIcon: 'light' });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(native.invoke.mock.calls).toEqual([['configure_desktop_visibility', { showIn: 'both', trayIcon: 'light' }]]);
+    native.invoke.mockClear();
+    desktopSettings.update({ trayIcon: 'light' });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(native.invoke).not.toHaveBeenCalled();
+    desktopSettings.update({ showIn: 'taskbar' });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(native.invoke).toHaveBeenCalledWith('configure_desktop_visibility', { showIn: 'taskbar', trayIcon: 'light' });
+    native.invoke.mockClear();
+    desktopSettings.update({ showIn: 'tray' });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(native.invoke).toHaveBeenCalledWith('configure_desktop_visibility', { showIn: 'tray', trayIcon: 'light' });
+  });
+
   it('applies saved and live launch focus preferences while continuing to import files', async () => {
     desktopSettings.update({ focusOnFileLaunch: false });
     const files = [{} as File];

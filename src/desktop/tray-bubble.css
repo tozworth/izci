@@ -2,15 +2,15 @@
 
 :root, html, body, #app { margin: 0; background: transparent !important; width: 100%; height: 100%; overflow: hidden; }
 * { box-sizing: border-box; }
-body { font-size: 13px; user-select: none; }
+body { font-size: 12px; user-select: none; }
 .track-bubble {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 6px;
   width: max-content;
-  max-width: min(560px, 100vw);
-  height: 36px;
-  padding: 0 12px;
+  max-width: min(440px, 100vw);
+  height: 28px;
+  padding: 0 7px;
   border: 1px solid var(--menu-popover-border);
   border-radius: 4px;
   background: color-mix(in srgb, var(--menu-popover-bg) 91%, transparent);
@@ -20,12 +20,12 @@ body { font-size: 13px; user-select: none; }
 }
 .track-bubble.visible { opacity: 1; }
 .izci-glyph {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   flex: 0 0 auto;
   background: currentColor;
   mask: url('/icons/izci-mark.svg') center / contain no-repeat;
 }
-.title, .artist { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.title { font-weight: 700; flex: 0 1 auto; }
-.artist { font-weight: 400; flex: 0 2 auto; }
+.track-info { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.title { font-weight: 700; }
+.artist { font-weight: 400; margin-left: 6px; }

@@ -225,7 +225,7 @@
   showModifiedAdvancedTweaksLabel={$t('options.tools.showAdvancedTweaksModified', { default: 'Show advanced tweaks — some differ from defaults' })}
   hideAdvancedTweaksLabel={$t('options.tools.hideAdvancedTweaks', { default: 'Hide advanced tweaks' })}
   resetPageLabel={$t('options.tools.resetPage', { default: 'Reset current page to defaults' })}
-  contentClass={activeView === 'raf' ? 'raf-content' : ''}
+  contentClass={activeView === 'raf' ? 'raf-content' : activeView === 'about' ? 'about-content-panel' : ''}
   {embedded}
   on:select={(event) => setActiveView(event.detail.view as OptionsViewName)}
   on:back={() => dispatch('close')}
@@ -251,7 +251,7 @@
   showModifiedAdvancedTweaksLabel={$t('options.tools.showAdvancedTweaksModified', { default: 'Show advanced tweaks — some differ from defaults' })}
   hideAdvancedTweaksLabel={$t('options.tools.hideAdvancedTweaks', { default: 'Hide advanced tweaks' })}
   resetPageLabel={$t('options.tools.resetPage', { default: 'Reset current page to defaults' })}
-  contentClass={activeView === 'raf' ? 'raf-content' : ''}
+  contentClass={activeView === 'raf' ? 'raf-content' : activeView === 'about' ? 'about-content-panel' : ''}
   on:select={(event) => setActiveView(event.detail.view as OptionsViewName)}
   on:reset={resetCurrentView}
   on:advancedvisibilitychange={(event) => rememberShowAdvancedTweaks(event.detail.visible)}

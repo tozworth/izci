@@ -291,7 +291,7 @@ export function createPlaybackCommandsController({
     const playbackState = getPlaybackState();
 
     if (playbackState === 'playing' || playbackState === 'paused' || playbackState === 'ended') {
-      playerController.seek(0);
+      playerController.restart();
     }
 
     if (playbackState !== 'playing') {
@@ -465,7 +465,7 @@ export function createPlaybackCommandsController({
       getPlaybackCurrentTime()
     )) {
       logDebug('playback', 'Previous command restarted current track');
-      playerController.seek(0);
+      playerController.restart();
       return;
     }
 

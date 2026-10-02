@@ -11,8 +11,9 @@ const DEFAULT_UPDATE_INTERVAL_MS = 5 * 60_000;
 const UPDATE_NOTICE_DURATION_MS = 2_000;
 const UPDATE_NOTICE_SESSION_KEY = 'izci.pwa-update-completed';
 const LAST_SUCCESSFUL_UPDATE_CHECK_KEY = 'izci.pwa-update-last-successful-check';
+const WORKER_STATE_TIMEOUT_MS = 60_000;
 
-let checkForServiceWorkerUpdate: ((force?: boolean) => Promise<void>) | null = null;
+let updateInFlight: Promise<void> | null = null;
 let updateNoticeTimeout: number | null = null;
 
 export type PwaUpdateCheckStatus = 'idle' | 'checking' | 'available' | 'up-to-date' | 'failed';
@@ -54,6 +55,9 @@ function showUpdateNotice(status: Exclude<PwaUpdateStatus, 'idle'>): void {
   }
 
   pwaUpdateStatus.set(status);
+  updateNoticeTimeout = null;
+  if (status === 'checking' || status === 'updating') return;
+
   updateNoticeTimeout = window.setTimeout(() => {
     pwaUpdateStatus.set('idle');
     updateNoticeTimeout = null;
@@ -70,8 +74,27 @@ function showCompletedUpdateNotice(): void {
 }
 
 export async function forceServiceWorkerUpdateCheck(): Promise<void> {
+  await runManualUpdateCheck(true);
+}
+
+export async function checkServiceWorkerUpdate(): Promise<void> {
+  await runManualUpdateCheck(false);
+}
+
+function updateRegistration(registration: ServiceWorkerRegistration): Promise<void> {
+  // Manual checks must await a background check rather than silently skipping it.
+  if (!updateInFlight) {
+    updateInFlight = registration.update().then(() => undefined).finally(() => {
+      updateInFlight = null;
+    });
+  }
+  return updateInFlight;
+}
+
+async function runManualUpdateCheck(applyUpdate: boolean): Promise<void> {
   logInfo('system', 'Manual service-worker update check started');
   setUpdateCheckStatus('checking');
+  showUpdateNotice('checking');
 
   try {
     if (!navigator.onLine) {
@@ -79,28 +102,39 @@ export async function forceServiceWorkerUpdateCheck(): Promise<void> {
     }
 
     const registration = await navigator.serviceWorker?.getRegistration();
-    const alreadyWaiting = Boolean(registration?.waiting);
-    let updateFound = false;
-
-    registration?.addEventListener('updatefound', () => {
-      updateFound = true;
-    }, { once: true });
-
-    if (!checkForServiceWorkerUpdate) {
-      if (!registration) {
-        throw new Error('No service worker registration is available.');
-      }
-
-      await registration.update();
-    } else {
-      await checkForServiceWorkerUpdate(true);
+    if (!registration) {
+      throw new Error('No service worker registration is available.');
     }
 
+    const controllerBeforeCheck = navigator.serviceWorker.controller;
+    let updateWorker = registration.waiting ?? registration.installing;
+    const onUpdateFound = () => {
+      updateWorker = registration.installing ?? updateWorker;
+    };
+    registration.addEventListener('updatefound', onUpdateFound);
+    try {
+      await updateRegistration(registration);
+      updateWorker = registration.waiting ?? registration.installing ?? updateWorker;
+      if (updateWorker) {
+        if (applyUpdate) showUpdateNotice('updating');
+        // update() resolves before the new worker finishes precaching the app.
+        await waitForWorkerStateChange(updateWorker);
+      }
+    } finally {
+      registration.removeEventListener('updatefound', onUpdateFound);
+    }
+
+    const updateAvailable = Boolean(updateWorker || registration.waiting)
+      || navigator.serviceWorker.controller !== controllerBeforeCheck;
     const checkedAt = Date.now();
-    const updateAvailable = alreadyWaiting || updateFound || Boolean(registration?.waiting);
     setUpdateCheckStatus(updateAvailable ? 'available' : 'up-to-date', checkedAt);
     logInfo('system', 'Service-worker update check completed', { updateAvailable });
-    showUpdateNotice('up-to-date');
+    if (updateAvailable && applyUpdate) {
+      showUpdateNotice('updating');
+      await applyRegistrationUpdate(registration, updateWorker);
+    } else {
+      showUpdateNotice(updateAvailable ? 'available' : 'up-to-date');
+    }
   } catch (error) {
     console.warn('Failed to force a service worker update check.', error);
     logError('system', 'Manual service-worker update check failed', error);
@@ -110,45 +144,87 @@ export async function forceServiceWorkerUpdateCheck(): Promise<void> {
 }
 
 function waitForWorkerStateChange(worker: ServiceWorker): Promise<void> {
-  if (worker.state === 'installed' || worker.state === 'activated' || worker.state === 'redundant') {
+  if (worker.state === 'redundant') {
+    return Promise.reject(new Error('Service worker installation failed.'));
+  }
+  if (worker.state === 'installed' || worker.state === 'activating' || worker.state === 'activated') {
     return Promise.resolve();
   }
 
-  return new Promise((resolve) => {
-    worker.addEventListener('statechange', () => {
-      if (worker.state === 'installed' || worker.state === 'activated' || worker.state === 'redundant') {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      worker.removeEventListener('statechange', onStateChange);
+    };
+    const onStateChange = () => {
+      if (worker.state === 'redundant') {
+        cleanup();
+        reject(new Error('Service worker installation failed.'));
+      } else if (worker.state === 'installed' || worker.state === 'activating' || worker.state === 'activated') {
+        cleanup();
         resolve();
       }
-    });
+    };
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('Service worker installation timed out.'));
+    }, WORKER_STATE_TIMEOUT_MS);
+    worker.addEventListener('statechange', onStateChange);
   });
 }
 
 export async function applyAvailableServiceWorkerUpdate(): Promise<void> {
   logInfo('system', 'Applying available service-worker update');
-  const registration = await navigator.serviceWorker?.getRegistration();
-  if (!registration) {
-    logWarning('system', 'Service-worker update could not be applied because registration is absent');
+  try {
+    const registration = await navigator.serviceWorker?.getRegistration();
+    if (!registration) {
+      logWarning('system', 'Service-worker update could not be applied because registration is absent');
+      throw new Error('No service worker registration is available.');
+    }
+    showUpdateNotice('updating');
+    await applyRegistrationUpdate(registration);
+  } catch (error) {
+    logError('system', 'Service-worker update could not be applied', error);
     setUpdateCheckStatus('failed');
-    return;
+    showUpdateNotice('failed');
   }
+}
 
-  if (registration.installing) {
-    await waitForWorkerStateChange(registration.installing);
-  }
+async function applyRegistrationUpdate(
+  registration: ServiceWorkerRegistration,
+  updateWorker: ServiceWorker | null = registration.waiting ?? registration.installing
+): Promise<void> {
+  if (updateWorker) await waitForWorkerStateChange(updateWorker);
 
-  if (registration.waiting) {
-    const controllerChanged = new Promise<void>((resolve) => {
-      const timeout = window.setTimeout(resolve, 5_000);
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
+  const worker = registration.waiting ?? updateWorker;
+  if (worker && navigator.serviceWorker.controller !== worker) {
+    const controllerChanged = new Promise<void>((resolve, reject) => {
+      const cleanup = () => {
         window.clearTimeout(timeout);
+        navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+      };
+      const onControllerChange = () => {
+        if (navigator.serviceWorker.controller !== worker) return;
+        cleanup();
         resolve();
-      }, { once: true });
+      };
+      const timeout = window.setTimeout(() => {
+        cleanup();
+        reject(new Error('Service worker activation timed out.'));
+      }, WORKER_STATE_TIMEOUT_MS);
+      navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+      try {
+        worker.postMessage({ type: 'SKIP_WAITING' });
+      } catch (error) {
+        cleanup();
+        reject(error);
+      }
     });
 
-    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     await controllerChanged;
   }
 
+  sessionStorage.setItem(UPDATE_NOTICE_SESSION_KEY, 'true');
   window.location.reload();
 }
 
@@ -156,7 +232,6 @@ export function registerAppServiceWorker(): void {
   if (isDesktop) return;
   logDebug('system', 'Service-worker registration started');
   let registration: ServiceWorkerRegistration | undefined;
-  let updateInFlight = false;
 
   showCompletedUpdateNotice();
 
@@ -167,28 +242,16 @@ export function registerAppServiceWorker(): void {
     }
   });
 
-  checkForServiceWorkerUpdate = async (force = false) => {
-    if (!registration || updateInFlight) {
+  const checkForServiceWorkerUpdate = async () => {
+    if (!registration || !navigator.onLine || document.visibilityState !== 'visible') {
       return;
     }
-
-    if (!force && (!navigator.onLine || document.visibilityState !== 'visible')) {
-      return;
-    }
-
-    updateInFlight = true;
 
     try {
-      await registration.update();
+      await updateRegistration(registration);
     } catch (error) {
-      if (force) {
-        throw error;
-      }
-
       console.debug('Failed to check for a service worker update.', error);
       logDebug('system', 'Background service-worker update check failed', error);
-    } finally {
-      updateInFlight = false;
     }
   };
 
@@ -208,24 +271,24 @@ export function registerAppServiceWorker(): void {
           : DEFAULT_UPDATE_INTERVAL_MS;
 
       window.setInterval(() => {
-        void checkForServiceWorkerUpdate?.();
+        void checkForServiceWorkerUpdate();
       }, updateIntervalMs);
 
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
-          void checkForServiceWorkerUpdate?.();
+          void checkForServiceWorkerUpdate();
         }
       });
 
       window.addEventListener('focus', () => {
-        void checkForServiceWorkerUpdate?.();
+        void checkForServiceWorkerUpdate();
       });
 
       window.addEventListener('online', () => {
-        void checkForServiceWorkerUpdate?.();
+        void checkForServiceWorkerUpdate();
       });
 
-      void checkForServiceWorkerUpdate?.();
+      void checkForServiceWorkerUpdate();
     }
   });
 }

@@ -150,6 +150,10 @@ html[data-izci-mobile='true'] {
   overflow: hidden;
 }
 
+.mobile-options-content.about-content-panel {
+  overflow: hidden;
+}
+
 .mobile-options-content .section h2 {
   margin-left: 0.25rem;
   font-size: 0.75rem;
