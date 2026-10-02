@@ -15,6 +15,7 @@ mod signaling;
 mod signaling_transport;
 mod tray;
 mod tray_bubble;
+mod tray_scroll;
 mod window_lifecycle;
 mod window_presentation;
 mod window_resources;
@@ -116,6 +117,7 @@ fn main() {
             restore_main_window,
             pin_mini_player,
             exit_desktop,
+            player_windows::configure_desktop_close,
             #[cfg(feature = "builtin-signaling")]
             signaling::start_builtin_signaling,
             #[cfg(feature = "builtin-signaling")]
@@ -161,7 +163,9 @@ fn main() {
             }
             ("main", WindowEvent::CloseRequested { api, .. }) => {
                 api.prevent_close();
-                window_lifecycle::close_player(window.app_handle());
+                if let Err(error) = player_windows::close_main(window.app_handle()) {
+                    eprintln!("Could not close the main window: {error}");
+                }
             }
             ("mini-player", WindowEvent::CloseRequested { api, .. }) => {
                 if window.app_handle().get_webview_window("main").is_some() {

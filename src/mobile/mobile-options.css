@@ -151,7 +151,17 @@ html[data-izci-mobile='true'] {
 }
 
 .mobile-options-content.about-content-panel {
+  padding: 0;
   overflow: hidden;
+}
+
+.mobile-options-content.about-content-panel :is(.about-content, .about-details) {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.mobile-options-content.about-content-panel .about-details {
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
 }
 
 .mobile-options-content .section h2 {

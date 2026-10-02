@@ -7,6 +7,7 @@ export interface PlatformIntegrationOptions {
   playbackStarts?: Readable<number>;
   canControl: () => boolean;
   handlers: {
+    stepVolume: (delta: number) => number;
     togglePlayback: () => void; previousTrack: () => void; nextTrack: () => void;
     openOptions: () => void; enterOda: () => void; miniPlayer: () => void; exit: () => void;
   };

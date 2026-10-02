@@ -13,6 +13,12 @@
   </select>
 </SettingsField>
 
+<SettingsField title={$t('desktop.appearance.closeToTray.title')} hint={$t('desktop.appearance.closeToTray.hint')}
+  checkbox advanced fieldClass={$desktopSettings.showIn === 'taskbar' ? 'close-to-tray-disabled' : ''}>
+  <input type="checkbox" checked={$desktopSettings.closeToTray} disabled={$desktopSettings.showIn === 'taskbar'}
+    on:change={(event) => desktopSettings.update({ closeToTray: event.currentTarget.checked })} />
+</SettingsField>
+
 <SettingsField title={$t('desktop.appearance.trayIcon.title')} hint={$t('desktop.appearance.trayIcon.hint')}>
   <select value={$desktopSettings.trayIcon} disabled={$desktopSettings.showIn === 'taskbar'}
     on:change={(event) => desktopSettings.update({ trayIcon: event.currentTarget.value as DesktopTrayIcon })}>
@@ -28,4 +34,5 @@
 
 <style>
   select:disabled { opacity: 0.5; }
+  :global(.close-to-tray-disabled) { opacity: 0.5; }
 </style>

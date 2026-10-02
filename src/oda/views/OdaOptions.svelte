@@ -62,20 +62,14 @@
   }
 
   async function focusFirstControl(): Promise<void> {
-    for (let attempt = 0; attempt < 12; attempt += 1) {
-      await tick();
-      if (!contentActive || !contentHost) return;
-      const pane = contentHost.querySelector<HTMLElement>('.view');
-      const target = pane?.querySelector<HTMLElement>(
-        'input:not([type="hidden"]), select, textarea, button, [tabindex]:not([tabindex="-1"])'
-      );
-      if (target) {
-        target.focus();
-        target.scrollIntoView({ block: 'nearest' });
-        return;
-      }
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    }
+    await tick();
+    if (!contentActive || !contentHost) return;
+    const pane = contentHost.querySelector<HTMLElement>('.view');
+    const target = pane?.querySelector<HTMLElement>(
+      'input:not([type="hidden"]), select, textarea, button, [tabindex]:not([tabindex="-1"])'
+    );
+    target?.focus();
+    target?.scrollIntoView({ block: 'nearest' });
   }
 
   function focusableControls(): HTMLElement[] {
@@ -172,6 +166,7 @@
     use:contentKeyboardNavigation
     bind:this={contentHost}
     class="oda-options-content options-shell"
+    class:about-content-panel={activeView === 'about'}
     class:advanced-tweaks-visible={showAdvancedTweaks}
     class:hints-expanded={hintsExpanded}
     aria-label={activeDefinition?.label ?? translate('oda.options.categories', 'Options')}
@@ -203,7 +198,12 @@
     </div>
 
     {#await import('../../options/OptionsContent.svelte') then optionsModule}
-      <svelte:component this={optionsModule.default} {activeView} onSelectView={onSelectView} />
+      <svelte:component
+        this={optionsModule.default}
+        {activeView}
+        {onSelectView}
+        on:ready={() => { if (contentActive) void focusFirstControl(); }}
+      />
     {/await}
   </section>
 </div>

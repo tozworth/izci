@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { writable } from 'svelte/store';
 import type { PlaybackSnapshot } from '$lib/types';
-import { TRAY_ACTION_EVENT } from './tray-protocol';
+import { TRAY_ACTION_EVENT, TRAY_VOLUME_STEP_EVENT } from './tray-protocol';
+import { BUBBLE_VOLUME_EVENT } from './tray-bubble-protocol';
 
 const native = vi.hoisted(() => ({
   invoke: vi.fn(async (_command: string): Promise<unknown> => undefined),
@@ -39,12 +40,13 @@ describe('desktop tray window activation', () => {
   });
 
   it('applies the saved tray color and updates it without unrelated native changes', async () => {
-    desktopSettings.update({ showIn: 'both', trayIcon: 'dark' });
+    desktopSettings.update({ showIn: 'both', trayIcon: 'dark', closeToTray: true });
     dispose = createPlatformIntegration({
       track: writable(null),
       snapshot: writable<PlaybackSnapshot>({ state: 'paused', currentTime: 0, duration: 30, volume: 1, muted: false, backend: 'stream' }),
       canControl: () => true,
       handlers: {
+        stepVolume: vi.fn(() => 1),
         togglePlayback: vi.fn(), previousTrack: vi.fn(), nextTrack: vi.fn(),
         openOptions: vi.fn(), enterOda: vi.fn(), miniPlayer: vi.fn(), exit: vi.fn()
       },
@@ -52,6 +54,7 @@ describe('desktop tray window activation', () => {
     });
     await vi.advanceTimersByTimeAsync(0);
     expect(native.invoke).toHaveBeenCalledWith('configure_desktop_visibility', { showIn: 'both', trayIcon: 'dark' });
+    expect(native.invoke).toHaveBeenCalledWith('configure_desktop_close', { closeToTray: true });
     native.invoke.mockClear();
     desktopSettings.update({ trayIcon: 'light' });
     await vi.advanceTimersByTimeAsync(0);
@@ -67,6 +70,14 @@ describe('desktop tray window activation', () => {
     desktopSettings.update({ showIn: 'tray' });
     await vi.advanceTimersByTimeAsync(0);
     expect(native.invoke).toHaveBeenCalledWith('configure_desktop_visibility', { showIn: 'tray', trayIcon: 'light' });
+    native.invoke.mockClear();
+    desktopSettings.update({ closeToTray: false });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(native.invoke.mock.calls).toEqual([['configure_desktop_close', { closeToTray: false }]]);
+    native.invoke.mockClear();
+    desktopSettings.update({ closeToTray: false });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(native.invoke).not.toHaveBeenCalled();
   });
 
   it('applies saved and live launch focus preferences while continuing to import files', async () => {
@@ -80,6 +91,7 @@ describe('desktop tray window activation', () => {
       snapshot: writable<PlaybackSnapshot>({ state: 'paused', currentTime: 0, duration: 30, volume: 1, muted: false, backend: 'stream' }),
       canControl: () => true,
       handlers: {
+        stepVolume: vi.fn(() => 1),
         togglePlayback: vi.fn(), previousTrack: vi.fn(), nextTrack: vi.fn(),
         openOptions: vi.fn(), enterOda: vi.fn(), miniPlayer: vi.fn(), exit: vi.fn()
       },
@@ -97,6 +109,7 @@ describe('desktop tray window activation', () => {
 
   it.each(['open', 'enterOda'])('%s uses the native switch back to the main window', async (action) => {
     const handlers = {
+      stepVolume: vi.fn(() => 1),
       togglePlayback: vi.fn(), previousTrack: vi.fn(), nextTrack: vi.fn(),
       openOptions: vi.fn(), enterOda: vi.fn(), miniPlayer: vi.fn(), exit: vi.fn()
     };
@@ -123,5 +136,42 @@ describe('desktop tray window activation', () => {
     expect(native.invoke.mock.calls.map(([command]) => command)).toEqual(['restore_main_window']);
     expect(handlers.enterOda).toHaveBeenCalledTimes(action === 'enterOda' ? 1 : 0);
     expect(handlers.miniPlayer).not.toHaveBeenCalled();
+  });
+
+  it('changes local volume and announces it with track bubbles disabled, without activating a window', async () => {
+    desktopSettings.update({ showIn: 'both', trackInfoBubble: false });
+    let volume = 0.5;
+    const stepVolume = vi.fn((delta: number) => (volume = Math.min(1, Math.max(0, volume + delta))));
+    dispose = createPlatformIntegration({
+      track: writable(null),
+      snapshot: writable<PlaybackSnapshot>({ state: 'paused', currentTime: 0, duration: 0, volume, muted: false, backend: null }),
+      canControl: () => false,
+      handlers: {
+        stepVolume, togglePlayback: vi.fn(), previousTrack: vi.fn(), nextTrack: vi.fn(),
+        openOptions: vi.fn(), enterOda: vi.fn(), miniPlayer: vi.fn(), exit: vi.fn()
+      },
+      importFiles: vi.fn(async () => undefined)
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    native.invoke.mockClear(); native.emitTo.mockClear();
+    const wheel = (payload: unknown) => native.callbacks.get(TRAY_VOLUME_STEP_EVENT)!({ payload });
+    wheel(1); wheel(-2); wheel(20); wheel(-30);
+    expect(stepVolume.mock.calls.map(([delta]) => delta)).toEqual([0.05, -0.1, 1, -1.5]);
+    expect(native.emitTo.mock.calls).toEqual([
+      ['tray-bubble', BUBBLE_VOLUME_EVENT, { percent: 55 }],
+      ['tray-bubble', BUBBLE_VOLUME_EVENT, { percent: 45 }],
+      ['tray-bubble', BUBBLE_VOLUME_EVENT, { percent: 100 }],
+      ['tray-bubble', BUBBLE_VOLUME_EVENT, { percent: 0 }]
+    ]);
+    expect(native.invoke).not.toHaveBeenCalled();
+    for (const invalid of [0, NaN, Infinity, 0.5, 1001, '1', null]) wheel(invalid);
+    expect(stepVolume).toHaveBeenCalledTimes(4);
+    desktopSettings.update({ showIn: 'taskbar' });
+    wheel(1);
+    expect(stepVolume).toHaveBeenCalledTimes(4);
+    const queuedWheel = native.callbacks.get(TRAY_VOLUME_STEP_EVENT)!;
+    dispose(); dispose = undefined;
+    queuedWheel({ payload: 1 });
+    expect(stepVolume).toHaveBeenCalledTimes(4);
   });
 });

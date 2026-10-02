@@ -4,6 +4,8 @@ export const TRAY_ACTION_EVENT = 'izci:desktop-tray-action';
 export const TRAY_STATE_EVENT = 'izci:desktop-tray-state';
 export const TRAY_REQUEST_EVENT = 'izci:desktop-tray-request';
 export const TRAY_OPEN_EVENT = 'izci:desktop-tray-open';
+export const TRAY_VOLUME_STEP_EVENT = 'izci:desktop-tray-volume-step';
+export const TRAY_VOLUME_STEP = 0.05;
 export interface TrayState { playing: boolean; canControl: boolean }
 export type TrayAction = 'togglePlayback' | 'previousTrack' | 'nextTrack' | 'open' | 'openOptions' | 'enterOda' | 'miniPlayer' | 'exit';
 const ACTIONS = new Set<TrayAction>(['togglePlayback', 'previousTrack', 'nextTrack', 'open', 'openOptions', 'enterOda', 'miniPlayer', 'exit']);

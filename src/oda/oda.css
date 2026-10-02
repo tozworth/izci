@@ -2040,6 +2040,23 @@ html.izci-overlay-vertical-scrollbars .oda-shell .oda-browser-sidebar nav::-webk
   font-size: clamp(0.98rem, 1.15vw, 1.18rem);
 }
 
+.oda-options-content.options-shell.about-content-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: 0;
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+.oda-options-content.about-content-panel .oda-options-toolbar {
+  margin: 0;
+  padding: 1rem clamp(1.5rem, 3.5vw, 4rem);
+}
+
+.oda-options-content.about-content-panel .about-view {
+  max-width: none;
+}
+
 .oda-options-content .view,
 .oda-options-content .section {
   max-width: 76rem;

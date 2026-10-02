@@ -5,7 +5,8 @@ import type { PlatformIntegrationOptions } from '$lib/services/platform-integrat
 import { desktopSettings, type DesktopShowIn, type DesktopTrayIcon } from './settings';
 import { readDesktopFiles } from './files';
 import { createTrackBubblePublisher } from './track-bubble-publisher';
-import { parseTrayAction, trayState, TRAY_ACTION_EVENT, TRAY_REQUEST_EVENT, TRAY_STATE_EVENT, type TrayState } from './tray-protocol';
+import { parseTrayAction, trayState, TRAY_ACTION_EVENT, TRAY_REQUEST_EVENT, TRAY_STATE_EVENT, TRAY_VOLUME_STEP_EVENT, TRAY_VOLUME_STEP, type TrayState } from './tray-protocol';
+import { BUBBLE_VOLUME_EVENT, type VolumeBubble } from './tray-bubble-protocol';
 
 function reportError(error: unknown): void { console.error('Desktop integration failed.', error); }
 export function openDesktopDefaultApps(): void { void invoke('open_desktop_default_apps').catch(reportError); }
@@ -14,6 +15,7 @@ export function createPlatformIntegration(options: PlatformIntegrationOptions): 
   let disposed = false;
   let previousShowIn: DesktopShowIn | undefined;
   let previousTrayIcon: DesktopTrayIcon | undefined;
+  let previousCloseToTray: boolean | undefined;
   let previousAssociations: boolean | undefined;
   let previousFocusOnFileLaunch: boolean | undefined;
   let settingsWork: Promise<unknown> = Promise.resolve();
@@ -55,6 +57,10 @@ export function createPlatformIntegration(options: PlatformIntegrationOptions): 
         previousShowIn = settings.showIn;
         previousTrayIcon = settings.trayIcon;
       }
+      if (settings.closeToTray !== previousCloseToTray) {
+        await invoke('configure_desktop_close', { closeToTray: settings.closeToTray });
+        previousCloseToTray = settings.closeToTray;
+      }
       if (settings.fileAssociations !== previousAssociations) {
         await invoke('configure_desktop_associations', { enabled: settings.fileAssociations });
         previousAssociations = settings.fileAssociations;
@@ -64,6 +70,12 @@ export function createPlatformIntegration(options: PlatformIntegrationOptions): 
   const unsubscribeSnapshot = options.snapshot.subscribe(() => { void publish().catch(reportError); });
   const stopTrackBubble = createTrackBubblePublisher(options, () => settingsWork);
   void Promise.all([
+    listen<unknown>(TRAY_VOLUME_STEP_EVENT, ({ payload }) => {
+      if (disposed || desktopSettings.getSnapshot().showIn === 'taskbar') return;
+      if (typeof payload !== 'number' || !Number.isInteger(payload) || payload === 0 || Math.abs(payload) > 1000) return;
+      const volume = options.handlers.stepVolume(payload * TRAY_VOLUME_STEP);
+      void emitTo('tray-bubble', BUBBLE_VOLUME_EVENT, { percent: Math.round(volume * 100) } satisfies VolumeBubble).catch(reportError);
+    }),
     listen(TRAY_REQUEST_EVENT, () => { void publish(true).catch(reportError); }),
     listen<unknown>(TRAY_ACTION_EVENT, ({ payload }) => {
       if (disposed) return;

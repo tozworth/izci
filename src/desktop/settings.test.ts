@@ -4,15 +4,23 @@ import { desktopSettings, resetDesktopAppearance, resetDesktopTracks } from './s
 describe('desktop settings page resets', () => {
   afterEach(() => desktopSettings.reset());
 
+  it('remembers close-to-tray while tray visibility is disabled and reenabled', () => {
+    desktopSettings.update({ showIn: 'both', closeToTray: true });
+    desktopSettings.update({ showIn: 'taskbar' });
+    expect(desktopSettings.getSnapshot().closeToTray).toBe(true);
+    desktopSettings.update({ showIn: 'tray' });
+    expect(desktopSettings.getSnapshot().closeToTray).toBe(true);
+  });
+
   it('preserves file registration when Appearance is reset', () => {
-    desktopSettings.set({ showIn: 'both', trayIcon: 'dark', trackInfoBubble: false, fileAssociations: false, focusOnFileLaunch: false });
+    desktopSettings.set({ showIn: 'both', trayIcon: 'dark', closeToTray: true, trackInfoBubble: false, fileAssociations: false, focusOnFileLaunch: false });
     resetDesktopAppearance();
-    expect(desktopSettings.getSnapshot()).toEqual({ showIn: 'taskbar', trayIcon: 'light', trackInfoBubble: true, fileAssociations: false, focusOnFileLaunch: false });
+    expect(desktopSettings.getSnapshot()).toEqual({ showIn: 'taskbar', trayIcon: 'light', closeToTray: false, trackInfoBubble: true, fileAssociations: false, focusOnFileLaunch: false });
   });
 
   it('preserves desktop visibility when Tracks is reset', () => {
-    desktopSettings.set({ showIn: 'both', trayIcon: 'dark', trackInfoBubble: false, fileAssociations: false, focusOnFileLaunch: false });
+    desktopSettings.set({ showIn: 'both', trayIcon: 'dark', closeToTray: true, trackInfoBubble: false, fileAssociations: false, focusOnFileLaunch: false });
     resetDesktopTracks();
-    expect(desktopSettings.getSnapshot()).toEqual({ showIn: 'both', trayIcon: 'dark', trackInfoBubble: false, fileAssociations: true, focusOnFileLaunch: true });
+    expect(desktopSettings.getSnapshot()).toEqual({ showIn: 'both', trayIcon: 'dark', closeToTray: true, trackInfoBubble: false, fileAssociations: true, focusOnFileLaunch: true });
   });
 });
