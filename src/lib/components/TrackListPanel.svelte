@@ -582,7 +582,9 @@
     dropzoneWidth < 280 &&
     !$appearanceSettings.keepLibraryColumnsVisibleInNarrowLayout;
   $: presentationLayout = mobilePresentation ? 'list' : layout;
-  $: hideTrackFormat = presentationLayout === 'list' && dropzoneWidth > 0 && dropzoneWidth < 280;
+  $: hideTrackFormat =
+    (presentationLayout === 'list' && dropzoneWidth > 0 && dropzoneWidth < 280) ||
+    (isCompactColumnLayout && libraryMode && activeLibraryView === 'formats' && Boolean(selectedLibraryGroup));
   $: activeSort = !$trackSettings.enableRatings && activeLibraryTableSettings.sort.columnId === 'rating'
     ? { columnId: 'title' as const, direction: activeLibraryTableSettings.sort.direction }
     : activeLibraryTableSettings.sort;
