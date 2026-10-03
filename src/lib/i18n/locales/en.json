@@ -1702,6 +1702,10 @@
   },
   "desktop": {
     "appearance": {
+      "launchOnBoot": {
+        "title": "Launch on boot",
+        "hint": "Start izci when you sign in to Windows. With Show in set to Tray only or Both, starts silently in the tray without opening a window."
+      },
       "closeToTray": {
         "title": "Close to tray",
         "hint": "Hide the main window in the tray when closing it, keeping playback running. Use Exit to quit izci. Requires a tray icon."

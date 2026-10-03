@@ -30,6 +30,8 @@ fn desktop_window_ready() {}
 #[tauri::command]
 fn configure_desktop_associations() {}
 #[tauri::command]
+fn configure_desktop_autostart() {}
+#[tauri::command]
 fn configure_desktop_visibility() {}
 
 static CHECKING: AtomicBool = AtomicBool::new(false);
@@ -67,7 +69,7 @@ fn main() {
     tauri::Builder::default()
         .manage(desktop_files::LaunchFiles::default())
         .invoke_handler(tauri::generate_handler![
-            desktop_window_ready, configure_desktop_associations, configure_desktop_visibility,
+            desktop_window_ready, configure_desktop_associations, configure_desktop_autostart, configure_desktop_visibility,
             playback_restoration::prepare_desktop_playback_restoration,
             desktop_files::take_desktop_launch_paths, desktop_files::materialize_desktop_files,
             desktop_files::configure_desktop_file_launch,

@@ -13,6 +13,11 @@
   </select>
 </SettingsField>
 
+<SettingsField title={$t('desktop.appearance.launchOnBoot.title')} hint={$t('desktop.appearance.launchOnBoot.hint')} checkbox>
+  <input type="checkbox" checked={$desktopSettings.launchOnBoot}
+    on:change={(event) => desktopSettings.update({ launchOnBoot: event.currentTarget.checked })} />
+</SettingsField>
+
 <SettingsField title={$t('desktop.appearance.closeToTray.title')} hint={$t('desktop.appearance.closeToTray.hint')}
   checkbox advanced fieldClass={$desktopSettings.showIn === 'taskbar' ? 'close-to-tray-disabled' : ''}>
   <input type="checkbox" checked={$desktopSettings.closeToTray} disabled={$desktopSettings.showIn === 'taskbar'}

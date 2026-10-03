@@ -4,6 +4,7 @@
 compile_error!("The izci desktop MVP currently supports Windows only.");
 
 mod associations;
+mod autostart;
 mod desktop_files;
 mod file_icons;
 mod fonts;
@@ -85,16 +86,31 @@ fn exit_desktop(window: WebviewWindow) -> Result<(), String> {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            let boot_launch = autostart::is_boot_launch(args.clone());
+            // Windows startup must not activate an already running player.
+            if boot_launch && app.get_webview_window("main").is_some() {
+                return;
+            }
             let present = desktop_files::enqueue(app, args, &cwd);
             // A surviving workbench may keep the process alive after the player
             // closes. Recreate the playback owner for that launch as usual.
             if !present && app.get_webview_window("main").is_some() {
                 return;
             }
+            if app.get_webview_window("main").is_none() {
+                if let Ok(mut state) = app
+                    .state::<std::sync::Mutex<window_presentation::WindowPresentation>>()
+                    .lock()
+                {
+                    state.begin_launch(boot_launch);
+                }
+            }
             let app = app.clone();
             tauri::async_runtime::spawn_blocking(move || {
                 let _ = windows::create_player_windows(&app);
-                let _ = window_presentation::request_main(&app);
+                if !boot_launch {
+                    let _ = window_presentation::request_main(&app);
+                }
             });
         }))
         .manage(window_lifecycle::WindowLifecycle::default())
@@ -108,7 +124,9 @@ fn main() {
         ))
         .manage(std::sync::Mutex::new(tray::TrayMenuState::default()))
         .manage(std::sync::Mutex::new(
-            window_presentation::WindowPresentation::default(),
+            window_presentation::WindowPresentation::new(autostart::is_boot_launch(
+                std::env::args(),
+            )),
         ))
         .invoke_handler(tauri::generate_handler![
             open_mini_player,
@@ -135,6 +153,7 @@ fn main() {
             window_presentation::present_desktop_popup,
             fonts::local_font_families,
             associations::configure_desktop_associations,
+            autostart::configure_desktop_autostart,
             associations::open_desktop_default_apps,
             desktop_files::take_desktop_launch_paths,
             desktop_files::configure_desktop_file_launch,

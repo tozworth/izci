@@ -1,3 +1,4 @@
+use crate::tray::DesktopShowIn;
 use std::{collections::HashSet, sync::Mutex};
 use tauri::{AppHandle, Manager, WebviewWindow};
 
@@ -5,9 +6,27 @@ use tauri::{AppHandle, Manager, WebviewWindow};
 pub struct WindowPresentation {
     ready: HashSet<String>,
     requested: HashSet<String>,
+    boot_launch: bool,
 }
 
 impl WindowPresentation {
+    pub fn new(boot_launch: bool) -> Self {
+        Self {
+            boot_launch,
+            ..Default::default()
+        }
+    }
+
+    pub fn begin_launch(&mut self, boot_launch: bool) {
+        self.boot_launch = boot_launch;
+    }
+
+    fn ready_main(&mut self, show_in: DesktopShowIn) -> bool {
+        let has_tray = matches!(show_in, DesktopShowIn::Tray | DesktopShowIn::Both);
+        let initially_visible = !(std::mem::take(&mut self.boot_launch) && has_tray);
+        self.ready("main", initially_visible)
+    }
+
     fn ready(&mut self, label: &str, initially_visible: bool) -> bool {
         self.ready.insert(label.into());
         let requested = self.requested.remove(label);
@@ -50,18 +69,36 @@ pub fn request_main(app: &AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn desktop_window_ready(
+pub async fn desktop_window_ready(
     window: WebviewWindow,
+    show_in: crate::tray::DesktopShowIn,
+    tray_icon: crate::tray::DesktopTrayIcon,
     state: tauri::State<'_, Mutex<WindowPresentation>>,
 ) -> Result<(), String> {
+    // Establish access through the tray before deciding whether to expose the
+    // main HWND. A silent boot never restores placement or calls show/focus.
+    let mut launch_show_in = show_in;
+    if window.label() == "main" {
+        if let Err(error) = crate::tray::configure(window.app_handle(), &window, show_in, tray_icon)
+        {
+            eprintln!("Could not configure desktop visibility: {error}");
+            // A failed tray creation must not leave an inaccessible player.
+            launch_show_in = DesktopShowIn::Taskbar;
+            let _ = window.set_skip_taskbar(false);
+        }
+    }
     let initially_visible = window.label() != "mini-player"
         && window
             .url()
             .is_ok_and(|url| !url.query_pairs().any(|(key, _)| key == "desktop-prewarm"));
-    let show = state
-        .lock()
-        .map_err(|error| error.to_string())?
-        .ready(window.label(), initially_visible);
+    let show = {
+        let mut state = state.lock().map_err(|error| error.to_string())?;
+        if window.label() == "main" {
+            state.ready_main(launch_show_in)
+        } else {
+            state.ready(window.label(), initially_visible)
+        }
+    };
     if show {
         if window.label() == "main" {
             crate::player_windows::end_mini(window.app_handle())?;
@@ -100,7 +137,49 @@ pub fn present_desktop_popup(
 
 #[cfg(test)]
 mod tests {
-    use super::WindowPresentation;
+    use super::{DesktopShowIn, WindowPresentation};
+
+    #[test]
+    fn boot_launch_in_tray_stays_hidden_until_explicitly_requested() {
+        for show_in in [DesktopShowIn::Tray, DesktopShowIn::Both] {
+            let mut state = WindowPresentation::new(true);
+            assert!(!state.ready_main(show_in));
+            assert!(state.request("main"));
+        }
+    }
+
+    #[test]
+    fn manual_launch_and_boot_with_taskbar_only_show_the_player() {
+        for show_in in [
+            DesktopShowIn::Taskbar,
+            DesktopShowIn::Tray,
+            DesktopShowIn::Both,
+        ] {
+            assert!(WindowPresentation::new(false).ready_main(show_in));
+        }
+        assert!(WindowPresentation::new(true).ready_main(DesktopShowIn::Taskbar));
+    }
+
+    #[test]
+    fn manual_activation_during_silent_boot_waits_for_ready_then_shows() {
+        for show_in in [DesktopShowIn::Tray, DesktopShowIn::Both] {
+            let mut state = WindowPresentation::new(true);
+            assert!(!state.request("main"));
+            assert!(state.ready_main(show_in));
+        }
+    }
+
+    #[test]
+    fn recreating_a_closed_player_uses_the_new_launch_intent() {
+        let mut state = WindowPresentation::new(false);
+        assert!(state.ready_main(DesktopShowIn::Both));
+        state.forget("main");
+        state.begin_launch(true);
+        assert!(!state.ready_main(DesktopShowIn::Both));
+        state.forget("main");
+        state.begin_launch(false);
+        assert!(state.ready_main(DesktopShowIn::Both));
+    }
 
     #[test]
     fn warm_windows_wait_for_a_request_and_reopen_without_reloading() {

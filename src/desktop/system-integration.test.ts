@@ -55,6 +55,7 @@ describe('desktop tray window activation', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(native.invoke).toHaveBeenCalledWith('configure_desktop_visibility', { showIn: 'both', trayIcon: 'dark' });
     expect(native.invoke).toHaveBeenCalledWith('configure_desktop_close', { closeToTray: true });
+    expect(native.invoke).toHaveBeenCalledWith('configure_desktop_autostart', { enabled: false });
     native.invoke.mockClear();
     desktopSettings.update({ trayIcon: 'light' });
     await vi.advanceTimersByTimeAsync(0);
@@ -78,6 +79,33 @@ describe('desktop tray window activation', () => {
     desktopSettings.update({ closeToTray: false });
     await vi.advanceTimersByTimeAsync(0);
     expect(native.invoke).not.toHaveBeenCalled();
+  });
+
+  it('registers saved boot launches, removes them live, and avoids unrelated native changes', async () => {
+    desktopSettings.update({ launchOnBoot: true });
+    dispose = createPlatformIntegration({
+      track: writable(null),
+      snapshot: writable<PlaybackSnapshot>({ state: 'paused', currentTime: 0, duration: 0, volume: 1, muted: false, backend: null }),
+      canControl: () => false,
+      handlers: {
+        stepVolume: vi.fn(() => 1), togglePlayback: vi.fn(), previousTrack: vi.fn(), nextTrack: vi.fn(),
+        openOptions: vi.fn(), enterOda: vi.fn(), miniPlayer: vi.fn(), exit: vi.fn()
+      },
+      importFiles: vi.fn(async () => undefined)
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(native.invoke).toHaveBeenCalledWith('configure_desktop_autostart', { enabled: true });
+    native.invoke.mockClear();
+    desktopSettings.update({ launchOnBoot: false });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(native.invoke.mock.calls).toEqual([['configure_desktop_autostart', { enabled: false }]]);
+    native.invoke.mockClear();
+    desktopSettings.update({ launchOnBoot: false });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(native.invoke).not.toHaveBeenCalled();
+    desktopSettings.update({ launchOnBoot: true });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(native.invoke.mock.calls).toEqual([['configure_desktop_autostart', { enabled: true }]]);
   });
 
   it('applies saved and live launch focus preferences while continuing to import files', async () => {

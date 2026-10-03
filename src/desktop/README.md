@@ -111,7 +111,12 @@ Chromium opener relationship through Tauri's new-window handler.
 Native preferences live in a separate synchronized `izci.desktop-settings`
 store, independent of per-track loadouts. Appearance's Show in dropdown offers
 Taskbar only (the default), Tray only, and Both. Tray only hides the main window's
-taskbar entry without hiding the window. Right-click opens the actual shared MenuSurface in a transparent,
+taskbar entry without hiding the window during manual launches. Launch on boot
+defaults off and registers the current portable executable for the Windows user
+at sign-in. Boot launches with Tray only or Both create the tray icon while leaving the
+main window hidden from creation; they never restore, show, or focus it. Manual
+launches and explicit tray Open/double-click still bring the player forward.
+Right-click opens the actual shared MenuSurface in a transparent,
 frameless popup; transport uses the main runtime's effective playback commands.
 Scrolling over the tray icon changes the local player's volume by 5% per wheel
 notch (including accumulated high-resolution wheel input) and unmutes it. The

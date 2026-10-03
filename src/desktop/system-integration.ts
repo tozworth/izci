@@ -18,6 +18,7 @@ export function createPlatformIntegration(options: PlatformIntegrationOptions): 
   let previousCloseToTray: boolean | undefined;
   let previousAssociations: boolean | undefined;
   let previousFocusOnFileLaunch: boolean | undefined;
+  let previousLaunchOnBoot: boolean | undefined;
   let settingsWork: Promise<unknown> = Promise.resolve();
   let importWork: Promise<unknown> = Promise.resolve();
   let launchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -60,6 +61,10 @@ export function createPlatformIntegration(options: PlatformIntegrationOptions): 
       if (settings.closeToTray !== previousCloseToTray) {
         await invoke('configure_desktop_close', { closeToTray: settings.closeToTray });
         previousCloseToTray = settings.closeToTray;
+      }
+      if (settings.launchOnBoot !== previousLaunchOnBoot) {
+        await invoke('configure_desktop_autostart', { enabled: settings.launchOnBoot });
+        previousLaunchOnBoot = settings.launchOnBoot;
       }
       if (settings.fileAssociations !== previousAssociations) {
         await invoke('configure_desktop_associations', { enabled: settings.fileAssociations });

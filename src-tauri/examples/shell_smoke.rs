@@ -266,9 +266,9 @@ async fn smoke_popup(app: tauri::AppHandle, visible: bool, destroy: bool) -> Res
 const DRIVER: &str = r#"(async () => {
     const invoke = window.__TAURI_INTERNALS__.invoke;
     try {
-        await invoke('desktop_window_ready');
+        await invoke('desktop_window_ready', { showIn: 'taskbar', trayIcon: 'light' });
         // Saved tray settings and Options warmup arrive concurrently at launch.
-        const trayStartup = invoke('configure_desktop_visibility', { showIn: 'both' });
+        const trayStartup = invoke('configure_desktop_visibility', { showIn: 'both', trayIcon: 'light' });
         // Exercise real window.open and the packaged Options entrypoint, both
         // on a cold load and subsequent cached loads. The isolated profile and
         // placeholder owner never run playback or file associations.
