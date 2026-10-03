@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, tick } from 'svelte';
+  import { createEventDispatcher, onDestroy, tick } from 'svelte';
   import { t } from 'svelte-i18n';
   import { loadOptionsView } from './view-loaders';
   import type { OptionsViewName } from './views';
@@ -8,25 +8,47 @@
   export let onSelectView: (view: OptionsViewName) => void;
 
   const dispatch = createEventDispatcher<{ ready: void }>();
-  let content: HTMLElement | null = null;
+  let viewModule: Awaited<ReturnType<typeof loadOptionsView>> | null = null;
+  let renderedView: OptionsViewName | null = null;
+  let loading = true;
+  let loadFailed = false;
+  let requestVersion = 0;
 
-  $: viewPromise = loadOptionsView(activeView);
+  $: void showView(activeView);
 
-  // Signal after the loaded page (or retry control) is mounted. Oda must not
-  // depend on a fixed number of animation frames while a chunk is loading.
-  $: if (content) void notifyReady(content);
+  onDestroy(() => { requestVersion += 1; });
 
-  async function notifyReady(mounted: HTMLElement): Promise<void> {
+  async function showView(view: OptionsViewName): Promise<void> {
+    const version = ++requestVersion;
+    loading = true;
+    loadFailed = false;
+    try {
+      const loaded = await loadOptionsView(view);
+      if (version !== requestVersion) return;
+      viewModule = loaded;
+      renderedView = view;
+    } catch {
+      if (version !== requestVersion) return;
+      loadFailed = true;
+    }
+    loading = false;
+
+    // Oda waits for the new page (or retry control) to be mounted before focusing.
     await tick();
-    if (content === mounted) dispatch('ready');
+    if (version === requestVersion) dispatch('ready');
   }
 </script>
 
-{#key activeView}
-  {#await viewPromise}
-    <p role="status">{$t('options.content.loading', { default: 'Loading options…' })}</p>
-  {:then viewModule}
-    <div bind:this={content} class="options-page-host">
+<div class="options-page-host" class:loading aria-busy={loading} inert={loading}>
+  {#if loadFailed}
+    <div class="view">
+      <p role="alert">{$t('options.content.loadFailed', { default: 'This options page could not be loaded.' })}</p>
+      <button type="button" on:click={() => showView(activeView)}>
+        {$t('options.content.retry', { default: 'Retry' })}
+      </button>
+    </div>
+  {:else if viewModule}
+    {#key renderedView}
       {#if viewModule.kind === 'about'}
         <svelte:component this={viewModule.default} onOpenLicenses={() => onSelectView('licenses')} />
       {:else if viewModule.kind === 'backups'}
@@ -34,17 +56,17 @@
       {:else}
         <svelte:component this={viewModule.default} />
       {/if}
-    </div>
-  {:catch}
-    <div bind:this={content} class="view">
-      <p role="alert">{$t('options.content.loadFailed', { default: 'This options page could not be loaded.' })}</p>
-      <button type="button" on:click={() => (viewPromise = loadOptionsView(activeView))}>
-        {$t('options.content.retry', { default: 'Retry' })}
-      </button>
-    </div>
-  {/await}
-{/key}
+    {/key}
+  {/if}
+</div>
 
 <style>
   .options-page-host { display: contents; }
+
+  .options-page-host > :global(*) { transition: opacity 120ms ease; }
+  .options-page-host.loading > :global(*) { opacity: 0.75; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .options-page-host > :global(*) { transition: none; }
+  }
 </style>

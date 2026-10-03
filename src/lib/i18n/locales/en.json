@@ -1579,7 +1579,6 @@
     },
     "windowTitle": "izci Options",
     "content": {
-      "loading": "Loading options…",
       "loadFailed": "This options page could not be loaded.",
       "retry": "Retry"
     },
