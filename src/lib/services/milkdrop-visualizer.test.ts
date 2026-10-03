@@ -74,6 +74,40 @@ afterEach(() => {
 });
 
 describe('MilkDrop renderer lifecycle', () => {
+  it('shows credits on visible entry and preset changes, expires them, and clears them on failure', async () => {
+    const first = 'Flexi + Martin - astral projection';
+    const second = 'Geiss - Spiral Artifact';
+    mock.catalog.mockResolvedValue({ [first]: {}, [second]: {} });
+    visualizerSettings.update({ milkDropPreset: first });
+    const info = vi.fn();
+    inert = true;
+    controller = createMilkDropVisualizer(canvas, vi.fn(), info);
+    await flushImports();
+    renderFrame(0);
+    expect(info).not.toHaveBeenCalled();
+    inert = false;
+    renderFrame(100);
+    expect(info).toHaveBeenLastCalledWith({ name: 'astral projection', author: 'Flexi + Martin' });
+    for (let index = 2; index <= 53; index++) renderFrame(index * 100);
+    expect(info).toHaveBeenLastCalledWith(null);
+    inert = true;
+    renderFrame(5400);
+    inert = false;
+    renderFrame(5500);
+    expect(info).toHaveBeenLastCalledWith({ name: 'astral projection', author: 'Flexi + Martin' });
+    controller.randomizePreset();
+    renderFrame(5600);
+    expect(info).toHaveBeenLastCalledWith({ name: 'Spiral Artifact', author: 'Geiss' });
+    hidden = true;
+    renderFrame(5700);
+    hidden = false;
+    renderFrame(15000);
+    expect(info).toHaveBeenLastCalledWith({ name: 'Spiral Artifact', author: 'Geiss' });
+    mock.render.mockImplementationOnce(() => { throw new Error('Shader failure'); });
+    renderFrame(15100);
+    expect(info).toHaveBeenLastCalledWith(null);
+  });
+
   it('samples the shared analyser, switches sources, and preserves audio graph ownership', async () => {
     const read = vi.fn((buffer: Uint8Array) => buffer.fill(143));
     const connect = vi.fn();
