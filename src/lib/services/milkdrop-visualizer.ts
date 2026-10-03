@@ -1,6 +1,6 @@
 import type { MilkDropVisualizer } from 'butterchurn';
 import { visualizerService } from './visualizer';
-import { chooseMilkDropPreset, loadMilkDropPresets } from './milkdrop-presets';
+import { chooseMilkDropPreset, getMilkDropPresetInfo, loadMilkDropPresets, type MilkDropPresetInfo } from './milkdrop-presets';
 import { visualizerSettings } from '$lib/stores/visualizer-settings';
 import { logWarning } from './logging';
 
@@ -8,6 +8,7 @@ export type MilkDropStatus = 'loading' | 'ready' | 'webgl-unavailable' | 'contex
 type MilkDropFailure = Exclude<MilkDropStatus, 'loading' | 'ready'>;
 const MAX_BACKING_PIXELS = 1_000_000;
 const MAX_FRAME_SECONDS = 0.1;
+const PRESET_INFO_SECONDS = 5;
 
 export function getMilkDropRenderSize(width: number, height: number, pixelRatio: number, resolution: number) {
   const scale = Math.min(Math.max(1, pixelRatio) * resolution, Math.sqrt(MAX_BACKING_PIXELS / Math.max(1, width * height)));
@@ -17,7 +18,11 @@ export function getMilkDropRenderSize(width: number, height: number, pixelRatio:
   };
 }
 
-export function createMilkDropVisualizer(canvas: HTMLCanvasElement, setStatus: (status: MilkDropStatus) => void) {
+export function createMilkDropVisualizer(
+  canvas: HTMLCanvasElement,
+  setStatus: (status: MilkDropStatus) => void,
+  setPresetInfo?: (info: MilkDropPresetInfo | null) => void
+) {
   let settings = visualizerSettings.getSnapshot();
   let analyser: AnalyserNode | null = null;
   let renderer: MilkDropVisualizer | null = null;
@@ -25,6 +30,9 @@ export function createMilkDropVisualizer(canvas: HTMLCanvasElement, setStatus: (
   let names: string[] = [];
   let currentPreset: string | null = null;
   let presetElapsedSeconds = 0;
+  let presetInfoPending = false;
+  let presetInfoElapsedSeconds = 0;
+  let presetInfoVisible = false;
   let lastRenderedAt: number | null = null;
   let frame: number | null = null;
   let destroyed = false;
@@ -39,6 +47,7 @@ export function createMilkDropVisualizer(canvas: HTMLCanvasElement, setStatus: (
     if (frame !== null) cancelAnimationFrame(frame);
     frame = null;
     renderer = null;
+    setPresetInfo?.(null);
     setStatus(reason);
     logWarning('system', `MilkDrop rendering stopped (${reason})`, error);
   }
@@ -63,6 +72,7 @@ export function createMilkDropVisualizer(canvas: HTMLCanvasElement, setStatus: (
     renderer.loadPreset(presets[name], blendSeconds);
     currentPreset = name;
     presetElapsedSeconds = 0;
+    presetInfoPending = true;
   }
 
   function draw(timestamp: number) {
@@ -77,6 +87,7 @@ export function createMilkDropVisualizer(canvas: HTMLCanvasElement, setStatus: (
       frame = requestAnimationFrame(draw);
       return;
     }
+    const entering = lastRenderedAt === null;
     const elapsed = lastRenderedAt === null ? 1 / settings.frameRateLimit
       : Math.min(MAX_FRAME_SECONDS, Math.max(0.001, (timestamp - lastRenderedAt) / 1000));
     lastRenderedAt = timestamp;
@@ -90,6 +101,20 @@ export function createMilkDropVisualizer(canvas: HTMLCanvasElement, setStatus: (
         loadPreset();
       }
       renderer.render({ elapsedTime: elapsed, audioLevels });
+      if (setPresetInfo && currentPreset) {
+        if (entering || presetInfoPending) {
+          setPresetInfo(getMilkDropPresetInfo(currentPreset));
+          presetInfoElapsedSeconds = 0;
+          presetInfoVisible = true;
+          presetInfoPending = false;
+        } else if (presetInfoVisible) {
+          presetInfoElapsedSeconds += elapsed;
+          if (presetInfoElapsedSeconds >= PRESET_INFO_SECONDS) {
+            setPresetInfo(null);
+            presetInfoVisible = false;
+          }
+        }
+      }
     } catch (error) {
       fail(error);
       return;

@@ -6,6 +6,7 @@
   import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import { createMilkDropVisualizer, type MilkDropStatus } from '$lib/services/milkdrop-visualizer';
+  import type { MilkDropPresetInfo } from '$lib/services/milkdrop-presets';
   import { visualizerSettings } from '$lib/stores/visualizer-settings';
 
   export let standalone = false;
@@ -14,6 +15,7 @@
   const clipId = `milkdrop-clip-${++instanceCounter}`;
   let canvas: HTMLCanvasElement;
   let status: MilkDropStatus = 'loading';
+  let presetInfo: MilkDropPresetInfo | null = null;
   let controller: ReturnType<typeof createMilkDropVisualizer> | null = null;
 
   export function randomizePreset() {
@@ -21,7 +23,11 @@
   }
 
   onMount(() => {
-    controller = createMilkDropVisualizer(canvas, (next) => { status = next; });
+    controller = createMilkDropVisualizer(
+      canvas,
+      (next) => { status = next; },
+      standalone ? (next) => { presetInfo = next; } : undefined
+    );
     return () => {
       controller?.destroy();
       controller = null;
@@ -48,6 +54,14 @@
   style:visibility={status === 'ready' ? 'visible' : 'hidden'}
   style:clip-path={clipRects.length ? `url(#${clipId})` : null}
 ></canvas>
+{#if standalone && status === 'ready' && presetInfo}
+  <div class="milkdrop-preset-info" role="status">
+    <strong class="milkdrop-preset-name">{presetInfo.name}</strong>
+    {#if presetInfo.author}
+      <span class="milkdrop-preset-author">{presetInfo.author}</span>
+    {/if}
+  </div>
+{/if}
 {#if standalone && status !== 'ready'}
   <span class="milkdrop-status" role="status">
     {#if status === 'loading'}
@@ -65,6 +79,24 @@
 <style>
   .clip-definitions { position: absolute; }
   .milkdrop-visualizer { mix-blend-mode: normal; }
+  .milkdrop-preset-info {
+    position: absolute;
+    bottom: 10px;
+    left: 12px;
+    right: 12px;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+  }
+  .milkdrop-preset-name,
+  .milkdrop-preset-author {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .milkdrop-preset-name { font-size: 14px; font-weight: 700; }
+  .milkdrop-preset-author { margin-top: 2px; font-size: 12px; font-weight: 400; }
   .milkdrop-status {
     position: absolute;
     inset: 0;
