@@ -163,6 +163,7 @@
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
+      event.stopPropagation();
       if (!open) void openMenu(event.key === 'ArrowDown' ? selectedIndex : options.length - 1);
       else moveActive(event.key === 'ArrowDown' ? 1 : -1);
       return;
@@ -170,6 +171,7 @@
 
     if (open && (event.key === 'Home' || event.key === 'End')) {
       event.preventDefault();
+      event.stopPropagation();
       const edge = event.key === 'Home' ? 0 : options.length - 1;
       if (!options[edge].disabled) {
         activeIndex = edge;
@@ -182,6 +184,7 @@
 
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
+      event.stopPropagation();
       if (open) selectOption(activeIndex);
       else void openMenu();
       return;
@@ -189,6 +192,7 @@
 
     if (event.key === 'Escape' && open) {
       event.preventDefault();
+      event.stopPropagation();
       closeMenu();
       return;
     }
@@ -245,6 +249,7 @@
     bind:this={triggerElement}
     on:click={() => (open ? closeMenu() : void openMenu())}
     on:keydown={handleKeydown}
+    on:blur={closeMenu}
   >
     <span>{selectedLabel}</span>
     <span class="material-symbols-outlined" aria-hidden="true">{open ? 'expand_less' : 'expand_more'}</span>

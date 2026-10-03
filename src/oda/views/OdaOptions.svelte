@@ -4,6 +4,7 @@
   import { resetOptionsView } from '../../options/options-reset';
   import type { OptionsViewName } from '../../options/views';
   import type { OdaTranslate } from '../oda-translate';
+  import { handleOdaOptionsKeydown } from '../oda-options-keyboard';
 
   export let groups: SharedOptionsViewDefinition[][] = [];
   export let auxiliaryViews: SharedOptionsViewDefinition[] = [];
@@ -30,8 +31,8 @@
     ? allViews.find((view) => view.id === activeDefinition?.parentId) ?? null
     : null;
 
-  // Entering the content pane moves DOM focus to the first control so native
-  // sliders/selects/toggles own the arrow keys immediately.
+  // Entering the content pane moves DOM focus to the first control. Up/Down
+  // moves between fields; an explicitly opened select owns option navigation.
   $: if (contentActive && contentHost) {
     void activeView;
     void focusFirstControl();
@@ -75,7 +76,7 @@
   function focusableControls(): HTMLElement[] {
     if (!contentHost) return [];
     return Array.from(contentHost.querySelectorAll<HTMLElement>(
-      'input:not([type="hidden"]):not([tabindex="-1"]), select, textarea, button:not(:disabled), [tabindex]:not([tabindex="-1"])'
+      'input:not([type="hidden"]):not([tabindex="-1"]), select, textarea, button:not(:disabled):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])'
     )).filter((element) => element.offsetParent !== null && !element.hasAttribute('disabled'));
   }
 
@@ -89,44 +90,12 @@
 
   function handleContentKeydown(event: KeyboardEvent): void {
     if (!contentActive) return;
-    const target = event.target;
-    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-      event.preventDefault();
-      event.stopPropagation();
-      moveControlFocus(target, event.key === 'ArrowUp' ? -1 : 1);
-      return;
-    }
-    if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && target instanceof HTMLInputElement && target.type === 'checkbox') {
-      event.preventDefault();
-      event.stopPropagation();
-      const checked = event.key === 'ArrowRight';
-      if (target.checked !== checked) {
-        target.checked = checked;
-        target.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-      return;
-    }
-    if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && target instanceof HTMLSelectElement) {
-      event.preventDefault();
-      event.stopPropagation();
-      const delta = event.key === 'ArrowLeft' ? -1 : 1;
-      const nextIndex = Math.min(Math.max(target.selectedIndex + delta, 0), target.options.length - 1);
-      if (nextIndex !== target.selectedIndex) {
-        target.selectedIndex = nextIndex;
-        target.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-      return;
-    }
-    if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && target instanceof HTMLButtonElement) {
-      event.preventDefault();
-      event.stopPropagation();
-      moveControlFocus(target, event.key === 'ArrowLeft' ? -1 : 1);
-    }
+    handleOdaOptionsKeydown(event, moveControlFocus);
   }
 
   function contentKeyboardNavigation(node: HTMLElement) {
-    node.addEventListener('keydown', handleContentKeydown);
-    return { destroy: () => node.removeEventListener('keydown', handleContentKeydown) };
+    node.addEventListener('keydown', handleContentKeydown, true);
+    return { destroy: () => node.removeEventListener('keydown', handleContentKeydown, true) };
   }
 
   function handleReset(): void {

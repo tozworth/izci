@@ -1587,7 +1587,6 @@
     },
     "windowTitle": "izci Ayarları",
     "content": {
-      "loading": "Ayarlar yükleniyor…",
       "loadFailed": "Bu ayarlar sayfası yüklenemedi.",
       "retry": "Yeniden dene"
     },
