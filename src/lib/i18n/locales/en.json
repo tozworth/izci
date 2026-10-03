@@ -365,10 +365,15 @@
     "description": "Offline-first PWA music player with tracker module support."
   },
   "mobile": {
+    "player": {
+      "addFilesToBegin": "Add files to begin"
+    },
+    "library": {
+      "empty": "Your library is empty. Add files to begin."
+    },
     "menu": {
       "close": "Close menu",
       "label": "Main menu",
-      "offlinePlayer": "Offline media player",
       "addMedia": "Add media",
       "app": "App",
       "open": "Open menu"
@@ -570,6 +575,31 @@
       }
     },
     "about": {
+      "tips": {
+        "tipLabel": "Tip",
+        "factLabel": "Did you know?",
+        "trayVolume": "Scroll over the tray icon to change the volume.",
+        "loadouts": "Loadouts let you take a snapshot of your options and apply them conditionally.",
+        "subsongs": "Right-click Prev/Next to navigate between subsongs.",
+        "patternChannels": "Hover channel headers in the Patterns tab to mute individual channels, or play them solo.",
+        "moduleTools": "Editor and Converter both support modules; they are rendered to an audio stream beforehand.",
+        "titleBar": "On Chromium, after installing izci, click the **Hide title bar** chevron for a sleek, custom title bar.",
+        "mobile": "izci has a mobile UI. Perfect for Multiplayer: host on your PC, join from your phone.",
+        "chameleon": "Not a fan of the theme selection? The Chameleon theme gives you a custom color and saturation slider.",
+        "restorePlayback": "**Playback > Restore playback** lets izci immediately continue blasting the last track it was playing before being closed/refreshed.",
+        "raf": "izci includes a simple set of audio effects, from a graphic EQ, to convolution reverb and AGC. Enable **Raf** under Playback.",
+        "advancedTweaks": "Most option categories include a set of hidden tweaks. Click **Show advanced tweaks** in the top toolbar.",
+        "backups": "Back up your settings every once in a while. Backups are also a great way to move between browsers or the Tauri build.",
+        "interpolation": "izci ships with module interpolation turned off. If mods sound too crispy, enable it under **Modules**.",
+        "experimental": "Check the **Experimental** section, every fiscal year or so.",
+        "multiplayerCache": "Multiplayer clients cache downloaded tracks to speed up playback and save on data. Configure or disable under **Multiplayer > Cache**.",
+        "contextualTabs": "The Lyrics tab can be set to automatically open if the track contains embedded lyrics; same with the Patterns tab when playing a module. Enable under **Contextual tabs** in **Appearance**.",
+        "name": "\"izci\" is \"scout\" in Turkish. It's a bad pun on \"tracker\".",
+        "gruvbox": "Gruvbox was the first theme - actually, the *only* theme for a while.",
+        "keygen": "The developer sheds a single tear every time someone refers to modules as \"keygen music\".",
+        "developmentTime": "izci was developed in 37 seconds.",
+        "bugs": "izci contains bugs."
+      },
       "updates": {
         "checking": "Checking for updates",
         "available": "Update available",

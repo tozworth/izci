@@ -7,6 +7,7 @@
   import type { ArtworkPresentationState } from '$lib/services/artwork-presentation';
   import type { WorkspaceShellState } from '$lib/services/workspace-shell';
   import { hasArtworkBackdrop, hasVisualizerBackdrop } from '$lib/stores/appearance-settings';
+  import { libraryViewSettings } from '$lib/stores/library-view-settings';
   import type {
     AppearanceSettings,
     BackdropZoneArtworkSettingsMap,
@@ -103,6 +104,7 @@
   }>();
 
   let menuOpen = false;
+  let librarySearchExpanded = false;
   let multiplayerStatsOpen = false;
   let swipeStart: SwipePoint | null = null;
   let swipeCurrent: SwipePoint | null = null;
@@ -110,6 +112,7 @@
   let transitionDirection: -1 | 1 = 1;
 
   $: activeTab = workspaceState.activeWorkspaceTab;
+  $: showLibrarySearch = !nowPlayingActive && activeTab === 'library' && Boolean(content.libraryPanelProps.showSearchControl);
   $: activeDefinition = workspaceState.workspaceTabs.find((tab) => tab.id === activeTab);
   $: activePanel = workspaceState.workspacePanels.find((panel) => panel.tabs.some((tab) => tab.id === activeTab));
   $: backdropPanelId = activePanel?.backdropPanelId ?? 'center';
@@ -202,7 +205,7 @@
 </script>
 
 <main class="mobile-workspace" inert={content.videoTheaterActive ? true : undefined}>
-  <header class="mobile-app-header">
+  <header class="mobile-app-header" class:has-search={showLibrarySearch}>
     <button class="mobile-header-button" type="button" aria-label={$t('mobile.menu.open', { default: 'Open menu' })} on:click={() => (menuOpen = true)}>
       <span class="material-symbols-outlined" aria-hidden="true">menu</span>
     </button>
@@ -213,9 +216,23 @@
       {/if}
     </div>
     {#if !nowPlayingActive && (activeTab === 'queue' || activeTab === 'library')}
-      <button class="mobile-header-button" type="button" aria-label={$t('queue.addFiles', { default: 'Add files' })} on:click={() => dispatch('openFiles')}>
-        <span class="material-symbols-outlined" aria-hidden="true">add</span>
-      </button>
+      <div class="mobile-header-actions">
+        {#if showLibrarySearch}
+          <button
+            class="mobile-header-button"
+            class:active={librarySearchExpanded || $libraryViewSettings.searchQuery !== ''}
+            type="button"
+            aria-label={$t('library.search', { default: 'Search library' })}
+            aria-expanded={librarySearchExpanded || $libraryViewSettings.searchQuery !== ''}
+            on:click={() => (librarySearchExpanded = true)}
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">search</span>
+          </button>
+        {/if}
+        <button class="mobile-header-button" type="button" aria-label={$t('queue.addFiles', { default: 'Add files' })} on:click={() => dispatch('openFiles')}>
+          <span class="material-symbols-outlined" aria-hidden="true">add</span>
+        </button>
+      </div>
     {:else}
       <span class="mobile-header-spacer" aria-hidden="true"></span>
     {/if}
@@ -256,6 +273,7 @@
               </div>
               <PlayerControls
                 presentation="now-playing"
+                mobilePresentation={true}
                 snapshotStore={content.snapshotStore}
                 track={content.patternTrack}
                 selectedTrack={selectedTrackItem}
@@ -301,6 +319,7 @@
           >
             <div class="mobile-tab-page" role="tabpanel">
               <WorkspaceTabContent
+                bind:librarySearchExpanded
                 tab={activeTab}
                 content={mobileContent}
                 artworkBackgroundActive={hasArtworkBackdrop(effect) && Boolean(artworkState.visibleArtworkBackground)}

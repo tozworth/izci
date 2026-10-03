@@ -1331,6 +1331,7 @@
   {#if !isNowPlayingLayoutActive}
     <PlayerControls
       presentation={videoTheaterActive ? 'theater' : 'bar'}
+      mobilePresentation={mobileMode}
       snapshotStore={displayPlaybackSnapshotStore}
       track={livePlayingTrack}
       selectedTrack={selectedTrackItem}

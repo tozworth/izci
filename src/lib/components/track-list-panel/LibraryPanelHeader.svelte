@@ -18,6 +18,7 @@
   export let searchQuery = '';
   export let searchInputElement: HTMLInputElement | null = null;
   export let readOnly = false;
+  export let showPrimaryActions = true;
   export let visibleViews: LibraryViewId[] = LIBRARY_VIEW_IDS;
 
   const dispatch = createEventDispatcher<{
@@ -208,29 +209,31 @@
       {/each}
     </TabStrip>
 
-    <div class="library-primary-actions">
-      <button
-        type="button"
-        class="library-toolbar-button hover-tooltip-anchor"
-        class:active={showSearchInput || searchQuery !== ''}
-        aria-label={$t('library.search', { default: 'Search library' })}
-        on:click={() => dispatch('searchToggle')}
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">search</span>
-        <HoverTooltip>{$t('library.search', { default: 'Search library' })}</HoverTooltip>
-      </button>
-      {#if !readOnly}
+    {#if showPrimaryActions}
+      <div class="library-primary-actions">
         <button
           type="button"
           class="library-toolbar-button hover-tooltip-anchor"
-          aria-label={$t('queue.addFiles', { default: 'Add files' })}
-          on:click={() => dispatch('openFiles')}
+          class:active={showSearchInput || searchQuery !== ''}
+          aria-label={$t('library.search', { default: 'Search library' })}
+          on:click={() => dispatch('searchToggle')}
         >
-          <span class="material-symbols-outlined" aria-hidden="true">add</span>
-          <HoverTooltip>{$t('queue.addFiles', { default: 'Add files' })}</HoverTooltip>
+          <span class="material-symbols-outlined" aria-hidden="true">search</span>
+          <HoverTooltip>{$t('library.search', { default: 'Search library' })}</HoverTooltip>
         </button>
-      {/if}
-    </div>
+        {#if !readOnly}
+          <button
+            type="button"
+            class="library-toolbar-button hover-tooltip-anchor"
+            aria-label={$t('queue.addFiles', { default: 'Add files' })}
+            on:click={() => dispatch('openFiles')}
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">add</span>
+            <HoverTooltip>{$t('queue.addFiles', { default: 'Add files' })}</HoverTooltip>
+          </button>
+        {/if}
+      </div>
+    {/if}
   </div>
 
   {#if showSearchInput}

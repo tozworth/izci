@@ -105,6 +105,7 @@
   export let showShuffleControl = true;
   export let showRepeatControl = true;
   export let showSearchControl = false;
+  export let searchInputExpanded = false;
   export let libraryMode = false;
   export let shuffleEnabled = false;
   export let repeatMode: RepeatMode = 'off';
@@ -142,7 +143,6 @@
   let dropzoneHeight = 0;
   let dropzoneScrollTop = 0;
   let trackRowHeight = DEFAULT_TRACK_ROW_HEIGHT;
-  let searchInputExpanded = false;
   let draggedColumnId: LibraryColumnId | null = null;
   let dropIndicator: ColumnDropIndicator | null = null;
   let pendingDragColumnId: LibraryColumnId | null = null;
@@ -682,6 +682,7 @@
           {showSearchInput}
           {searchQuery}
           {readOnly}
+          showPrimaryActions={!mobilePresentation}
           on:viewChange={(event) => handleLibraryViewChange(event.detail)}
           on:viewVisibilityToggle={(event) => libraryViewSettings.toggleViewVisibility(event.detail)}
           on:viewMove={(event) => libraryViewSettings.moveView(event.detail.view, event.detail.targetView, event.detail.position)}
@@ -703,6 +704,7 @@
           {repeatIcon}
           {repeatLabel}
           {readOnly}
+          showAddFiles={!mobilePresentation}
           on:toggleShuffle={() => dispatch('toggleShuffle')}
           on:cycleRepeat={() => dispatch('cycleRepeat')}
           on:openFiles={() => dispatch('openFiles')}
@@ -796,7 +798,9 @@
         </div>
       {:else if libraryMode && items.length === 0}
         <div class="empty-state track-list-filter-empty">
-          <p>{$t('library.empty', { default: 'Your library is empty. Add files or drop a folder here.' })}</p>
+          <p>{mobilePresentation
+            ? $t('mobile.library.empty', { default: 'Your library is empty. Add files to begin.' })
+            : $t('library.empty', { default: 'Your library is empty. Add files or drop a folder here.' })}</p>
         </div>
       {/if}
     </ColumnListView>

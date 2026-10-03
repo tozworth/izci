@@ -14,6 +14,7 @@
   export let repeatIcon = 'repeat';
   export let repeatLabel = 'Repeat off';
   export let readOnly = false;
+  export let showAddFiles = true;
 
   let shuffleRecentlyDisabled = false;
   let repeatRecentlyDisabled = false;
@@ -82,7 +83,7 @@
         <HoverTooltip align="center" nowrap>{repeatLabel}</HoverTooltip>
       </button>
     {/if}
-    {#if !readOnly}
+    {#if showAddFiles && !readOnly}
       <button
         type="button"
         class="track-list-add-files"
