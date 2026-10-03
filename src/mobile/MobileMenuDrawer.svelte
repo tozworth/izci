@@ -1,6 +1,8 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
+  import { version as appVersion } from '../../package.json';
+  import { formatDisplayVersion } from '$lib/utils/version';
   import { formatMultiplayerAudioStatusLabel } from '$lib/services/menu-format';
   import type {
     MultiplayerClient,
@@ -107,7 +109,7 @@
     <img src="/icons/izci-mark.svg" alt="" />
     <div>
       <strong>izci</strong>
-      <span>{$t('mobile.menu.offlinePlayer', { default: 'Offline media player' })}</span>
+      <span>{formatDisplayVersion(appVersion)}</span>
     </div>
     <button type="button" aria-label={$t('mobile.menu.close', { default: 'Close menu' })} on:click={() => dispatch('close')}>
       <span class="material-symbols-outlined" aria-hidden="true">close</span>

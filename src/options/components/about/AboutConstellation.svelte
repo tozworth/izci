@@ -44,7 +44,7 @@
     max-width: 100%;
     height: auto;
     overflow: visible;
-    margin: 0 auto 10px;
+    margin: 0 auto 2px;
   }
 
   .constellation-lines {

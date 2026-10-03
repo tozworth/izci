@@ -19,6 +19,7 @@
   export let artworkBackgroundBright = false;
   export let visualizerBackdropActive = false;
   export let isCompactWorkspace = false;
+  export let librarySearchExpanded = false;
 
   const dispatch = createEventDispatcher<{
     toggleVideoTheater: void;
@@ -57,6 +58,7 @@
     {...content.libraryPanelProps}
     items={content.libraryPanelProps.items}
     libraryMode={true}
+    bind:searchInputExpanded={librarySearchExpanded}
     fillParent={true}
     hideEyebrow={true}
     on:addFiles={(event) => content.libraryPanelHandlers.addFiles(event.detail)}

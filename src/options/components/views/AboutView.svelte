@@ -12,6 +12,7 @@
   import { buildOptionsWindowPath } from '../../views';
   import AboutConstellation from '../about/AboutConstellation.svelte';
   import AboutSpace from '../about/AboutSpace.svelte';
+  import AboutTip from '../about/AboutTip.svelte';
 
   export let onOpenLicenses: () => void;
 
@@ -44,6 +45,7 @@
 
 <article class="view about-view">
   <AboutSpace />
+  <AboutTip />
   <div class="about-content">
     <div class="about-identity">
       <AboutConstellation />
@@ -128,6 +130,7 @@
 
 <style>
   .about-view {
+    --about-small-font-size: 0.68rem;
     position: relative;
     isolation: isolate;
     display: flex;
@@ -189,7 +192,7 @@
   .about-author {
     margin: 3px 0 0;
     color: #8b9db6;
-    font-size: 0.68rem;
+    font-size: var(--about-small-font-size);
   }
 
   .about-details {

@@ -15,6 +15,12 @@
   const selectedTrack = writable<TrackItem | null>(null);
   const artwork = writable<string | null>(null);
   let pinned = localStorage.getItem('izci.desktop.miniPlayerPinned') !== 'false';
+  let nearWindowControls = false;
+
+  function updateWindowControls(event: PointerEvent): void {
+    const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    nearWindowControls = event.clientY - bounds.top <= 28 && bounds.right - event.clientX <= 84;
+  }
 
   function command(command: MiniPlayerCommand): void {
     void emitTo('main', MINI_PLAYER_COMMAND_EVENT, command).catch(console.error);
@@ -51,7 +57,8 @@
   });
 </script>
 
-<div class="desktop-mini-player" role="presentation" onpointerdown={drag}>
+<div class="desktop-mini-player" class:near-window-controls={nearWindowControls} role="presentation"
+  onpointerdown={drag} onpointermove={updateWindowControls} onpointerleave={() => nearWindowControls = false}>
   <div class="window-controls">
     <button aria-label={$t('main.miniPlayer.alwaysOnTop')} aria-pressed={pinned} onclick={() => void togglePin().catch(console.error)}>
       <span class="material-symbols-outlined" aria-hidden="true">keep</span>
@@ -91,7 +98,7 @@
     opacity: 0;
     pointer-events: none;
   }
-  .desktop-mini-player:hover .window-controls,
+  .desktop-mini-player.near-window-controls .window-controls,
   .window-controls:focus-within { opacity: 1; pointer-events: auto; }
   button { width: 24px; padding: 0; border: 0; border-radius: 0; background: var(--window-topbar-bg); color: inherit; cursor: default; }
   button:hover { background: var(--window-topbar-hover-surface); }
@@ -102,7 +109,7 @@
     height: 100%; min-height: 0; padding: 4px; gap: 2px;
   }
   :global(.desktop-mini-player .mini-player-track-row) { gap: 6px; }
-  :global(.desktop-mini-player .mini-player-track-copy) { align-self: flex-start; gap: 2px; }
+  :global(.desktop-mini-player .mini-player-track-copy) { align-self: center; gap: 2px; }
   :global(.desktop-mini-player .mini-player-track-copy strong) { font-size: 0.82rem; }
   :global(.desktop-mini-player .mini-player-track-copy span) { font-size: 0.7rem; }
   :global(.desktop-mini-player .mini-player-transport button) { width: 1.9rem; height: 1.9rem; }

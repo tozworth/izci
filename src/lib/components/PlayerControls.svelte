@@ -77,6 +77,7 @@
   export let backdropEffect: BackdropZoneEffect = 'visualizer';
   export let backdropArtworkSettings: BackdropZoneArtworkSettings | null = null;
   export let presentation: 'bar' | 'now-playing' | 'theater' = 'bar';
+  export let mobilePresentation = false;
   export let useArtworkColorsOverride: boolean | null = null;
   export let artworkColorSurfaceBright = false;
   export let hasCollectionItems = false;
@@ -661,7 +662,9 @@
               ? $appearanceSettings.showIdlePlayerQuips
                 ? localizeIdlePlayerQuip(sessionIdlePlayerQuip)
                 : $t('main.player.ready', { default: 'Ready' })
-              : $t('main.player.dropFilesToBegin', { default: 'Drop files to begin' })}
+              : mobilePresentation
+                ? $t('mobile.player.addFilesToBegin', { default: 'Add files to begin' })
+                : $t('main.player.dropFilesToBegin', { default: 'Drop files to begin' })}
           </span>
         {/if}
       {/if}

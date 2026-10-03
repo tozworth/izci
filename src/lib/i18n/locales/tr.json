@@ -373,10 +373,15 @@
     "description": "İzci modülü destekli, çevrimdışı PWA müzik çalar."
   },
   "mobile": {
+    "player": {
+      "addFilesToBegin": "Başlamak için dosya ekle"
+    },
+    "library": {
+      "empty": "Kütüphanen boş. Başlamak için dosya ekle."
+    },
     "menu": {
       "close": "Menüyü kapat",
       "label": "Ana menü",
-      "offlinePlayer": "Çevrimdışı medya oynatıcı",
       "addMedia": "Medya ekle",
       "app": "Uygulama",
       "open": "Menüyü aç"
@@ -578,6 +583,31 @@
       }
     },
     "about": {
+      "tips": {
+        "tipLabel": "İpucu",
+        "factLabel": "Biliyor muydunuz?",
+        "trayVolume": "Ses düzeyini değiştirmek için sistem tepsisi simgesinin üzerinde fare tekerleğini çevirin.",
+        "loadouts": "Dizilimler, seçeneklerinizin anlık görüntüsünü alıp koşullara bağlı olarak uygulamanızı sağlar.",
+        "subsongs": "Alt şarkılar arasında gezinmek için Önceki/Sonraki düğmelerine sağ tıklayın.",
+        "patternChannels": "Örüntüler sekmesindeki kanal başlıklarının üzerine gelerek kanalları tek tek susturabilir veya tek başına çalabilirsiniz.",
+        "moduleTools": "Düzenleyici ve Dönüştürücü modülleri de destekler; modüller önce bir ses akışına dönüştürülür.",
+        "titleBar": "Chromium'da izci'yi kurduktan sonra şık, özel bir başlık çubuğu için **Başlık çubuğunu gizle** okuna tıklayın.",
+        "mobile": "izci'nin mobil arayüzü de var. Çok Oyunculu için ideal: PC'nizde barındırın, telefonunuzdan katılın.",
+        "chameleon": "Temaları beğenmediniz mi? Bukalemun temasında özel renk ve doygunluk kaydırıcıları var.",
+        "restorePlayback": "**Oynatım > Oynatımı devam ettir**, izci'nin kapatılmadan/yenilenmeden önce çaldığı son parçayı hemen bangır bangır çalmaya devam etmesini sağlar.",
+        "raf": "izci, grafik ekolayzırdan evrişim yankısına ve AGC'ye kadar basit bir ses efekti seti içerir. Oynatım altında **Raf**'ı etkinleştirin.",
+        "advancedTweaks": "Çoğu seçenek kategorisinde gizli ince ayarlar var. Üst araç çubuğunda **Gelişmiş ince ayarları göster**'e tıklayın.",
+        "backups": "Ayarlarınızı ara sıra yedekleyin. Yedekler, tarayıcılar veya Tauri sürümü arasında geçiş yapmak için de harika bir yol.",
+        "interpolation": "izci'de modül enterpolasyonu varsayılan olarak kapalıdır. Modüller fazla çıtır geliyorsa **Modüller** altında etkinleştirin.",
+        "experimental": "Her mali yılda bir falan **Deneysel** bölümüne göz atın.",
+        "multiplayerCache": "Çok Oyunculu istemcileri oynatımı hızlandırmak ve veri tasarrufu sağlamak için indirilen parçaları önbelleğe alır. **Çok Oyunculu > Önbellek** altında yapılandırın veya kapatın.",
+        "contextualTabs": "Parçada gömülü şarkı sözleri varsa Şarkı Sözleri sekmesi otomatik açılabilir; modül çalarken Örüntüler sekmesi de öyle. **Görünüm** altında **Bağlamlı Sekmeler** bölümünden etkinleştirin.",
+        "name": "\"izci\", İngilizcede \"scout\" demek. \"Tracker\" üzerine kötü bir kelime oyunu.",
+        "gruvbox": "Gruvbox ilk temaydı - hatta bir süre *tek* temaydı.",
+        "keygen": "Birisi modüllere \"keygen müziği\" dediğinde geliştiricinin gözünden tek bir damla yaş süzülür.",
+        "developmentTime": "izci 37 saniyede geliştirildi.",
+        "bugs": "izci bug içerir."
+      },
       "updates": {
         "checking": "Güncellemeler kontrol ediliyor",
         "available": "Güncelleme var",
