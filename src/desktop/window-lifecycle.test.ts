@@ -11,6 +11,8 @@ describe('desktop window lifecycle', () => {
     invoke.mockResolvedValue(undefined);
     vi.stubGlobal('window', {
       setTimeout, clearTimeout,
+      addEventListener: vi.fn(),
+      localStorage: { getItem: vi.fn(() => null), setItem: vi.fn() },
       requestAnimationFrame: vi.fn(),
       location: { origin: 'https://tauri.localhost' },
       opener: { postMessage: vi.fn() }
@@ -29,10 +31,20 @@ describe('desktop window lifecycle', () => {
     expect(invoke).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
     await ready;
-    expect(invoke).toHaveBeenCalledWith('desktop_window_ready');
+    expect(invoke).toHaveBeenCalledWith('desktop_window_ready', { showIn: 'taskbar', trayIcon: 'light' });
     expect(window.opener.postMessage).toHaveBeenCalledWith(
       { type: 'izci:popup-ready' }, 'https://tauri.localhost'
     );
+  });
+
+  it('supplies saved tray settings before the native shell decides startup visibility', async () => {
+    const { desktopSettings } = await import('./settings');
+    desktopSettings.update({ showIn: 'tray', trayIcon: 'dark' });
+    const { initializeDesktopWindow } = await import('./window-lifecycle');
+    const ready = initializeDesktopWindow();
+    await vi.advanceTimersByTimeAsync(100);
+    await ready;
+    expect(invoke).toHaveBeenCalledExactlyOnceWith('desktop_window_ready', { showIn: 'tray', trayIcon: 'dark' });
   });
 
   it('presents already loaded windows through the native shell', async () => {

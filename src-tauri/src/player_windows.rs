@@ -117,6 +117,11 @@ pub fn restore_main(app: &AppHandle) -> Result<(), String> {
         .get_webview_window("main")
         .ok_or("Main window is closed")?;
     end_mini(app)?;
+    // Silent boot defers placement restoration because SetWindowPlacement can
+    // show the HWND. Apply it only once the user actually opens the player.
+    if !main.is_visible().unwrap_or(false) && !main.is_fullscreen().unwrap_or(true) {
+        crate::window_state::restore(&main.as_ref().window());
+    }
     main.show().map_err(|error| error.to_string())?;
     main.unminimize().map_err(|error| error.to_string())?;
     main.set_focus().map_err(|error| error.to_string())

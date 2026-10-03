@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { tick } from 'svelte';
+import { desktopSettings } from './settings';
 
 export async function initializeDesktopWindow(): Promise<void> {
   await tick();
@@ -12,7 +13,8 @@ export async function initializeDesktopWindow(): Promise<void> {
       resolve();
     }));
   });
-  await invoke('desktop_window_ready');
+  const { showIn, trayIcon } = desktopSettings.getSnapshot();
+  await invoke('desktop_window_ready', { showIn, trayIcon });
   window.opener?.postMessage({ type: 'izci:popup-ready' }, window.location.origin);
 }
 

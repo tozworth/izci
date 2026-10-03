@@ -5,6 +5,10 @@ use tauri::{
     AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewWindow,
 };
 
+// Readiness and the synchronized settings subscription can both configure the
+// tray at startup. Serialize off the UI thread to create exactly one icon.
+static VISIBILITY_CONFIGURATION: Mutex<()> = Mutex::new(());
+
 #[derive(Default)]
 pub struct TrayMenuState {
     pub ready: bool,
@@ -97,6 +101,18 @@ pub async fn configure_desktop_visibility(
     if window.label() != "main" {
         return Err("Only the player configures desktop visibility".into());
     }
+    configure(&app, &window, show_in, tray_icon)
+}
+
+pub fn configure(
+    app: &AppHandle,
+    window: &WebviewWindow,
+    show_in: DesktopShowIn,
+    tray_icon: DesktopTrayIcon,
+) -> Result<(), String> {
+    let _configuration = VISIBILITY_CONFIGURATION
+        .lock()
+        .map_err(|error| error.to_string())?;
     // Restore taskbar access before removing the tray; create the tray before
     // hiding the taskbar entry so a failed update always leaves access available.
     if !matches!(show_in, DesktopShowIn::Tray) {
@@ -105,7 +121,7 @@ pub async fn configure_desktop_visibility(
             .map_err(|error| error.to_string())?;
     }
     if matches!(show_in, DesktopShowIn::Taskbar) {
-        remove(&app);
+        remove(app);
         return Ok(());
     }
     if let Some(icon) = app.tray_by_id("izci") {
@@ -160,7 +176,7 @@ pub async fn configure_desktop_visibility(
                 _ => {}
             }
         })
-        .build(&app)
+        .build(app)
         .map_err(|error| error.to_string())?;
     window
         .set_skip_taskbar(matches!(show_in, DesktopShowIn::Tray))

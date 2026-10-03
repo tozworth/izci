@@ -1710,6 +1710,10 @@
   },
   "desktop": {
     "appearance": {
+      "launchOnBoot": {
+        "title": "Bilgisayar açıldığında başlat",
+        "hint": "Windows'ta oturum açtığınızda izci'yi başlatır. Gösterileceği yer Yalnızca sistem tepsisi veya Her ikisi olarak seçildiğinde pencere açmadan sessizce sistem tepsisinde başlar."
+      },
       "closeToTray": {
         "title": "Kapatınca sistem tepsisine gizle",
         "hint": "Ana pencereyi kapatırken sistem tepsisine gizleyerek çalmayı sürdürür. izci'yi kapatmak için Çıkış'ı kullanın. Sistem tepsisi simgesi gerektirir."

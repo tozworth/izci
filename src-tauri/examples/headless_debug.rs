@@ -64,6 +64,8 @@ fn desktop_window_ready(
 #[tauri::command]
 fn configure_desktop_associations() {}
 #[tauri::command]
+fn configure_desktop_autostart() {}
+#[tauri::command]
 fn configure_desktop_visibility() {}
 #[tauri::command]
 fn present_desktop_popup() {}
@@ -122,7 +124,7 @@ fn main() {
         .manage(Session { directory: directory.clone(), ready: AtomicBool::new(false), muted: Arc::new(AtomicBool::new(false)) })
         .manage(desktop_files::LaunchFiles::default())
         .invoke_handler(tauri::generate_handler![
-            desktop_window_ready, configure_desktop_associations, configure_desktop_visibility,
+            desktop_window_ready, configure_desktop_associations, configure_desktop_autostart, configure_desktop_visibility,
             present_desktop_popup, open_desktop_default_apps, open_mini_player,
             close_mini_player, dismiss_mini_player, restore_main_window, pin_mini_player, exit_desktop,
             playback_restoration::prepare_desktop_playback_restoration,
