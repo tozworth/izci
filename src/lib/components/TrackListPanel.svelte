@@ -666,6 +666,7 @@
 
   <div
     class="dropzone track-list-dropzone"
+    class:library-list-navigation={libraryMode && !mobilePresentation && $appearanceSettings.libraryNavigationStyle === 'list'}
     role="region"
     aria-label={$t('queue.listRegion', { default: '{name} list', values: { name: localizedRegionLabel } })}
     on:dragover={(event) => { if (!readOnly) event.preventDefault(); }}
@@ -686,6 +687,7 @@
           bind:searchInputElement={searchInputElement}
           activeView={activeLibraryView}
           {browserLayout}
+          navigationStyle={mobilePresentation ? 'tabbed' : $appearanceSettings.libraryNavigationStyle}
           ratingsEnabled={$trackSettings.enableRatings}
           summary={librarySummary}
           tooltipDetails={libraryTooltipDetails}
@@ -913,6 +915,27 @@
   .track-list-panel-header.library-mode {
     min-height: 1.7rem;
     padding: 0.025rem 0.45rem;
+  }
+
+  .track-list-dropzone.library-list-navigation {
+    display: grid;
+    grid-template-columns: clamp(4.5rem, 30%, 9rem) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  /* Let the Library header place navigation and location beside the shared list. */
+  .library-list-navigation .track-list-panel-header.library-mode {
+    display: contents;
+  }
+
+  .library-list-navigation .track-list-panel-header::before,
+  .library-list-navigation .track-list-panel-header::after {
+    display: none;
+  }
+
+  .library-list-navigation > :global(.column-list-view) {
+    grid-column: 2;
+    grid-row: 2;
   }
 
   .track-list-panel-header.compact-heading:not(.library-mode):not(.has-column-header) {

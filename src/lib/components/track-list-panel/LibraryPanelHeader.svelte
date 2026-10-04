@@ -5,12 +5,13 @@
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import TabStrip from '$lib/components/TabStrip.svelte';
   import LibraryLayoutSwitcher from './LibraryLayoutSwitcher.svelte';
-  import type { LibraryBrowserLayout, LibraryViewId, MenuActionItem } from '$lib/types';
+  import type { LibraryBrowserLayout, LibraryNavigationStyle, LibraryViewId, MenuActionItem } from '$lib/types';
   import { LIBRARY_VIEW_DEFINITIONS } from './library-views';
   import { LIBRARY_VIEW_IDS } from '$lib/stores/library-view-settings';
 
   export let activeView: LibraryViewId = 'allMedia';
   export let browserLayout: LibraryBrowserLayout = 'list';
+  export let navigationStyle: LibraryNavigationStyle = 'tabbed';
   export let ratingsEnabled = true;
   export let summary = '';
   export let tooltipDetails: Record<LibraryViewId, string>;
@@ -81,6 +82,7 @@
 
   function openViewMenu(event: MouseEvent) {
     event.preventDefault();
+    event.stopPropagation();
     viewMenuX = event.clientX;
     viewMenuY = event.clientY;
     viewMenuOpen = true;
@@ -102,6 +104,9 @@
 
   function getDropPosition(event: DragEvent, element: HTMLElement): 'before' | 'after' {
     const rect = element.getBoundingClientRect();
+    if (navigationStyle === 'list') {
+      return event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+    }
     return event.clientX < rect.left + rect.width / 2 ? 'before' : 'after';
   }
 
@@ -141,17 +146,28 @@
   }
 
   function handleViewKeydown(event: KeyboardEvent, view: LibraryViewId): void {
-    if (!event.altKey || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+    const previousKey = navigationStyle === 'list' ? 'ArrowUp' : 'ArrowLeft';
+    const nextKey = navigationStyle === 'list' ? 'ArrowDown' : 'ArrowRight';
+    if (event.key !== previousKey && event.key !== nextKey) return;
+    if (event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (!event.altKey && navigationStyle !== 'list') return;
     const index = shownDefinitions.findIndex((definition) => definition.id === view);
-    const target = shownDefinitions[event.key === 'ArrowLeft' ? index - 1 : index + 1];
-    if (!target) return;
+    const targetIndex = event.key === previousKey ? index - 1 : index + 1;
+    const target = shownDefinitions[targetIndex];
     event.preventDefault();
     event.stopPropagation();
-    dispatch('viewMove', {
-      view,
-      targetView: target.id,
-      position: event.key === 'ArrowLeft' ? 'before' : 'after'
-    });
+    if (!target) return;
+    if (event.altKey) {
+      dispatch('viewMove', {
+        view,
+        targetView: target.id,
+        position: event.key === previousKey ? 'before' : 'after'
+      });
+    } else {
+      const tabs = (event.currentTarget as HTMLElement).parentElement;
+      tabs?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[targetIndex]?.focus();
+      dispatch('viewChange', target.id);
+    }
   }
 
   function getViewLabel(view: LibraryViewId, fallback: string): string {
@@ -173,11 +189,12 @@
   }
 </script>
 
-<div class="library-header">
+<div class="library-header" class:list-navigation={navigationStyle === 'list'}>
   <div class="library-toolbar" data-mobile-swipe-lock>
     <TabStrip
       className="library-view-tabs"
       flushStart
+      orientation={navigationStyle === 'list' ? 'vertical' : 'horizontal'}
       ariaLabel={$t('library.views.label', { default: 'Library views' })}
       on:contextmenu={openViewMenu}
     >
@@ -192,6 +209,7 @@
           role="tab"
           aria-selected={activeView === view.id}
           aria-label={getViewLabel(view.id, view.label)}
+          tabindex={navigationStyle === 'list' && activeView !== view.id ? -1 : 0}
           draggable="true"
           on:click={() => dispatch('viewChange', view.id)}
           on:keydown={(event) => handleViewKeydown(event, view.id)}
@@ -202,7 +220,7 @@
         >
           <span class="material-symbols-outlined" aria-hidden="true">{view.icon}</span>
           <span class="library-view-label">{getViewLabel(view.id, view.label)}</span>
-          <HoverTooltip align={view.id === 'favorites' ? 'left' : 'center'} nowrap>
+          <HoverTooltip align={navigationStyle === 'list' || view.id === 'favorites' ? 'left' : 'center'} nowrap>
             <strong>{getViewLabel(view.id, view.label)}</strong>{#if !showBack && tooltipDetails[view.id]}
               <span class="library-tooltip-detail">{tooltipDetails[view.id]}</span>
             {/if}
@@ -222,7 +240,7 @@
           on:click={() => dispatch('searchToggle')}
         >
           <span class="material-symbols-outlined" aria-hidden="true">search</span>
-          <HoverTooltip>{$t('library.search', { default: 'Search library' })}</HoverTooltip>
+          <HoverTooltip placement={navigationStyle === 'list' ? 'above' : 'below'}>{$t('library.search', { default: 'Search library' })}</HoverTooltip>
         </button>
         {#if !readOnly}
           <button
@@ -232,54 +250,58 @@
             on:click={() => dispatch('openFiles')}
           >
             <span class="material-symbols-outlined" aria-hidden="true">add</span>
-            <HoverTooltip>{$t('queue.addFiles', { default: 'Add files' })}</HoverTooltip>
+            <HoverTooltip placement={navigationStyle === 'list' ? 'above' : 'below'}>{$t('queue.addFiles', { default: 'Add files' })}</HoverTooltip>
           </button>
         {/if}
       </div>
     {/if}
   </div>
 
-  {#if showSearchInput}
-    <div class="library-search-row">
-      <span class="material-symbols-outlined" aria-hidden="true">search</span>
-      <input
-        bind:this={searchInputElement}
-        type="search"
-        inputmode="search"
-        spellcheck="false"
-        autocomplete="off"
-        placeholder={$t('queue.searchPlaceholder', { default: 'Search' })}
-        aria-label={$t('library.search', { default: 'Search library' })}
-        value={searchQuery}
-        on:input={handleSearchInput}
-        on:keydown={handleSearchKeydown}
-      />
-      <button
-        type="button"
-        class="library-search-close hover-tooltip-anchor"
-        aria-label={$t('library.closeSearch', { default: 'Close library search' })}
-        on:click={() => dispatch('searchClose')}
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">close</span>
-        <HoverTooltip align="center" nowrap>{$t('library.closeSearch', { default: 'Close library search' })}</HoverTooltip>
-      </button>
-    </div>
-  {/if}
+  {#if showSearchInput || showBack}
+    <div class="library-details">
+      {#if showSearchInput}
+        <div class="library-search-row">
+          <span class="material-symbols-outlined" aria-hidden="true">search</span>
+          <input
+            bind:this={searchInputElement}
+            type="search"
+            inputmode="search"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder={$t('queue.searchPlaceholder', { default: 'Search' })}
+            aria-label={$t('library.search', { default: 'Search library' })}
+            value={searchQuery}
+            on:input={handleSearchInput}
+            on:keydown={handleSearchKeydown}
+          />
+          <button
+            type="button"
+            class="library-search-close hover-tooltip-anchor"
+            aria-label={$t('library.closeSearch', { default: 'Close library search' })}
+            on:click={() => dispatch('searchClose')}
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+            <HoverTooltip align="center" nowrap>{$t('library.closeSearch', { default: 'Close library search' })}</HoverTooltip>
+          </button>
+        </div>
+      {/if}
 
-  {#if showBack}
-    <div class="library-location">
-      <button
-        type="button"
-        class="library-back-button hover-tooltip-anchor"
-        aria-label={$t('library.backToGroups', { default: 'Back to groups' })}
-        on:click={() => dispatch('back')}
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
-        <HoverTooltip align="center" nowrap>{$t('library.back', { default: 'Back' })}</HoverTooltip>
-      </button>
-      <span class="library-group-label" title={groupLabel}>{groupLabel}</span>
-      <span class="library-location-divider" aria-hidden="true">·</span>
-      <span class="panel-summary" title={summary}>{summary}</span>
+      {#if showBack}
+        <div class="library-location">
+          <button
+            type="button"
+            class="library-back-button hover-tooltip-anchor"
+            aria-label={$t('library.backToGroups', { default: 'Back to groups' })}
+            on:click={() => dispatch('back')}
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+            <HoverTooltip align="center" nowrap>{$t('library.back', { default: 'Back' })}</HoverTooltip>
+          </button>
+          <span class="library-group-label" title={groupLabel}>{groupLabel}</span>
+          <span class="library-location-divider" aria-hidden="true">·</span>
+          <span class="panel-summary" title={summary}>{summary}</span>
+        </div>
+      {/if}
     </div>
   {/if}
 </div>
@@ -303,6 +325,121 @@
     flex-direction: column;
     gap: 0.24rem;
     width: 100%;
+  }
+
+  .library-details {
+    display: contents;
+  }
+
+  .library-header.list-navigation {
+    display: contents;
+  }
+
+  .list-navigation .library-toolbar {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    z-index: 2;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    min-width: 0;
+    min-height: 0;
+    padding: 0.1rem 0;
+    border-right: 1px solid var(--border-soft);
+    background: var(--track-list-header-artwork-background, var(--track-list-header-background));
+  }
+
+  .list-navigation .library-toolbar::after {
+    display: none;
+  }
+
+  .list-navigation .library-toolbar :global(.library-view-tabs) {
+    flex-direction: column;
+    align-self: stretch;
+    align-items: stretch;
+    justify-content: flex-start;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .list-navigation .library-toolbar .library-view-tab {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    gap: 0.35rem;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    min-height: 1.4rem;
+    padding: 0.1rem 0.4rem;
+    border: 0;
+    border-right: 2px solid transparent;
+    border-radius: 0;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    text-align: left;
+    cursor: default;
+  }
+
+  .list-navigation .library-toolbar .library-view-tab.active {
+    border-right-color: var(--accent-strong);
+    background: var(--selection-bg);
+  }
+
+  .list-navigation .library-view-label {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.3;
+  }
+
+  .list-navigation .library-view-tab > .material-symbols-outlined {
+    flex-shrink: 0;
+  }
+
+  .list-navigation .library-primary-actions {
+    --library-action-height: 1.3rem;
+    justify-content: space-evenly;
+    flex-shrink: 0;
+    gap: 0;
+    margin-top: 0.1rem;
+    padding: 0.1rem 0.1rem 0;
+    border-left: 0;
+    border-top: 1px solid var(--border-soft);
+  }
+
+  .list-navigation .library-details {
+    grid-column: 2;
+    grid-row: 1;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 0.24rem;
+    min-width: 0;
+    padding: 0.25rem 0.45rem;
+    background: var(--track-list-header-artwork-background, var(--track-list-header-background));
+  }
+
+  .list-navigation .library-view-tab.drop-before::before,
+  .list-navigation .library-view-tab.drop-after::after {
+    right: 0;
+    left: 0;
+    width: auto;
+    height: 2px;
+  }
+
+  .list-navigation .library-view-tab.drop-before::before {
+    top: 0;
+    bottom: auto;
+  }
+
+  .list-navigation .library-view-tab.drop-after::after {
+    top: auto;
+    bottom: 0;
   }
 
   .library-tooltip-detail {
@@ -382,7 +519,7 @@
     align-items: center;
     justify-content: center;
     width: 1.4rem;
-    height: 1.65rem;
+    height: var(--library-action-height, 1.65rem);
     padding: 0;
     color: var(--muted);
     background: transparent;

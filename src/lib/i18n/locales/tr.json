@@ -661,6 +661,12 @@
         }
       },
       "interface": {
+        "libraryNavigation": {
+          "title": "Kütüphane gezinmesi",
+          "hint": "Ana masaüstü arayüzünde kütüphane kategorilerini sekmeler veya solda bir liste olarak gösterir. Görünür kategorileri seçmek için kategorilere sağ tıklayın.",
+          "tabbed": "Sekmeli",
+          "list": "Liste"
+        },
         "keepColumns": {
           "title": "İnce kütüphane panellerinde sütunları göstermeye devam et",
           "hint": "İnce pencerede kütüphane görünümünün yalnızca başlık satırlarına dönüşmesini engeller."
