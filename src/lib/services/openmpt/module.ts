@@ -122,6 +122,11 @@ export class OpenMptModule {
       instruments: names(core._openmpt_module_get_num_instruments(this.#module), core._openmpt_module_get_instrument_name),
       samples: names(core._openmpt_module_get_num_samples(this.#module), core._openmpt_module_get_sample_name),
       numSubsongs: core._openmpt_module_get_num_subsongs(this.#module),
+      patternStartTimes: Array.from({ length: core._openmpt_module_get_num_orders(this.#module) }, (_, order) =>
+        core._openmpt_module_get_time_at_position(this.#module, order, 0))
+        .filter((time) => Number.isFinite(time) && time >= 0 && time < this.duration)
+        .sort((a, b) => a - b)
+        .filter((time, index, times) => index === 0 || time !== times[index - 1]),
       orders: Array.from({ length: core._openmpt_module_get_num_orders(this.#module) }, (_, index) => ({
         name: this.#takeString(core._openmpt_module_get_order_name(this.#module, index)),
         pat: core._openmpt_module_get_order_pattern(this.#module, index)

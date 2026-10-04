@@ -184,6 +184,8 @@ export interface ModulePatternSong {
   orders: ModulePatternOrder[];
   patterns: ModulePattern[];
   numSubsongs: number;
+  /** Transient pattern-entry times for the selected subsong, in playback order. */
+  patternStartTimes?: number[];
 }
 
 export interface ModulePatternSnapshot {
@@ -458,6 +460,7 @@ export interface PlaybackSettings {
   playbackRate: number;
   trueSpeed: boolean;
   restartCurrentTrackOnPrevious: boolean;
+  patternAwareSeek: boolean;
   transitionMode: PlaybackTransitionMode;
   gaplessPlayback: boolean;
   fadeDurationSeconds: number;

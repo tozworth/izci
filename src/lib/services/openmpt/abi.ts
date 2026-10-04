@@ -30,6 +30,7 @@ export interface OpenMptCore {
   _openmpt_module_get_channel_name(module: number, index: number): number;
   _openmpt_module_get_order_name(module: number, index: number): number;
   _openmpt_module_get_order_pattern(module: number, index: number): number;
+  _openmpt_module_get_time_at_position(module: number, order: number, row: number): number;
   _openmpt_module_get_pattern_name(module: number, index: number): number;
   _openmpt_module_get_instrument_name(module: number, index: number): number;
   _openmpt_module_get_sample_name(module: number, index: number): number;
