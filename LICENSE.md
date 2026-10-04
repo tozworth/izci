@@ -39,11 +39,11 @@ in the notice inventory without being present in every application binary.
 
 ### Frontend, localization and fonts
 
-- Chiptune3 0.8.4: MIT. Copyright © 2013-2024 The chiptune2.js and chiptune3
-  contributers, as stated in the published package. izci vendors its JavaScript
-  runtime and adds an interactive-interface bridge; the compiled libopenmpt
-  library has its own license, described below.
-  Source: https://github.com/DrSnuggles/chiptune
+- The direct libopenmpt WASM artifact and matching generated Emscripten loader
+  originated in the chiptune3 0.8.4 distribution. Its wrapper and package are
+  removed; the MIT notice for retained loader support is preserved in
+  THIRD-PARTY-NOTICES.md alongside libopenmpt’s BSD-3-Clause notice.
+
 - Howler.js 2.2.4: MIT. Copyright (c) 2013-2020 James Simpson and GoldFire
   Studios, Inc. Source: https://github.com/goldfire/howler.js
 - Svelte 5.56.1: MIT. Copyright (c) 2016-2025 Svelte Contributors.

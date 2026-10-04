@@ -119,7 +119,7 @@
     {/if}
 
     <p class="about-credits">
-      {$t('options.about.credits', { default: "izci wouldn't be possible without chiptune.js v3 (libopenmpt WASM), HivelyTracker, Howler.js, and Mediabunny." })}
+      {$t('options.about.credits', { default: "izci wouldn't be possible without libopenmpt, HivelyTracker, Howler.js, and Mediabunny." })}
       <a
         href={buildOptionsWindowPath('licenses')}
         on:click|preventDefault={onOpenLicenses}

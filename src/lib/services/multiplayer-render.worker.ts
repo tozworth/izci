@@ -25,7 +25,7 @@ export interface MultiplayerRenderRequest {
   moduleBytes: ArrayBuffer | null;
   bitrateKbps: number;
   hivelyWasmUrl: string;
-  libopenmptUrl: string;
+  subsong?: number;
 }
 
 export interface MultiplayerRenderResult {
@@ -145,7 +145,7 @@ async function renderModule(request: MultiplayerRenderRequest): Promise<Multipla
       extension: request.extension,
       module: request.moduleBytes!,
       hivelyWasmUrl: request.hivelyWasmUrl,
-      libopenmptUrl: request.libopenmptUrl,
+      subsong: request.subsong,
       sampleRate: RENDER_SAMPLE_RATE
     }, async ({ startFrame, left, right }) => {
       const length = Math.min(left.length, right.length);

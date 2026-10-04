@@ -620,7 +620,7 @@
       "desktopTagline": "Media contraption",
       "openOnGitHub": "Open dunsparce9/izci on GitHub",
       "openHostedPwa": "Open izci.ağla.net, the publicly hosted PWA",
-      "credits": "izci wouldn't be possible without chiptune.js v3 (libopenmpt WASM), HivelyTracker, Howler.js, and Mediabunny.",
+      "credits": "izci wouldn't be possible without libopenmpt, HivelyTracker, Howler.js, and Mediabunny.",
       "seeFull": "See full",
       "thirdPartyLicenses": "third-party licenses"
     },
@@ -1471,7 +1471,7 @@
       },
       "verify": {
         "title": "Verify added files",
-        "hint": "Check unknown file extensions in a separate muted OpenMPT player before adding them. When disabled, izci adds any unknown file as a tracker module and lets normal playback report whether it works. Official OpenMPT extensions are accepted directly either way."
+        "hint": "Check unknown file extensions with the background libopenmpt decoder before adding them. When disabled, izci adds any unknown file as a tracker module and lets normal playback report whether it works. Official OpenMPT extensions are accepted directly either way."
       },
       "associatedFiles": {
         "title": "Files opened with izci",

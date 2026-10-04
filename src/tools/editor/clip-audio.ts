@@ -197,12 +197,6 @@ async function renderModuleOffline(
       extension,
       module: moduleBytes,
       hivelyWasmUrl: new URL('/vendor/hively-replay.wasm', document.baseURI).href,
-      libopenmptUrl: new URL(
-        import.meta.env.DEV
-          ? '/src/lib/vendor/chiptune3/libopenmpt.worklet.js'
-          : '/assets/libopenmpt.worklet.js',
-        document.baseURI
-      ).href,
       sampleRate: 48_000
     }, [moduleBytes]);
   });

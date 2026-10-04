@@ -31,8 +31,7 @@ async function probeExpression(session, entry) {
   const { svelte } = await import('@sveltejs/vite-plugin-svelte');
   const output = await build({
     configFile: false, root, logLevel: 'error', plugins: [svelte()],
-    resolve: { alias: { $lib: join(root, 'src/lib'), $platform: join(root, 'src/desktop/platform.ts'),
-      chiptune3: join(root, 'src/lib/vendor/chiptune3/chiptune3.js') } },
+    resolve: { alias: { $lib: join(root, 'src/lib'), $platform: join(root, 'src/desktop/platform.ts') } },
     build: { write: false, minify: false, lib: { entry: resolve(root, entry), name: '__izciHeadlessProbe', formats: ['iife'] } }
   });
   const bundles = (Array.isArray(output) ? output : [output]).flatMap((bundle) => bundle.output);

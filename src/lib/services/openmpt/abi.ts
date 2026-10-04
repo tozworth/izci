@@ -1,0 +1,47 @@
+/** The wasm32 C API exported by the pinned libopenmpt artifact. */
+export interface OpenMptCore {
+  HEAPU8: Uint8Array;
+  HEAPU32: Uint32Array;
+  HEAPF32: Float32Array<ArrayBuffer>;
+  _malloc(size: number): number;
+  _free(pointer: number): void;
+  stackSave(): number;
+  stackAlloc(size: number): number;
+  stackRestore(stack: number): void;
+  UTF8ToString(pointer: number): string;
+  getWasmTableEntry(index: number): (...args: number[]) => number;
+  _openmpt_free_string(pointer: number): void;
+  _openmpt_get_string(key: number): number;
+  _openmpt_module_ext_create_from_memory(data: number, size: number, log: number, logUser: number, error: number, errorUser: number, errorCode: number, errorMessage: number, ctls: number): number;
+  _openmpt_module_ext_get_module(module: number): number;
+  _openmpt_module_ext_destroy(module: number): void;
+  _openmpt_module_ext_get_interface(module: number, name: number, target: number, size: number): number;
+  _openmpt_module_get_metadata(module: number, key: number): number;
+  _openmpt_module_get_duration_seconds(module: number): number;
+  _openmpt_module_get_num_subsongs(module: number): number;
+  _openmpt_module_get_selected_subsong(module: number): number;
+  _openmpt_module_select_subsong(module: number, index: number): number;
+  _openmpt_module_get_subsong_name(module: number, index: number): number;
+  _openmpt_module_get_num_channels(module: number): number;
+  _openmpt_module_get_num_orders(module: number): number;
+  _openmpt_module_get_num_patterns(module: number): number;
+  _openmpt_module_get_num_instruments(module: number): number;
+  _openmpt_module_get_num_samples(module: number): number;
+  _openmpt_module_get_channel_name(module: number, index: number): number;
+  _openmpt_module_get_order_name(module: number, index: number): number;
+  _openmpt_module_get_order_pattern(module: number, index: number): number;
+  _openmpt_module_get_pattern_name(module: number, index: number): number;
+  _openmpt_module_get_instrument_name(module: number, index: number): number;
+  _openmpt_module_get_sample_name(module: number, index: number): number;
+  _openmpt_module_get_pattern_num_rows(module: number, index: number): number;
+  _openmpt_module_format_pattern_row_channel(module: number, pattern: number, row: number, channel: number, width: number, pad: number): number;
+  _openmpt_module_set_repeat_count(module: number, count: number): number;
+  _openmpt_module_set_render_param(module: number, parameter: number, value: number): number;
+  _openmpt_module_ctl_set_floatingpoint(module: number, key: number, value: number): number;
+  _openmpt_module_set_position_seconds(module: number, seconds: number): number;
+  _openmpt_module_get_position_seconds(module: number): number;
+  _openmpt_module_get_current_order(module: number): number;
+  _openmpt_module_get_current_pattern(module: number): number;
+  _openmpt_module_get_current_row(module: number): number;
+  _openmpt_module_read_float_stereo(module: number, sampleRate: number, frames: number, left: number, right: number): number;
+}

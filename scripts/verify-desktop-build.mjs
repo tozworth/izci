@@ -23,5 +23,8 @@ assert(!/(?:mini-player|tray-menu|tray-bubble)\.html|dist-desktop|src-tauri|desk
 assert(!existsSync(join(desktop, 'sw.js')), 'Desktop build generated a service worker.');
 assert(!existsSync(join(desktop, 'manifest.webmanifest')), 'Desktop build generated a PWA manifest.');
 assert(files(join(desktop, 'assets')).some((path) => path.endsWith('.js') && nativeMarkers.test(readFileSync(path, 'utf8'))), 'Desktop bridge missing from native build.');
-assert(existsSync(join(desktop, 'assets', 'libopenmpt.worklet.js')), 'Desktop libopenmpt runtime is missing.');
+const moduleAssets = readdirSync(join(desktop, 'assets'));
+assert(moduleAssets.some((name) => /^libopenmpt-.*\.wasm$/.test(name)), 'Desktop libopenmpt WASM is missing.');
+assert(moduleAssets.some((name) => /^playback.worklet-.*\.js$/.test(name)), 'Desktop libopenmpt worklet is missing.');
+assert(moduleAssets.some((name) => /^decoder.worker-.*\.js$/.test(name)), 'Desktop libopenmpt decoder worker is missing.');
 console.log('Verified: desktop bridge is present only in desktop assets; PWA code and precache are browser-only.');

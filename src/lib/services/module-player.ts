@@ -1,582 +1,209 @@
-import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { audioBusService } from '$lib/services/audio-bus';
-import { logDebug, logError, logInfo } from '$lib/services/logging';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import { mediaSessionService } from '$lib/services/media-session';
+import { moduleDecoder } from './openmpt/decoder';
+import { OpenMptPlayer } from './openmpt/player';
+import type { OpenMptInspection, OpenMptProgress, OpenMptSettings } from './openmpt/protocol';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
-import type {
-  ModulePatternSnapshot,
-  ModulePlaybackSettings,
-  PlaybackSnapshot,
-  TrackItem,
-  TrackMetadata
-} from '$lib/types';
-import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
+import type { ModulePatternSnapshot, ModulePlaybackSettings, PlaybackSnapshot, TrackItem, TrackMetadata } from '$lib/types';
 
-type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
-type MetadataHandler = (metadata: TrackMetadata) => void;
-type PatternHandler = (snapshot: Partial<ModulePatternSnapshot> | null) => void;
-type EndHandler = () => void;
-interface StopOptions {
-  silent?: boolean;
-}
-
-const PROGRESS_PUBLISH_INTERVAL_SECONDS = 0.125;
-
+/** App-facing backend; the controller owns its worklet and the decoder owns patterns. */
 export class ModulePlayerService {
-  #player: ChiptuneJsPlayer | null = null;
+  #player: OpenMptPlayer | null = null;
   #buffer: ArrayBuffer | null = null;
-  #trackExtension: TrackItem['extension'] | null = null;
+  #extension = '';
   #loadToken = 0;
+  #patternJob: AbortController | undefined;
   #playing = false;
-  #started = false;
+  #ready = false;
   #currentTime = 0;
   #subsong = 0;
   #subsongCount = 1;
-  #lastPublishedCurrentTime = -1;
-  #lastPublishedDuration = -1;
-  #lastPublishedOrder = -1;
-  #lastPublishedPattern = -1;
-  #lastPublishedRow = -1;
+  #lastPublishedTime = -1;
   #settings = modulePlaybackSettings.getSnapshot();
   #transitionGain = 1;
   #channelMutes: boolean[] = [];
-  #onSnapshot: SnapshotHandler;
-  #onMetadata: MetadataHandler;
-  #onPattern: PatternHandler;
-  #onEnded: EndHandler;
 
   constructor(
-    onSnapshot: SnapshotHandler,
-    onMetadata: MetadataHandler,
-    onPattern: PatternHandler,
-    onEnded: EndHandler
-  ) {
-    this.#onSnapshot = onSnapshot;
-    this.#onMetadata = onMetadata;
-    this.#onPattern = onPattern;
-    this.#onEnded = onEnded;
-  }
+    private readonly onSnapshot: (snapshot: Partial<PlaybackSnapshot>) => void,
+    private readonly onMetadata: (metadata: TrackMetadata) => void,
+    private readonly onPattern: (snapshot: Partial<ModulePatternSnapshot> | null) => void,
+    private readonly onEnded: () => void
+  ) {}
 
   async load(track: TrackItem): Promise<void> {
-    if (!track.file) {
-      throw new Error('Expected a file for tracker module playback.');
-    }
-
-    this.#disposePlayer();
-    logInfo('playback', 'Module load started', { id: track.id, name: track.name, extension: track.extension, subsong: track.subsong });
-    const loadToken = ++this.#loadToken;
-    this.#buffer = null;
-    this.#trackExtension = track.extension.toLowerCase();
-    this.#channelMutes = [];
-    this.#playing = false;
-    this.#started = false;
-    this.#currentTime = 0;
-    this.#subsong = this.#normalizeSubsong(track.subsong, track.metadata?.subsongs);
-    this.#subsongCount = this.#normalizeSubsongCount(track.metadata?.subsongs);
-    this.#resetPublishedProgress();
-    this.#onPattern(null);
-
-    this.#onSnapshot({
-      backend: 'module',
-      state: 'loading',
-      currentTime: 0,
-      duration: 0,
-      subsong: this.#subsong,
-      subsongCount: this.#subsongCount,
-      error: undefined
-    });
-
-    let player: ChiptuneJsPlayer;
+    if (!track.file) throw new Error('Expected a file for tracker module playback.');
+    this.#reset();
+    const token = ++this.#loadToken;
+    this.#extension = track.extension.toLowerCase();
+    // The file determines the count; don't clamp a requested subsong to stale metadata.
+    this.#subsong = Number.isFinite(track.subsong) ? Math.max(0, Math.trunc(track.subsong!)) : 0;
+    this.onSnapshot({ backend: 'module', state: 'loading', currentTime: 0, duration: 0, subsong: this.#subsong, subsongCount: 1, error: undefined });
+    logInfo('playback', 'Module load started', { id: track.id, name: track.name, subsong: this.#subsong });
     try {
-      player = await this.#createPlayer(loadToken);
+      const buffer = await track.file.arrayBuffer();
+      if (token !== this.#loadToken) return;
+      const player = await OpenMptPlayer.create(audioBusService.context);
+      if (token !== this.#loadToken) { player.dispose(); return; }
+      this.#player = player;
+      this.#buffer = buffer;
+      player.handlers = {
+        metadata: (inspection) => { if (this.#active(player, token)) this.#metadata(inspection); },
+        progress: (progress) => { if (this.#active(player, token)) this.#progress(progress); },
+        ended: () => {
+          if (!this.#active(player, token)) return;
+          this.#playing = false;
+          this.#currentTime = player.duration;
+          this.onSnapshot({ state: 'ended', currentTime: this.#currentTime });
+          mediaSessionService.pauseTransportAnchor();
+          this.onEnded();
+        },
+        error: (message) => {
+          if (!this.#active(player, token)) return;
+          this.#playing = this.#ready = false;
+          this.onSnapshot({ state: 'error', error: message });
+          mediaSessionService.pauseTransportAnchor();
+          logError('decode', 'Module playback failed', { message });
+        }
+      };
+      audioBusService.connectAudioNode(player.gain);
+      audioBusService.setSourceGain(player.gain, this.#transitionGain);
+      const inspection = await player.load(buffer.slice(0), this.#subsong, this.#config());
+      if (!this.#active(player, token)) return;
+      this.#metadata(inspection, true);
+      this.#ready = true;
+      this.#applySettings();
+      this.onSnapshot({ state: 'paused', error: undefined });
+      mediaSessionService.activateTransportAnchor();
+      mediaSessionService.pauseTransportAnchor();
+      this.#loadPatterns(token);
     } catch (error) {
-      logError('decode', 'Module player creation failed', { extension: track.extension, error });
+      if (token !== this.#loadToken) return;
+      this.#disposePlayer();
+      logError('decode', 'Module loading failed', { error });
       throw error;
     }
-
-    if (!this.#isActiveLoad(loadToken)) {
-      this.#disposeDetachedPlayer(player);
-      return;
-    }
-
-    this.#player = player;
-    audioBusService.connectAudioNode(player.gain);
-    audioBusService.setSourceGain(player.gain, this.#transitionGain);
-    mediaSessionService.activateTransportAnchor();
-    mediaSessionService.pauseTransportAnchor();
-    const buffer = await track.file.arrayBuffer();
-
-    if (!this.#isActiveLoad(loadToken)) {
-      return;
-    }
-
-    this.#buffer = buffer;
-    logDebug('decode', 'Module buffer read', { bytes: buffer.byteLength, extension: track.extension });
-
-    this.#onMetadata({
-      trackerType: track.extension.toUpperCase()
-    });
   }
 
   play(): void {
-    if (!this.#player || !this.#buffer) {
-      return;
-    }
-
+    if (!this.#player || !this.#ready || this.#playing) return;
     audioBusService.resume();
-
-    if (!this.#started) {
-      this.#player.play(this.#buffer);
-      if (this.#subsong > 0) {
-        this.#player.selectSubsong(this.#subsong);
-      }
-      this.#started = true;
-      this.#playing = true;
-      this.#applyRuntimeSettings();
-    } else if (!this.#playing) {
-      this.#player.unpause();
-      this.#playing = true;
-    } else {
-      return;
-    }
-
-    this.#onSnapshot({ state: 'playing', error: undefined });
-    this.#publishProgress(true);
+    this.#player.play();
+    this.#playing = true;
+    this.onSnapshot({ state: 'playing', error: undefined });
     mediaSessionService.playTransportAnchor();
-    logInfo('playback', 'Module playing', { subsong: this.#subsong });
   }
 
   pause(): void {
-    if (!this.#player || !this.#playing) {
-      return;
-    }
-
+    if (!this.#player || !this.#playing) return;
     this.#player.pause();
     this.#playing = false;
-    this.#publishProgress(true);
-    this.#onSnapshot({ state: 'paused' });
+    this.onSnapshot({ state: 'paused', currentTime: this.#currentTime });
     mediaSessionService.pauseTransportAnchor();
   }
 
-  stop(options: StopOptions = {}): void {
-    this.#loadToken += 1;
-    this.#playing = false;
-    this.#started = false;
-    this.#currentTime = 0;
-    this.#subsong = 0;
-    this.#subsongCount = 1;
-    this.#buffer = null;
-    this.#trackExtension = null;
-    this.#channelMutes = [];
-    this.#resetPublishedProgress();
-    this.#onPattern(null);
-    this.#disposePlayer();
+  stop(options: { silent?: boolean } = {}): void {
+    this.#reset();
     mediaSessionService.deactivateTransportAnchor();
-    if (!options.silent) {
-      this.#onSnapshot({ state: 'paused', currentTime: 0, error: undefined });
-    }
+    if (!options.silent) this.onSnapshot({ state: 'paused', currentTime: 0, error: undefined });
+  }
+
+  #reset(): void {
+    ++this.#loadToken;
+    this.#patternJob?.abort();
+    this.#patternJob = undefined;
+    this.#disposePlayer();
+    this.#buffer = null;
+    this.#playing = this.#ready = false;
+    this.#currentTime = this.#subsong = 0;
+    this.#subsongCount = 1;
+    this.#lastPublishedTime = -1;
+    this.#channelMutes = [];
+    this.onPattern(null);
   }
 
   seek(seconds: number): void {
-    if (!this.#player || !this.#started) {
-      return;
-    }
-
-    this.#player.seek(seconds);
-    this.#currentTime = seconds;
-    logDebug('playback', 'Module seek', { seconds });
-    this.#publishProgress(true, seconds);
+    if (this.#ready) this.#player?.seek(seconds);
+    logDebug('playback', 'Module seek requested', { seconds });
+    // Publish the decoder's actual clamped position from its response.
   }
 
   stepSubsong(direction: -1 | 1): number | null {
-    if (!this.#player || !this.#buffer || this.#subsongCount <= 1) {
-      return null;
-    }
-
-    const nextSubsong = (this.#subsong + direction + this.#subsongCount) % this.#subsongCount;
-    this.#subsong = nextSubsong;
+    if (!this.#player || !this.#ready || this.#subsongCount <= 1) return null;
+    this.#subsong = (this.#subsong + direction + this.#subsongCount) % this.#subsongCount;
     this.#currentTime = 0;
-    this.#resetPublishedProgress();
-
-    if (this.#started) {
-      this.#player.selectSubsong(nextSubsong);
-    }
-
-    this.#onSnapshot({
-      currentTime: 0,
-      ...(this.#started ? { duration: 0 } : {}),
-      subsong: nextSubsong,
-      subsongCount: this.#subsongCount,
-      error: undefined
-    });
-
-    return nextSubsong;
+    this.#lastPublishedTime = -1;
+    this.#player.selectSubsong(this.#subsong);
+    this.onSnapshot({ currentTime: 0, duration: 0, subsong: this.#subsong, error: undefined });
+    this.#loadPatterns(this.#loadToken);
+    return this.#subsong;
   }
 
   async applySettings(settings: ModulePlaybackSettings): Promise<void> {
-    const previousSettings = this.#settings;
-    const previousStereoWidth = this.#getStereoWidth(previousSettings);
-    const nextStereoWidth = this.#getStereoWidth(settings);
-    const recreatePlayer =
-      previousStereoWidth !== nextStereoWidth ||
-      previousSettings.interpolationFilter !== settings.interpolationFilter;
-
     this.#settings = settings;
-
-    if (!this.#player) {
-      return;
-    }
-
-    if (recreatePlayer) {
-      await this.#recreatePlayer();
-      return;
-    }
-
-    this.#applyRuntimeSettings();
+    this.#applySettings();
   }
 
   setTransitionGain(gain: number, durationSeconds = 0): void {
-    this.#transitionGain = Math.max(gain, 0);
+    this.#transitionGain = Number.isFinite(gain) ? Math.max(0, gain) : 1;
     audioBusService.setSourceGain(this.#player?.gain ?? null, this.#transitionGain, durationSeconds);
   }
 
   setChannelMutes(muted: boolean[]): void {
     this.#channelMutes = [...muted];
-    if (this.#started) this.#player?.setChannelMutes(this.#channelMutes);
+    if (this.#ready) this.#player?.setChannelMutes(this.#channelMutes);
   }
 
-  async #createPlayer(loadToken: number = this.#loadToken): Promise<ChiptuneJsPlayer> {
-    const player = await createChiptunePlayer(this.#toPlayerConfig(this.#settings));
+  #applySettings(): void {
+    if (!this.#ready) return;
+    this.#player?.configure(this.#config());
+    this.#player?.setChannelMutes(this.#channelMutes);
+  }
 
-    player.setVol(1);
-    player.setRepeatCount(this.#settings.repeatCount);
-    this.#attachHandlers(player, loadToken);
+  #config(): OpenMptSettings {
+    const { repeatCount, interpolationFilter, tempoFactor, pitchFactor } = this.#settings;
+    return { repeatCount, interpolationFilter, tempoFactor, pitchFactor,
+      stereoSeparation: this.#extension === 'mod' ? this.#settings.stereoSeparation : this.#settings.panStrength };
+  }
 
-    return player;
+  #metadata(inspection: OpenMptInspection, initial = false): void {
+    if (!initial && inspection.subsong !== this.#subsong) return;
+    this.#subsong = inspection.subsong;
+    this.#subsongCount = inspection.metadata.subsongs ?? 1;
+    this.onMetadata(inspection.metadata);
+    this.onSnapshot({ duration: inspection.metadata.duration ?? 0, subsong: this.#subsong, subsongCount: this.#subsongCount, error: undefined });
+  }
+
+  #progress(progress: OpenMptProgress): void {
+    if (progress.subsong !== this.#subsong) return;
+    this.#currentTime = progress.currentTime;
+    this.onPattern({ order: progress.order, pattern: progress.pattern, row: progress.row });
+    if (Math.abs(this.#currentTime - this.#lastPublishedTime) < 0.125 && this.#playing) return;
+    this.#lastPublishedTime = this.#currentTime;
+    this.onSnapshot({ currentTime: this.#currentTime, duration: this.#player?.duration ?? 0 });
+  }
+
+  #loadPatterns(token: number): void {
+    this.#patternJob?.abort();
+    if (!this.#buffer) return;
+    const job = new AbortController();
+    this.#patternJob = job;
+    const subsong = this.#subsong;
+    void moduleDecoder.inspect(this.#buffer.slice(0), { patterns: true, subsong, signal: job.signal }).then((inspection) => {
+      if (job.signal.aborted || token !== this.#loadToken || subsong !== this.#subsong || !inspection.song) return;
+      // Progress can arrive while the worker expands patterns; preserve that position.
+      this.onPattern({ song: inspection.song });
+    }).catch((error) => {
+      if (!job.signal.aborted) logWarning('decode', 'Module patterns could not be read', { error });
+    });
   }
 
   #disposePlayer(): void {
     const player = this.#player;
-
     this.#player = null;
     audioBusService.disconnect(player?.gain ?? null);
-
-    if (!player) {
-      return;
-    }
-
-    try {
-      player.stop();
-    } catch {
-      return;
-    } finally {
-      try {
-        player.gain.disconnect();
-      } catch {
-        // Ignore disconnect failures during teardown.
-      }
-
-      this.#disposeProcessNode(player);
-    }
+    player?.dispose();
   }
 
-  async #recreatePlayer(): Promise<void> {
-    const loadToken = this.#loadToken;
-    const wasStarted = this.#started;
-    const wasPlaying = this.#playing;
-    const restorePosition = this.#currentTime;
-    const buffer = this.#buffer;
-
-    this.#disposePlayer();
-    const player = await this.#createPlayer(loadToken);
-
-    if (!this.#isActiveLoad(loadToken)) {
-      this.#disposeDetachedPlayer(player);
-      return;
-    }
-
-    this.#player = player;
-    audioBusService.connectAudioNode(player.gain);
-    audioBusService.setSourceGain(player.gain, this.#transitionGain);
-    mediaSessionService.activateTransportAnchor();
-
-    if (!wasStarted || !buffer || !this.#player) {
-      this.#started = false;
-      this.#playing = false;
-      this.#currentTime = restorePosition;
-      this.#resetPublishedProgress();
-      this.#onSnapshot({ state: 'paused', currentTime: restorePosition, error: undefined });
-      mediaSessionService.pauseTransportAnchor();
-      return;
-    }
-
-    void this.#player.context.resume();
-    this.#player.play(buffer);
-    if (this.#subsong > 0) {
-      this.#player.selectSubsong(this.#subsong);
-    }
-    this.#started = true;
-    this.#playing = true;
-    this.#applyRuntimeSettings();
-
-    if (restorePosition > 0) {
-      this.#player.seek(restorePosition);
-      this.#currentTime = restorePosition;
-    }
-
-    if (!wasPlaying) {
-      this.#player.pause();
-      this.#playing = false;
-      this.#onSnapshot({ state: 'paused', currentTime: restorePosition, error: undefined });
-      mediaSessionService.pauseTransportAnchor();
-      return;
-    }
-
-    this.#onSnapshot({ state: 'playing', currentTime: restorePosition, error: undefined });
-    mediaSessionService.playTransportAnchor();
-  }
-
-  #applyRuntimeSettings(): void {
-    if (!this.#player) {
-      return;
-    }
-
-    this.#player.setRepeatCount(this.#settings.repeatCount);
-
-    if (!this.#started) {
-      return;
-    }
-
-    this.#player.setTempo(this.#settings.tempoFactor);
-    this.#player.setPitch(this.#settings.pitchFactor);
-    this.#player.setChannelMutes(this.#channelMutes);
-  }
-
-  #attachHandlers(player: ChiptuneJsPlayer, loadToken: number): void {
-    player.onEnded(() => {
-      if (!this.#isPlayerLoadCurrent(player, loadToken)) {
-        return;
-      }
-
-      this.#playing = false;
-      this.#started = false;
-      const duration = this.#safeSeconds(player.duration);
-      this.#currentTime = duration;
-      this.#publishProgress(true, duration, duration);
-      this.#onSnapshot({ state: 'ended' });
-      this.#onEnded();
-    });
-
-    player.onError((error) => {
-      if (!this.#isPlayerLoadCurrent(player, loadToken)) {
-        return;
-      }
-
-      this.#playing = false;
-      this.#started = false;
-      this.#onSnapshot({
-        state: 'error',
-        error:
-          error.type === 'ptr' || error.type === 'dur' || error.type === 'Process'
-            ? 'libopenmpt failed to decode this module.'
-            : 'Module playback failed.'
-      });
-    });
-
-    player.onMetadata((metadata) => {
-      if (!this.#isPlayerLoadCurrent(player, loadToken)) {
-        return;
-      }
-
-      const subsongCount = this.#normalizeSubsongCount(metadata.song?.numSubsongs);
-      const selectedSubsong = this.#normalizeSubsong(metadata.selectedSubsong, subsongCount);
-
-      // play() publishes the default subsong before a queued initial selection.
-      // Suppress that transient metadata so separated entries never flash subsong 1.
-      if (selectedSubsong !== this.#subsong) {
-        return;
-      }
-
-      this.#subsongCount = subsongCount;
-      this.#onMetadata(this.#toTrackMetadata(metadata));
-      if (metadata.song) {
-        this.#onPattern({
-          song: metadata.song,
-          order: 0,
-          pattern: metadata.song.orders[0]?.pat ?? 0,
-          row: 0
-        });
-      }
-      this.#onSnapshot({
-        duration: this.#safeSeconds(metadata.dur),
-        subsong: this.#subsong,
-        subsongCount: this.#subsongCount,
-        error: undefined
-      });
-    });
-
-    player.onProgress((progress) => {
-      if (!this.#isPlayerLoadCurrent(player, loadToken)) {
-        return;
-      }
-
-      if (progress.subsong !== undefined && progress.subsong !== this.#subsong) {
-        return;
-      }
-
-      this.#currentTime = this.#safeSeconds(progress.pos);
-      if (
-        progress.order !== this.#lastPublishedOrder ||
-        progress.pattern !== this.#lastPublishedPattern ||
-        progress.row !== this.#lastPublishedRow
-      ) {
-        this.#lastPublishedOrder = progress.order;
-        this.#lastPublishedPattern = progress.pattern;
-        this.#lastPublishedRow = progress.row;
-        this.#onPattern({
-          order: progress.order,
-          pattern: progress.pattern,
-          row: progress.row
-        });
-      }
-      this.#publishProgress(false, this.#currentTime, this.#safeSeconds(player.duration));
-    });
-  }
-
-  #publishProgress(
-    force = false,
-    currentTime = this.#currentTime,
-    duration = this.#safeSeconds(this.#player?.duration)
-  ): void {
-    if (!force) {
-      const currentTimeDelta = Math.abs(currentTime - this.#lastPublishedCurrentTime);
-      const durationChanged = duration !== this.#lastPublishedDuration;
-
-      if (!durationChanged && currentTimeDelta < PROGRESS_PUBLISH_INTERVAL_SECONDS) {
-        return;
-      }
-    }
-
-    this.#lastPublishedCurrentTime = currentTime;
-    this.#lastPublishedDuration = duration;
-    this.#onSnapshot({
-      currentTime,
-      duration,
-      error: undefined
-    });
-  }
-
-  #resetPublishedProgress(): void {
-    this.#lastPublishedCurrentTime = -1;
-    this.#lastPublishedDuration = -1;
-    this.#lastPublishedOrder = -1;
-    this.#lastPublishedPattern = -1;
-    this.#lastPublishedRow = -1;
-  }
-
-  #toPlayerConfig(settings: ModulePlaybackSettings) {
-    return {
-      repeatCount: settings.repeatCount,
-      stereoSeparation: this.#getStereoWidth(settings),
-      interpolationFilter: settings.interpolationFilter,
-      context: audioBusService.context
-    };
-  }
-
-  #getStereoWidth(settings: ModulePlaybackSettings): number {
-    return this.#trackExtension === 'mod' ? settings.stereoSeparation : settings.panStrength;
-  }
-
-  #safeSeconds(value: number | undefined): number {
-    if (!value || value < 0) {
-      return 0;
-    }
-
-    return value > 1000 ? value / 1000 : value;
-  }
-
-  #toTrackMetadata(metadata: Chiptune3Metadata): TrackMetadata {
-    const song = metadata.song;
-
-    return {
-      title: metadata.title || metadata.songtitle || undefined,
-      artist: metadata.artist || undefined,
-      message: metadata.message || metadata.message_raw || undefined,
-      trackerType: metadata.tracker || metadata.originaltype_long || metadata.type || undefined,
-      originalType: metadata.originaltype || undefined,
-      duration: this.#safeSeconds(metadata.dur),
-      patterns: metadata.totalPatterns ?? song?.patterns.length,
-      channels: this.#toNumber(metadata.channels) ?? song?.channels.length,
-      instruments: song?.instruments.length,
-      orders: metadata.totalOrders ?? song?.orders.length,
-      subsongs: song?.numSubsongs,
-      subsongNames: Array.isArray(metadata.songs)
-        ? metadata.songs.filter((value): value is string => typeof value === 'string')
-        : undefined
-    };
-  }
-
-  #toNumber(value: number | string | undefined): number | undefined {
-    if (typeof value === 'number') {
-      return Number.isFinite(value) ? value : undefined;
-    }
-
-    if (typeof value === 'string' && value.trim() !== '') {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : undefined;
-    }
-
-    return undefined;
-  }
-
-  #normalizeSubsongCount(value: unknown): number {
-    return typeof value === 'number' && Number.isFinite(value) && value > 0
-      ? Math.max(1, Math.trunc(value))
-      : 1;
-  }
-
-  #normalizeSubsong(value: unknown, count: unknown): number {
-    const normalizedCount = this.#normalizeSubsongCount(count);
-    return typeof value === 'number' && Number.isFinite(value)
-      ? Math.min(Math.max(Math.trunc(value), 0), normalizedCount - 1)
-      : 0;
-  }
-
-  #disposeDetachedPlayer(player: ChiptuneJsPlayer): void {
-    try {
-      player.stop();
-    } catch {
-      // Ignore teardown failures for superseded players.
-    } finally {
-      try {
-        player.gain.disconnect();
-      } catch {
-        // Ignore disconnect failures during teardown.
-      }
-
-      this.#disposeProcessNode(player);
-    }
-  }
-
-  #disposeProcessNode(player: ChiptuneJsPlayer): void {
-    try {
-      player.processNode?.disconnect();
-    } catch {
-      // Ignore teardown failures for worklets that never finished initializing.
-    }
-
-    try {
-      player.processNode?.port.close();
-    } catch {
-      // Ignore teardown failures for worklets whose ports already closed.
-    }
-  }
-
-  #isActiveLoad(loadToken: number): boolean {
-    return loadToken === this.#loadToken;
-  }
-
-  #isPlayerLoadCurrent(player: ChiptuneJsPlayer, loadToken: number): boolean {
-    return this.#player === player && this.#isActiveLoad(loadToken);
-  }
+  #active(player: OpenMptPlayer, token: number): boolean { return this.#player === player && token === this.#loadToken; }
 }

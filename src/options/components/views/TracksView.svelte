@@ -54,7 +54,7 @@
 
       <SettingsField
         title={$t('options.tracks.verify.title', { default: 'Verify added files' })}
-        hint={$t('options.tracks.verify.hint', { default: 'Check unknown file extensions in a separate muted OpenMPT player before adding them. When disabled, izci adds any unknown file as a tracker module and lets normal playback report whether it works. Official OpenMPT extensions are accepted directly either way.' })}
+        hint={$t('options.tracks.verify.hint', { default: 'Check unknown file extensions with the background libopenmpt decoder before adding them. When disabled, izci adds any unknown file as a tracker module and lets normal playback report whether it works. Official OpenMPT extensions are accepted directly either way.' })}
         advanced
         checkbox
       >

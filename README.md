@@ -80,12 +80,12 @@ Desktop and PWA media playback use disk-backed file URLs without copying entire 
 
 ## Built with
 
-[Svelte](https://svelte.dev/), [Vite](https://vite.dev/), [Howler.js](https://howlerjs.com/) (standard audio formats), [Chiptune3](https://github.com/DrSnuggles/chiptune) (tracker modules; based on libopenmpt WASM), and the [HivelyTracker](https://github.com/pete-gordon/hivelytracker) replayer (`ahx` and `hvl`).
+[Svelte](https://svelte.dev/), [Vite](https://vite.dev/), [Howler.js](https://howlerjs.com/) (standard audio formats), [libopenmpt](https://lib.openmpt.org/) (tracker modules through izci’s WASM controller and worklet), and the [HivelyTracker](https://github.com/pete-gordon/hivelytracker) replayer (`ahx` and `hvl`).
 
 ## License
 
 izci's original code, documentation, and assets are licensed under the MIT License.
-Bundled third-party components remain under their respective licenses, including MIT-licensed Chiptune3, Howler.js, Svelte, and Workbox; BSD-3-Clause-licensed libopenmpt and the HivelyTracker replayer; and Apache-2.0-licensed Material Symbols.
+Bundled third-party components remain under their respective licenses, including MIT-licensed Howler.js, Svelte, and Workbox; BSD-3-Clause-licensed libopenmpt and the HivelyTracker replayer; and Apache-2.0-licensed Material Symbols.
 
 See [LICENSE.md](LICENSE.md) for the full license and third-party notices.
 

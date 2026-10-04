@@ -1,10 +1,7 @@
-import { createChiptunePlayer } from '$lib/services/chiptune-loader';
+import { moduleDecoder } from './openmpt/decoder';
 import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 import { HIVELY_MODULE_EXTENSIONS, type TrackItem, type TrackMetadata } from '$lib/types';
-import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
 import { nativeFilesystem } from '$platform';
-
-const MODULE_METADATA_TIMEOUT_MS = 10_000;
 
 interface HivelyName {
   value: string;
@@ -63,36 +60,6 @@ export function parseHivelyMetadata(buffer: ArrayBuffer): TrackMetadata | null {
   };
 }
 
-function toNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? value
-    : typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))
-      ? Number(value)
-      : undefined;
-}
-
-function toTrackMetadata(metadata: Chiptune3Metadata): TrackMetadata {
-  const song = metadata.song;
-
-  return {
-    title: metadata.title || metadata.songtitle || undefined,
-    artist: metadata.artist || undefined,
-    message: metadata.message || metadata.message_raw || undefined,
-    trackerType: metadata.tracker || metadata.originaltype_long || metadata.type || undefined,
-    originalType: metadata.originaltype || undefined,
-    duration: toNumber(metadata.dur),
-    patterns: metadata.totalPatterns ?? song?.patterns.length,
-    channels: toNumber(metadata.channels) ?? song?.channels.length,
-    instruments: song?.instruments.length,
-    orders: metadata.totalOrders ?? song?.orders.length,
-    subsongs: song?.numSubsongs,
-    rows: song?.patterns.reduce((total, pattern) => total + pattern.rows.length, 0),
-    subsongNames: Array.isArray(metadata.songs)
-      ? metadata.songs.filter((value): value is string => typeof value === 'string')
-      : undefined
-  };
-}
-
 async function resolveTrackFile(track: TrackItem): Promise<File | null> {
   if (track.nativeFile && nativeFilesystem) return track.file ?? nativeFilesystem.materializeFile(track.nativeFile);
   if (track.fileHandle) {
@@ -106,86 +73,21 @@ async function resolveTrackFile(track: TrackItem): Promise<File | null> {
   return track.file ?? null;
 }
 
-function disposePlayer(player: ChiptuneJsPlayer): void {
-  try {
-    player.stop();
-  } catch {
-    // Ignore teardown failures during background metadata probing.
-  }
-
-  try {
-    player.gain.disconnect();
-  } catch {
-    // Ignore disconnect failures during teardown.
-  }
-
-  void player.context.close().catch(() => undefined);
-}
-
 export async function loadModuleMetadata(track: TrackItem | null): Promise<TrackMetadata | null> {
-  if (typeof window === 'undefined' || !track || track.kind !== 'module') {
-    return null;
-  }
-
-  logDebug('decode', 'Probing module metadata', { id: track.id, name: track.name, extension: track.extension });
+  if (!track || track.kind !== 'module') return null;
+  logDebug('decode', 'Probing module metadata', { id: track.id, name: track.name });
   try {
     const file = await resolveTrackFile(track);
-
-    if (!file) {
-      logWarning('decode', 'Module metadata probe has no readable file', { id: track.id });
-      return null;
-    }
-
+    if (!file) return null;
     const buffer = await file.arrayBuffer();
-
-    if (
-      HIVELY_MODULE_EXTENSIONS.includes(
-        track.extension.toLowerCase() as (typeof HIVELY_MODULE_EXTENSIONS)[number]
-      )
-    ) {
-      const metadata = parseHivelyMetadata(buffer);
-      if (metadata) logInfo('decode', 'Hively metadata probe completed', { id: track.id, subsongs: metadata.subsongs, channels: metadata.channels });
-      else logWarning('decode', 'Hively metadata probe failed', { id: track.id });
-      return metadata;
+    if ((HIVELY_MODULE_EXTENSIONS as readonly string[]).includes(track.extension.toLowerCase())) {
+      return parseHivelyMetadata(buffer);
     }
-
-    const player = await createChiptunePlayer({});
-
-    return await new Promise<TrackMetadata | null>((resolve) => {
-      let settled = false;
-
-      const finish = (metadata: TrackMetadata | null) => {
-        if (settled) {
-          return;
-        }
-
-        settled = true;
-        window.clearTimeout(timeoutId);
-        disposePlayer(player);
-        resolve(metadata);
-      };
-
-      const timeoutId = window.setTimeout(() => {
-        finish(null);
-      }, MODULE_METADATA_TIMEOUT_MS);
-
-      player.setVol(0);
-      player.onMetadata((metadata) => {
-        finish(toTrackMetadata(metadata));
-      });
-      player.onError(() => {
-        finish(null);
-      });
-
-      try {
-        player.play(buffer);
-        player.pause();
-      } catch {
-        finish(null);
-      }
-    });
+    const { metadata } = await moduleDecoder.inspect(buffer, { subsong: track.subsong });
+    logInfo('decode', 'Module metadata probe completed', { id: track.id, channels: metadata.channels, subsongs: metadata.subsongs });
+    return metadata;
   } catch (error) {
-    logWarning('decode', 'Module metadata probe failed', { id: track.id, extension: track.extension, error });
+    logWarning('decode', 'Module metadata probe failed', { id: track.id, error });
     return null;
   }
 }

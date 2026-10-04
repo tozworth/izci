@@ -5,7 +5,7 @@ Reviewed 2026-09-29 against git history through `b2fa55c` (2026-09-28), with cha
 ## Playback engines
 
 - Streamed audio (`mp3`, `wav`, `flac`, `ogg`, `opus`) via Howler in HTML5 audio mode
-- Tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) via Chiptune3/libopenmpt worklet
+- Tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) via the custom libopenmpt WASM controller/worklet
 - Hively modules (`ahx`, `hvl`) via dedicated worklet player with pattern data
 - Video (`mp4`, `m4v`, `mov`, `webm`, `mkv`) via native video element
 - Images (`jpg`, `jpeg`, `png`, `webp`, `avif`) via native image element
