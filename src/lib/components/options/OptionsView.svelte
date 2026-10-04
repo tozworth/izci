@@ -14,6 +14,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
+  import OptionsTree from './OptionsTree.svelte';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { DesktopWindowControls, desktopTitlebar } from '$platform';
 
@@ -50,24 +51,6 @@
     dispatch('advancedvisibilitychange', { visible: showAdvancedTweaks });
   }
 
-  function handleTreeKeydown(event: KeyboardEvent): void {
-    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
-
-    const tree = event.currentTarget as HTMLElement;
-    const items = Array.from(tree.querySelectorAll<HTMLButtonElement>('.tree-item:not(:disabled)'));
-    if (items.length === 0) return;
-
-    const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
-    let nextIndex = currentIndex;
-    if (event.key === 'Home') nextIndex = 0;
-    else if (event.key === 'End') nextIndex = items.length - 1;
-    else if (event.key === 'ArrowDown') nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % items.length;
-    else nextIndex = currentIndex <= 0 ? items.length - 1 : currentIndex - 1;
-
-    event.preventDefault();
-    items[nextIndex]?.focus();
-  }
-
   onMount(() => {
     const wasOpenedByHostWindow = window.opener !== null;
     const closeIfHostWindowClosed = () => {
@@ -88,10 +71,6 @@
   });
 
   $: allViews = [...groups.flat(), ...auxiliaryViews];
-  $: visibleTreeViews = groups.flat().filter((view) => !view.hidden);
-  $: treeFocusViewId = visibleTreeViews.some((view) => view.id === activeView)
-    ? activeView
-    : visibleTreeViews[0]?.id;
   $: activeViewDefinition = allViews.find((view) => view.id === activeView) ?? allViews[0];
   $: activeParentView = activeViewDefinition?.parentId
     ? allViews.find((view) => view.id === activeViewDefinition.parentId) ?? null
@@ -192,30 +171,7 @@
   </header>
 
   <main class="options-main">
-    <aside class="tree-panel" aria-label={categoriesLabel}>
-      <div class="tree" role="tree" aria-label={categoriesLabel} tabindex="-1" on:keydown={handleTreeKeydown}>
-        {#each groups as group}
-          <div class="tree-group" role="none">
-            {#each group as view}
-              {#if !view.hidden}
-                <button
-                  class="tree-item"
-                  class:child={view.parentId != null}
-                  type="button"
-                  role="treeitem"
-                  aria-selected={activeView === view.id}
-                  tabindex={treeFocusViewId === view.id ? 0 : -1}
-                  on:click={() => dispatch('select', { view: view.id })}
-                >
-                  <span class="material-symbols-outlined" aria-hidden="true">{view.icon}</span>
-                  <span class="tree-label">{view.label}</span>
-                </button>
-              {/if}
-            {/each}
-          </div>
-        {/each}
-      </div>
-    </aside>
+    <OptionsTree {groups} {activeView} {categoriesLabel} on:select={(event) => dispatch('select', event.detail)} />
 
     <section class="content-panel {contentClass}" aria-live="polite">
       <slot></slot>
