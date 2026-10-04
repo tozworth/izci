@@ -328,6 +328,7 @@
 
 <style>
   .pattern-viewer {
+    --pattern-background: var(--bg-base);
     position: relative;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
@@ -336,7 +337,11 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    background: var(--bg-base);
+    background: var(--pattern-background);
+  }
+
+  :global(.backdrop-zone:is(.artwork-backdrop-active, .visualizer-backdrop-active)) .pattern-viewer {
+    --pattern-background: var(--bg-elevated);
   }
 
   .pattern-empty-state {
@@ -366,7 +371,7 @@
     padding: 0.25rem 0.4rem;
     border-bottom: 1px solid var(--border-soft);
     background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
-    backdrop-filter: blur(14px);
+    backdrop-filter: blur(var(--chrome-header-backdrop-blur, 14px));
   }
 
   .pattern-channel-count {
@@ -480,7 +485,7 @@
     z-index: 2;
     border-bottom: 1px solid var(--border-soft);
     background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(var(--chrome-header-backdrop-blur, 12px));
   }
 
   .pattern-row-heading,
@@ -561,7 +566,7 @@
     z-index: 1;
     justify-content: center;
     color: color-mix(in srgb, var(--muted) 82%, transparent);
-    background: color-mix(in srgb, var(--bg-base) 97%, transparent);
+    background: color-mix(in srgb, var(--pattern-background) 97%, transparent);
   }
 
   .pattern-cell {
@@ -607,7 +612,7 @@
   .pattern-row.active .pattern-cell,
   .pattern-row.active .pattern-row-number {
     color: var(--text-strong);
-    background: color-mix(in srgb, var(--accent) 14%, var(--bg-base));
+    background: color-mix(in srgb, var(--accent) 14%, var(--pattern-background));
   }
 
   .pattern-row.active .pattern-row-number {
