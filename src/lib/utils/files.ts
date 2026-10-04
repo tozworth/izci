@@ -7,6 +7,8 @@ import {
   type TrackKind,
   type TrackMetadata
 } from '$lib/types';
+import type { NativeFileReference } from '$lib/services/platform-files-types';
+import { createMediaFileUrl, nativeFileIdentity } from './native-media-files';
 
 interface ChromiumFileSystemEntry {
   isFile: boolean;
@@ -40,6 +42,7 @@ type ChromiumDataTransferItem = DataTransferItem & {
 interface ImportedFileSource {
   fileHandle?: FileSystemFileHandle;
   desktopFile?: true;
+  nativeFile?: NativeFileReference;
   path?: string;
   sourceFolderId?: string;
 }
@@ -107,6 +110,7 @@ export function registerImportedFile(file: File, source: ImportedFileSource): Fi
   importedFileSources.set(file, {
     fileHandle: source.fileHandle ?? existing?.fileHandle,
     desktopFile: source.desktopFile ?? existing?.desktopFile,
+    nativeFile: source.nativeFile ?? existing?.nativeFile,
     path: (source.desktopFile ? source.path?.replaceAll('\\', '/') : normalizePath(source.path)) ?? existing?.path,
     sourceFolderId: source.sourceFolderId ?? existing?.sourceFolderId
   });
@@ -123,7 +127,7 @@ export function markFileAsModule(file: File): void {
 }
 
 function createTrackObjectUrl(kind: TrackKind, file: File): string | undefined {
-  return kind === 'stream' || kind === 'video' || kind === 'image' ? URL.createObjectURL(file) : undefined;
+  return kind === 'stream' || kind === 'video' || kind === 'image' ? createMediaFileUrl(file) : undefined;
 }
 
 export function inferExtension(fileName: string): string {
@@ -220,12 +224,13 @@ function createTrackItem(file: File): TrackItem | null {
   }
 
   const source = getImportedFileSource(file);
-  const retainedFile = source?.fileHandle ? undefined : file;
+  const retainedFile = source?.fileHandle || source?.nativeFile ? undefined : file;
 
   return {
     id: crypto.randomUUID(),
     file: retainedFile,
     fileHandle: source?.fileHandle,
+    ...(source?.nativeFile ? { nativeFile: source.nativeFile } : {}),
     ...(source?.desktopFile ? { desktopFile: true as const } : {}),
     path: source?.path,
     sourceFolderId: source?.sourceFolderId,
@@ -533,7 +538,8 @@ export function getTrackQueueLabel(item: TrackItem | null): string {
   return title ? `${artist} - ${title}` : artist;
 }
 
-export function getTrackIdentity(item: Pick<TrackItem, 'path' | 'name' | 'size' | 'lastModified'>): string {
+export function getTrackIdentity(item: Pick<TrackItem, 'path' | 'name' | 'size' | 'lastModified' | 'nativeFile'>): string {
+  if (item.nativeFile) return `uri:${nativeFileIdentity(item.nativeFile.uri)}`;
   const normalizedPath = normalizePath(item.path)?.toLowerCase();
 
   if (normalizedPath) {
@@ -544,7 +550,7 @@ export function getTrackIdentity(item: Pick<TrackItem, 'path' | 'name' | 'size' 
 }
 
 export function getFavoriteIdentity(
-  item: Pick<TrackItem, 'path' | 'name' | 'size' | 'lastModified' | 'subsong'>
+  item: Pick<TrackItem, 'path' | 'name' | 'size' | 'lastModified' | 'subsong' | 'nativeFile'>
 ): string {
   return `${getTrackIdentity(item)}:subsong:${item.subsong ?? 'all'}`;
 }

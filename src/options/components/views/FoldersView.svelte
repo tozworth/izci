@@ -9,6 +9,8 @@
     type FilesystemFolderPermission
   } from '$lib/services/filesystem-folders';
   import { requestLibraryFolderScan } from '$lib/services/library-folder-coordination';
+  import { pickFilesystemFolder } from '$lib/services/filesystem-folder-files';
+  import { nativeFilesystem } from '$platform';
   import {
     forgetPendingFolder,
     locatePendingFolder,
@@ -30,6 +32,15 @@
   let dropActive = false;
   let busyIds = new Set<string>();
   let restoreStatus: 'idle' | 'success' | 'mismatch' | 'failed' | 'forgetFailed' = 'idle';
+  let folderAccessError = '';
+
+  function showFolderAccessError(error: unknown): void {
+    if (error instanceof DOMException && error.name === 'AbortError') return;
+    folderAccessError = $t('options.folders.accessFailed', {
+      default: 'Folder access failed: {reason}',
+      values: { reason: error instanceof Error ? error.message : String(error) }
+    });
+  }
 
   function setBusy(id: string, busy: boolean) {
     busyIds = new Set(busy ? [...busyIds, id] : [...busyIds].filter((value) => value !== id));
@@ -104,14 +115,11 @@
   }
 
   async function browseFolder() {
-    const pickerWindow = window as PickerWindow;
-    if (!pickerWindow.showDirectoryPicker) return;
-
+    folderAccessError = '';
     try {
-      const handle = await pickerWindow.showDirectoryPicker();
-      await filesystemFolders.remember(handle);
-    } catch {
-      // Picker cancellation and unavailable handles leave the folder list unchanged.
+      await pickFilesystemFolder();
+    } catch (error) {
+      showFolderAccessError(error);
     }
   }
 
@@ -173,8 +181,11 @@
 
   async function checkAccess(folder: FilesystemFolder) {
     setBusy(folder.id, true);
+    folderAccessError = '';
     try {
       await filesystemFolders.requestPermission(folder.id);
+    } catch (error) {
+      showFolderAccessError(error);
     } finally {
       setBusy(folder.id, false);
     }
@@ -242,6 +253,9 @@
     <div>
       <h2>{$t('options.folders.heading', { default: 'Folders' })}</h2>
       <p class="field-hint">{$t('options.folders.description', { default: 'Every folder izci has remembered, including folders used for library scans.' })}</p>
+      {#if nativeFilesystem}
+        <p class="field-hint">{$t('options.folders.androidAccess', { default: 'Android remembers access to selected files and folders across launches. If access is revoked, use Check access and select the same folder again.' })}</p>
+      {/if}
     </div>
     <div class="page-actions">
       <OptionGlyphButton
@@ -252,6 +266,10 @@
       <OptionGlyphButton icon="create_new_folder" label={$t('options.folders.actions.add', { default: 'Add folder' })} on:click={() => void browseFolder()} />
     </div>
   </div>
+
+  {#if folderAccessError}
+    <div class="restore-status error" role="alert">{folderAccessError}</div>
+  {/if}
 
   {#if restoreStatus !== 'idle'}
     <div class:error={restoreStatus !== 'success'} class="restore-status" role="status">

@@ -4196,6 +4196,26 @@ Source: https://pkg.go.dev/golang.org/x/sync@v0.15.0
 
 Full license/notice texts: L250 (LICENSE).
 
+## Android APK dependency notices
+
+The Kotlin/System WebView APK adds the following runtime dependencies. Versions are from the Android Gradle `debugRuntimeClasspath` resolved on 2026-10-04. These libraries are licensed under Apache-2.0; the full license text is reproduced in L004 below. AndroidX is maintained by the Android Open Source Project; Kotlin and JetBrains annotations are maintained by JetBrains; JSpecify is maintained by its contributors.
+
+| Maven artifact | Version | Source |
+| --- | --- | --- |
+| androidx.webkit:webkit | 1.14.0 | https://android.googlesource.com/platform/frameworks/support/ |
+| androidx.annotation:annotation / annotation-jvm | 1.8.1 | https://android.googlesource.com/platform/frameworks/support/ |
+| androidx.annotation:annotation-experimental | 1.4.1 | https://android.googlesource.com/platform/frameworks/support/ |
+| androidx.core:core | 1.1.0 | https://android.googlesource.com/platform/frameworks/support/ |
+| androidx.lifecycle:lifecycle-runtime / lifecycle-common | 2.0.0 | https://android.googlesource.com/platform/frameworks/support/ |
+| androidx.arch.core:core-common | 2.0.0 | https://android.googlesource.com/platform/frameworks/support/ |
+| androidx.versionedparcelable:versionedparcelable | 1.1.0 | https://android.googlesource.com/platform/frameworks/support/ |
+| androidx.collection:collection | 1.0.0 | https://android.googlesource.com/platform/frameworks/support/ |
+| org.jetbrains.kotlin:kotlin-stdlib | 2.2.21 | https://github.com/JetBrains/kotlin |
+| org.jetbrains:annotations | 13.0 | https://github.com/JetBrains/java-annotations |
+| org.jspecify:jspecify | 1.0.0 | https://github.com/jspecify/jspecify |
+
+The Android SDK, Android Gradle plugin, Gradle, Kotlin compiler and JVM test dependencies are build/test tools and are not bundled runtimes. The system WebView is supplied and updated by Android rather than redistributed by izci.
+
 ## Full license and notice texts
 
 Identical texts are reproduced once and referenced by every applicable component above.

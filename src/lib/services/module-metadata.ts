@@ -2,6 +2,7 @@ import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 import { HIVELY_MODULE_EXTENSIONS, type TrackItem, type TrackMetadata } from '$lib/types';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
+import { nativeFilesystem } from '$platform';
 
 const MODULE_METADATA_TIMEOUT_MS = 10_000;
 
@@ -93,6 +94,7 @@ function toTrackMetadata(metadata: Chiptune3Metadata): TrackMetadata {
 }
 
 async function resolveTrackFile(track: TrackItem): Promise<File | null> {
+  if (track.nativeFile && nativeFilesystem) return track.file ?? nativeFilesystem.materializeFile(track.nativeFile);
   if (track.fileHandle) {
     try {
       return await track.fileHandle.getFile();

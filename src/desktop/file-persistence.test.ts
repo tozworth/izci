@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TrackItem } from '$lib/types';
 
 const platform = vi.hoisted(() => ({ desktop: true, materializePlatformFile: vi.fn() }));
-vi.mock('$platform', () => ({ get isDesktop() { return platform.desktop; }, materializePlatformFile: platform.materializePlatformFile }));
+vi.mock('$platform', () => ({ get isDesktop() { return platform.desktop; }, materializePlatformFile: platform.materializePlatformFile, nativeFilesystem: null }));
 import { restoreStoredItem, serializeItem } from '$lib/stores/queue-persistence';
 import { materializeTrackItem } from '$lib/stores/queue-materialization';
 

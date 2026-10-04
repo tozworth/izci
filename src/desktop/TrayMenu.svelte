@@ -80,7 +80,7 @@
     <div class="tray-transport" role="none">
       {#each transport as item (item.id)}
         <button type="button" role="menuitem" disabled={item.disabled} aria-label={item.label}
-          title={item.label} on:click={() => select(item.id)}>
+          title={item.label} on:click={() => action(item.id)}>
           <span class="material-symbols-outlined" aria-hidden="true">{item.icon}</span>
         </button>
       {/each}

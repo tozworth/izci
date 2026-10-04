@@ -237,10 +237,10 @@ export function buildTroubadourBatchContext(
 
   return {
     tracks: [...tracksByIdentity.values()],
-    rememberedFolders: folders.map((folder) => ({
+    rememberedFolders: folders.filter((folder) => folder.handle).map((folder) => ({
       id: folder.id,
       name: folder.name,
-      handle: folder.handle,
+      handle: folder.handle!,
       permission: folder.permission,
       libraryMode: folder.libraryMode
     }))

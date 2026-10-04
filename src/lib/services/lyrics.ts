@@ -1,6 +1,7 @@
 import { withMediaFileReader } from './media-file-reader';
 import { MAX_EMBEDDED_LYRICS_BYTES, readStreamLyrics } from './stream-lyrics-reader';
 import type { TrackItem } from '$lib/types';
+import { nativeFilesystem } from '$platform';
 
 interface TimedLyricLine {
   time: number;
@@ -47,6 +48,7 @@ export function clearRemoteTrackLyrics(): void {
 }
 
 async function resolveTrackFile(track: TrackItem): Promise<File | null> {
+  if (track.nativeFile && nativeFilesystem) return track.file ?? nativeFilesystem.materializeFile(track.nativeFile);
   if (track.fileHandle) {
     try {
       return await track.fileHandle.getFile();

@@ -1,5 +1,7 @@
 import { writable, type Readable } from 'svelte/store';
 import { logError, logInfo, logWarning } from '$lib/services/logging';
+import { nativeFilesystem } from '$platform';
+import { isNativeFolderReference, type NativeFolderReference } from './platform-files-types';
 
 export type FilesystemFolderPermission = 'granted' | 'prompt' | 'denied' | 'unavailable';
 export type LibraryFolderMode = 'manual' | 'launch';
@@ -18,7 +20,8 @@ type LibraryFolderScanStatus =
 export interface FilesystemFolder {
   id: string;
   name: string;
-  handle: FileSystemDirectoryHandle;
+  handle?: FileSystemDirectoryHandle;
+  nativeFolder?: NativeFolderReference;
   addedAt: number;
   permission: FilesystemFolderPermission;
   libraryMode: LibraryFolderMode | null;
@@ -70,7 +73,7 @@ function normalizeStoredFolder(value: unknown): StoredFilesystemFolder | null {
   if (
     typeof source.id !== 'string' ||
     typeof source.name !== 'string' ||
-    !isDirectoryHandle(source.handle)
+    (!isDirectoryHandle(source.handle) && !(nativeFilesystem && isNativeFolderReference(source.nativeFolder)))
   ) {
     return null;
   }
@@ -86,7 +89,9 @@ function normalizeStoredFolder(value: unknown): StoredFilesystemFolder | null {
   return {
     id: source.id,
     name: source.name,
-    handle: source.handle,
+    handle: isDirectoryHandle(source.handle) ? source.handle : undefined,
+    nativeFolder: nativeFilesystem && isNativeFolderReference(source.nativeFolder)
+      ? { uri: source.nativeFolder.uri, name: source.nativeFolder.name } : undefined,
     addedAt: typeof source.addedAt === 'number' ? source.addedAt : Date.now(),
     libraryMode: source.libraryMode === 'manual' || source.libraryMode === 'launch' ? source.libraryMode : null,
     lastScanAt: typeof source.lastScanAt === 'number' ? source.lastScanAt : undefined,
@@ -182,6 +187,14 @@ export async function queryFilesystemFolderPermission(
   }
 }
 
+export async function queryFilesystemFolderAccess(folder: Pick<FilesystemFolder, 'handle' | 'nativeFolder'>, probe = false): Promise<FilesystemFolderPermission> {
+  if (folder.nativeFolder && nativeFilesystem) {
+    try { return await settleWithin(nativeFilesystem.queryFolderPermission(folder.nativeFolder, probe), FOLDER_ACCESS_TIMEOUT_MS) ?? 'unavailable'; }
+    catch { return 'unavailable'; }
+  }
+  return folder.handle ? queryFilesystemFolderPermission(folder.handle, probe) : 'unavailable';
+}
+
 async function requestFilesystemFolderPermission(
   handle: FileSystemDirectoryHandle
 ): Promise<FilesystemFolderPermission> {
@@ -215,7 +228,7 @@ export async function resolveFilesystemFileLocation(
   const matches: FilesystemFileLocation[] = [];
 
   for (const folder of folders) {
-    if (typeof folder.handle.resolve !== 'function') continue;
+    if (typeof folder.handle?.resolve !== 'function') continue;
 
     try {
       const relativePath = await folder.handle.resolve(handle);
@@ -243,7 +256,7 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
   ready(): Promise<void>;
   refresh(options?: { probe?: boolean }): Promise<FilesystemFolder[]>;
   remember(
-    handle: FileSystemDirectoryHandle,
+    handle: FileSystemDirectoryHandle | NativeFolderReference,
     options?: { libraryMode?: LibraryFolderMode | null; preferredId?: string }
   ): Promise<FilesystemFolder>;
   rememberMany(handles: FileSystemDirectoryHandle[]): Promise<FilesystemFolder[]>;
@@ -281,7 +294,7 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
     const folders = await Promise.all(
       stored.map(async (folder) => ({
         ...folder,
-        permission: await queryFilesystemFolderPermission(folder.handle, probe)
+        permission: await queryFilesystemFolderAccess(folder, probe)
       }))
     );
     store.set(folders);
@@ -306,7 +319,7 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
           const existing = snapshot.find((candidate) => candidate.id === folder.id);
           return {
             ...folder,
-            permission: existing?.permission ?? (await queryFilesystemFolderPermission(folder.handle, false))
+            permission: existing?.permission ?? (await queryFilesystemFolderAccess(folder))
           };
         })
       );
@@ -335,15 +348,20 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
     refresh: (options = {}) => load(options.probe === true),
     getSnapshot: () => snapshot,
     async remember(handle, options = {}) {
+      if (!isDirectoryHandle(handle) && !(nativeFilesystem && isNativeFolderReference(handle))) {
+        throw new Error('This platform cannot remember the selected folder.');
+      }
+      const source = isDirectoryHandle(handle) ? { handle } : { nativeFolder: handle };
       let remembered: FilesystemFolder | null = null;
       await mutate(async (current) => {
         for (const folder of current) {
-          if (await sameDirectory(folder.handle, handle)) {
+          if (source.nativeFolder ? folder.nativeFolder?.uri === source.nativeFolder.uri
+            : folder.handle && await sameDirectory(folder.handle, source.handle!)) {
             remembered = {
               ...folder,
               name: handle.name,
-              handle,
-              permission: await queryFilesystemFolderPermission(handle, false),
+              ...source,
+              permission: await queryFilesystemFolderAccess(source),
               libraryMode: options.libraryMode === undefined ? folder.libraryMode : options.libraryMode
             };
             return current.map((candidate) => (candidate.id === folder.id ? remembered! : candidate));
@@ -356,9 +374,9 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
               ? options.preferredId
               : crypto.randomUUID(),
           name: handle.name,
-          handle,
+          ...source,
           addedAt: Date.now(),
-          permission: await queryFilesystemFolderPermission(handle, false),
+          permission: await queryFilesystemFolderAccess(source),
           libraryMode: options.libraryMode ?? null,
           lastScanStatus: 'never'
         };
@@ -378,7 +396,9 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
 
       // Keep the permission API call directly on the button's user activation.
       // IndexedDB work before requestPermission() can consume Chromium's gesture window.
-      const permission = await requestFilesystemFolderPermission(target.handle);
+      const permission = target.nativeFolder && nativeFilesystem
+        ? await nativeFilesystem.requestFolderPermission(target.nativeFolder)
+        : target.handle ? await requestFilesystemFolderPermission(target.handle) : 'unavailable';
       await mutate((current) =>
         current.map((folder) => (folder.id === id ? { ...folder, permission } : folder))
       );

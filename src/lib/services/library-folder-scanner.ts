@@ -1,13 +1,14 @@
 import { prepareImportedFiles } from '$lib/services/file-verification';
 import {
   filesystemFolders,
-  queryFilesystemFolderPermission,
+  queryFilesystemFolderAccess,
   type FilesystemFolder,
   type LibraryFolderScanFailure
 } from '$lib/services/filesystem-folders';
 import { libraryStore } from '$lib/stores/queue';
 import { trackSettings } from '$lib/stores/track-settings';
-import { buildTrackItems, readDirectoryFiles } from '$lib/utils/files';
+import { buildTrackItems } from '$lib/utils/files';
+import { readFilesystemFolderFiles } from './filesystem-folder-files';
 
 interface LibraryFolderScanResult {
   folderId: string;
@@ -50,7 +51,7 @@ async function performScan(folderId: string): Promise<LibraryFolderScanResult> {
     };
   }
 
-  const permission = await queryFilesystemFolderPermission(folder.handle, false);
+  const permission = await queryFilesystemFolderAccess(folder);
   if (permission !== 'granted') {
     await filesystemFolders.updateScan(folderId, {
       lastScanStatus: 'permission-required',
@@ -73,9 +74,7 @@ async function performScan(folderId: string): Promise<LibraryFolderScanResult> {
   });
 
   try {
-    const discoveredFiles = await readDirectoryFiles(folder.handle, {
-      maxDepth: trackSettings.getSnapshot().folderNestingLimit
-    });
+    const discoveredFiles = await readFilesystemFolderFiles(folder, trackSettings.getSnapshot().folderNestingLimit);
     const verifiedFiles = await prepareImportedFiles(discoveredFiles);
     const scannedItems = buildTrackItems(verifiedFiles).map((item) => ({
       ...item,

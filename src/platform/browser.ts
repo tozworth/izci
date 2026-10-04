@@ -2,6 +2,9 @@ import type { MiniPlayerController, MiniPlayerControllerOptions } from '$lib/ser
 import type { PlatformIntegrationOptions } from '$lib/services/platform-integration-types';
 import type { TrackItem } from '$lib/types';
 import type { BuiltinSignalingOptions, BuiltinSignalingReady, SignalingSocket } from '$lib/services/platform-signaling-types';
+import type { NativeFilesystem } from '$lib/services/platform-files-types';
+
+export const nativeFilesystem: NativeFilesystem | null = null;
 
 export const hasBuiltinSignaling = false;
 export async function startBuiltinSignaling(_options: BuiltinSignalingOptions): Promise<BuiltinSignalingReady> {

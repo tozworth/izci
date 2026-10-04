@@ -2,6 +2,11 @@ node_modules
 dist
 dev-dist
 dist-desktop
+dist-android
+android/.gradle/
+android/.kotlin/
+android/**/build/
+android/local.properties
 src-tauri/target/
 src-tauri/gen/
 .codex

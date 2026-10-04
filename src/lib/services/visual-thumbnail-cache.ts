@@ -1,4 +1,5 @@
 import { materializeTrackItem } from '$lib/stores/queue-materialization';
+import { createMediaFileUrl, getNativeMediaUrl } from '$lib/utils/native-media-files';
 import type { TrackItem } from '$lib/types';
 
 export const VISUAL_THUMBNAIL_SIZE = 384;
@@ -173,7 +174,8 @@ async function createImageThumbnail(file: File, maxEdge: number): Promise<Cached
   if (typeof createImageBitmap !== 'function') return null;
   let bitmap: ImageBitmap | null = null;
   try {
-    bitmap = await createImageBitmap(file);
+    const source = getNativeMediaUrl(file) ? new Blob([await file.arrayBuffer()], { type: file.type }) : file;
+    bitmap = await createImageBitmap(source);
     return await renderSource(bitmap, bitmap.width, bitmap.height, maxEdge);
   } catch {
     return null;
@@ -204,7 +206,7 @@ function waitForVideoEvent(video: HTMLVideoElement, eventName: 'loadedmetadata' 
 async function createVideoThumbnail(file: File, maxEdge: number): Promise<CachedVisualThumbnail | null> {
   if (typeof document === 'undefined') return null;
   const video = document.createElement('video');
-  const url = URL.createObjectURL(file);
+  const url = createMediaFileUrl(file);
   video.muted = true;
   video.preload = 'metadata';
   video.playsInline = true;
