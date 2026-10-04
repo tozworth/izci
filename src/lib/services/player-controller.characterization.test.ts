@@ -127,11 +127,13 @@ vi.mock('$lib/services/logging', () => ({
   logInfo: vi.fn(),
   logWarning: vi.fn()
 }));
-vi.mock('$lib/utils/files', () => ({
+vi.mock('$lib/utils/files', async (importOriginal) => ({
+  ...await importOriginal<typeof import('$lib/utils/files')>(),
   mergeInferredArtistTitle: (metadata: TrackMetadata) => metadata
 }));
 
 import { playerController } from './player-controller';
+import { patternChannelMemory } from '$lib/stores/pattern-channel-memory';
 
 function track(id: string): TrackItem {
   return {
@@ -196,8 +198,10 @@ beforeEach(() => {
     setTimeout: (callback: TimerHandler, delay?: number) => globalThis.setTimeout(callback, delay),
     clearTimeout: (timer: number) => globalThis.clearTimeout(timer),
     addEventListener: vi.fn(),
-    removeEventListener: vi.fn()
+    removeEventListener: vi.fn(),
+    localStorage: { getItem: () => null, setItem: vi.fn() }
   });
+  patternChannelMemory.reset();
   harness.pendingLoads.length = 0;
   harness.playbackStore.getSnapshot().replayGainMode = 'off';
   vi.clearAllMocks();
@@ -215,6 +219,39 @@ afterAll(() => {
 });
 
 describe('player controller supersession characterization', () => {
+  it.each(['module', 'hively'] as const)('restores remembered %s controls before playback, including prepared tracks', async (backend) => {
+    const loaded = await loadInitial('remembered', backend);
+    const song = { channels: ['', '', '', ''], instruments: [], samples: [], orders: [], patterns: [], numSubsongs: 1 };
+    loaded.instance.patternCallback?.({ song });
+    playerController.patternChannels.toggleSolo('remembered', 1);
+    playerController.patternChannels.toggleMute('remembered', 3);
+    playerController.patternChannels.toggleRemember('remembered');
+    loaded.instance.play.mockClear();
+    loaded.instance.setChannelMutes.mockClear();
+
+    const reopenedTrack = { ...backendTrack('copy', backend), name: backendTrack('remembered', backend).name };
+    const loading = playerController.load(reopenedTrack, { autoPlay: true });
+    await flushUntilPending('copy');
+    const reopened = resolvePending('copy');
+    reopened.instance.metadataCallback?.({ channels: 4 });
+    await loading;
+    expect(reopened.instance.setChannelMutes).toHaveBeenLastCalledWith([true, false, true, true]);
+    expect(reopened.instance.setChannelMutes.mock.invocationCallOrder[0])
+      .toBeLessThan(reopened.instance.play.mock.invocationCallOrder[0]);
+
+    const preparing = playerController.prepareNext({ ...reopenedTrack, id: 'prepared-copy' });
+    await flushUntilPending('prepared-copy');
+    const prepared = resolvePending('prepared-copy');
+    prepared.instance.metadataCallback?.({ channels: 4 });
+    await preparing;
+    expect(prepared.instance.setChannelMutes).not.toHaveBeenCalled();
+    playerController.commitPrepared('prepared-copy');
+    expect(prepared.instance.setChannelMutes).toHaveBeenLastCalledWith([true, false, true, true]);
+    expect(prepared.instance.setChannelMutes.mock.invocationCallOrder[0])
+      .toBeLessThan(prepared.instance.play.mock.invocationCallOrder[0]);
+    expect(get(playerController.patternChannels.state).remembered).toBe(true);
+  });
+
   it.each(['stream', 'module', 'hively', 'video'] as const)('signals %s starts, same-track restarts and seamless switches, but not ordinary seeks', async (backend) => {
     const initialSequence = get(playerController.playbackStarts);
     const loaded = await loadInitial('repeating', backend);

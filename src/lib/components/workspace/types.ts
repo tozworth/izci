@@ -103,6 +103,7 @@ export interface WorkspaceTabContentProps {
     toggleMute: (trackId: string, index: number) => void;
     toggleSolo: (trackId: string, index: number) => void;
     reset: (trackId: string) => void;
+    toggleRemember: (trackId: string) => void;
   };
   detailsArtwork: LoadedStreamArtwork | null;
   visualizerArtworkUrl?: string;

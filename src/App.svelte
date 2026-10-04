@@ -360,7 +360,8 @@
       snapshot: $patternChannelStore,
       toggleMute: playerController.patternChannels.toggleMute,
       toggleSolo: playerController.patternChannels.toggleSolo,
-      reset: playerController.patternChannels.reset
+      reset: playerController.patternChannels.reset,
+      toggleRemember: playerController.patternChannels.toggleRemember
     },
     detailsArtwork: artworkPresentationState.visibleDetailsArtwork,
     visualizerArtworkUrl: artworkPresentationState.displayedArtwork?.url,

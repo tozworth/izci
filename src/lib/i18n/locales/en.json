@@ -250,6 +250,8 @@
       "soloChannel": "Solo channel {number}",
       "muteAbbreviation": "M",
       "soloAbbreviation": "S",
+      "resetChannels": "Reset channels",
+      "remember": "Remember",
       "cellDescription": "Channel {number}: {value}",
       "noModule": "Play a tracker module to view its patterns.",
       "unsupported": "Pattern data is not available for this tracker module."

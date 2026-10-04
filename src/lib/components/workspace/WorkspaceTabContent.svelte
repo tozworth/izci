@@ -110,6 +110,8 @@
     channelSnapshot={content.patternChannelControls.snapshot}
     on:toggleChannelMute={(event) => content.patternChannelControls.toggleMute(event.detail.trackId, event.detail.index)}
     on:toggleChannelSolo={(event) => content.patternChannelControls.toggleSolo(event.detail.trackId, event.detail.index)}
+    on:resetChannels={(event) => content.patternChannelControls.reset(event.detail.trackId)}
+    on:toggleRememberChannels={(event) => content.patternChannelControls.toggleRemember(event.detail.trackId)}
   />
 {:else if tab === 'visualizer'}
   <VisualizerPanel artworkUrl={content.visualizerArtworkUrl} />
