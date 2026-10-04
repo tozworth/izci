@@ -1,3 +1,5 @@
+import { filesystem } from '$platform';
+import type { SelectedFolder } from '$lib/services/platform-files-types';
 import type { TroubadourRememberedFolder } from '$lib/services/troubadour-sync';
 import type { TroubadourSettings } from '$lib/stores/troubadour-settings';
 import type { TroubadourAutoGroupFallback } from './troubadour-controller';
@@ -20,13 +22,13 @@ type TroubadourLoadingSource = 'files' | 'folder' | 'library-folder' | null;
 
 export interface TroubadourImportTarget {
   controller: {
-    ingestHandles(
-      handles: FileSystemFileHandle[],
+    ingestFiles(
+      files: File[],
       concurrency?: number,
       autoGroupFallback?: TroubadourAutoGroupFallback
     ): Promise<void>;
-    ingestDirectory(
-      handle: FileSystemDirectoryHandle,
+    ingestFolder(
+      handle: SelectedFolder,
       maxDepth?: number,
       concurrency?: number,
       autoGroupFallback?: TroubadourAutoGroupFallback
@@ -50,15 +52,14 @@ export function isItemDrag(event: DragEvent): boolean {
 }
 
 export async function chooseFiles(target: TroubadourImportTarget, fileInput: HTMLInputElement): Promise<void> {
-  const picker = window as Window & { showOpenFilePicker?: (options?: OpenFilePickerOptions) => Promise<FileSystemFileHandle[]> };
-  if (!picker.showOpenFilePicker) {
+  if (!filesystem.supportsFilePicker()) {
     fileInput.click();
     return;
   }
   try {
     target.setLoadingSource('files');
-    await target.controller.ingestHandles(
-      await picker.showOpenFilePicker(OPEN_FILE_OPTIONS),
+    await target.controller.ingestFiles(
+      await filesystem.pickFiles(OPEN_FILE_OPTIONS),
       target.settings.metadataReadConcurrency,
       target.settings.autoGroupOnLoad ? target.settings.autoGroupFallback : undefined
     );
@@ -70,15 +71,15 @@ export async function chooseFiles(target: TroubadourImportTarget, fileInput: HTM
 }
 
 export async function chooseFolder(target: TroubadourImportTarget): Promise<void> {
-  const picker = window as Window & { showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle> };
-  if (!picker.showDirectoryPicker) {
+  if (!filesystem.supportsFolderPicker()) {
     target.onError(new Error(target.translate('troubadour.workbench.folderUnavailable', { default: 'Folder access is unavailable. Use Add files instead.' })));
     return;
   }
   try {
-    const directory = await picker.showDirectoryPicker({ mode: 'read' });
+    const directory = await filesystem.pickFolder();
+    if (!directory) return;
     target.setLoadingSource('folder');
-    await target.controller.ingestDirectory(
+    await target.controller.ingestFolder(
       directory,
       target.settings.folderScanDepth,
       target.settings.metadataReadConcurrency,
@@ -100,8 +101,8 @@ export async function addRememberedFolder(
   if (!folder) return;
   try {
     target.setLoadingSource('library-folder');
-    await target.controller.ingestDirectory(
-      folder.handle,
+    await target.controller.ingestFolder(
+      folder,
       target.settings.folderScanDepth,
       target.settings.metadataReadConcurrency,
       target.settings.autoGroupOnLoad ? target.settings.autoGroupFallback : undefined

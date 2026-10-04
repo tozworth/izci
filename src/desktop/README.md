@@ -115,7 +115,7 @@ through its existing transport handlers. Chromium background timer throttling
 is disabled for the native windows so minimized transport work can continue.
 
 Native code lives in `src-tauri/`; native presentation and transport glue live
-here. Vite resolves `$platform` to `src/platform/browser.ts` in PWA builds and
+here. Vite resolves `$platform` to `src/platform/pwa/platform.ts` in PWA builds and
 `src/desktop/platform.ts` only in desktop builds. `mini-player.html` and
 `tray-menu.html` are inputs only for the desktop target. Desktop assets go to `dist-desktop/` and do not
 generate/register a service worker. Existing Options/tool windows keep their

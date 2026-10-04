@@ -2,7 +2,7 @@ import { mount, unmount } from 'svelte';
 import { writable } from 'svelte/store';
 import materialSymbolsFontUrl from '@material-symbols/font-400/material-symbols-outlined.woff2?url';
 import MiniPlayer from '$lib/components/mini-player/MiniPlayer.svelte';
-import { createDesktopMiniPlayerController } from '$platform';
+import { createPlatformMiniPlayerController } from '$platform';
 import type { MiniPlayerControllerOptions, MiniPlayerState } from './mini-player-types';
 export type { MiniPlayerState } from './mini-player-types';
 
@@ -173,8 +173,8 @@ export function createMiniPlayerController({
   artworkUrl,
   handlers
 }: MiniPlayerControllerOptions) {
-  const desktopController = createDesktopMiniPlayerController({ snapshot, track, selectedTrack, artworkUrl, handlers });
-  if (desktopController) return desktopController;
+  const platformController = createPlatformMiniPlayerController({ snapshot, track, selectedTrack, artworkUrl, handlers });
+  if (platformController) return platformController;
 
   const supported = supportsMiniPlayer();
   const store = writable<MiniPlayerState>({ supported, active: false, opening: false });

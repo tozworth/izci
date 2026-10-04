@@ -4,23 +4,19 @@
   import OptionGlyphButton from '../OptionGlyphButton.svelte';
   import {
     filesystemFolders,
-    getDroppedDirectoryHandles,
     type FilesystemFolder,
     type FilesystemFolderPermission
   } from '$lib/services/filesystem-folders';
+  import { getDroppedDirectoryHandles } from '$lib/services/file-access';
   import { requestLibraryFolderScan } from '$lib/services/library-folder-coordination';
   import { pickFilesystemFolder } from '$lib/services/filesystem-folder-files';
-  import { nativeFilesystem } from '$platform';
+  import { filesystem } from '$platform';
   import {
     forgetPendingFolder,
     locatePendingFolder,
     pendingBackupRestore,
     type PortableFolderRecord
   } from '$lib/services/backups';
-
-  type PickerWindow = Window & typeof globalThis & {
-    showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
-  };
 
   const permissionIcons: Record<FilesystemFolderPermission, string> = {
     granted: 'check',
@@ -213,15 +209,15 @@
   }
 
   async function locateRestoredFolder(folder: PortableFolderRecord) {
-    const pickerWindow = window as PickerWindow;
-    if (!pickerWindow.showDirectoryPicker) {
+    if (!filesystem.supportsFolderPicker()) {
       restoreStatus = 'failed';
       return;
     }
     setBusy(folder.id, true);
     restoreStatus = 'idle';
     try {
-      const handle = await pickerWindow.showDirectoryPicker();
+      const handle = await filesystem.pickFolder();
+      if (!handle) { restoreStatus = 'failed'; return; }
       const result = await locatePendingFolder(folder.id, handle);
       restoreStatus = result.status === 'success' ? 'success' : 'mismatch';
       if (result.status === 'success') {
@@ -253,9 +249,9 @@
     <div>
       <h2>{$t('options.folders.heading', { default: 'Folders' })}</h2>
       <p class="field-hint">{$t('options.folders.description', { default: 'Every folder izci has remembered, including folders used for library scans.' })}</p>
-      {#if nativeFilesystem?.referenceScheme === 'content:'}
+      {#if filesystem.accessModel === 'persisted-grants'}
         <p class="field-hint">{$t('options.folders.androidAccess', { default: 'Android remembers access to selected files and folders across launches. If access is revoked, use Check access and select the same folder again.' })}</p>
-      {:else if nativeFilesystem}
+      {:else if filesystem.accessModel === 'os-permissions'}
         <p class="field-hint">{$t('options.folders.desktopAccess', { default: 'Desktop folders are remembered by their native path. Windows controls access; disconnected or moved folders remain listed until you reconnect or remove them.' })}</p>
       {/if}
     </div>

@@ -6,7 +6,13 @@ import type { TrackItem } from '$lib/types';
 const { materializePlatformFile, preparePlaybackRestoration } = vi.hoisted(() => ({
   materializePlatformFile: vi.fn(), preparePlaybackRestoration: vi.fn()
 }));
-vi.mock('$platform', () => ({ isDesktop: true, materializePlatformFile, preparePlaybackRestoration, nativeFilesystem: { referenceScheme: 'file:', materializeFile: materializePlatformFile } }));
+vi.mock('$platform', async () => {
+  const { createNativeFilesystem } = await import('../../platform/native-filesystem');
+  const { filesystem: browserFiles } = await import('../../platform/web-filesystem');
+  return { filesystem: createNativeFilesystem({ referenceScheme: 'file:', materializeFile: materializePlatformFile } as never, {
+    accessModel: 'os-permissions', browserFiles, prepareFileAccess: preparePlaybackRestoration
+  }) };
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -89,7 +95,7 @@ describe('ranged embedded artwork', () => {
     const file = new File([encoder.encode('fLaC'), block(1, new Uint8Array(8), true)], 'empty.flac');
     await expect(loadEmbeddedStreamArtwork(track(file))).resolves.toBeNull();
     await expect(loadEmbeddedStreamArtwork({ ...track(file), file: undefined })).rejects.toThrow();
-    const fileHandle = { getFile: vi.fn().mockRejectedValue(new Error('Permission unavailable')) } as unknown as FileSystemFileHandle;
+    const fileHandle = { kind: 'file', name: file.name, getFile: vi.fn().mockRejectedValue(new Error('Permission unavailable')) } as unknown as FileSystemFileHandle;
     await expect(loadEmbeddedStreamArtwork({ ...track(file), file: undefined, fileHandle })).rejects.toThrow('Permission unavailable');
     await expect(loadEmbeddedStreamArtwork({ ...track(file), fileHandle })).resolves.toBeNull();
   });
@@ -98,14 +104,14 @@ describe('ranged embedded artwork', () => {
     const cover = new Uint8Array([1, 2, 3]);
     const file = new File([concatenate(encoder.encode('fLaC'), block(6, picture(3, cover), true))], 'saved.flac');
     let granted = false;
-    const fileHandle = { getFile: vi.fn(async () => {
+    const fileHandle = { kind: 'file', name: file.name, getFile: vi.fn(async () => {
       if (!granted) throw new Error('Permission unavailable');
       return file;
     }) } as unknown as FileSystemFileHandle;
     const saved = { ...track(file), file: undefined, fileHandle };
     preparePlaybackRestoration.mockImplementation(async () => { granted = true; });
     const artwork = await loadEmbeddedStreamArtwork(saved);
-    expect(preparePlaybackRestoration).toHaveBeenCalledWith(saved);
+    expect(preparePlaybackRestoration).toHaveBeenCalledWith({ fileHandle });
     expect(new Uint8Array(await artwork!.blob.arrayBuffer())).toEqual(cover);
   });
 

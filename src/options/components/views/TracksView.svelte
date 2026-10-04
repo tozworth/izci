@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
-  import { DesktopTrackSettings } from '$platform';
+  import { PlatformTrackSettings } from '$platform';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
   import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import { MAX_FOLDER_NESTING_LIMIT, MIN_FOLDER_NESTING_LIMIT, normalizeFolderNestingLimit, trackSettings } from '$lib/stores/track-settings';
@@ -92,8 +92,8 @@
             on:change={handleAssociatedFileActionChange}
           />
       </SettingsField>
-      {#if DesktopTrackSettings}
-        <svelte:component this={DesktopTrackSettings} />
+      {#if PlatformTrackSettings}
+        <svelte:component this={PlatformTrackSettings} />
       {/if}
     </div>
   </div>

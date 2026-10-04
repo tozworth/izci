@@ -55,7 +55,7 @@ import { playbackSettings } from '$lib/stores/playback-settings';
 import { videoSettings } from '$lib/stores/video-settings';
 import { isVisualMediaFileName } from '$lib/utils/files';
 import { trackSettings } from '$lib/stores/track-settings';
-import { createPlatformIntegration, preparePlaybackRestoration } from '$platform';
+import { createPlatformIntegration, filesystem } from '$platform';
 import type {
   PlaybackSnapshot,
   TrackItem
@@ -514,7 +514,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     ensureLoaded: (id) => queueStore.ensureLoaded(id),
     selectTrack: (id) => workspaceShell.selectTrack('queue', id),
     loadTrack: (track, options) => playerController.load(track, options),
-    prepareFileAccess: preparePlaybackRestoration
+    prepareFileAccess: filesystem.prepareFileAccess
   });
   const artworkPresentation = createArtworkPresentationController({
     resolveTrackSnapshot: (track) =>

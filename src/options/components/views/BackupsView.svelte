@@ -8,13 +8,10 @@
     restoreBackupArchive,
     type BackupRestoreResult
   } from '$lib/services/backups';
+  import { filesystem } from '$platform';
   import { createOpenFilePickerOptions } from '$lib/services/import-controller';
 
   export let onOpenFolders: () => void;
-
-  type PickerWindow = Window & typeof globalThis & {
-    showOpenFilePicker?: (options?: OpenFilePickerOptions) => Promise<FileSystemFileHandle[]>;
-  };
 
   let importInput: HTMLInputElement | null = null;
   let busy = false;
@@ -87,18 +84,17 @@
   }
 
   async function locateLooseFiles() {
-    const pickerWindow = window as PickerWindow;
-    if (!pickerWindow.showOpenFilePicker) {
+    if (!filesystem.supportsFilePicker()) {
       status = 'failed';
       return;
     }
     busy = true;
     status = 'idle';
     try {
-      const handles = await pickerWindow.showOpenFilePicker(
+      const files = await filesystem.pickFiles(
         createOpenFilePickerOptions($t('options.backups.locateFilesDescription', { default: 'Original library files' }))
       );
-      const result = await locatePendingFiles(handles);
+      const result = await locatePendingFiles(files);
       status = result.status === 'success' ? 'located' : 'mismatch';
       if (result.status === 'success') refreshMainWindow();
     } catch (error) {

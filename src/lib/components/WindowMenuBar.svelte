@@ -2,7 +2,7 @@
   import { createEventDispatcher, onDestroy } from 'svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
-  import { DesktopWindowControls, desktopTitlebar } from '$platform';
+  import { PlatformWindowControls, platformTitlebar } from '$platform';
   import type {
     MenuActionItem,
     WindowMenuGroup,
@@ -45,7 +45,7 @@
   const triggerElements = new Map<string, HTMLButtonElement>();
 
   $: overlayState = $windowControlsOverlayState;
-  $: nativeTitlebar = DesktopWindowControls !== null;
+  $: nativeTitlebar = PlatformWindowControls !== null;
   $: nativeControlsWidth = miniPlayerSupported ? 160 : 120;
   $: overlayRect = overlayState.titlebarAreaRect;
   $: overlayInlineStyle = overlayState.visible
@@ -261,7 +261,7 @@
   bind:this={menuBarElement}
   bind:clientWidth={menuBarWidth}
   bind:clientHeight={height}
-  use:desktopTitlebar={nativeTitlebar}
+  use:platformTitlebar={nativeTitlebar}
   class="menu-bar"
   class:desktop-titlebar={nativeTitlebar}
   class:main-workspace-menu-bar={mainWorkspace}
@@ -361,7 +361,7 @@
     {/if}
   </div>
   {#if nativeTitlebar}
-    <svelte:component this={DesktopWindowControls} {miniPlayerSupported} {miniPlayerActive}
+    <svelte:component this={PlatformWindowControls} {miniPlayerSupported} {miniPlayerActive}
       on:miniplayer={() => dispatch('miniplayer')} />
   {/if}
 </nav>

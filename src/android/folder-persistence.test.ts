@@ -4,7 +4,10 @@ import { IDBFactory } from 'fake-indexeddb';
 const native = vi.hoisted(() => ({ referenceScheme: 'content:',
   pickFolder: vi.fn(), queryFolderPermission: vi.fn(), requestFolderPermission: vi.fn(), readFolder: vi.fn()
 }));
-vi.mock('$platform', () => ({ nativeFilesystem: native }));
+vi.mock('$platform', async () => {
+  const { createNativeFilesystem } = await import('../platform/native-filesystem');
+  return { filesystem: createNativeFilesystem(native as never, { accessModel: 'persisted-grants' }) };
+});
 vi.mock('$lib/services/logging', () => ({ logInfo: vi.fn(), logWarning: vi.fn(), logError: vi.fn() }));
 
 beforeEach(() => {

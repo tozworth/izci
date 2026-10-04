@@ -1,4 +1,9 @@
 <script lang="ts">
+  import { filesystem } from '$platform';
+  import { converterSources } from './converter-sources';
+  import type { SelectedFolder } from '$lib/services/platform-files-types';
+  import { extractDroppedFiles } from '$lib/services/file-access';
+  import type { MediaDirectoryAccess } from '$lib/services/media-file-access';
   import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
@@ -47,7 +52,6 @@
   interface ConverterRow {
     id: string;
     file: File;
-    handle: FileSystemFileHandle | null;
     path: string;
     outputDirectories: string[];
     selected: boolean;
@@ -79,7 +83,7 @@
   let fileInput: HTMLInputElement;
   let rows: ConverterRow[] = [];
   let settings = loadConverterSettings();
-  let outputDirectory: FileSystemDirectoryHandle | null = null;
+  let outputDirectory: MediaDirectoryAccess | null = null;
   let capabilities: ConverterCapabilities | null = null;
   let busy = false;
   let dragActive = false;
@@ -113,20 +117,18 @@
     });
     return listenForCurrentToolTrack((track) => {
       if (!isAccepted(track.file)) return;
-      addRows([makeRow(track.file, track.fileHandle ?? null, track.path || track.file.name, [])], true);
+      addRows([makeRow(track.file, track.path || track.file.name, [])], true);
     });
   });
 
   function makeRow(
     file: File,
-    handle: FileSystemFileHandle | null,
     path: string,
     outputDirectories: string[]
   ): ConverterRow {
     return {
       id: `${path}\u0000${file.size}\u0000${file.lastModified}`,
       file,
-      handle,
       path,
       outputDirectories,
       selected: true,
@@ -151,69 +153,43 @@
     errorMessage = '';
   }
 
-  async function rowsFromHandles(handles: FileSystemFileHandle[]): Promise<ConverterRow[]> {
-    return await Promise.all(handles.map(async (handle) => makeRow(await handle.getFile(), handle, handle.name, [])));
-  }
-
-  async function readDirectory(
-    directory: FileSystemDirectoryHandle,
-    path = directory.name,
-    outputDirectories: string[] = []
-  ): Promise<ConverterRow[]> {
-    const found: ConverterRow[] = [];
-    for await (const entry of directory.values()) {
-      if (entry.kind === 'file') {
-        const handle = entry as FileSystemFileHandle;
-        found.push(makeRow(await handle.getFile(), handle, `${path}/${handle.name}`, outputDirectories));
-      } else {
-        const child = entry as FileSystemDirectoryHandle;
-        found.push(...await readDirectory(child, `${path}/${child.name}`, [...outputDirectories, child.name]));
-      }
-    }
-    return found;
+  function rowsFromFiles(files: File[], root?: SelectedFolder | 'drop'): ConverterRow[] {
+    return converterSources(files, root).map(({ file, path, outputDirectories }) => makeRow(file, path, outputDirectories));
   }
 
   async function chooseFiles(): Promise<void> {
-    const pickerWindow = window as Window & {
-      showOpenFilePicker?: (options?: OpenFilePickerOptions) => Promise<FileSystemFileHandle[]>;
-    };
-    if (!pickerWindow.showOpenFilePicker) {
+    if (!filesystem.supportsFilePicker()) {
       fileInput.click();
       return;
     }
     try {
-      addRows(await rowsFromHandles(await pickerWindow.showOpenFilePicker(OPEN_FILE_PICKER_OPTIONS)));
+      addRows(rowsFromFiles(await filesystem.pickFiles(OPEN_FILE_PICKER_OPTIONS)));
     } catch (error) {
       handleOperationError(error);
     }
   }
 
   async function chooseFolder(): Promise<void> {
-    const pickerWindow = window as Window & {
-      showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
-    };
-    if (!pickerWindow.showDirectoryPicker) {
+    if (!filesystem.supportsFolderPicker()) {
       errorMessage = $t('converter.folderPickerUnavailable', { default: 'Folder access is unavailable here. Use Add files instead.' });
       return;
     }
     try {
-      const directory = await pickerWindow.showDirectoryPicker({ mode: 'read' });
-      addRows(await readDirectory(directory));
+      const directory = await filesystem.pickFolder();
+      if (directory) addRows(rowsFromFiles(await filesystem.readFolder(directory), directory));
     } catch (error) {
       handleOperationError(error);
     }
   }
 
   async function chooseOutput(): Promise<void> {
-    const pickerWindow = window as Window & {
-      showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
-    };
-    if (!pickerWindow.showDirectoryPicker) {
+    if (!filesystem.supportsWritableFolders()) {
       errorMessage = $t('converter.outputPickerUnavailable', { default: 'Writable folder access is required for bulk conversion.' });
       return;
     }
     try {
-      outputDirectory = await pickerWindow.showDirectoryPicker({ mode: 'readwrite' });
+      outputDirectory = await filesystem.pickWritableFolder();
+      if (!outputDirectory) return;
       message = $t('converter.outputChosen', { default: 'Output folder: {name}', values: { name: outputDirectory.name } });
       errorMessage = '';
     } catch (error) {
@@ -225,32 +201,15 @@
     const input = event.currentTarget as HTMLInputElement;
     const files = Array.from(input.files ?? []);
     input.value = '';
-    addRows(files.map((file) => makeRow(file, null, file.webkitRelativePath || file.name, [])));
+    addRows(rowsFromFiles(files));
   }
 
   async function handleDrop(event: DragEvent): Promise<void> {
     event.preventDefault();
     dragActive = false;
-    const nextRows: ConverterRow[] = [];
-    for (const item of Array.from(event.dataTransfer?.items ?? [])) {
-      try {
-        const handle = await item.getAsFileSystemHandle?.();
-        if (handle?.kind === 'file') {
-          const fileHandle = handle as FileSystemFileHandle;
-          nextRows.push(makeRow(await fileHandle.getFile(), fileHandle, fileHandle.name, []));
-        } else if (handle?.kind === 'directory') {
-          nextRows.push(...await readDirectory(handle as FileSystemDirectoryHandle));
-        }
-      } catch {
-        // Fall through to the FileList when handles are only partially supported.
-      }
-    }
-    if (nextRows.length === 0) {
-      nextRows.push(...Array.from(event.dataTransfer?.files ?? []).map((file) =>
-        makeRow(file, null, file.webkitRelativePath || file.name, [])
-      ));
-    }
-    addRows(nextRows);
+    if (!event.dataTransfer) return;
+    try { addRows(rowsFromFiles(await extractDroppedFiles(event.dataTransfer), 'drop')); }
+    catch (error) { handleOperationError(error); }
   }
 
   function handleOperationError(error: unknown): void {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { isDesktop, DesktopAppearanceSettings } from '$platform';
+  import { PlatformAppearanceSettings } from '$platform';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
   import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import { COLOR_THEME_DEFINITIONS, systemColorScheme } from '$lib/services/theme';
@@ -330,7 +330,7 @@
               : localFontsError === 'permission'
                 ? $t('options.appearance.font.permissionDenied', { default: 'Local font permission was not granted.' })
                 : $t('options.appearance.font.loadFailed', { default: 'Local fonts could not be loaded.' })}
-          {:else if isDesktop}
+          {:else if PlatformAppearanceSettings}
             {$t('options.appearance.font.desktopHint', { default: 'Applies the system interface font or any installed Windows font across the app.' })}
           {:else if localFontAccessSupported}
             {$t('options.appearance.font.hint', { default: 'Applies the system interface font or a permitted local font across the app.' })}
@@ -369,8 +369,8 @@
           />
         </SettingsField>
       {/each}
-      {#if DesktopAppearanceSettings}
-        <svelte:component this={DesktopAppearanceSettings} />
+      {#if PlatformAppearanceSettings}
+        <svelte:component this={PlatformAppearanceSettings} />
       {/if}
     </div>
   </div>

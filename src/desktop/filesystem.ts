@@ -2,8 +2,10 @@ import { invoke } from '@tauri-apps/api/core';
 import type { NativeFilesystem, NativeFolderPermission } from '$lib/services/platform-files-types';
 import { nativeFileIdentity } from '$lib/utils/native-media-files';
 import { desktopFilePath, desktopFileReference } from './file-references';
-import { readDesktopFiles } from './files';
-import { getDesktopMediaAccess } from './media-access';
+import { readDesktopFiles, preparePlaybackRestoration } from './files';
+import { getDesktopMediaAccess, getDesktopDirectoryAccess } from './media-access';
+import { createNativeFilesystem } from '../platform/native-filesystem';
+import { filesystem as browserFiles } from '../platform/web-filesystem';
 
 async function pickPaths(folder: boolean): Promise<string[]> {
   const paths = await invoke<string[] | null>('pick_desktop_paths', { folder });
@@ -49,3 +51,10 @@ export const nativeFilesystem: NativeFilesystem = {
   },
   async materializeFile(reference) { return (await readDesktopFiles([desktopFilePath(reference)]))[0]; }
 };
+
+export const filesystem = createNativeFilesystem(nativeFilesystem, {
+  accessModel: 'os-permissions',
+  writableFolder: getDesktopDirectoryAccess,
+  browserFiles,
+  prepareFileAccess: preparePlaybackRestoration
+});

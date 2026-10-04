@@ -4,7 +4,8 @@ import { readMetadataDocument } from '$lib/services/media-metadata/reader';
 import type { MediaMetadataFields } from '$lib/services/media-metadata/types';
 import type { TroubadourRememberedFolder } from '$lib/services/troubadour-sync';
 import { inferExtension, inferKind } from '$lib/utils/files';
-import { nativeFilesystem } from '$platform';
+import { filesystem } from '$platform';
+import { resolveTrackFile } from '$lib/services/file-access';
 import { autoGroupTracks } from './grouping';
 import type { StagedWorkbenchState, TroubadourAutoGroupFallback, TroubadourWorkbenchItem } from './troubadour-controller';
 
@@ -12,11 +13,7 @@ export const LOAD_COMMIT_BATCH_SIZE = 64;
 const LOAD_PROGRESS_INTERVAL_MS = 250;
 export const LOAD_DEFAULT_CONCURRENCY = 3;
 
-interface DiscoveredWorkbenchFile {
-  fileHandle: FileSystemFileHandle;
-  parentHandle: FileSystemDirectoryHandle | null;
-  path: string;
-}
+import type { DiscoveredMediaFile } from '$lib/services/platform-files-types';
 
 export function inferWorkbenchKind(extension: string): TroubadourWorkbenchItem['kind'] {
   const kind = inferKind(extension);
@@ -28,25 +25,6 @@ export async function materializeWorkbenchFile(file: File): Promise<File> {
     type: file.type,
     lastModified: file.lastModified
   });
-}
-
-async function resolveParentHandle(
-  path: string | undefined,
-  sourceFolderId: string | undefined,
-  folders: TroubadourRememberedFolder[]
-): Promise<FileSystemDirectoryHandle | null> {
-  const root = sourceFolderId ? folders.find((folder) => folder.id === sourceFolderId) : undefined;
-  if (!root || !path) return null;
-  const parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
-  if (parts[0]?.toLocaleLowerCase() === root.name.toLocaleLowerCase()) parts.shift();
-  parts.pop();
-  let directory = root.handle;
-  try {
-    for (const part of parts) directory = await directory.getDirectoryHandle(part);
-    return directory;
-  } catch {
-    return null;
-  }
 }
 
 export function metadataTrackForGrouping(item: TroubadourWorkbenchItem): {
@@ -191,12 +169,14 @@ async function addLoadingItems(
 }
 
 export async function itemFromHandle(
-  handle: FileSystemFileHandle,
+  handle: import('$lib/services/media-file-access').MediaFileAccess | null,
   path: string,
-  parentHandle: FileSystemDirectoryHandle | null,
-  base: Partial<TroubadourWorkbenchItem> = {}
+  parentHandle: import('$lib/services/media-file-access').MediaDirectoryAccess | null,
+  base: Partial<TroubadourWorkbenchItem> = {},
+  currentFile?: File
 ): Promise<TroubadourWorkbenchItem> {
-  const file = await handle.getFile();
+  const file = currentFile ?? await handle?.getFile();
+  if (!file) throw new Error('The source file is unavailable.');
   const extension = inferExtension(file.name);
   return {
     id: base.id ?? crypto.randomUUID(),
@@ -220,12 +200,12 @@ export async function itemFromHandle(
 }
 
 export async function itemsFromDiscoveredFiles(
-  discovered: DiscoveredWorkbenchFile[],
+  discovered: DiscoveredMediaFile[],
   concurrency: number,
   report: (activeJob: string, jobProgress?: number | null) => void,
   label: string
 ): Promise<TroubadourWorkbenchItem[]> {
-  const eligible = discovered.filter((entry) => getMetadataCapabilities(inferExtension(entry.fileHandle.name)));
+  const eligible = discovered.filter((entry) => getMetadataCapabilities(inferExtension(entry.currentFile?.name ?? entry.file?.name ?? '')));
   const items = new Array<TroubadourWorkbenchItem | undefined>(eligible.length);
   let index = 0;
   let completed = 0;
@@ -237,9 +217,11 @@ export async function itemsFromDiscoveredFiles(
       const current = eligible[currentIndex];
       try {
         items[currentIndex] = await itemFromHandle(
-          current.fileHandle,
+          current.file,
           current.path,
-          current.parentHandle
+          current.parent,
+          {},
+          current.currentFile
         );
       } finally {
         completed += 1;
@@ -272,13 +254,11 @@ export async function itemsFromBatchTracks(
       const currentIndex = index++;
       const track = eligible[currentIndex];
       try {
-        const nativeAccess = track.nativeFile && nativeFilesystem?.getMediaAccess
-          ? await nativeFilesystem.getMediaAccess(track.nativeFile) : undefined;
-        const fileAccess = track.fileHandle ?? nativeAccess?.file;
-        const sourceFile = fileAccess ? await fileAccess.getFile() : track.file
-          ?? (track.nativeFile && nativeFilesystem ? await nativeFilesystem.materializeFile(track.nativeFile) : undefined);
+        const access = await filesystem.getMediaAccess(track, { path: track.path, sourceFolderId: track.sourceFolderId, folders });
+        const fileAccess = access.file;
+        const sourceFile = fileAccess ? await fileAccess.getFile() : await resolveTrackFile(track, { fresh: true });
         if (!sourceFile) continue;
-        const parentHandle = nativeAccess?.parent ?? await resolveParentHandle(track.path, track.sourceFolderId, folders);
+        const parentHandle = access.parent;
         items[currentIndex] = {
           id: track.contextId || crypto.randomUUID(),
           contextId: track.contextId,

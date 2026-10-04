@@ -1,7 +1,8 @@
 import type { NativeFilesystem, NativeFolderReference } from '$lib/services/platform-files-types';
-import { registerImportedFile } from '$lib/utils/files';
+import { registerImportedFile } from '$lib/utils/file-sources';
 import { invokeAndroid } from './bridge';
 import { createSafFile, type SafDocument } from './saf-file';
+import { createNativeFilesystem } from '../platform/native-filesystem';
 
 function importDocument(document: SafDocument): File {
   return registerImportedFile(createSafFile(document), { nativeFile: { uri: document.uri }, path: document.path ?? document.name });
@@ -19,3 +20,5 @@ export const nativeFilesystem: NativeFilesystem = {
   requestFolderPermission(folder) { return invokeAndroid('requestFolderPermission', { uri: folder.uri }); },
   async materializeFile(reference) { return importDocument(await invokeAndroid<SafDocument>('statFile', { uri: reference.uri })); }
 };
+
+export const filesystem = createNativeFilesystem(nativeFilesystem, { accessModel: 'persisted-grants' });

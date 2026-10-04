@@ -16,7 +16,7 @@
   import { trackSettings } from '$lib/stores/track-settings';
   import { normalizeTrackRating } from '$lib/services/track-ratings';
   import { prepareImportedFiles } from '$lib/services/file-verification';
-  import { extractDroppedContent } from '$lib/utils/files';
+  import { extractDroppedContent } from '$lib/services/file-access';
   import TrackListPanelHeader from '$lib/components/track-list-panel/TrackListPanelHeader.svelte';
   import LibraryPanelHeader from '$lib/components/track-list-panel/LibraryPanelHeader.svelte';
   import LibraryAlbumBackdrop from '$lib/components/track-list-panel/LibraryAlbumBackdrop.svelte';

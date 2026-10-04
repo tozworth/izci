@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { locale, t } from 'svelte-i18n';
-  import { isDesktop } from '$platform';
+  import { platformCapabilities, platformId } from '$platform';
   import { version as appVersion } from '../../../../package.json';
   import {
     applyAvailableServiceWorkerUpdate,
@@ -39,7 +39,7 @@
     : $t('options.about.updates.lastChecked', { default: 'Last checked {date}', values: { date: successfulCheckFormatter.format($pwaUpdateCheckState.lastSuccessfulCheck) } });
 
   onMount(() => {
-    if (!isDesktop) void checkServiceWorkerUpdate();
+    if (platformCapabilities.serviceWorkerUpdates) void checkServiceWorkerUpdate();
   });
 </script>
 
@@ -54,7 +54,7 @@
         <span class="about-version">{displayVersion}</span>
         <span class="about-codename">“{codename}”</span>
       </h1>
-      <p class="about-tagline">{isDesktop
+      <p class="about-tagline">{platformId !== 'pwa'
         ? $t('options.about.desktopTagline', { default: 'Media contraption' })
         : $t('options.about.tagline', { default: 'PWA media contraption' })}</p>
       <p class="about-author">Toz · 2026</p>
@@ -85,7 +85,7 @@
       </a>
     </div>
 
-    {#if !isDesktop}
+    {#if platformCapabilities.serviceWorkerUpdates}
     <div
       class="about-update-status"
       class:update-checking={$pwaUpdateCheckState.status === 'checking'}

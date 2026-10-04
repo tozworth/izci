@@ -47,6 +47,7 @@
 - `src/lib/stores/`: persisted state, collection state, normalization, and cross-window sync.
 - `src/lib/i18n/`: English source catalog, Turkish translations, and localization runtime.
 - `src/lib/utils/`: stateless shared helpers.
+- `src/platform/`: shared platform contracts, browser file-access primitives, and the first-class PWA adapter. Build-selected `$platform` owns capabilities and filesystem access; shared consumers must not call platform pickers or import native bridges directly.
 - `src/options/`: separate Options Vite/Svelte entrypoint and settings UI. Options edits stores; it does not own audio nodes or main-window library mutation.
 - `src/tools/`: standalone Audio Compare, Editor, Converter, Logs, and Troubadour window code; `tool-shell.css` supplies their shared desktop-window styling.
 - `src/lib/types.ts`: shared domain types and canonical internally supported extensions.

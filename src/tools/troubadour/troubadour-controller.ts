@@ -16,7 +16,10 @@ import type {
   TroubadourRememberedFolder,
   TroubadourTrackReference
 } from '$lib/services/troubadour-sync';
-import { discoverDirectoryFiles, inferExtension } from '$lib/utils/files';
+import { inferExtension } from '$lib/utils/files';
+import { filesystem } from '$platform';
+import { describeImportedFiles, extractDroppedFiles } from '$lib/services/file-access';
+import type { SelectedFolder, DiscoveredMediaFile } from '$lib/services/platform-files-types';
 import { autoGroupTracks, renumberAlbumTracks } from './grouping';
 import { createHistory, pushHistory, undoHistory, redoHistory, type HistoryState } from './history';
 import { cloneStaged, itemDirty } from './troubadour-staged';
@@ -24,7 +27,6 @@ import {
   createTroubadourLoadingPipeline,
   LOAD_COMMIT_BATCH_SIZE,
   LOAD_DEFAULT_CONCURRENCY,
-  itemFromHandle,
   itemsFromBatchTracks,
   itemsFromDiscoveredFiles,
   materializeWorkbenchFile,
@@ -283,8 +285,15 @@ export function createTroubadourController(
         setState({ busy: false, activeJob: '', jobProgress: null });
       }
     },
-    async ingestHandles(
-      handles: FileSystemFileHandle[],
+    async ingestFiles(
+      files: File[],
+      concurrency = LOAD_DEFAULT_CONCURRENCY,
+      autoGroupFallback?: TroubadourAutoGroupFallback
+    ) {
+      return this.ingestMediaFiles(describeImportedFiles(files), concurrency, autoGroupFallback);
+    },
+    async ingestMediaFiles(
+      files: DiscoveredMediaFile[] | Promise<DiscoveredMediaFile[]>,
       concurrency = LOAD_DEFAULT_CONCURRENCY,
       autoGroupFallback?: TroubadourAutoGroupFallback
     ) {
@@ -301,7 +310,7 @@ export function createTroubadourController(
         });
         await run(async (report) => {
           return await itemsFromDiscoveredFiles(
-            handles.map((fileHandle) => ({ fileHandle, path: fileHandle.name, parentHandle: null })),
+            await files,
             concurrency,
             report,
             'files'
@@ -311,8 +320,8 @@ export function createTroubadourController(
         setState({ busy: false, activeJob: '', jobProgress: null });
       }
     },
-    async ingestDirectory(
-      handle: FileSystemDirectoryHandle,
+    async ingestFolder(
+      handle: SelectedFolder,
       maxDepth = Number.POSITIVE_INFINITY,
       concurrency = LOAD_DEFAULT_CONCURRENCY,
       autoGroupFallback?: TroubadourAutoGroupFallback
@@ -331,7 +340,7 @@ export function createTroubadourController(
         await run(async (report) => {
           let found = 0;
           let lastReported = 0;
-          const discovered = await discoverDirectoryFiles(handle, {
+          const discovered = await filesystem.discoverFolder(handle, {
             maxDepth,
             onFileFound: () => {
               found += 1;
@@ -366,44 +375,8 @@ export function createTroubadourController(
           setMessage
         });
         await run(async (report) => {
-          const items: TroubadourWorkbenchItem[] = [];
-          let found = 0;
-          let lastReported = 0;
-          const reportFound = () => {
-            found += 1;
-            if (found - lastReported >= LOAD_COMMIT_BATCH_SIZE) {
-              lastReported = found;
-              report(`Scanning dropped items · ${found} files found`);
-            }
-          };
-          for (const transferItem of Array.from(dataTransfer.items)) {
-            const handle = await transferItem.getAsFileSystemHandle?.().catch(() => null);
-            if (handle?.kind === 'file') {
-              const fileHandle = handle as FileSystemFileHandle;
-              if (getMetadataCapabilities(inferExtension(fileHandle.name))) {
-                reportFound();
-                items.push(await itemFromHandle(fileHandle, fileHandle.name, null));
-              }
-            } else if (handle?.kind === 'directory') {
-              const directory = handle as FileSystemDirectoryHandle;
-              const discovered = await discoverDirectoryFiles(directory, { maxDepth, onFileFound: reportFound });
-              items.push(...await itemsFromDiscoveredFiles(discovered, concurrency, report, 'dropped files'));
-            }
-          }
-          if (!items.length) {
-            for (const file of Array.from(dataTransfer.files)) {
-              if (!getMetadataCapabilities(inferExtension(file.name))) continue;
-              reportFound();
-              const extension = inferExtension(file.name);
-              items.push({
-                id: crypto.randomUUID(), references: [], file, fileHandle: null, parentHandle: null,
-                path: file.webkitRelativePath || file.name, extension, kind: inferWorkbenchKind(extension), state: 'loading',
-                document: null, patch: {}, artworkEdits: [], albumId: null, error: '', jobProgress: null
-              });
-            }
-          }
-          report(`Scanning dropped items · ${found} file${found === 1 ? '' : 's'} found`);
-          return items;
+          const files = await extractDroppedFiles(dataTransfer, { maxDepth, readConcurrency: concurrency });
+          return itemsFromDiscoveredFiles(await describeImportedFiles(files), concurrency, report, 'dropped files');
         });
       } finally {
         setState({ busy: false, activeJob: '', jobProgress: null });

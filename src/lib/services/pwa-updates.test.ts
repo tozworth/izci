@@ -276,7 +276,7 @@ describe('PWA update decisions', () => {
     const currentRegistration = registration();
     installBrowserGlobals({ registration: currentRegistration });
     const updater = await loadUpdater();
-    updater.registerAppServiceWorker();
+    await updater.registerAppServiceWorker();
 
     await updater.forceServiceWorkerUpdateCheck();
 
@@ -294,7 +294,7 @@ describe('PWA update decisions', () => {
       options.onRegisteredSW?.('/sw.js', currentRegistration as unknown as ServiceWorkerRegistration);
     });
     const updater = await loadUpdater();
-    updater.registerAppServiceWorker();
+    await updater.registerAppServiceWorker();
 
     const checking = updater.forceServiceWorkerUpdateCheck();
     await Promise.resolve();
@@ -317,7 +317,7 @@ describe('PWA update decisions', () => {
       options.onRegisteredSW?.('/sw.js', currentRegistration as unknown as ServiceWorkerRegistration);
     });
     const updater = await loadUpdater();
-    updater.registerAppServiceWorker();
+    await updater.registerAppServiceWorker();
     const checking = updater.forceServiceWorkerUpdateCheck();
     await Promise.resolve();
 
@@ -406,7 +406,7 @@ describe('PWA update decisions', () => {
     });
     const updater = await loadUpdater();
 
-    updater.registerAppServiceWorker();
+    await updater.registerAppServiceWorker();
     await Promise.resolve();
     expect(currentRegistration.update).not.toHaveBeenCalled();
 

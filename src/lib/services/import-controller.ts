@@ -9,20 +9,13 @@ import { prepareImportedFiles } from '$lib/services/file-verification';
 import { filesystemFolders } from '$lib/services/filesystem-folders';
 import { logError, logInfo } from '$lib/services/logging';
 import { trackSettings } from '$lib/stores/track-settings';
-import { readFileHandleFiles } from '$lib/utils/files';
-import { nativeFilesystem } from '$platform';
+import { filesystem } from '$platform';
 import { readFilesystemFolderFiles } from './filesystem-folder-files';
-
-type PickerWindow = Window &
-  typeof globalThis & {
-    showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
-    showOpenFilePicker?: (options?: OpenFilePickerOptions) => Promise<FileSystemFileHandle[]>;
-  };
 
 interface ImportControllerOptions {
   addFiles: (files: FileList | File[], target: WorkspaceCollection) => void;
   clickFileInput: () => void;
-  getWindow?: () => PickerWindow | null;
+  getWindow?: () => Window | null;
   getOpenFilePickerDescription?: () => string;
 }
 
@@ -67,8 +60,8 @@ export function createOpenFilePickerOptions(description = 'Supported media files
 
 export const OPEN_FILE_PICKER_OPTIONS = createOpenFilePickerOptions();
 
-function getDefaultWindow(): PickerWindow | null {
-  return typeof window === 'undefined' ? null : (window as PickerWindow);
+function getDefaultWindow(): Window | null {
+  return typeof window === 'undefined' ? null : (window as Window);
 }
 
 function isAbortError(error: unknown): boolean {
@@ -76,11 +69,11 @@ function isAbortError(error: unknown): boolean {
 }
 
 export function supportsOpenFilePicker(targetWindow = getDefaultWindow()): boolean {
-  return Boolean(nativeFilesystem || targetWindow?.showOpenFilePicker);
+  return filesystem.supportsFilePicker(targetWindow);
 }
 
 export function supportsDirectoryPicker(targetWindow = getDefaultWindow()): boolean {
-  return Boolean(nativeFilesystem || targetWindow?.showDirectoryPicker);
+  return filesystem.supportsFolderPicker(targetWindow);
 }
 
 export function createImportController(options: ImportControllerOptions) {
@@ -102,17 +95,16 @@ export function createImportController(options: ImportControllerOptions) {
     async openFiles(target: WorkspaceCollection): Promise<void> {
       const pickerWindow = getWindow();
 
-      if (!nativeFilesystem && (!pickerWindow || !supportsOpenFilePicker(pickerWindow))) {
+      if (!supportsOpenFilePicker(pickerWindow)) {
         pendingFileInputTarget = target;
         options.clickFileInput();
         return;
       }
 
       try {
-        const handles = !nativeFilesystem ? await pickerWindow?.showOpenFilePicker?.(
-          createOpenFilePickerOptions(getOpenFilePickerDescription())
-        ) : undefined;
-        const pickedFiles = nativeFilesystem ? await nativeFilesystem.pickFiles() : handles ? await readFileHandleFiles(handles) : [];
+        const pickedFiles = await filesystem.pickFiles({
+          ...createOpenFilePickerOptions(getOpenFilePickerDescription()), targetWindow: pickerWindow
+        });
         const files = await prepareImportedFiles(pickedFiles);
         logInfo('files', 'File import completed', { target, selected: pickedFiles.length, accepted: files.length });
 
@@ -132,12 +124,12 @@ export function createImportController(options: ImportControllerOptions) {
     async openFolder(target: WorkspaceCollection): Promise<void> {
       const pickerWindow = getWindow();
 
-      if (!nativeFilesystem && (!pickerWindow || !supportsDirectoryPicker(pickerWindow))) {
+      if (!supportsDirectoryPicker(pickerWindow)) {
         return;
       }
 
       try {
-        const directoryHandle = nativeFilesystem ? await nativeFilesystem.pickFolder() : await pickerWindow?.showDirectoryPicker?.();
+        const directoryHandle = await filesystem.pickFolder({ targetWindow: pickerWindow });
         const folder = directoryHandle ? await filesystemFolders.remember(directoryHandle) : null;
         const discoveredFiles = folder
           ? await readFilesystemFolderFiles(folder, trackSettings.getSnapshot().folderNestingLimit)

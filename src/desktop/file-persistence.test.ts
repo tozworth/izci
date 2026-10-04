@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TrackItem } from '$lib/types';
 
 const platform = vi.hoisted(() => ({ enabled: true, materializeFile: vi.fn() }));
-vi.mock('$platform', () => ({ get nativeFilesystem() { return platform.enabled ? { referenceScheme: 'file:', materializeFile: platform.materializeFile } : null; } }));
+vi.mock('$platform', async () => {
+  const { createNativeFilesystem } = await import('../platform/native-filesystem');
+  const { filesystem: browser } = await import('../platform/web-filesystem');
+  const native = createNativeFilesystem({ referenceScheme: 'file:', materializeFile: platform.materializeFile } as never, { accessModel: 'os-permissions' });
+  return { get filesystem() { return platform.enabled ? native : browser; } };
+});
 import { restoreStoredItem, serializeItem } from '$lib/stores/queue-persistence';
 import { materializeTrackItem } from '$lib/stores/queue-materialization';
 

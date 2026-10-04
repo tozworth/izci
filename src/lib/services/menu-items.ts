@@ -1,5 +1,5 @@
 import { version as appVersion } from '../../../package.json';
-import { isDesktop } from '$platform';
+import { platformCapabilities } from '$platform';
 import { isRafPresetDirty } from '$lib/stores/raf-presets';
 import {
   getPlaybackBookmarks,
@@ -705,7 +705,7 @@ function buildVideoMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
 
 function buildHelpMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
   return [
-    ...(!isDesktop ? [{
+    ...(platformCapabilities.serviceWorkerUpdates ? [{
       id: 'forceUpdate',
       label: deps.translate('main.menu.forceUpdate', { default: 'Force update' }),
       icon: 'sync',
@@ -715,7 +715,7 @@ function buildHelpMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
       id: 'openAbout',
       label: deps.translate('main.menu.about', { default: 'About' }),
       icon: 'info',
-      separatorBefore: !isDesktop
+      separatorBefore: platformCapabilities.serviceWorkerUpdates
     }
   ] satisfies MenuActionItem[];
 }

@@ -1,3 +1,4 @@
+import { saveFile } from '$lib/services/file-access';
 import { MODULE_EXTENSIONS } from '$lib/types';
 import { logDebug, logError, logInfo } from '$lib/services/logging';
 import { inferExtension } from '$lib/utils/files';
@@ -250,29 +251,6 @@ export async function loadAudioFile(
 }
 
 export async function saveBlob(blob: Blob, suggestedName: string): Promise<void> {
-  const pickerWindow = window as Window & {
-    showSaveFilePicker?: (options: {
-      suggestedName: string;
-      types: Array<{ description: string; accept: Record<string, string[]> }>;
-    }) => Promise<{ createWritable(): Promise<{ write(data: Blob): Promise<void>; close(): Promise<void> }> }>;
-  };
-
-  if (pickerWindow.showSaveFilePicker) {
-    const extension = `.${suggestedName.split('.').pop()?.toLowerCase() ?? 'bin'}`;
-    const handle = await pickerWindow.showSaveFilePicker({
-      suggestedName,
-      types: [{ description: 'Audio file', accept: { [blob.type || 'application/octet-stream']: [extension] } }]
-    });
-    const writable = await handle.createWritable();
-    await writable.write(blob);
-    await writable.close();
-    return;
-  }
-
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = suggestedName;
-  anchor.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const extension = `.${suggestedName.split('.').pop()?.toLowerCase() ?? 'bin'}`;
+  await saveFile(blob, { suggestedName, types: [{ description: 'Audio file', accept: { [blob.type || 'application/octet-stream']: [extension] } }] });
 }

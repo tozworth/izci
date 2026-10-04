@@ -42,9 +42,9 @@ vi.mock('$lib/services/file-verification', () => ({
   prepareImportedFiles: vi.fn(async (files: File[]) => files)
 }));
 
-vi.mock('$lib/utils/files', async (importOriginal) => ({
-  ...await importOriginal<typeof import('$lib/utils/files')>(),
-  readDirectoryFiles: restoreHarness.readDirectoryFiles
+vi.mock('$platform', async importOriginal => ({
+  ...await importOriginal<object>(),
+  filesystem: { ...(await import('../../platform/web-filesystem')).filesystem, readFolder: restoreHarness.readDirectoryFiles }
 }));
 
 import { forgetPendingFolder, locatePendingFolder, pendingBackupRestore } from './backups';
@@ -114,12 +114,12 @@ describe('backup restore location', () => {
       async *values() {}
     } as FileSystemDirectoryHandle;
 
-    await expect(locatePendingFolder('music-root', handle)).resolves.toMatchObject({
+    await expect(locatePendingFolder('music-root', { name: handle.name, handle })).resolves.toMatchObject({
       status: 'success',
       matchedTracks: 0,
       remainingTracks: 0
     });
-    expect(restoreHarness.rememberFolder).toHaveBeenCalledWith(handle, {
+    expect(restoreHarness.rememberFolder).toHaveBeenCalledWith({ name: handle.name, handle }, {
       libraryMode: 'launch',
       preferredId: 'music-root'
     });

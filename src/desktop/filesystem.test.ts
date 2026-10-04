@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const calls = vi.hoisted(() => ({ invoke: vi.fn(), read: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: calls.invoke }));
-vi.mock('./files', () => ({ readDesktopFiles: calls.read }));
+vi.mock('./files', () => ({ readDesktopFiles: calls.read, preparePlaybackRestoration: vi.fn() }));
 import { nativeFilesystem } from './filesystem';
 
 beforeEach(() => vi.resetAllMocks());

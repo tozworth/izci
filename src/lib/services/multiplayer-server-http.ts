@@ -9,7 +9,7 @@ import {
   SERVER_APP_PROTOCOL_MINOR,
   type ServerErrorCode
 } from './multiplayer-server-protocol';
-import { fetchSignaling, isDesktop } from '$platform';
+import { fetchSignaling, platformCapabilities } from '$platform';
 
 export class ServerError extends Error {
   readonly code: ServerErrorCode | string;
@@ -106,7 +106,7 @@ export function normalizeServerEndpoint(raw: string): string {
     || host === '127.0.0.1'
     || host === '::1'
     || host.endsWith('.localhost');
-  if (url.protocol === 'http:' && !isLoopback && !isDesktop) {
+  if (url.protocol === 'http:' && !isLoopback && !platformCapabilities.unrestrictedSignalingHttp) {
     throw new ServerError('bad-request', 0);
   }
   // Keep the deployment prefix path as-is (no trailing slash).

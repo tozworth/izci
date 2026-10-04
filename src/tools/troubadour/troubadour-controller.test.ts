@@ -3,7 +3,13 @@ import type { MetadataDocument } from '$lib/services/media-metadata/types';
 
 const { readMetadataDocument } = vi.hoisted(() => ({ readMetadataDocument: vi.fn() }));
 const getMediaAccess = vi.hoisted(() => vi.fn());
-vi.mock('$platform', async importOriginal => ({ ...await importOriginal<object>(), nativeFilesystem: { referenceScheme: 'file:', getMediaAccess } }));
+vi.mock('$platform', async importOriginal => {
+  const original = await importOriginal<typeof import('$platform')>();
+  return { ...original, filesystem: { ...original.filesystem, getMediaAccess: (reference: import('$lib/services/platform-files-types').FileReference, context: import('$lib/services/platform-files-types').FileAccessContext) =>
+    reference.nativeFile ? getMediaAccess(reference.nativeFile) : original.filesystem.getMediaAccess(reference, context),
+    readFile: (reference: import('$lib/services/platform-files-types').FileReference) => reference.nativeFile ? Promise.resolve(null) : original.filesystem.readFile(reference)
+  } };
+});
 
 vi.mock('$lib/services/media-metadata/reader', () => ({ readMetadataDocument }));
 
@@ -79,7 +85,7 @@ describe('Troubadour folder ingestion', () => {
     const arrayBuffer = vi.spyOn(supportedFile, 'arrayBuffer');
     const controller = createTroubadourController();
 
-    await controller.ingestDirectory(root, 2, 4);
+    await controller.ingestFolder({ name: root.name, handle: root }, 2, 4);
 
     expect(controller.getSnapshot().items).toMatchObject([{
       file: supportedFile,
@@ -105,7 +111,7 @@ describe('Troubadour folder ingestion', () => {
     }));
     const controller = createTroubadourController();
 
-    const loading = controller.ingestDirectory(root, 2, 4, 'folder');
+    const loading = controller.ingestFolder({ name: root.name, handle: root }, 2, 4, 'folder');
 
     await vi.waitFor(() => {
       expect(controller.getSnapshot().busy).toBe(true);
@@ -132,7 +138,7 @@ describe('Troubadour folder ingestion', () => {
       publications += 1;
     });
 
-    await controller.ingestDirectory(root, 0, 4);
+    await controller.ingestFolder({ name: root.name, handle: root }, 0, 4);
     unsubscribe();
 
     expect(controller.getSnapshot().items).toHaveLength(7_000);

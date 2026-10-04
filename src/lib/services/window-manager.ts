@@ -5,7 +5,7 @@ import { OPEN_CURRENT_TOOL_TRACK_MESSAGE } from '$lib/services/tool-track-contex
 import { OPEN_TROUBADOUR_BATCH_CONTEXT_MESSAGE } from '$lib/services/troubadour-sync';
 import { buildOptionsWindowPath, type OptionsViewName } from '../../options/views';
 import { logDebug, logInfo, logWarning } from '$lib/services/logging';
-import { exitDesktop, isDesktop, presentDesktopPopup } from '$platform';
+import { exitPlatform, platformCapabilities, presentPlatformPopup } from '$platform';
 
 function isOpenWindow(windowRef: Window | null | undefined): windowRef is Window {
   return windowRef !== null && windowRef !== undefined && !windowRef.closed;
@@ -160,7 +160,7 @@ function attachMainWindowLifecycleListeners(): void {
 }
 
 function focusPopupWindow(windowRef: Window, path: string): void {
-  if (!presentDesktopPopup(path)) windowRef.focus();
+  if (!presentPlatformPopup(path)) windowRef.focus();
 }
 
 function openPopupWindow(id: PopupWindowId, pathOverride?: string, warm = false): Window | null {
@@ -200,7 +200,7 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string, warm = false)
   }
 
   const nextWindow = window.open(
-    isDesktop ? popupUrl.href : '',
+    platformCapabilities.directPopupNavigation ? popupUrl.href : '',
     definition.name,
     buildWindowFeatures(getPopupFeatures({
       ...definition,
@@ -213,10 +213,10 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string, warm = false)
     return null;
   }
 
-  if (!isDesktop) primePopupBackground(nextWindow, getPopupTitle(id));
+  if (!platformCapabilities.directPopupNavigation) primePopupBackground(nextWindow, getPopupTitle(id));
   popupRefs.set(id, nextWindow);
   attachMainWindowLifecycleListeners();
-  if (!isDesktop) {
+  if (!platformCapabilities.directPopupNavigation) {
     navigatePrimedPopup(nextWindow, popupUrl.href);
     nextWindow.focus();
   }
@@ -249,7 +249,7 @@ export const windowManager = {
     return isOpenWindow(windowRef) ? windowRef : null;
   },
   exit() {
-    if (exitDesktop()) return;
+    if (exitPlatform()) return;
     closeAllPopupWindows();
     window.close();
 
@@ -261,7 +261,7 @@ export const windowManager = {
 };
 
 export function warmOptionsWindow(): void {
-  if (!isDesktop) return;
+  if (!platformCapabilities.warmOptionsWindow) return;
   const warm = () => {
     if (!isOpenWindow(popupRefs.get('options'))) openPopupWindow('options', undefined, true);
   };

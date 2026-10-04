@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { saveFile } from '$lib/services/file-access';
   import { onMount, tick } from 'svelte';
   import { t } from 'svelte-i18n';
   import ColumnListView from '$lib/components/ColumnListView.svelte';
@@ -63,25 +64,7 @@
   }
 
   async function saveText(text: string, suggestedName: string): Promise<void> {
-    type WritableLogHandle = {
-      createWritable(): Promise<{ write(data: string): Promise<void>; close(): Promise<void> }>;
-    };
-    const picker = (window as Window & {
-      showSaveFilePicker?: (options: unknown) => Promise<WritableLogHandle>;
-    }).showSaveFilePicker;
-    if (picker) {
-      const handle = await picker({ suggestedName, types: [{ description: 'Log file', accept: { 'text/plain': ['.log'] } }] });
-      const writable = await handle.createWritable();
-      await writable.write(text);
-      await writable.close();
-      return;
-    }
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = suggestedName;
-    anchor.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    await saveFile(new Blob([text], { type: 'text/plain' }), { suggestedName, types: [{ description: 'Log file', accept: { 'text/plain': ['.log'] } }] });
   }
 
   async function exportLogs(): Promise<void> {

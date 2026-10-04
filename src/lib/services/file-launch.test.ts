@@ -4,7 +4,7 @@ import {
   consumeFileLaunchMarker,
   setLaunchedHandlesPreviewListener,
   subscribeToLaunchedFiles
-} from './file-launch';
+} from '../../platform/pwa/file-launch';
 
 function stubWindow(search: string): { replaceState: ReturnType<typeof vi.fn> } {
   const replaceState = vi.fn();
