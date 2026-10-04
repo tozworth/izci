@@ -3,11 +3,12 @@
   import { t } from 'svelte-i18n';
   import type { PlaybackSnapshot, VideoFitMode } from '$lib/types';
   import type { VideoSeekFeedback } from './types';
-  import ImageStage from './ImageStage.svelte';
+  import ImageViewer from './ImageViewer.svelte';
   import VideoStage from './VideoStage.svelte';
 
   export let element: HTMLVideoElement | null = null;
   export let imageElement: HTMLImageElement | null = null;
+  export let imageMode = false;
   export let parkingHost: HTMLDivElement | null = null;
   export let topInset = 0;
   export let chromeInset = 0;
@@ -76,15 +77,15 @@
 
 <section
   class="video-theater"
-  class:is-image={Boolean(imageElement) || snapshot?.backend === 'image'}
+  class:is-image={imageMode}
   class:is-controls-hidden={controlsHidden}
   style={`top: ${topInset}px; --video-theater-chrome-inset: ${chromeInset}px;`}
-  aria-label={imageElement
+  aria-label={imageMode
     ? $t('workspace.imageTheater.title', { default: 'Image theater' })
     : $t('workspace.videoTheater.title', { default: 'Video theater' })}
 >
-  {#if imageElement || snapshot?.backend === 'image'}
-    <ImageStage
+  {#if imageMode}
+    <ImageViewer
       element={imageElement}
       {parkingHost}
       {fitMode}

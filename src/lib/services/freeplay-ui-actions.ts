@@ -30,6 +30,8 @@ interface FreeplayUiActionsDeps {
  */
 export function createFreeplayUiActions(deps: FreeplayUiActionsDeps) {
   function addToFreeplayQueue(ids: string[]): void {
+    const playableIds = new Set([...deps.getLibraryItems(), ...deps.getFavoriteItems()].filter((item) => item.kind !== 'image').map((item) => item.id));
+    ids = ids.filter((id) => playableIds.has(id));
     if (!deps.getIsFreeplayClient() || ids.length === 0) return;
     const current = deps.getFreeplayQueue();
     deps.setFreeplayQueue([
@@ -76,7 +78,10 @@ export function createFreeplayUiActions(deps: FreeplayUiActionsDeps) {
 
   function handleLibraryContextAction(actionId: string, ids: string[]): void {
     const source = deps.getActiveView() === 'favorites' ? deps.getFavoriteItems() : deps.getLibraryItems();
-    const tracks = buildSelectedWorkspaceTracks(source, ids);
+    const selected = buildSelectedWorkspaceTracks(source, ids);
+    const tracks = ['add-to-queue', 'replace-queue', 'play-next', 'shuffle-play'].includes(actionId)
+      ? selected.filter((item) => item.kind !== 'image') : selected;
+    ids = tracks.map((item) => item.id);
     if (handleNavigationAction(actionId, tracks)) return;
     if (actionId === 'track-details') {
       deps.showTrackDetails();

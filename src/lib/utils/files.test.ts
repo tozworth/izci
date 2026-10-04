@@ -49,12 +49,12 @@ describe('file helpers', () => {
     expect(isVisualMediaFileName('README')).toBe(false);
   });
 
-  it('builds image items with a displayable object URL', () => {
+  it('keeps image files available without eagerly allocating viewer URLs', () => {
     const [item] = buildTrackItems([new File(['image'], 'Photo.JPEG', { type: 'image/jpeg' })]);
 
     expect(item).toMatchObject({ name: 'Photo.JPEG', extension: 'jpeg', kind: 'image' });
-    expect(item.objectUrl).toMatch(/^blob:/);
-    URL.revokeObjectURL(item.objectUrl!);
+    expect(item.file?.name).toBe('Photo.JPEG');
+    expect(item.objectUrl).toBeUndefined();
   });
 
   it('strips only the final filename extension', () => {

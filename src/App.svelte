@@ -36,6 +36,7 @@
   } from '$lib/services/contextual-tab-presentation';
   import { appInstallService } from '$lib/services/app-install';
   import { playerController } from '$lib/services/player-controller';
+  import { imageSession } from '$lib/services/image-session';
   import { windowManager } from '$lib/services/window-manager';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { windowDisplayState } from '$lib/services/window-display-state';
@@ -337,7 +338,8 @@
     snapshotStore: displayPlaybackSnapshotStore,
     playbackSnapshot,
     videoElement: $mediaElementsStore.video,
-    imageElement: $mediaElementsStore.image,
+    imageElement: $imageSession.element,
+    imageActive: Boolean($imageSession.item),
     videoParkingHost,
     videoTheaterActive,
     videoFitMode: $videoSettings.fitMode,
@@ -603,15 +605,17 @@
     ? toLoadedMultiplayerArtwork(livePlayingTrack, multiplayerState.remoteArtwork)
     : undefined);
   $: videoTrackActive = !isMultiplayerClient && livePlayingTrack?.kind === 'video';
-  $: imageTrackActive = !isMultiplayerClient && livePlayingTrack?.kind === 'image';
+  $: imageTrackActive = Boolean($imageSession.item);
   $: visualMediaActive = videoTrackActive || imageTrackActive;
   $: mediaTabKind = (imageTrackActive ? 'image' : 'video') as MediaTabKind;
   $: runtime.publish({ videoTrackActive, visualMediaActive });
   $: videoPictureInPictureSupported =
     videoTrackActive && playerController.videoPictureInPictureSupported;
-  $: videoActions.syncWindowSize(visualMediaActive, $videoSettings.autoResizeWindow);
-  $: videoActions.syncPresentation(isMultiplayerClient ? null : livePlayingTrack, $videoSettings.autoEnterTheater);
-  $: if (visualMediaActive && $windowDisplayState.fullscreen && !videoTheaterActive) {
+  $: if (!odaSessionSnapshot.active) {
+    videoActions.syncWindowSize(visualMediaActive, $videoSettings.autoResizeWindow);
+    videoActions.syncPresentation($imageSession.item ?? (isMultiplayerClient ? null : livePlayingTrack), $videoSettings.autoEnterTheater);
+  }
+  $: if (!odaSessionSnapshot.active && visualMediaActive && $windowDisplayState.fullscreen && !videoTheaterActive) {
     videoTheaterActive = true;
   }
   // The veil waits for launch intent (handles seen), not collections: launch
@@ -660,7 +664,7 @@
   $: if (!isAutomaticNowPlayingEligible) {
     autoNowPlayingSuppressed = false;
   }
-  $: isNowPlayingLayoutActive = resolveNowPlayingLayoutActive(
+  $: isNowPlayingLayoutActive = !imageTrackActive && resolveNowPlayingLayoutActive(
     nowPlayingViewActive,
     isAutomaticNowPlayingEligible,
     autoNowPlayingSuppressed,
@@ -817,6 +821,9 @@
   }
 
   async function activateLibraryPanelTrack(id: string) {
+    const source = $libraryViewSettings.activeView === 'favorites' ? favoriteItems : libraryItems;
+    const image = source.find((item) => item.id === id && item.kind === 'image');
+    if (image) { await imageSession.open(image, source); return; }
     if (isFreeplayClient) {
       freeplayActions.addToFreeplayQueue([id]);
       multiplayerController.activateTrack('queue', id);
@@ -832,7 +839,7 @@
     }
 
     const track = favoriteItems.find((item) => item.id === id);
-    if (track) await playbackCommands.activateFavoriteTrack(track);
+    if (track) await playbackCommands.activateFavoriteTrack(track, favoriteItems);
   }
 
   async function enterOda(options: { retryFullscreenOnGesture?: boolean } = {}): Promise<void> {
@@ -907,6 +914,11 @@
   }
 
   $: odaCommands = {
+    viewImage: (item, items) => imageSession.open(item, items),
+    stepImage: (direction) => { void imageSession.step(direction); },
+    toggleImageShuffle: imageSession.toggleShuffle,
+    cycleImageRepeat: imageSession.cycleRepeat,
+    closeImages: imageSession.close,
     activateLibraryTrack: (id: string) => activateOdaLibraryTrack(id),
     activateQueueTrack: (id: string) => activateOdaQueueTrack(id),
     removeQueueTracks: (ids: string[]) => {
@@ -1027,6 +1039,7 @@
 
 {#if odaSessionSnapshot.active}
   <OdaShell
+    imageSnapshot={$imageSession}
     bind:screensaverActive={odaScreensaverActive}
     screensaverActivityToken={odaScreensaverActivityToken}
     session={odaSession}
@@ -1054,7 +1067,6 @@
     onMultiplayerLeave={() => { closeChatTab(); void multiplayerSession.leave(); }}
     media={{
       videoElement: $mediaElementsStore.video,
-      imageElement: $mediaElementsStore.image,
       parkingHost: videoParkingHost,
       fitMode: $videoSettings.fitMode,
       imageZoom: $videoSettings.imageZoom,
@@ -1238,7 +1250,7 @@
     onCloseNowPlaying={videoActions.closeNowPlayingView}
     onChromeHiddenChange={(hidden) => (isNowPlayingChromeHidden = hidden)}
     onTabChange={workspaceShell.setActiveWorkspaceTab}
-    onTabClose={(tab) => workspaceShell.closeWorkspaceTab(tab)}
+    onTabClose={(tab) => { if (tab === 'media') imageSession.close(); workspaceShell.closeWorkspaceTab(tab); }}
     onTabbedTabMove={(detail) => workspaceShell.moveTabbedWorkspaceTab(detail)}
     onWideTabMove={(detail) => workspaceShell.moveWorkspaceTab(detail)}
     onResizeStart={(detail) => workspaceShell.handleWideWorkspaceResizeStart(detail)}
@@ -1262,7 +1274,8 @@
   {#if videoTheaterActive}
     <VideoTheater
       element={$mediaElementsStore.video}
-      imageElement={$mediaElementsStore.image}
+      imageElement={$imageSession.element}
+      imageMode={imageTrackActive}
       parkingHost={videoParkingHost}
       topInset={videoTheaterTopInset}
       chromeInset={isFullscreenVideoTheater ? videoTheaterChromeInset : 0}
@@ -1350,9 +1363,8 @@
       rafPresets={$rafPresets.presets}
       selectedRafPresetId={$rafPresets.selectedPresetId}
       rafPresetDirty={isRafPresetDirty($rafPresets, $rafSettings)}
-      imageMode={imageTrackActive}
-      imageZoom={$videoSettings.imageZoom}
       showVideoTheaterToggle={visualMediaActive}
+      visualMediaKind={mediaTabKind}
       {videoTheaterActive}
       videoFullscreenActive={videoFullscreenExitAction}
       on:toggle={transport.togglePlayback}
@@ -1371,9 +1383,6 @@
       on:showTrack={(event) => showPlayerTrackDetails(event.detail)}
       on:enterNowPlaying={videoActions.toggleNowPlayingView}
       on:toggleVideoTheater={videoActions.toggleTheater}
-      on:zoomStep={(event) => videoActions.zoomStep(event.detail)}
-      on:resetZoom={videoActions.resetZoom}
-      on:rotateImage={videoActions.rotateImage}
     />
   {/if}
 </div>

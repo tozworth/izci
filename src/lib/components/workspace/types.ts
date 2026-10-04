@@ -73,6 +73,7 @@ export interface WorkspacePanelHandlers {
   activate: (event: CustomEvent<string>) => void;
   contextAction: (event: CustomEvent<{ actionId: string; ids: string[] }>) => void;
   libraryGroupRequestHandled?: (event: CustomEvent<number>) => void;
+  viewImage?: (event: CustomEvent<{ item: TrackItem; items: TrackItem[] }>) => void;
   toggleShuffle?: () => void;
   cycleRepeat?: () => void;
 }
@@ -124,6 +125,7 @@ export interface WorkspaceTabContentProps {
   chatConnected: boolean;
   videoElement: HTMLVideoElement | null;
   imageElement: HTMLImageElement | null;
+  imageActive: boolean;
   videoParkingHost: HTMLDivElement | null;
   videoTheaterActive: boolean;
   videoFitMode: VideoFitMode;

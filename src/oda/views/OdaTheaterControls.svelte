@@ -8,7 +8,6 @@
     ODA_THEATER_PLAY_PAUSE,
     ODA_THEATER_PREVIOUS,
     ODA_THEATER_PROGRESS,
-    ODA_THEATER_SLIDESHOW,
     resolveOdaTheaterControlIds,
     type OdaTheaterKind
   } from '../oda-theater';
@@ -187,17 +186,6 @@
       >
         <span class="material-symbols-outlined" aria-hidden="true">{playing ? 'pause' : 'play_arrow'}</span>
       </button>
-    {:else}
-      <button
-        type="button"
-        class="oda-theater-primary-control"
-        class:is-focused={focused(ODA_THEATER_SLIDESHOW)}
-        aria-label={translate('oda.theater.slideshow', 'Slideshow')}
-        aria-disabled="true"
-        on:click={() => onFocus(ODA_THEATER_SLIDESHOW)}
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">slideshow</span>
-      </button>
     {/if}
     <button
       type="button"
@@ -221,6 +209,7 @@
     </button>
   </div>
 
+  {#if kind === 'video'}
   <div class="oda-theater-transport-edge oda-theater-transport-right">
     <button
       type="button"
@@ -232,6 +221,7 @@
       <span class="material-symbols-outlined" aria-hidden="true">queue_music</span>
     </button>
   </div>
+  {/if}
   </div>
 
 {#if kind === 'video'}

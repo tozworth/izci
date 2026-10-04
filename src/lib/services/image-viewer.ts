@@ -1,6 +1,6 @@
-import type { PlaybackSnapshot, TrackItem, TrackMetadata } from '$lib/types';
+import type { TrackItem, TrackMetadata } from '$lib/types';
 
-type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
+type SnapshotHandler = (snapshot: { state: 'loading' | 'ready' | 'error'; error?: string }) => void;
 type MetadataHandler = (metadata: TrackMetadata) => void;
 
 export class ImageViewerService {
@@ -32,11 +32,7 @@ export class ImageViewerService {
     element.decoding = 'async';
     element.draggable = false;
     this.#onSnapshot({
-      backend: 'image',
       state: 'loading',
-      currentTime: 0,
-      duration: 0,
-      buffered: undefined,
       error: undefined
     });
 
@@ -46,7 +42,7 @@ export class ImageViewerService {
         if (loadToken !== this.#loadToken || this.#element !== element) return;
         this.#settlePendingLoad = null;
         this.#onMetadata({ width: element.naturalWidth, height: element.naturalHeight });
-        this.#onSnapshot({ state: 'paused', error: undefined });
+        this.#onSnapshot({ state: 'ready', error: undefined });
         resolve();
       }, { once: true });
       element.addEventListener('error', () => {

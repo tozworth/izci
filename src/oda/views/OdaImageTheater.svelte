@@ -8,6 +8,7 @@
   export let parkingHost: HTMLDivElement | null = null;
   export let fitMode: VideoFitMode = 'contain';
   export let track: TrackItem | null = null;
+  export let error: string | null = null;
   export let zoom = 1;
   export let focusId: string | null = null;
   export let shuffleEnabled = false;
@@ -38,6 +39,7 @@
     on:resetZoom={onResetZoom}
     on:toggleTheater={() => {}}
   />
+  {#if error}<div class="image-error" role="alert">{error}</div>{/if}
   <OdaTheaterControls
     kind="image"
     {track}
@@ -54,3 +56,7 @@
     {onFocus}
   />
 </div>
+
+<style>
+  .image-error { position: absolute; inset: 0; display: grid; place-items: center; padding: 2rem; pointer-events: none; }
+</style>

@@ -19,6 +19,7 @@ import {
 } from '$lib/utils/files';
 import { prepareImportedFiles } from '$lib/services/file-verification';
 import { videoSettings } from '$lib/stores/video-settings';
+import { imageSession } from './image-session';
 import type { AbLoopRange } from '$lib/services/ab-loop';
 
 interface PlaybackCommandsState {
@@ -39,6 +40,7 @@ interface CreatePlaybackCommandsControllerOptions {
   getShuffleEnabled: () => boolean;
   getRepeatMode: () => RepeatMode;
   getTrackById: (collection: WorkspaceCollection, id: string) => TrackItem | null;
+  getLibraryItems?: () => TrackItem[];
   selectTrack: (collection: WorkspaceCollection, id: string) => void;
   setActiveWorkspaceTab: (tab: WorkspaceTab) => void;
   cleanupRemovedItems: (items: TrackItem[]) => void;
@@ -136,6 +138,7 @@ export function createPlaybackCommandsController({
   getShuffleEnabled,
   getRepeatMode,
   getTrackById,
+  getLibraryItems = () => [],
   selectTrack,
   setActiveWorkspaceTab,
   cleanupRemovedItems,
@@ -219,9 +222,13 @@ export function createPlaybackCommandsController({
     track: TrackItem,
     options: { manualTransition?: boolean } = {}
   ): Promise<void> {
+    if (track.kind === 'image') {
+      await imageSession.open(track, getLibraryItems());
+      return;
+    }
     // Start (or resume) the shared context while the initiating tap still carries
     // mobile browser user activation; file permission/materialization may await.
-    if (track.kind !== 'image') void playerController.resumeAudio();
+    void playerController.resumeAudio();
     const requestId = ++playRequestSequence;
     setPendingPlaybackTrackId(track.id);
     logInfo('playback', 'Play request', { id: track.id, name: track.name, kind: track.kind });
@@ -253,8 +260,6 @@ export function createPlaybackCommandsController({
         getManualTrackChangeFadePercent()
       );
       const shouldTransition =
-        playableTrack.kind !== 'image' &&
-        getPlayingTrack()?.kind !== 'image' &&
         options.manualTransition === true &&
         manualTransitionDurationSeconds > 0 &&
         mode !== 'none' &&
@@ -269,8 +274,8 @@ export function createPlaybackCommandsController({
         }
       } else {
         await playerController.load(playableTrack, {
-          autoPlay: playableTrack.kind !== 'image',
-          initialPosition: playableTrack.kind === 'image' ? 0 : initialPosition
+          autoPlay: true,
+          initialPosition
         });
       }
 
@@ -285,8 +290,6 @@ export function createPlaybackCommandsController({
     }
 
     clearPendingPlaybackTrackId(playableTrack.id);
-
-    if (playableTrack.kind === 'image') return;
 
     const playbackState = getPlaybackState();
 
@@ -319,6 +322,10 @@ export function createPlaybackCommandsController({
     }
 
     logDebug('playback', 'Library track activation', { id });
+    if (track.kind === 'image') {
+      await imageSession.open(track, getLibraryItems());
+      return;
+    }
     const [addedTrack] = queueStore.add(cloneTrackItems([track]));
     const queueTrack = addedTrack ?? queueStore.findEquivalent(track);
 
@@ -330,7 +337,11 @@ export function createPlaybackCommandsController({
     await playTrack(queueTrack, { manualTransition: true });
   }
 
-  async function activateFavoriteTrack(track: TrackItem): Promise<void> {
+  async function activateFavoriteTrack(track: TrackItem, sourceItems: TrackItem[] = [track]): Promise<void> {
+    if (track.kind === 'image') {
+      await imageSession.open(track, sourceItems);
+      return;
+    }
     const [addedTrack] = queueStore.add(cloneTrackItems([track]));
     const queueTrack = addedTrack ?? queueStore.findEquivalent(track);
 
@@ -349,6 +360,14 @@ export function createPlaybackCommandsController({
     const prearmedVisualTheater = videoSettings.getSnapshot().autoEnterTheater
       && files.some((file) => isVisualMediaFileName(file.name));
     const nextItems = buildTrackItems(await prepareImportedFiles(files));
+    const images = nextItems.filter((item) => item.kind === 'image');
+    const playbackItems = nextItems.filter((item) => item.kind !== 'image');
+
+    if (images.length > 0) void imageSession.open(images[0], images);
+    if (playbackItems.length === 0 && images.length > 0) {
+      setActiveWorkspaceTab('media');
+      return;
+    }
 
     if (nextItems.length === 0) {
       logWarning('files', 'Launch import contained no playable files', { files: files.length });
@@ -361,15 +380,15 @@ export function createPlaybackCommandsController({
     let addedItems: TrackItem[];
 
     if (action === 'add') {
-      addedItems = queueStore.add(nextItems);
+      addedItems = queueStore.add(playbackItems);
     } else {
-      const replacement = queueStore.replaceAll(nextItems);
+      const replacement = queueStore.replaceAll(playbackItems);
       addedItems = replacement.addedItems;
       // Mark the incoming visual track pending before unloading: the unload
       // nulls the current track and syncPresentation would otherwise tear
       // down theater across the gap, flashing the workspace.
       const incoming = addedItems[0];
-      if (incoming && (incoming.kind === 'video' || incoming.kind === 'image')) {
+      if (incoming?.kind === 'video') {
         setPendingPlaybackTrackId(incoming.id);
       }
       playerController.unload();
@@ -377,7 +396,7 @@ export function createPlaybackCommandsController({
     }
 
     const targetTrack = addedItems[0]
-      ?? (action === 'add' ? queueStore.findEquivalent(nextItems[0]) : null);
+      ?? (action === 'add' ? queueStore.findEquivalent(playbackItems[0]) : null);
 
     if (!targetTrack) {
       return;
@@ -494,9 +513,9 @@ export function createPlaybackCommandsController({
   async function prepareUpcomingTrack(): Promise<void> {
     const currentTrack = getPlayingTrack();
 
-    if (!currentTrack || currentTrack.kind === 'image' || !getGaplessPlaybackEnabled() || getStopAfterCurrentTrack() || getActiveLoopRange()) return;
+    if (!currentTrack || !getGaplessPlaybackEnabled() || getStopAfterCurrentTrack() || getActiveLoopRange()) return;
     const nextTrack = resolveNextTrack();
-    if (!nextTrack || nextTrack.kind === 'image') return;
+    if (!nextTrack) return;
 
     const requestId = ++preparationSequence;
     logDebug('playback', 'Preparing upcoming track', { id: nextTrack.id });

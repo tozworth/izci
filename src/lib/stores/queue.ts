@@ -38,6 +38,7 @@ export interface TrackCollectionStoreConfig {
   dbName: string;
   dedupe: boolean | (() => boolean);
   getIdentity?: (item: TrackItem) => string;
+  acceptItem?: (item: TrackItem) => boolean;
 }
 
 export type ExternalTrackUpdate = Partial<
@@ -79,6 +80,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   const navigation = createQueueNavigation(() => itemList);
   const shouldDedupe = () => typeof config.dedupe === 'function' ? config.dedupe() : config.dedupe;
   const getIdentity = config.getIdentity ?? getTrackIdentity;
+  const acceptItems = (entries: TrackItem[]) => entries.filter((item) => config.acceptItem?.(item) !== false);
   let resolveReady: (() => void) | null = null;
   const readyPromise = hydrated
     ? Promise.resolve()
@@ -158,7 +160,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     const storedItems = Array.isArray(state?.items) ? state.items : [];
     const normalizedItems = storedItems
       .map(restoreStoredItem)
-      .filter((item): item is TrackItem => item !== null);
+      .filter((item): item is TrackItem => item !== null && config.acceptItem?.(item) !== false);
 
     const { uniqueItems } = splitUniqueItems(normalizedItems, {
       dedupe: shouldDedupe(),
@@ -262,6 +264,10 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       if (!materializedItem) {
         return null;
       }
+      if (config.acceptItem?.(materializedItem) === false) {
+        if (materializedItem.objectUrl !== item.objectUrl) revokeObjectUrl(materializedItem);
+        return null;
+      }
 
       let playableItem = materializedItem;
 
@@ -309,7 +315,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       let addedItems: TrackItem[] = [];
 
       const executed = runOrQueue(() => {
-        const { uniqueItems, duplicateItems } = splitUniqueItems(newItems, {
+        const { uniqueItems, duplicateItems } = splitUniqueItems(acceptItems(newItems), {
           dedupe: shouldDedupe(),
           existingItems: itemList,
           getIdentity
@@ -343,13 +349,16 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       return executed ? addedItems : [];
     },
     replaceAll(newItems: TrackItem[]) {
+      if (newItems.length > 0 && acceptItems(newItems).length === 0) {
+        return { removedItems: [], addedItems: [] };
+      }
       let removedItems: TrackItem[] = [];
       let addedItems: TrackItem[] = [];
 
       const executed = runOrQueue(() => {
         removedItems = [...itemList];
 
-        const { uniqueItems, duplicateItems } = splitUniqueItems(newItems, {
+        const { uniqueItems, duplicateItems } = splitUniqueItems(acceptItems(newItems), {
           dedupe: shouldDedupe(),
           getIdentity
         });
@@ -448,6 +457,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       return removedItems;
     },
     replaceItem(id: string, replacements: TrackItem[]) {
+      replacements = acceptItems(replacements);
       if (!hydrated || replacements.length === 0) {
         return false;
       }
@@ -515,6 +525,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         items.update((existing) =>
           existing.map((item) => {
             if (item.id !== id) return item;
+            if (config.acceptItem?.({ ...item, ...patch }) === false) return item;
 
             const existingPlayCount = item.metadata?.playCount;
             const existingLastPlayed = item.metadata?.lastPlayed;
@@ -612,7 +623,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       const addedItems: TrackItem[] = [];
       const updatedItems: TrackItem[] = [];
 
-      for (const scannedItem of scannedItems) {
+      for (const scannedItem of acceptItems(scannedItems)) {
         const candidate = { ...scannedItem, sourceFolderId: folderId };
         const identity = getTrackIdentity(candidate);
         const existing = managedByIdentity.get(identity) ?? adoptableByIdentity.get(identity);
@@ -703,7 +714,8 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
 export const queueStore = createTrackCollectionStore({
   dbName: 'izci-queue',
   dedupe: () => trackSettings.getSnapshot().deduplicateQueue,
-  getIdentity: getFavoriteIdentity
+  getIdentity: getFavoriteIdentity,
+  acceptItem: (item) => item.kind !== 'image'
 });
 
 export const libraryStore = createTrackCollectionStore({

@@ -43,6 +43,7 @@ import { createWorkspaceShellController } from '$lib/services/workspace-shell';
 import { mediaSessionService } from '$lib/services/media-session';
 import { createPlayCountTracker } from '$lib/services/play-count';
 import { playerController } from '$lib/services/player-controller';
+import { imageSession } from './image-session';
 import {
   createWorkspaceCollectionsController,
   syncPlayingTrackMetadata
@@ -293,6 +294,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
       (collection === 'library' ? state.libraryItems : state.queueItems).find(
         (item) => item.id === id
       ) ?? null,
+    getLibraryItems: () => state.libraryItems,
     selectTrack: workspaceShell.selectTrack,
     setActiveWorkspaceTab: workspaceShell.setActiveWorkspaceTab,
     cleanupRemovedItems: workspaceCollections.cleanupRemovedItems,
@@ -337,9 +339,11 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
       if (type === 'queue.remove') workspaceCollections.removeTrackItems(ids);
       else {
         const selected = ids.map((id) => source.find((item) => item.id === id)!);
-        if (type === 'queue.add') queueStore.add(cloneTrackItems(selected));
+        const playable = selected.filter((item) => item.kind !== 'image');
+        if (playable.length === 0) return false;
+        if (type === 'queue.add') queueStore.add(cloneTrackItems(playable));
         else {
-          const { removedItems } = queueStore.replaceAll(cloneTrackItems(selected));
+          const { removedItems } = queueStore.replaceAll(cloneTrackItems(playable));
           workspaceCollections.cleanupRemovedItems(removedItems);
           playerController.unload();
         }
@@ -560,7 +564,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
       closeNowPlayingView: () => videoActions.closeNowPlayingView(),
       closeActiveRightPanel: () =>
         closeActiveRightPanelFor(state.workspaceShellState.workspacePanels, (tab) =>
-          workspaceShell.closeWorkspaceTab(tab)
+          { if (tab === 'media') imageSession.close(); workspaceShell.closeWorkspaceTab(tab); }
         ),
       removeTrackItems: (ids) => {
         if (state.isFreeplayClient) {
@@ -687,6 +691,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     publish({ localRepeatMode: value, repeatMode: value })
   );
   const unsubscribeTrack = playerController.currentTrack.subscribe((value) => {
+    if (value?.kind === 'video') imageSession.close();
     publish({
       localPlayingTrack: value,
       playingTrack: value,
@@ -777,6 +782,15 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
   }
 
   function handleAppKeydown(event: KeyboardEvent): void {
+    if (event.defaultPrevented) return;
+    if (imageSession.getSnapshot().item && (state.videoTheaterActive || state.workspaceShellState.activeWorkspaceTab === 'media')
+      && event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey
+      && !(event.target instanceof HTMLElement && (event.target.matches('input, textarea, select') || event.target.isContentEditable))
+      && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+      event.preventDefault();
+      void imageSession.step(event.key === 'ArrowLeft' ? -1 : 1);
+      return;
+    }
     if (state.videoTheaterActive && event.key === 'Escape') {
       if (typeof document !== 'undefined' && document.fullscreenElement) return;
       event.preventDefault();
@@ -837,6 +851,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
   const fileInputRef: { current: HTMLInputElement | null } = { current: null };
 
   function dispose(): void {
+    imageSession.close();
     multiplayerController.dismissToast();
     renderBufferedPoll.stop();
     playbackRestoration.destroy();

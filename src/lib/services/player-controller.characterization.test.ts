@@ -12,26 +12,6 @@ const harness = vi.hoisted(() => {
 
   const instances: MockBackend[] = [];
   const pendingLoads: PendingLoad[] = [];
-  const imageInstances: MockImageViewer[] = [];
-
-  class MockImageViewer {
-    element = {} as HTMLImageElement;
-    unload = vi.fn();
-    load = vi.fn(async (track: TrackItem) => {
-      this.snapshotCallback({ backend: 'image', state: 'loading' });
-      this.metadataCallback({ width: 800, height: 600 });
-      this.snapshotCallback({ state: 'paused' });
-      return track;
-    });
-
-    constructor(
-      private snapshotCallback: (partial: Partial<PlaybackSnapshot>) => void,
-      private metadataCallback: (metadata: TrackMetadata) => void
-    ) {
-      imageInstances.push(this);
-    }
-  }
-
   class MockBackend {
     role: 'stream' | 'module' | 'hively' | 'video';
     snapshotCallback: ((partial: Partial<PlaybackSnapshot>) => void) | undefined;
@@ -87,8 +67,6 @@ const harness = vi.hoisted(() => {
     MockBackend,
     instances,
     pendingLoads,
-    imageInstances,
-    MockImageViewer,
     audioBus: {
       resume: vi.fn(() => Promise.resolve()),
       setOutputGain: vi.fn(),
@@ -132,7 +110,6 @@ vi.mock('$lib/services/howler-player', () => ({ HowlerPlayerService: harness.Moc
 vi.mock('$lib/services/module-player', () => ({ ModulePlayerService: harness.MockBackend }));
 vi.mock('$lib/services/ahx-player', () => ({ HivelyPlayerService: harness.MockBackend }));
 vi.mock('$lib/services/video-player', () => ({ VideoPlayerService: harness.MockBackend }));
-vi.mock('$lib/services/image-viewer', () => ({ ImageViewerService: harness.MockImageViewer }));
 vi.mock('$lib/services/audio-bus', () => ({ audioBusService: harness.audioBus }));
 vi.mock('$lib/services/media-session', () => ({ mediaSessionService: harness.mediaSession }));
 vi.mock('$lib/services/stream-artwork', () => ({ loadTrackMetadata: vi.fn(() => Promise.resolve(null)) }));
@@ -222,7 +199,6 @@ beforeEach(() => {
     removeEventListener: vi.fn()
   });
   harness.pendingLoads.length = 0;
-  harness.imageInstances.length = 0;
   harness.playbackStore.getSnapshot().replayGainMode = 'off';
   vi.clearAllMocks();
   playerController.unload();
@@ -469,42 +445,27 @@ describe('player controller supersession characterization', () => {
     const pending = harness.pendingLoads.find(({ track }) => track.id === videoTrack.id)!;
 
     expect(get(playerController.mediaElements)).toEqual({
-      video: pending.instance.element,
-      image: null
+      video: pending.instance.element
     });
 
     resolvePending(videoTrack.id);
     await loading;
   });
 
-  it('loads an image without invoking a playback backend or transport controls', async () => {
-    const imageTrack: TrackItem = {
-      id: 'photo',
-      name: 'photo.webp',
-      extension: 'webp',
-      kind: 'image',
-      size: 1,
-      lastModified: 1,
-      objectUrl: 'blob:photo'
-    };
-    const backendLoadCount = harness.pendingLoads.length;
-
-    await playerController.load(imageTrack, { autoPlay: true });
-    playerController.play();
-    playerController.pause();
-    playerController.seek(12);
-
-    expect(harness.pendingLoads).toHaveLength(backendLoadCount);
-    expect(harness.imageInstances).toHaveLength(1);
-    expect(get(playerController.snapshot)).toMatchObject({ state: 'paused', backend: 'image' });
-    expect(get(playerController.currentTrack)?.metadata).toMatchObject({ width: 800, height: 600 });
-    expect(playerController.imageElement).toBe(harness.imageInstances[0].element);
-    expect(get(playerController.mediaElements)).toEqual({
-      video: null,
-      image: harness.imageInstances[0].element
-    });
-
-    playerController.unload();
-    expect(get(playerController.mediaElements)).toEqual({ video: null, image: null });
+  it('refuses images without interrupting an active stream or module', async () => {
+    for (const kind of ['stream', 'module'] as const) {
+      const song = backendTrack(`playing-${kind}`, kind);
+      const loading = playerController.load(song, { autoPlay: true });
+      await flushUntilPending(song.id);
+      resolvePending(song.id);
+      await loading;
+      const before = get(playerController.snapshot);
+      const photo: TrackItem = { id: 'photo', name: 'photo.webp', extension: 'webp', kind: 'image', size: 1, lastModified: 1 };
+      await expect(playerController.load(photo, { autoPlay: true })).rejects.toThrow('Images belong to the image viewer.');
+      await expect(playerController.transitionTo(photo, 'fadeout', 1)).rejects.toThrow('Images belong to the image viewer.');
+      expect(await playerController.prepareNext(photo)).toBe(false);
+      expect(get(playerController.currentTrack)?.id).toBe(song.id);
+      expect(get(playerController.snapshot)).toEqual(before);
+    }
   });
 });
