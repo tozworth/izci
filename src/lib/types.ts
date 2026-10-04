@@ -417,6 +417,8 @@ export interface LyricsSettings {
   autoFocusInNowPlaying: boolean;
 }
 
+export type LibraryNavigationStyle = 'tabbed' | 'list';
+
 export interface AppearanceSettings {
   colorThemeMode: ColorThemeMode;
   lightColorTheme: ColorTheme;
@@ -427,6 +429,7 @@ export interface AppearanceSettings {
   useArtworkPlayerColors: boolean;
   useNowPlayingArtworkPlayerColors: boolean;
   compactPlayerBar: boolean;
+  libraryNavigationStyle: LibraryNavigationStyle;
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   keepEmptyWorkspacePanelsOpen: boolean;
   collapseSingleTabWorkspaceBar: boolean;

@@ -653,6 +653,12 @@
         }
       },
       "interface": {
+        "libraryNavigation": {
+          "title": "Library navigation",
+          "hint": "Shows Library categories as tabs or a list on the left in the main desktop shell. Right-click the categories to choose which are visible.",
+          "tabbed": "Tabbed",
+          "list": "List"
+        },
         "keepColumns": {
           "title": "Keep columns visible in narrow library panels",
           "hint": "Prevents the slim-window library view from collapsing to title-only rows."

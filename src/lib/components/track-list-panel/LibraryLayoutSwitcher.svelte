@@ -58,7 +58,7 @@
     place-items: center;
     flex-shrink: 0;
     width: 1.4rem;
-    height: 1.65rem;
+    height: var(--library-action-height, 1.65rem);
     padding: 0;
     border: 1px solid transparent;
     border-radius: 0.3rem;

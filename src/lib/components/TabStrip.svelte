@@ -3,6 +3,7 @@
   export let className = '';
   export let element: HTMLDivElement | null = null;
   export let flushStart = false;
+  export let orientation: 'horizontal' | 'vertical' = 'horizontal';
   export let tabIndex: number | undefined = undefined;
 </script>
 
@@ -12,6 +13,7 @@
   bind:this={element}
   role="tablist"
   aria-label={ariaLabel}
+  aria-orientation={orientation}
   tabindex={tabIndex}
   on:dragover
   on:drop

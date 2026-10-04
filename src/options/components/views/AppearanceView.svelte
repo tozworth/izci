@@ -18,7 +18,7 @@
     SYSTEM_FONT_FAMILY,
     appearanceSettings
   } from '$lib/stores/appearance-settings';
-  import type { ColorTheme, ColorThemeMode, ContextualTabAutomation, ContextualWorkspaceTab } from '$lib/types';
+  import type { ColorTheme, ColorThemeMode, ContextualTabAutomation, ContextualWorkspaceTab, LibraryNavigationStyle } from '$lib/types';
 
   type BooleanAppearanceSetting =
     | 'useArtworkPlayerColors'
@@ -71,6 +71,7 @@
   function handleSynthwaveBackgroundBrightnessInput(event: Event) { appearanceSettings.update({ synthwaveBackgroundBrightness: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleAppearanceToggle(event: Event, key: BooleanAppearanceSetting) { appearanceSettings.update({ [key]: checked(event) }); }
   function handleFontFamilyChange(event: CustomEvent<string>) { appearanceSettings.update({ fontFamily: event.detail }); }
+  function handleLibraryNavigationChange(event: CustomEvent<string>) { appearanceSettings.update({ libraryNavigationStyle: event.detail as LibraryNavigationStyle }); }
   function handleContextualTabChange(event: CustomEvent<string>, tab: ContextualWorkspaceTab) {
     appearanceSettings.update({
       contextualTabs: {
@@ -315,6 +316,21 @@
             {$t('options.appearance.font.unsupported', { default: 'Local Font Access is not supported by this browser.' })}
           {/if}
         </svelte:fragment>
+      </SettingsField>
+
+      <SettingsField
+        title={$t('options.appearance.interface.libraryNavigation.title', { default: 'Library navigation' })}
+        hint={$t('options.appearance.interface.libraryNavigation.hint', { default: 'Shows Library categories as tabs or a list on the left in the main desktop shell. Right-click the categories to choose which are visible.' })}
+      >
+        <ThemedSelect
+          value={$appearanceSettings.libraryNavigationStyle}
+          options={[
+            { value: 'tabbed', label: $t('options.appearance.interface.libraryNavigation.tabbed', { default: 'Tabbed' }) },
+            { value: 'list', label: $t('options.appearance.interface.libraryNavigation.list', { default: 'List' }) }
+          ]}
+          label={$t('options.appearance.interface.libraryNavigation.title', { default: 'Library navigation' })}
+          on:change={handleLibraryNavigationChange}
+        />
       </SettingsField>
 
       {#each INTERFACE_TOGGLES as toggle (toggle.key)}
