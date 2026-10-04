@@ -20,7 +20,7 @@
   import type { OdaTranslate } from '../oda-translate';
   import OdaRouteList from './OdaRouteList.svelte';
   import OdaTrackGrid from './OdaTrackGrid.svelte';
-  import OdaVisualPreview from './OdaVisualPreview.svelte';
+  import VisualThumbnail from '$lib/components/VisualThumbnail.svelte';
 
   export let medium: OdaMedium = 'music';
   export let view: OdaBrowseView;
@@ -259,7 +259,7 @@
             on:click={() => { onFocus(trackFocusId); onActivateTrack(track.id); }}
           >
             <span class="oda-tile-visual">
-              <OdaVisualPreview {track} />
+              <VisualThumbnail {track} />
               {#if playingId === track.id}
                 <span class="oda-playing-badge material-symbols-outlined" aria-hidden="true">graphic_eq</span>
               {/if}
@@ -297,7 +297,7 @@
               on:click={() => { onFocus(trackFocusId); onActivateTrack(track.id); }}
             >
               <span class="oda-tile-visual">
-                <OdaVisualPreview {track} />
+                <VisualThumbnail {track} />
                 {#if playingId === track.id}
                   <span class="oda-playing-badge material-symbols-outlined" aria-hidden="true">graphic_eq</span>
                 {/if}

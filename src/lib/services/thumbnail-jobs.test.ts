@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createOdaThumbnailJobQueue } from './oda-thumbnail-jobs';
+import { createThumbnailJobQueue } from './thumbnail-jobs';
 
 function deferred() {
   let resolve!: () => void;
@@ -7,9 +7,9 @@ function deferred() {
   return { promise, resolve };
 }
 
-describe('Oda thumbnail job queue', () => {
+describe('Thumbnail job queue', () => {
   it('bounds concurrent thumbnail work', async () => {
-    const queue = createOdaThumbnailJobQueue(2);
+    const queue = createThumbnailJobQueue(2);
     const gates = [deferred(), deferred(), deferred()];
     let active = 0;
     let peak = 0;
@@ -36,7 +36,7 @@ describe('Oda thumbnail job queue', () => {
   });
 
   it('removes offscreen work before it starts', async () => {
-    const queue = createOdaThumbnailJobQueue(1);
+    const queue = createThumbnailJobQueue(1);
     const gate = deferred();
     let secondStarted = false;
     queue.schedule(() => gate.promise);
