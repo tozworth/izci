@@ -7,6 +7,12 @@ mod associations;
 mod desktop_files;
 #[path = "../src/file_icons.rs"]
 mod file_icons;
+#[allow(dead_code)]
+#[path = "../src/native_file_picker.rs"]
+mod native_file_picker;
+#[allow(dead_code)]
+#[path = "../src/native_filesystem.rs"]
+mod native_filesystem;
 #[path = "../src/playback_restoration.rs"]
 mod playback_restoration;
 mod windows {

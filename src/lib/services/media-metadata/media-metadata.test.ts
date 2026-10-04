@@ -224,6 +224,18 @@ describe('metadata fixtures and writes', () => {
 
     expect(writable.locked).toBe(false);
   });
+  it('aborts staged bytes when cancellation arrives during writing, before atomic commit', async () => {
+    const controller = new AbortController();
+    const close = vi.fn();
+    const abort = vi.fn(async () => undefined);
+    const writable = Object.assign(new WritableStream<FileSystemWriteChunkType>(), {
+      write: async () => controller.abort(), close, abort
+    });
+    await expect(remuxMetadataToWritable(makeSilentWav(), 'wav', { title: 'Cancelled' }, writable, controller.signal))
+      .rejects.toMatchObject({ name: 'AbortError' });
+    expect(close).not.toHaveBeenCalled();
+    expect(abort).toHaveBeenCalledOnce();
+  });
 
   it('blocks an externally changed file before creating a writable', async () => {
     const document = await readMetadataDocument(makeSilentWav(), 'wav');

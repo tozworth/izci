@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 import enMessages from './src/lib/i18n/locales/en.json';
@@ -67,7 +67,7 @@ export default defineConfig(({ mode }) => {
             source: JSON.stringify({ development: process.env.NODE_ENV === 'development', minified: false, sourcemaps: true })
           });
         }
-      }] : []),
+      } satisfies Plugin] : []),
       {
         name: 'emit-chiptune3-runtime',
         apply: 'build',

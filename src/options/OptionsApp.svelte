@@ -232,7 +232,7 @@
   on:reset={resetCurrentView}
   on:advancedvisibilitychange={(event) => rememberShowAdvancedTweaks(event.detail.visible)}
 >
-  <OptionsContent {activeView} onSelectView={setActiveView} />
+  <OptionsContent {activeView} onSelectView={setActiveView} mobilePresentation />
 </MobileOptionsView>
 {:else}
 <OptionsView

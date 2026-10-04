@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 
-const native = vi.hoisted(() => ({
+const native = vi.hoisted(() => ({ referenceScheme: 'content:',
   pickFolder: vi.fn(), queryFolderPermission: vi.fn(), requestFolderPermission: vi.fn(), readFolder: vi.fn()
 }));
 vi.mock('$platform', () => ({ nativeFilesystem: native }));

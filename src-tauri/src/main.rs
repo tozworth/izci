@@ -8,6 +8,9 @@ mod autostart;
 mod desktop_files;
 mod file_icons;
 mod fonts;
+mod native_file_picker;
+mod native_filesystem;
+mod native_media_access;
 mod playback_restoration;
 mod player_windows;
 #[cfg(feature = "builtin-signaling")]
@@ -158,6 +161,16 @@ fn main() {
             desktop_files::take_desktop_launch_paths,
             desktop_files::configure_desktop_file_launch,
             desktop_files::materialize_desktop_files,
+            native_filesystem::pick_desktop_paths,
+            native_filesystem::read_desktop_folder,
+            native_filesystem::query_desktop_folder_permission,
+            native_media_access::query_desktop_media_write_permission,
+            native_media_access::access_desktop_media_entry,
+            native_media_access::begin_desktop_media_write,
+            native_media_access::update_desktop_media_write,
+            native_media_access::finish_desktop_media_write,
+            native_media_access::move_desktop_media_file,
+            native_media_access::remove_desktop_media_entry,
             tray::configure_desktop_visibility,
             tray::desktop_tray_menu_ready,
             tray::show_desktop_tray_menu,
@@ -173,74 +186,79 @@ fn main() {
             windows::create_player_windows(app.handle())?;
             Ok(())
         })
-        .on_window_event(|window, event| match (window.label(), event) {
-            ("main" | "mini-player", WindowEvent::Focused(true)) => {
-                tray_bubble::dismiss(window.app_handle());
+        .on_window_event(|window, event| {
+            if matches!(event, WindowEvent::Destroyed) {
+                native_media_access::abort_owner(window.label());
             }
-            ("main" | "mini-player", WindowEvent::Moved(_) | WindowEvent::Resized(_)) => {
-                window_state::capture(window);
-            }
-            ("main", WindowEvent::CloseRequested { api, .. }) => {
-                api.prevent_close();
-                if let Err(error) = player_windows::close_main(window.app_handle()) {
-                    eprintln!("Could not close the main window: {error}");
+            match (window.label(), event) {
+                ("main" | "mini-player", WindowEvent::Focused(true)) => {
+                    tray_bubble::dismiss(window.app_handle());
                 }
-            }
-            ("mini-player", WindowEvent::CloseRequested { api, .. }) => {
-                if window.app_handle().get_webview_window("main").is_some() {
+                ("main" | "mini-player", WindowEvent::Moved(_) | WindowEvent::Resized(_)) => {
+                    window_state::capture(window);
+                }
+                ("main", WindowEvent::CloseRequested { api, .. }) => {
                     api.prevent_close();
-                    let _ = player_windows::dismiss_mini(window.app_handle());
-                }
-            }
-            ("main", WindowEvent::Destroyed) => {
-                tray::remove(window.app_handle());
-                if let Ok(mut state) = window
-                    .app_handle()
-                    .state::<std::sync::Mutex<window_presentation::WindowPresentation>>()
-                    .lock()
-                {
-                    state.forget("main");
-                }
-                window_lifecycle::destroyed(window.app_handle(), "main");
-                window_lifecycle::close_player(window.app_handle());
-            }
-            ("tray-menu", WindowEvent::Focused(false)) => {
-                if let Some(webview) = window.app_handle().get_webview_window("tray-menu") {
-                    let _ = window_resources::hide(&webview);
-                }
-                let _ = window.emit("izci:desktop-tray-dismiss", ());
-            }
-            ("tray-menu", WindowEvent::Destroyed) => {
-                if let Ok(mut state) = window
-                    .app_handle()
-                    .state::<std::sync::Mutex<tray::TrayMenuState>>()
-                    .lock()
-                {
-                    *state = tray::TrayMenuState::default();
-                }
-                window_lifecycle::destroyed(window.app_handle(), "tray-menu");
-            }
-            (_, WindowEvent::CloseRequested { api, .. }) => {
-                // Options is a reusable settings surface. Tools retain their
-                // normal close lifecycle so jobs and audio resources can clean up.
-                if let Some(webview) = window.app_handle().get_webview_window(window.label()) {
-                    if windows::is_options_window(&webview) {
-                        api.prevent_close();
-                        let _ = window_resources::hide(&webview);
+                    if let Err(error) = player_windows::close_main(window.app_handle()) {
+                        eprintln!("Could not close the main window: {error}");
                     }
                 }
-            }
-            (_, WindowEvent::Destroyed) => {
-                if let Ok(mut presentation) = window
-                    .app_handle()
-                    .state::<std::sync::Mutex<window_presentation::WindowPresentation>>()
-                    .lock()
-                {
-                    presentation.forget(window.label());
+                ("mini-player", WindowEvent::CloseRequested { api, .. }) => {
+                    if window.app_handle().get_webview_window("main").is_some() {
+                        api.prevent_close();
+                        let _ = player_windows::dismiss_mini(window.app_handle());
+                    }
                 }
-                window_lifecycle::destroyed(window.app_handle(), window.label());
+                ("main", WindowEvent::Destroyed) => {
+                    tray::remove(window.app_handle());
+                    if let Ok(mut state) = window
+                        .app_handle()
+                        .state::<std::sync::Mutex<window_presentation::WindowPresentation>>()
+                        .lock()
+                    {
+                        state.forget("main");
+                    }
+                    window_lifecycle::destroyed(window.app_handle(), "main");
+                    window_lifecycle::close_player(window.app_handle());
+                }
+                ("tray-menu", WindowEvent::Focused(false)) => {
+                    if let Some(webview) = window.app_handle().get_webview_window("tray-menu") {
+                        let _ = window_resources::hide(&webview);
+                    }
+                    let _ = window.emit("izci:desktop-tray-dismiss", ());
+                }
+                ("tray-menu", WindowEvent::Destroyed) => {
+                    if let Ok(mut state) = window
+                        .app_handle()
+                        .state::<std::sync::Mutex<tray::TrayMenuState>>()
+                        .lock()
+                    {
+                        *state = tray::TrayMenuState::default();
+                    }
+                    window_lifecycle::destroyed(window.app_handle(), "tray-menu");
+                }
+                (_, WindowEvent::CloseRequested { api, .. }) => {
+                    // Options is a reusable settings surface. Tools retain their
+                    // normal close lifecycle so jobs and audio resources can clean up.
+                    if let Some(webview) = window.app_handle().get_webview_window(window.label()) {
+                        if windows::is_options_window(&webview) {
+                            api.prevent_close();
+                            let _ = window_resources::hide(&webview);
+                        }
+                    }
+                }
+                (_, WindowEvent::Destroyed) => {
+                    if let Ok(mut presentation) = window
+                        .app_handle()
+                        .state::<std::sync::Mutex<window_presentation::WindowPresentation>>()
+                        .lock()
+                    {
+                        presentation.forget(window.label());
+                    }
+                    window_lifecycle::destroyed(window.app_handle(), window.label());
+                }
+                _ => {}
             }
-            _ => {}
         })
         .run(tauri::generate_context!())
         .expect("Could not start izci");

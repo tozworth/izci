@@ -27,7 +27,10 @@ const OPTIONS_VIEW_LOADERS = {
   licenses: () => import('./components/views/LicensesView.svelte')
 } satisfies Record<OptionsViewName, () => Promise<unknown>>;
 
-export async function loadOptionsView(view: OptionsViewName) {
+export async function loadOptionsView(view: OptionsViewName, mobile = false) {
+  if (view === 'raf' && mobile) {
+    return { kind: 'standard' as const, ...await import('../mobile/raf/MobileRafView.svelte') };
+  }
   if (view === 'about') {
     return { kind: 'about' as const, ...await OPTIONS_VIEW_LOADERS.about() };
   }

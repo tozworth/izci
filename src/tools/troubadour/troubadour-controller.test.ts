@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MetadataDocument } from '$lib/services/media-metadata/types';
 
 const { readMetadataDocument } = vi.hoisted(() => ({ readMetadataDocument: vi.fn() }));
+const getMediaAccess = vi.hoisted(() => vi.fn());
+vi.mock('$platform', async importOriginal => ({ ...await importOriginal<object>(), nativeFilesystem: { referenceScheme: 'file:', getMediaAccess } }));
 
 vi.mock('$lib/services/media-metadata/reader', () => ({ readMetadataDocument }));
 
@@ -46,6 +48,20 @@ function metadataDocument(file: File, extension: string): MetadataDocument {
 }
 
 describe('Troubadour folder ingestion', () => {
+  it('opens unmaterialized native batch references with transient editing targets', async () => {
+    const file = new File(['audio'], 'Track.mp3');
+    const access = { file: { name: file.name, nativeFile: { uri: 'file:///C:/Music/Track.mp3' }, getFile: async () => file }, parent: { name: 'Music' } };
+    getMediaAccess.mockResolvedValue(access);
+    const controller = createTroubadourController();
+    await controller.ingestBatchTracks([{
+      contextId: 'native', references: [{ collection: 'library', id: 'track' }],
+      nativeFile: access.file.nativeFile, name: file.name, path: 'C:/Music/Track.mp3', extension: 'mp3', kind: 'stream', size: file.size, lastModified: file.lastModified
+    }]);
+    expect(controller.getSnapshot().items).toHaveLength(1);
+    expect(controller.getSnapshot().items[0].fileHandle).toBe(access.file);
+    expect(controller.getSnapshot().items[0].parentHandle).toBe(access.parent);
+    expect(getMediaAccess).toHaveBeenCalledWith(access.file.nativeFile);
+  });
   beforeEach(() => {
     readMetadataDocument.mockReset();
     readMetadataDocument.mockImplementation(async (file: File, extension: string) =>

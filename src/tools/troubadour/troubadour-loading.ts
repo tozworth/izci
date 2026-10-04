@@ -4,6 +4,7 @@ import { readMetadataDocument } from '$lib/services/media-metadata/reader';
 import type { MediaMetadataFields } from '$lib/services/media-metadata/types';
 import type { TroubadourRememberedFolder } from '$lib/services/troubadour-sync';
 import { inferExtension, inferKind } from '$lib/utils/files';
+import { nativeFilesystem } from '$platform';
 import { autoGroupTracks } from './grouping';
 import type { StagedWorkbenchState, TroubadourAutoGroupFallback, TroubadourWorkbenchItem } from './troubadour-controller';
 
@@ -271,15 +272,19 @@ export async function itemsFromBatchTracks(
       const currentIndex = index++;
       const track = eligible[currentIndex];
       try {
-        const sourceFile = track.fileHandle ? await track.fileHandle.getFile() : track.file;
+        const nativeAccess = track.nativeFile && nativeFilesystem?.getMediaAccess
+          ? await nativeFilesystem.getMediaAccess(track.nativeFile) : undefined;
+        const fileAccess = track.fileHandle ?? nativeAccess?.file;
+        const sourceFile = fileAccess ? await fileAccess.getFile() : track.file
+          ?? (track.nativeFile && nativeFilesystem ? await nativeFilesystem.materializeFile(track.nativeFile) : undefined);
         if (!sourceFile) continue;
-        const parentHandle = await resolveParentHandle(track.path, track.sourceFolderId, folders);
+        const parentHandle = nativeAccess?.parent ?? await resolveParentHandle(track.path, track.sourceFolderId, folders);
         items[currentIndex] = {
           id: track.contextId || crypto.randomUUID(),
           contextId: track.contextId,
           references: track.references,
           file: sourceFile,
-          fileHandle: track.fileHandle ?? null,
+          fileHandle: fileAccess ?? null,
           parentHandle,
           path: track.path || sourceFile.name,
           sourceFolderId: track.sourceFolderId,

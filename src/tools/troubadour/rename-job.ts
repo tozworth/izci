@@ -1,4 +1,5 @@
 import { fingerprintFile, fingerprintsMatch } from '$lib/services/media-metadata/fingerprint';
+import type { MediaFileAccess, MediaDirectoryAccess } from '$lib/services/media-file-access';
 import type { MediaFileFingerprint } from '$lib/services/media-metadata/types';
 import { sanitizeFilename, validateFilename, type FilenameRules } from './rename-template';
 
@@ -7,8 +8,8 @@ export type RenameVerification = 'size' | 'metadata' | 'hash';
 export interface RenameSource {
   id: string;
   file: File;
-  fileHandle: FileSystemFileHandle | null;
-  parentHandle: FileSystemDirectoryHandle | null;
+  fileHandle: MediaFileAccess | null;
+  parentHandle: MediaDirectoryAccess | null;
   path: string;
   proposedBaseName: string;
   extension: string;
@@ -33,7 +34,7 @@ export interface RenameJobResult {
   path: string;
   name: string;
   file: File;
-  fileHandle: FileSystemFileHandle;
+  fileHandle: MediaFileAccess;
   error?: string;
 }
 
@@ -48,7 +49,7 @@ function notFound(error: unknown): boolean {
     : error instanceof Error && /not found/i.test(error.message);
 }
 
-async function destinationExists(parent: FileSystemDirectoryHandle, name: string): Promise<boolean> {
+async function destinationExists(parent: MediaDirectoryAccess, name: string): Promise<boolean> {
   try {
     await parent.getFileHandle(name);
     return true;
@@ -60,7 +61,7 @@ async function destinationExists(parent: FileSystemDirectoryHandle, name: string
 
 async function queryWritePermission(source: RenameSource): Promise<FileSystemPermissionState> {
   const handles = [source.parentHandle, source.fileHandle].filter(
-    (handle): handle is FileSystemFileHandle | FileSystemDirectoryHandle => handle !== null
+    (handle): handle is MediaFileAccess | MediaDirectoryAccess => handle !== null
   );
   let state: FileSystemPermissionState = 'granted';
   for (const handle of handles) {
@@ -130,7 +131,7 @@ export async function buildRenamePreview(
     if (proposedName.toLocaleLowerCase() === source.file.name.toLocaleLowerCase()
       && proposedName !== source.file.name) {
       warnings.push('case-only');
-      const movable = source.fileHandle as (FileSystemFileHandle & { move?: (name: string) => Promise<void> }) | null;
+      const movable = source.fileHandle;
       if (typeof movable?.move !== 'function') problems.push('case-only-rename-unavailable');
     }
     return {
@@ -219,7 +220,7 @@ async function copyThenRemove(
   row: RenamePreviewRow,
   signal?: AbortSignal,
   verification: RenameVerification = 'metadata'
-): Promise<{ handle: FileSystemFileHandle; file: File }> {
+): Promise<{ handle: MediaFileAccess; file: File }> {
   const parent = row.parentHandle!;
   if (await destinationExists(parent, row.proposedName)) throw new Error('The rename destination already exists.');
   const target = await parent.getFileHandle(row.proposedName, { create: true });
@@ -245,6 +246,30 @@ async function copyThenRemove(
   }
 }
 
+/** Capture verification bytes before moving a path-backed native File. */
+async function prepareMoveVerification(source: File, verification: RenameVerification, signal?: AbortSignal): Promise<(destination: File) => Promise<void>> {
+  const size = source.size;
+  const sampleHash = verification === 'metadata' ? (await fingerprintFile(source)).sampleHash : undefined;
+  const hashes: Uint8Array[] = [];
+  if (verification === 'hash') {
+    for (let offset = 0; offset < size; offset += 1024 * 1024) {
+      signal?.throwIfAborted();
+      hashes.push(new Uint8Array(await crypto.subtle.digest('SHA-256', await source.slice(offset, offset + 1024 * 1024).arrayBuffer())));
+    }
+  }
+  return async (destination) => {
+    if (destination.size !== size) throw new Error('The moved file failed size verification.');
+    if (sampleHash !== undefined && (await fingerprintFile(destination)).sampleHash !== sampleHash) {
+      throw new Error('The moved file failed content verification.');
+    }
+    for (let index = 0; index < hashes.length; index += 1) {
+      signal?.throwIfAborted();
+      const actual = new Uint8Array(await crypto.subtle.digest('SHA-256', await destination.slice(index * 1024 * 1024, (index + 1) * 1024 * 1024).arrayBuffer()));
+      if (actual.some((byte, offset) => byte !== hashes[index][offset])) throw new Error('The moved file failed full content verification.');
+    }
+  };
+}
+
 export async function applyRename(
   row: RenamePreviewRow,
   signal?: AbortSignal,
@@ -260,16 +285,17 @@ export async function applyRename(
     if (await queryWritePermission(row) !== 'granted') {
       throw new Error('Write access is required before renaming.');
     }
-    const movable = row.fileHandle as FileSystemFileHandle & {
+    const movable = row.fileHandle as MediaFileAccess & {
       move?: (name: string) => Promise<void>;
     };
-    let fileHandle: FileSystemFileHandle;
+    let fileHandle: MediaFileAccess;
     let file: File;
     if (typeof movable.move === 'function') {
+      const verifyMoved = await prepareMoveVerification(current, verification, signal);
       await movable.move(row.proposedName);
       fileHandle = row.fileHandle!;
       file = await fileHandle.getFile();
-      await verifyCopiedFile(current, file, verification, signal);
+      await verifyMoved(file);
     } else {
       ({ handle: fileHandle, file } = await copyThenRemove({ ...row, file: current }, signal, verification));
     }

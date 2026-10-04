@@ -1,5 +1,7 @@
+import type { MediaFileAccess } from '../media-file-access';
+
 export async function queryMetadataWritePermission(
-  handle: FileSystemFileHandle
+  handle: MediaFileAccess
 ): Promise<FileSystemPermissionState> {
   if (!handle.createWritable) return 'denied';
   if (!handle.queryPermission) return 'granted';
@@ -12,7 +14,7 @@ export async function queryMetadataWritePermission(
 
 /** Must only be called from a direct user activation. */
 export async function requestMetadataWritePermission(
-  handle: FileSystemFileHandle
+  handle: MediaFileAccess
 ): Promise<FileSystemPermissionState> {
   if (!handle.createWritable) return 'denied';
   if (!handle.requestPermission) return queryMetadataWritePermission(handle);

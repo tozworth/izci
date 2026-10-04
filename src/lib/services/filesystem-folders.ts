@@ -2,6 +2,7 @@ import { writable, type Readable } from 'svelte/store';
 import { logError, logInfo, logWarning } from '$lib/services/logging';
 import { nativeFilesystem } from '$platform';
 import { isNativeFolderReference, type NativeFolderReference } from './platform-files-types';
+import { nativeFileIdentity } from '$lib/utils/native-media-files';
 
 export type FilesystemFolderPermission = 'granted' | 'prompt' | 'denied' | 'unavailable';
 export type LibraryFolderMode = 'manual' | 'launch';
@@ -73,7 +74,7 @@ function normalizeStoredFolder(value: unknown): StoredFilesystemFolder | null {
   if (
     typeof source.id !== 'string' ||
     typeof source.name !== 'string' ||
-    (!isDirectoryHandle(source.handle) && !(nativeFilesystem && isNativeFolderReference(source.nativeFolder)))
+    (!isDirectoryHandle(source.handle) && !(nativeFilesystem && isNativeFolderReference(source.nativeFolder, nativeFilesystem.referenceScheme)))
   ) {
     return null;
   }
@@ -90,7 +91,7 @@ function normalizeStoredFolder(value: unknown): StoredFilesystemFolder | null {
     id: source.id,
     name: source.name,
     handle: isDirectoryHandle(source.handle) ? source.handle : undefined,
-    nativeFolder: nativeFilesystem && isNativeFolderReference(source.nativeFolder)
+    nativeFolder: nativeFilesystem && isNativeFolderReference(source.nativeFolder, nativeFilesystem.referenceScheme)
       ? { uri: source.nativeFolder.uri, name: source.nativeFolder.name } : undefined,
     addedAt: typeof source.addedAt === 'number' ? source.addedAt : Date.now(),
     libraryMode: source.libraryMode === 'manual' || source.libraryMode === 'launch' ? source.libraryMode : null,
@@ -348,14 +349,14 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
     refresh: (options = {}) => load(options.probe === true),
     getSnapshot: () => snapshot,
     async remember(handle, options = {}) {
-      if (!isDirectoryHandle(handle) && !(nativeFilesystem && isNativeFolderReference(handle))) {
+      if (!isDirectoryHandle(handle) && !(nativeFilesystem && isNativeFolderReference(handle, nativeFilesystem.referenceScheme))) {
         throw new Error('This platform cannot remember the selected folder.');
       }
       const source = isDirectoryHandle(handle) ? { handle } : { nativeFolder: handle };
       let remembered: FilesystemFolder | null = null;
       await mutate(async (current) => {
         for (const folder of current) {
-          if (source.nativeFolder ? folder.nativeFolder?.uri === source.nativeFolder.uri
+          if (source.nativeFolder ? folder.nativeFolder && nativeFileIdentity(folder.nativeFolder.uri) === nativeFileIdentity(source.nativeFolder.uri)
             : folder.handle && await sameDirectory(folder.handle, source.handle!)) {
             remembered = {
               ...folder,

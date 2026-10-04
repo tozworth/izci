@@ -1,4 +1,5 @@
 import { fingerprintFile, fingerprintsMatch } from './fingerprint';
+import type { MediaFileAccess } from '../media-file-access';
 import { getMetadataCapabilities } from './format';
 import { applyMetadataPatch } from './merge';
 import { queryMetadataWritePermission } from './permissions';
@@ -76,7 +77,7 @@ function verifyFullMetadata(
 }
 
 export async function writeMetadataDocumentInPlace(
-  handle: FileSystemFileHandle,
+  handle: MediaFileAccess,
   document: MetadataDocument,
   patch: MetadataPatch,
   artworkPatch?: ArtworkEdit | readonly ArtworkEdit[],

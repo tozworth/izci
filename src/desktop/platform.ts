@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-export { nativeFilesystem } from '../platform/browser';
+export { nativeFilesystem } from './filesystem';
 export { hasBuiltinSignaling, startBuiltinSignaling, stopBuiltinSignaling, isBuiltinSignalingEndpoint, fetchSignaling, createSignalingSocket } from './signaling';
 export { createDesktopMiniPlayerController } from './mini-player-controller';
 export { default as DesktopWindowControls } from './DesktopWindowControls.svelte';
@@ -9,7 +9,7 @@ export { default as DesktopAppearanceSettings } from './DesktopAppearanceSetting
 export { default as DesktopTrackSettings } from './DesktopTrackSettings.svelte';
 export { resetDesktopAppearance, resetDesktopTracks } from './settings';
 export { createPlatformIntegration } from './system-integration';
-export { materializePlatformFile, preparePlaybackRestoration } from './files';
+export { preparePlaybackRestoration } from './files';
 
 export const isDesktop = true;
 

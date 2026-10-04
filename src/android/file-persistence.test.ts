@@ -5,7 +5,7 @@ import { materializeTrackItem } from '$lib/stores/queue-materialization';
 import { createTrackCollectionStore } from '$lib/stores/queue';
 import { get } from 'svelte/store';
 
-const native = vi.hoisted(() => ({ materializeFile: vi.fn() }));
+const native = vi.hoisted(() => ({ referenceScheme: 'content:', materializeFile: vi.fn() }));
 vi.mock('$platform', async (importOriginal) => ({ ...await importOriginal<object>(), nativeFilesystem: native }));
 afterEach(() => vi.clearAllMocks());
 

@@ -164,6 +164,7 @@ export function createTroubadourMainWindowBridge(deps: TroubadourMainWindowDeps)
     return {
       ...(result.file ? { file: result.file } : {}),
       ...(result.fileHandle ? { fileHandle: result.fileHandle } : {}),
+      ...(result.nativeFile ? { nativeFile: result.nativeFile } : {}),
       ...(result.path !== undefined ? { path: result.path } : {}),
       ...(result.sourceFolderId !== undefined ? { sourceFolderId: result.sourceFolderId } : {}),
       ...(result.name !== undefined ? { name: result.name } : {}),

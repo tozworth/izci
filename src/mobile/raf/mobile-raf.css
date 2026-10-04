@@ -1,0 +1,76 @@
+.mobile-raf-view {
+  width: 100%; height: 100%; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+.mobile-raf-view :is(.raf-toolbar, .mobile-raf-list-header, .mobile-raf-editor-header, .mobile-raf-editor-mode) { flex-shrink: 0; }
+.mobile-raf-view .raf-toolbar { flex-wrap: wrap; gap: 4px; padding: 6px max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left)); }
+.mobile-raf-view .raf-toolbar > button:not(.preset-trigger),
+.mobile-raf-view .transfer-menu summary { width: 44px; height: 44px; }
+.mobile-raf-view .preset-trigger { width: auto; flex: 1; min-width: 100px; height: 44px; font-size: 0.9rem; }
+.mobile-raf-view .meter-readouts { width: calc(100% - 24px); margin-left: 0; font-size: 0.7rem; }
+.mobile-raf-view .transfer-status { flex-basis: 100%; white-space: normal; font-size: 0.8rem; }
+.mobile-raf-view .transfer-menu-items { width: min(280px, calc(100% - 16px)); left: 8px; }
+.mobile-raf-view .transfer-menu-items button { min-height: 44px; }
+
+.mobile-raf-list-header, .mobile-raf-editor-header {
+  min-width: 0; min-height: 56px; display: flex; align-items: center; gap: 4px;
+  padding: 4px max(8px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left));
+  border-bottom: 1px solid var(--border-soft); background: var(--bg-soft);
+}
+.mobile-raf-list-header strong { margin-left: 8px; }
+.mobile-raf-list-header button { margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 0 12px; }
+.mobile-raf-view :is(.mobile-raf-row, .mobile-raf-editor-header) > button {
+  width: 44px; min-width: 44px; height: 48px; padding: 0; display: grid; place-items: center;
+}
+.mobile-raf-view :is(.mobile-raf-row, .mobile-raf-editor-header, .mobile-raf-list-header, .mobile-raf-editor-mode) button {
+  border-radius: 4px; background: transparent; color: var(--muted-strong);
+}
+.mobile-raf-view button.active { color: var(--accent-strong); }
+.mobile-raf-view button:active { background: var(--hover-surface); }
+.mobile-raf-list { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; padding: 0 max(4px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left)); }
+.mobile-raf-row { position: relative; display: flex; align-items: center; min-height: 64px; border-bottom: 1px solid var(--border-faint); }
+.mobile-raf-row.dragging { background: var(--selection-strong); }
+.mobile-raf-row > .mobile-raf-drag { align-self: stretch; height: auto; touch-action: none; user-select: none; }
+.mobile-raf-row > .mobile-raf-effect { width: auto; min-width: 0; height: auto; min-height: 64px; flex: 1; display: flex; gap: 8px; text-align: left; }
+.mobile-raf-effect.bypassed, .mobile-raf-editor.bypassed > .effect-editor { opacity: 0.55; }
+.mobile-raf-icon { color: var(--accent-strong); }
+.mobile-raf-heading { min-width: 0; flex: 1; display: grid; gap: 3px; }
+.mobile-raf-heading strong, .mobile-raf-heading small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-raf-heading strong { font-size: 0.9rem; color: var(--text-strong); }
+.mobile-raf-heading small { font-size: 0.75rem; color: var(--muted); }
+.mobile-raf-row.drop-before::before, .mobile-raf-drop-tail.drop-before::before { content: ''; position: absolute; z-index: 2; top: -1px; left: 4px; right: 4px; height: 3px; background: var(--accent-strong); pointer-events: none; }
+.mobile-raf-drop-tail { position: relative; min-height: 24px; }
+.mobile-raf-empty { margin: 24px 16px; color: var(--muted); text-align: center; }
+
+.mobile-raf-editor-mode { display: flex; gap: 4px; padding: 6px 12px; border-bottom: 1px solid var(--border-faint); }
+.mobile-raf-editor-mode button { flex: 1; }
+.mobile-raf-editor-mode button.active { background: var(--accent-strong-faint); }
+.mobile-raf-editor {
+  min-width: 0; min-height: 0; flex: 1; container-type: inline-size; overflow: auto; overscroll-behavior: contain;
+  padding: 12px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+.mobile-raf-editor :is(.primary-controls, .automatic-controls, .advanced-grid, .crossover-grid, .heat-editor, .reverb-editor, .knob-grid) { grid-template-columns: 1fr; gap: 14px; }
+.mobile-raf-editor :is(.mode-control, .engine-control) { grid-template-columns: 1fr; }
+.mobile-raf-editor :is(.mode-switch, .engine-switch) { border-radius: 4px; }
+.mobile-raf-editor .mode-switch button { padding-inline: 4px; }
+.mobile-raf-editor :is(.mode-switch, .engine-switch) button { min-height: 44px; font-size: 0.75rem; }
+.mobile-raf-editor label:has(> input[type='range']):not(.eq-control) { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; font-size: 0.8rem; }
+.mobile-raf-editor label:has(> input[type='range']):not(.eq-control) > input { grid-column: 1 / -1; grid-row: 2; min-width: 0; }
+.mobile-raf-editor label:has(> input[type='range']) > :is(output, .slop-value) { grid-column: 2; grid-row: 1; }
+.mobile-raf-editor :is(.pitch-control, .width-control) > span:nth-of-type(2) { grid-column: 2; grid-row: 3; }
+.mobile-raf-editor :is(.gain-control, .automatic-controls label, .mode-control, .engine-control, .pitch-control) > span,
+.mobile-raf-editor :is(output, .section-label, .pitch-note, .advanced-footer, .knob-grid label) { font-size: 0.8rem; }
+.mobile-raf-editor .advanced-footer { align-items: flex-start; flex-direction: column; }
+.mobile-raf-editor input[type='range'] { height: 44px; margin: 0; }
+.mobile-raf-editor .dry-wet-control { bottom: calc(-1 * max(12px, env(safe-area-inset-bottom))); margin: auto -12px -12px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+.mobile-raf-editor .eq-bank { grid-template-columns: repeat(11, minmax(56px, 1fr)); }
+.mobile-raf-editor .crystalizer-bank { grid-template-columns: repeat(13, minmax(92px, 1fr)); }
+.mobile-raf-editor .eq-control { grid-template-rows: auto 144px auto; font-size: 0.75rem; }
+.mobile-raf-editor .crystalizer-band { grid-template-rows: auto auto 144px auto; font-size: 0.75rem; }
+.mobile-raf-editor :is(.eq-control, .crystalizer-band) input[type='range'] { width: 144px; height: 44px; margin: 50px -50px; }
+.mobile-raf-editor .band-actions button { width: 44px; height: 44px; font-size: 0.8rem; }
+
+/* MenuSurface portals to body, so its touch targets cannot inherit the page rules. */
+html[data-izci-mobile='true']:has(.mobile-raf-view) .menu-surface :is(.menu-entry-group > button, .menu-back-button) { min-height: 44px; }
+html[data-izci-mobile='true']:has(.mobile-raf-view) .menu-surface :is(.menu-item-edit, .menu-item-remove) { min-width: 44px; }

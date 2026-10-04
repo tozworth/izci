@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { registerImportedFile } from '$lib/utils/files';
 import type { TrackItem } from '$lib/types';
+import { desktopFileReference } from './file-references';
 
 type RestorationWindow = Window & {
   __izciRestoreFileAccess?: () => Promise<FileSystemPermissionState>;
@@ -47,14 +48,12 @@ export function readDesktopFiles(paths: string[]): Promise<File[]> {
       const resolvedPaths = await invoke<string[]>('materialize_desktop_files', { paths });
       const files = Array.from(input.files ?? []);
       if (files.length !== resolvedPaths.length) throw new Error('Desktop file selection was incomplete.');
-      return files.map((file, index) => registerImportedFile(file, { path: resolvedPaths[index], desktopFile: true }));
+      return files.map((file, index) => registerImportedFile(file, {
+        path: resolvedPaths[index], nativeFile: desktopFileReference(resolvedPaths[index])
+      }));
     } finally { input.remove(); }
   };
   const result = pending.then(read);
   pending = result.catch(() => undefined);
   return result;
-}
-
-export async function materializePlatformFile(path: string): Promise<File | null> {
-  return (await readDesktopFiles([path]))[0] ?? null;
 }
