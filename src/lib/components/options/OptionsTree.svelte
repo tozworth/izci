@@ -70,6 +70,16 @@
 </script>
 
 <aside class="tree-panel" aria-label={categoriesLabel}>
+  <!-- Keep every label in intrinsic sizing, including collapsed and disabled categories. -->
+  <div class="tree-sizing" aria-hidden="true">
+    {#each groups.flat() as view (view.id)}
+      <span class="tree-item" class:child={view.parentId != null}>
+        <span class="tree-chevron"></span>
+        <span class="tree-icon"></span>
+        <span class="tree-label">{view.label}</span>
+      </span>
+    {/each}
+  </div>
   <div class="tree" role="tree" aria-label={categoriesLabel} tabindex="-1" on:keydown={handleKeydown}>
     {#each visibleGroups as group}
       <div class="tree-group" role="none">
