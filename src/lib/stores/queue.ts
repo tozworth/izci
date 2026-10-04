@@ -45,6 +45,7 @@ export type ExternalTrackUpdate = Partial<
     TrackItem,
     | 'file'
     | 'fileHandle'
+    | 'nativeFile'
     | 'path'
     | 'sourceFolderId'
     | 'name'
@@ -528,6 +529,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
             const fileChanged =
               patch.file !== undefined
               || patch.fileHandle !== undefined
+              || patch.nativeFile !== undefined
               || patch.path !== undefined
               || patch.name !== undefined
               || patch.extension !== undefined

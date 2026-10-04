@@ -31,6 +31,26 @@ function source(id: string, proposedBaseName: string, overrides: Partial<RenameS
 }
 
 describe('Troubadour rename jobs', () => {
+  it.each(['metadata', 'hash'] as const)('captures %s verification before moving a path-backed native file', async verification => {
+    const original = file();
+    const renamed = file('new.mp3');
+    let moved = false;
+    const slice = original.slice.bind(original);
+    vi.spyOn(original, 'slice').mockImplementation((...args) => {
+      if (moved) throw new Error('The original path no longer exists');
+      return slice(...args);
+    });
+    const access = {
+      name: original.name, nativeFile: { uri: 'file:///C:/Music/old.mp3' },
+      getFile: async () => moved ? renamed : original,
+      move: async () => { moved = true; }
+    };
+    const row: RenamePreviewRow = {
+      ...source('native', 'new', { file: original, fileHandle: access }),
+      proposedName: 'new.mp3', proposedPath: 'C:/Music/new.mp3', enabled: true, problems: [], warnings: []
+    };
+    expect(await applyRename(row, undefined, verification)).toMatchObject({ success: true, file: renamed });
+  });
   it('rejects before touching the file system when cancellation is already requested', async () => {
     const controller = new AbortController();
     controller.abort();

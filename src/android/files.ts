@@ -8,6 +8,7 @@ function importDocument(document: SafDocument): File {
 }
 
 export const nativeFilesystem: NativeFilesystem = {
+  referenceScheme: 'content:',
   async pickFiles() { return (await invokeAndroid<SafDocument[]>('pickFiles')).map(importDocument); },
   pickFolder() { return invokeAndroid<NativeFolderReference>('pickFolder'); },
   async readFolder(folder, maxDepth) {

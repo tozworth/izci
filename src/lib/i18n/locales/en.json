@@ -365,6 +365,12 @@
     "description": "Offline-first PWA music player with tracker module support."
   },
   "mobile": {
+    "raf": {
+      "back": "Back to effects",
+      "edit": "Edit effect",
+      "moveUp": "Move up",
+      "moveDown": "Move down"
+    },
     "player": {
       "addFilesToBegin": "Add files to begin"
     },
@@ -1016,6 +1022,7 @@
       "heading": "Folders",
       "description": "Every folder izci has remembered, including folders used for library scans.",
       "androidAccess": "Android remembers access to selected files and folders across launches. If access is revoked, use Check access and select the same folder again.",
+      "desktopAccess": "Desktop folders are remembered by their native path. Windows controls access; disconnected or moved folders remain listed until you reconnect or remove them.",
       "accessFailed": "Folder access failed: {reason}",
       "actions": {
         "checkAllAccess": "Check all folder access",

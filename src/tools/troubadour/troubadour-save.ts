@@ -1,4 +1,5 @@
 import { logInfo } from '$lib/services/logging';
+import { asFileSystemFileHandle } from '$lib/services/media-file-access';
 import { readMetadataDocument } from '$lib/services/media-metadata/reader';
 import {
   queryMetadataWritePermission,
@@ -32,7 +33,7 @@ function writeTargetForItem(item: TroubadourWorkbenchItem): TroubadourWriteTarge
     originalName: item.file.name,
     originalSize: item.file.size,
     originalLastModified: item.file.lastModified,
-    originalFileHandle: item.fileHandle ?? undefined
+    originalFileHandle: asFileSystemFileHandle(item.fileHandle)
   };
 }
 
@@ -205,7 +206,8 @@ export function createTroubadourSavePipeline(deps: {
             originalSize: item.file.size,
             originalLastModified: item.file.lastModified,
             file,
-            fileHandle: item.fileHandle!,
+            fileHandle: asFileSystemFileHandle(item.fileHandle),
+            nativeFile: item.fileHandle?.nativeFile,
             path: item.path,
             name: file.name,
             extension: item.extension,

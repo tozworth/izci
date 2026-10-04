@@ -564,7 +564,6 @@ export interface TrackItem {
   file?: File;
   fileHandle?: FileSystemFileHandle;
   /** Disk-backed desktop association file, restored through the native shell. */
-  desktopFile?: true;
   nativeFile?: NativeFileReference;
   path?: string;
   sourceFolderId?: string;

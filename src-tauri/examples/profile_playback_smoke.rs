@@ -11,6 +11,15 @@ mod desktop_files;
 #[allow(dead_code)]
 #[path = "../src/fonts.rs"]
 mod fonts;
+#[allow(dead_code)]
+#[path = "../src/native_file_picker.rs"]
+mod native_file_picker;
+#[allow(dead_code)]
+#[path = "../src/native_filesystem.rs"]
+mod native_filesystem;
+#[allow(dead_code)]
+#[path = "../src/native_media_access.rs"]
+mod native_media_access;
 #[path = "../src/playback_restoration.rs"]
 mod playback_restoration;
 mod windows {
@@ -73,6 +82,10 @@ fn main() {
             playback_restoration::prepare_desktop_playback_restoration,
             desktop_files::take_desktop_launch_paths, desktop_files::materialize_desktop_files,
             desktop_files::configure_desktop_file_launch,
+            native_filesystem::pick_desktop_paths, native_filesystem::read_desktop_folder, native_filesystem::query_desktop_folder_permission,
+            native_media_access::query_desktop_media_write_permission, native_media_access::access_desktop_media_entry,
+            native_media_access::begin_desktop_media_write, native_media_access::update_desktop_media_write,
+            native_media_access::finish_desktop_media_write, native_media_access::move_desktop_media_file, native_media_access::remove_desktop_media_entry,
             fonts::local_font_families
         ])
         .setup(move |app| {

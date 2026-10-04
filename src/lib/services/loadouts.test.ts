@@ -79,6 +79,14 @@ describe('loadout matching', () => {
       name: 'Modules'
     });
   });
+  it('matches absolute native paths to the most specific remembered root', () => {
+    const native = { ...folder, handle: undefined, nativeFolder: { uri: 'file:///C:/Modules', name: 'Modules' } };
+    const nested = { ...native, id: 'nested', name: 'Album', nativeFolder: { uri: 'file:///C:/Modules/Album', name: 'Album' } };
+    expect(resolveLoadoutFolderContext(track({ path: 'c:\\modules\\album\\song.xm' }), [native, nested])).toEqual({ id: 'nested', name: 'Album' });
+    expect(resolveLoadoutFolderContext(track({ path: 'C:/ModulesElsewhere/song.xm' }), [native])).toBeNull();
+    const unc = { ...native, nativeFolder: { uri: 'file://nas/Modules', name: 'Modules' } };
+    expect(resolveLoadoutFolderContext(track({ path: '//NAS/Modules/song.xm' }), [unc])).toEqual({ id: folder.id, name: folder.name });
+  });
 
   it('matches tag regexes against filenames and metadata', () => {
     expect(matchesLoadoutTarget({ type: 'tags', pattern: '^Artist -' }, track(), [])).toBe(true);

@@ -10,21 +10,25 @@ import {
 import { createMetadataOutputFormat, metadataMimeType } from './format';
 import type { MetadataExtension } from './types';
 import { MetadataWriteError } from './types';
+import type { MediaWritable } from '../media-file-access';
 
 type MetadataTagsSource = MetadataTags | ((source: MetadataTags) => MetadataTags | Promise<MetadataTags>);
 
 async function writeBlobToWritable(
-  writable: FileSystemWritableFileStream,
-  blob: Blob
+  writable: MediaWritable,
+  blob: Blob,
+  signal?: AbortSignal
 ): Promise<void> {
   if (typeof writable.write === 'function' && typeof writable.close === 'function') {
     await writable.write(blob);
+    signal?.throwIfAborted();
     await writable.close();
     return;
   }
   const writer = writable.getWriter();
   try {
     await writer.write(blob as unknown as FileSystemWriteChunkType);
+    signal?.throwIfAborted();
     await writer.close();
   } finally {
     writer.releaseLock();
@@ -77,7 +81,7 @@ export async function remuxMetadataToWritable(
   sourceFile: File,
   extension: MetadataExtension,
   tags: MetadataTagsSource,
-  writable: FileSystemWritableFileStream,
+  writable: MediaWritable,
   signal?: AbortSignal
 ): Promise<void> {
   const blob = await remuxMetadataToBlob(sourceFile, extension, tags, signal);
@@ -86,7 +90,7 @@ export async function remuxMetadataToWritable(
     // Chromium's atomic File System Access commit is much more reliable when it
     // receives one plain Blob write than when a remuxer owns/positions the native
     // stream. Keeping the remux in memory also guarantees cleanup stays unlocked.
-    await writeBlobToWritable(writable, blob);
+    await writeBlobToWritable(writable, blob, signal);
   } catch (error) {
     await writable.abort(error).catch(() => undefined);
     throw error;

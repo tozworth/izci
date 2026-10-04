@@ -97,7 +97,7 @@
 - `src/desktop/` and `src-tauri/` own Windows Tauri integration and the native shell. `npm run desktop:build` builds this target.
 - Native shell features stay behind `$platform`; native code/assets must stay out of PWA bundles and precache (`npm run desktop:verify`).
 - Built-in signaling is opt-in via `npm run desktop:build:signaling` / Cargo's `builtin-signaling` feature; ordinary desktop/PWA builds skip izci-server and do not require Go. The lazy, signaling-only Go child uses a private parent pipe and Windows job for bootstrap/shutdown; public host login is disabled.
-- Desktop file-association launches use disk-backed Chromium Files and native path references in queue/library IndexedDB; never synthesize File System Access handles.
+- Desktop imports, managed folders, and file-association launches use native path references and disk-backed Chromium Files; transient tool editing targets are separate from real File System Access handles. Never synthesize FSA handles, and preserve the PWA's FSA path.
 - "Start headless tauri" means `npm run desktop:headless -- start`; use the resident hidden/muted runtime and its `eval`/`probe`/`status`/`stop` commands (see `src/desktop/README.md`). It copies the desktop profile, reuses unchanged builds, and never restarts the ordinary player. Use `start --fresh` after source edits or when a new profile snapshot is needed.
 
 ## Android APK (izci.apk)

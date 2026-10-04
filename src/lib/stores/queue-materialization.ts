@@ -1,7 +1,7 @@
 import { inferExtension, inferKind } from '$lib/utils/files';
 import { logDebug, logWarning } from '$lib/services/logging';
 import type { TrackItem } from '$lib/types';
-import { isDesktop, materializePlatformFile, nativeFilesystem } from '$platform';
+import { nativeFilesystem } from '$platform';
 import { getNativeMediaUrl } from '$lib/utils/native-media-files';
 import { useAndroidFileSnapshot } from '$lib/utils/file-read-policy';
 
@@ -67,19 +67,9 @@ export async function materializeTrackItem(item: TrackItem, prompt = false): Pro
     return item;
   }
 
-  if (isDesktop && item.desktopFile && item.path && !item.fileHandle) {
-    const file = await materializePlatformFile(item.path);
-    if (!file) return null;
-    const extension = inferExtension(file.name);
-    const kind = inferKind(extension);
-    if (!kind) return null;
-    return { ...item, file, extension, kind, size: file.size, lastModified: file.lastModified,
-      objectUrl: await createObjectUrl({ kind }, file) };
-  }
-
   if (nativeFilesystem && item.nativeFile) {
     const file = await nativeFilesystem.materializeFile(item.nativeFile);
-    // Preserve verified unknown-extension modules when restoring SAF references.
+    // Preserve verified unknown-extension modules on either native platform.
     const extension = inferExtension(file.name);
     const kind = inferKind(extension) ?? (item.kind === 'module' ? 'module' : null);
     if (!kind) return null;

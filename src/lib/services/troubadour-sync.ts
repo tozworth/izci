@@ -1,6 +1,8 @@
 import type { FilesystemFolder, FilesystemFolderPermission } from '$lib/services/filesystem-folders';
 import type { TrackItem, TrackKind, TrackMetadata } from '$lib/types';
 import { getTrackIdentity } from '$lib/utils/files';
+import { isNativeFileReference, type NativeFileReference } from './platform-files-types';
+import { nativeFilesystem } from '$platform';
 
 export const REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:request-batch-context';
 export const OPEN_TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:open-batch-context';
@@ -21,6 +23,7 @@ export interface TroubadourBatchTrack {
   references: TroubadourTrackReference[];
   file?: File;
   fileHandle?: FileSystemFileHandle;
+  nativeFile?: NativeFileReference;
   path?: string;
   sourceFolderId?: string;
   name: string;
@@ -61,6 +64,7 @@ export interface TroubadourBatchItemResult {
   metadata?: TrackMetadata;
   file?: File;
   fileHandle?: FileSystemFileHandle;
+  nativeFile?: NativeFileReference;
   path?: string;
   sourceFolderId?: string;
   name?: string;
@@ -159,6 +163,8 @@ function normalizeResultItem(value: unknown): TroubadourBatchItemResult | null {
     metadata: source.metadata && typeof source.metadata === 'object' ? source.metadata : undefined,
     file: source.file instanceof File ? source.file : undefined,
     fileHandle: isFileHandle(source.fileHandle) ? source.fileHandle : undefined,
+    nativeFile: nativeFilesystem && isNativeFileReference(source.nativeFile, nativeFilesystem.referenceScheme)
+      ? { uri: source.nativeFile.uri } : undefined,
     path: typeof source.path === 'string' ? source.path : undefined,
     sourceFolderId: typeof source.sourceFolderId === 'string' ? source.sourceFolderId : undefined,
     name: typeof source.name === 'string' ? source.name : undefined,
@@ -213,6 +219,7 @@ export function buildTroubadourBatchContext(
         }
         existing.file ??= item.file;
         existing.fileHandle ??= item.fileHandle;
+        existing.nativeFile ??= item.nativeFile;
         existing.path ??= item.path;
         existing.sourceFolderId ??= item.sourceFolderId;
         continue;
@@ -223,6 +230,7 @@ export function buildTroubadourBatchContext(
         references: [reference],
         file: item.file,
         fileHandle: item.fileHandle,
+        nativeFile: item.nativeFile,
         path: item.path,
         sourceFolderId: item.sourceFolderId,
         name: item.name,

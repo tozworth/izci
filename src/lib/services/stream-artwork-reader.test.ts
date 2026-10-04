@@ -6,7 +6,7 @@ import type { TrackItem } from '$lib/types';
 const { materializePlatformFile, preparePlaybackRestoration } = vi.hoisted(() => ({
   materializePlatformFile: vi.fn(), preparePlaybackRestoration: vi.fn()
 }));
-vi.mock('$platform', () => ({ isDesktop: true, materializePlatformFile, preparePlaybackRestoration, nativeFilesystem: null }));
+vi.mock('$platform', () => ({ isDesktop: true, materializePlatformFile, preparePlaybackRestoration, nativeFilesystem: { referenceScheme: 'file:', materializeFile: materializePlatformFile } }));
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -75,12 +75,12 @@ describe('ranged embedded artwork', () => {
       ? concatenate(encoder.encode('fLaC'), block(6, picture(3, cover), true))
       : ogg([encoder.encode('OpusHead'), opusComments([encoder.encode(`METADATA_BLOCK_PICTURE=${encoded}`)])]);
     const file = new File([bytes], `restored.${extension}`);
-    const restored = { ...track(file), file: undefined, desktopFile: true as const, path: `C:/Music/${file.name}` };
+    const restored = { ...track(file), file: undefined, nativeFile: { uri: 'file:///C:/Music/restored.flac' }, path: `C:/Music/${file.name}` };
     materializePlatformFile.mockResolvedValue(file);
 
     const artwork = await loadEmbeddedStreamArtwork(restored);
 
-    expect(materializePlatformFile).toHaveBeenCalledWith(restored.path);
+    expect(materializePlatformFile).toHaveBeenCalledWith(restored.nativeFile);
     expect(new Uint8Array(await artwork!.blob.arrayBuffer())).toEqual(cover);
     expect(restored.file).toBeUndefined();
   });

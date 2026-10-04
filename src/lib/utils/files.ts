@@ -41,7 +41,6 @@ type ChromiumDataTransferItem = DataTransferItem & {
 
 interface ImportedFileSource {
   fileHandle?: FileSystemFileHandle;
-  desktopFile?: true;
   nativeFile?: NativeFileReference;
   path?: string;
   sourceFolderId?: string;
@@ -109,9 +108,9 @@ export function registerImportedFile(file: File, source: ImportedFileSource): Fi
 
   importedFileSources.set(file, {
     fileHandle: source.fileHandle ?? existing?.fileHandle,
-    desktopFile: source.desktopFile ?? existing?.desktopFile,
     nativeFile: source.nativeFile ?? existing?.nativeFile,
-    path: (source.desktopFile ? source.path?.replaceAll('\\', '/') : normalizePath(source.path)) ?? existing?.path,
+    path: ((source.nativeFile ?? existing?.nativeFile)?.uri.startsWith('file:')
+      ? source.path?.replaceAll('\\', '/') : normalizePath(source.path)) ?? existing?.path,
     sourceFolderId: source.sourceFolderId ?? existing?.sourceFolderId
   });
 
@@ -231,7 +230,6 @@ function createTrackItem(file: File): TrackItem | null {
     file: retainedFile,
     fileHandle: source?.fileHandle,
     ...(source?.nativeFile ? { nativeFile: source.nativeFile } : {}),
-    ...(source?.desktopFile ? { desktopFile: true as const } : {}),
     path: source?.path,
     sourceFolderId: source?.sourceFolderId,
     name: file.name,

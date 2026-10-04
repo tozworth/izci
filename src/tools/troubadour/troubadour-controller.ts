@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import type { MediaFileAccess, MediaDirectoryAccess } from '$lib/services/media-file-access';
 import { isSameArtworkFile } from '$lib/services/media-metadata/artwork';
 import { applyMetadataPatch } from '$lib/services/media-metadata/merge';
 import { getMetadataCapabilities } from '$lib/services/media-metadata/format';
@@ -55,8 +56,8 @@ export interface TroubadourWorkbenchItem {
   contextId?: string;
   references: TroubadourTrackReference[];
   file: File;
-  fileHandle: FileSystemFileHandle | null;
-  parentHandle: FileSystemDirectoryHandle | null;
+  fileHandle: MediaFileAccess | null;
+  parentHandle: MediaDirectoryAccess | null;
   path: string;
   sourceFolderId?: string;
   extension: string;

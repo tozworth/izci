@@ -21,7 +21,7 @@ describe('native launch File input', () => {
     const files = await readDesktopFiles([path]);
     expect(files[0]).toBe(input.files[0]);
     expect(invoke).toHaveBeenCalledWith('materialize_desktop_files', { paths: [path] });
-    expect(build(files)[0]).toMatchObject({ path, desktopFile: true, kind: 'module' });
+    expect(build(files)[0]).toMatchObject({ path, nativeFile: { uri: 'file:///C:/Music/%C5%9Fark%C4%B1.hvl' }, kind: 'module' });
     expect(input.remove).toHaveBeenCalledOnce();
   });
   it('cleans up failed selections and permits later retries', async () => {
@@ -55,7 +55,7 @@ describe('native launch File input', () => {
 
   it('does not request access for native references or already granted handles', async () => {
     const { preparePlaybackRestoration } = await import('./files');
-    await preparePlaybackRestoration({ desktopFile: true, path } as TrackItem);
+    await preparePlaybackRestoration({ nativeFile: { uri: 'file:///C:/Music/song.hvl' }, path } as TrackItem);
     await preparePlaybackRestoration({ fileHandle: { queryPermission: vi.fn(async () => 'granted') } } as unknown as TrackItem);
     expect(invoke).not.toHaveBeenCalled();
   });

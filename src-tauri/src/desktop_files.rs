@@ -153,18 +153,13 @@ pub async fn materialize_desktop_files(
     window: WebviewWindow,
     paths: Vec<String>,
 ) -> Result<Vec<String>, String> {
-    if window.label() != "main" {
-        return Err("Only the playback owner materializes desktop files".into());
-    }
+    crate::native_filesystem::require_app_window(&window)?;
     if paths.len() > 1024 {
         return Err("Too many launch files".into());
     }
     let paths: Vec<String> = paths
         .iter()
-        .map(|path| {
-            canonical_media_path(Path::new(path))
-                .ok_or_else(|| "The media file is unavailable or unsupported".to_string())
-        })
+        .map(|path| crate::native_filesystem::canonical_path(Path::new(path), false))
         .collect::<Result<_, _>>()?;
     if paths.is_empty() {
         return Ok(paths);

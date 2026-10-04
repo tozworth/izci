@@ -26,6 +26,12 @@ function track(id: string, path: string): TrackItem {
 }
 
 describe('Troubadour main-window synchronization', () => {
+  it('passes serializable native references for selected tracks that have not been materialized', () => {
+    const nativeFile = { uri: 'file:///C:/Music/Track.flac' };
+    const context = buildTroubadourBatchContext([{ collection: 'library', items: [{ ...track('native', 'C:/Music/Track.flac'), nativeFile }] }], []);
+    expect(context.tracks[0]).toMatchObject({ nativeFile, references: [{ collection: 'library', id: 'native' }] });
+    expect(context.tracks[0].fileHandle).toBeUndefined();
+  });
   it('coalesces the same file while retaining every collection reference', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'context-id' });
 

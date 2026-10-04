@@ -1,7 +1,7 @@
 import type { TrackItem, PlaybackOptions, RepeatMode, TrackSelection } from '$lib/types';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
 import { logInfo } from '$lib/services/logging';
-import { isDesktop, nativeFilesystem } from '$platform';
+import { nativeFilesystem } from '$platform';
 import { isNativeFileReference, type NativeFileReference } from '$lib/services/platform-files-types';
 
 export interface StoredTrackItem {
@@ -12,7 +12,6 @@ export interface StoredTrackItem {
   size: number;
   lastModified: number;
   fileHandle?: FileSystemFileHandle;
-  desktopFile?: true;
   nativeFile?: NativeFileReference;
   path?: string;
   sourceFolderId?: string;
@@ -75,9 +74,8 @@ export function normalizeStoredItem(value: unknown): StoredTrackItem | null {
     size: source.size,
     lastModified: typeof source.lastModified === 'number' ? source.lastModified : 0,
     fileHandle: isFileSystemFileHandle(source.fileHandle) ? source.fileHandle : undefined,
-    ...(nativeFilesystem && isNativeFileReference(source.nativeFile) ? { nativeFile: { uri: source.nativeFile.uri } } : {}),
-    ...(isDesktop && source.desktopFile === true && typeof source.path === 'string' && source.path
-      ? { desktopFile: true as const } : {}),
+    ...(nativeFilesystem && isNativeFileReference(source.nativeFile, nativeFilesystem.referenceScheme)
+      ? { nativeFile: { uri: source.nativeFile.uri } } : {}),
     path: typeof source.path === 'string' ? source.path : undefined,
     sourceFolderId: typeof source.sourceFolderId === 'string' ? source.sourceFolderId : undefined,
     metadata: source.metadata,
@@ -89,7 +87,7 @@ export function normalizeStoredItem(value: unknown): StoredTrackItem | null {
 export function restoreStoredItem(value: unknown): TrackItem | null {
   const item = normalizeStoredItem(value);
 
-  if (!item || (!item.fileHandle && !item.desktopFile && !item.nativeFile)) {
+  if (!item || (!item.fileHandle && !item.nativeFile)) {
     return null;
   }
 
@@ -97,7 +95,9 @@ export function restoreStoredItem(value: unknown): TrackItem | null {
 }
 
 export function serializeItem(item: TrackItem): StoredTrackItem | null {
-  if (!item.fileHandle && !(isDesktop && item.desktopFile && item.path) && !(nativeFilesystem && item.nativeFile)) {
+  const nativeFile = nativeFilesystem && isNativeFileReference(item.nativeFile, nativeFilesystem.referenceScheme)
+    ? { uri: item.nativeFile.uri } : undefined;
+  if (!item.fileHandle && !nativeFile) {
     return null;
   }
 
@@ -111,8 +111,7 @@ export function serializeItem(item: TrackItem): StoredTrackItem | null {
     size: item.size,
     lastModified: item.lastModified,
     fileHandle: item.fileHandle,
-    ...(nativeFilesystem && item.nativeFile ? { nativeFile: { uri: item.nativeFile.uri } } : {}),
-    ...(isDesktop && item.desktopFile && item.path ? { desktopFile: true as const } : {}),
+    ...(nativeFile ? { nativeFile } : {}),
     path: item.path,
     sourceFolderId: item.sourceFolderId,
     metadata: item.metadata,

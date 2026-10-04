@@ -373,6 +373,12 @@
     "description": "İzci modülü destekli, çevrimdışı PWA müzik çalar."
   },
   "mobile": {
+    "raf": {
+      "back": "Efektlere dön",
+      "edit": "Efekti düzenle",
+      "moveUp": "Yukarı taşı",
+      "moveDown": "Aşağı taşı"
+    },
     "player": {
       "addFilesToBegin": "Başlamak için dosya ekle"
     },
@@ -1024,6 +1030,7 @@
       "heading": "Klasörler",
       "description": "izci'nin hatırladığı tüm klasörler: kütüphane taramalarında kullanılanlar dahil.",
       "androidAccess": "Android, seçilen dosya ve klasörlere erişimi açılışlar arasında hatırlar. Erişim izni kaldırılırsa Erişimi kontrol et ile aynı klasörü yeniden seçin.",
+      "desktopAccess": "Masaüstü klasörleri yerel yollarıyla hatırlanır. Erişimi Windows yönetir; bağlantısı kesilen veya taşınan klasörler, yeniden bağlanana ya da kaldırılana kadar listede kalır.",
       "accessFailed": "Klasöre erişilemedi: {reason}",
       "actions": {
         "checkAllAccess": "Tüm klasör erişimlerini kontrol et",

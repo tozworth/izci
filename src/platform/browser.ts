@@ -22,7 +22,6 @@ export const DesktopTrackSettings: typeof import('../desktop/DesktopTrackSetting
 export function resetDesktopAppearance(): void {}
 export function resetDesktopTracks(): void {}
 export function createPlatformIntegration(_options: PlatformIntegrationOptions): () => void { return () => undefined; }
-export async function materializePlatformFile(_path: string): Promise<File | null> { return null; }
 export async function preparePlaybackRestoration(_track: TrackItem): Promise<void> {}
 
 export const DesktopWindowControls: typeof import('../desktop/DesktopWindowControls.svelte').default | null = null;

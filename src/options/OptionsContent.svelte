@@ -6,6 +6,7 @@
 
   export let activeView: OptionsViewName;
   export let onSelectView: (view: OptionsViewName) => void;
+  export let mobilePresentation = false;
 
   const dispatch = createEventDispatcher<{ ready: void }>();
   let viewModule: Awaited<ReturnType<typeof loadOptionsView>> | null = null;
@@ -14,16 +15,16 @@
   let loadFailed = false;
   let requestVersion = 0;
 
-  $: void showView(activeView);
+  $: void showView(activeView, mobilePresentation);
 
   onDestroy(() => { requestVersion += 1; });
 
-  async function showView(view: OptionsViewName): Promise<void> {
+  async function showView(view: OptionsViewName, mobile = mobilePresentation): Promise<void> {
     const version = ++requestVersion;
     loading = true;
     loadFailed = false;
     try {
-      const loaded = await loadOptionsView(view);
+      const loaded = await loadOptionsView(view, mobile);
       if (version !== requestVersion) return;
       viewModule = loaded;
       renderedView = view;

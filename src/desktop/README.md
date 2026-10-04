@@ -65,14 +65,27 @@ cleans up its files/mapping. A kill-on-close Windows job ties forced termination
 to izci.exe; the short mapping lease covers an ungraceful exit. Owner credentials
 and the native readiness snapshot are never persisted.
 
-This target uses the existing File System Access pickers and **real Chromium
-filesystem handles**, including writable handles used by the tools. Queue and
-library records remain in their separate IndexedDB databases; remembered folder
-handles remain in `izci-filesystem`. The stable `https://tauri.localhost` origin
+Main-window imports use native Windows file/folder pickers and native directory
+enumeration through the shared filesystem provider. Queue and library records
+retain serializable `file://` references and ordinary metadata in their separate
+IndexedDB databases; remembered roots remain in `izci-filesystem`. Android uses
+the same provider contract with SAF `content://` references, while the PWA keeps
+its real File System Access handles and browser pickers. The stable `https://tauri.localhost` origin
 and the app's persistent WebView2 profile preserve storage between launches.
 This profile is separate from the installed/browser PWA. Native permission
-handling allows file access selected by the user; remote navigation and frames
-are blocked. Launch folder scans retain their existing permission checks.
+handling still supports real FSA handles used by tool pickers; remote navigation
+and frames are blocked. Native launch scans never open a picker, retain missing
+roots, honor the nesting limit, and do not reconcile a partially failed scan.
+Directory junctions and symlinks are not traversed.
+
+Troubadour can also edit and rename native main-window tracks. Its transient
+editing targets are separate from FSA handles and never persisted or cloned
+between windows. Native writes stream bounded chunks into sibling temporary
+files, reject concurrent source changes, and commit with Windows atomic file
+replacement; aborting or closing the owning window removes pending writes.
+Standalone tool pickers/exports continue using real writable FSA handles.
+Existing FSA collection records remain usable. Older launch-only `desktopFile`
+records are not migrated; reimport those files to store native URI references.
 
 The main window has a custom titlebar sharing the existing application menus,
 with centered branding/version and native minimize, maximize/restore, and close
@@ -157,8 +170,8 @@ Single-instance activation delivers Explorer/command-line files to the playback
 owner, honoring the existing associated-file add/replace preference. WebView2's
 file-input bridge yields real disk-backed Chromium Files without copying media
 bytes through IPC. Native path references persist in queue/library IndexedDB and
-materialize on demand; directory handles and picker imports continue using real
-File System Access handles. The browser build rejects native references.
+materialize on demand, including files accepted by the shared unknown-extension
+module probe. The browser build rejects native references.
 
 ## Invisible debugging
 

@@ -1,4 +1,5 @@
 import { readMetadataDocument } from '$lib/services/media-metadata/reader';
+import { asFileSystemFileHandle, type MediaFileAccess, type MediaDirectoryAccess } from '$lib/services/media-file-access';
 import type { TroubadourBatchItemResult } from '$lib/services/troubadour-sync';
 import { publishTroubadourBatchResult } from '$lib/services/troubadour-sync';
 import { logInfo } from '$lib/services/logging';
@@ -22,7 +23,7 @@ import type {
 } from './troubadour-controller';
 
 export async function requestRenameAccess(rows: RenamePreviewRow[]): Promise<void> {
-  const handles = new Set<FileSystemHandle>();
+  const handles = new Set<MediaFileAccess | MediaDirectoryAccess>();
   for (const row of rows) {
     if (!row.problems.includes('permission-required')) continue;
     if (row.parentHandle) handles.add(row.parentHandle);
@@ -173,7 +174,8 @@ export function createTroubadourRenamePipeline(deps: {
             originalSize: item.file.size,
             originalLastModified: item.file.lastModified,
             file: job.file,
-            fileHandle: job.fileHandle,
+            fileHandle: asFileSystemFileHandle(job.fileHandle),
+            nativeFile: job.fileHandle.nativeFile,
             path: job.path,
             name: job.name,
             extension: item.extension,

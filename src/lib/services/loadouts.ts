@@ -1,5 +1,6 @@
 import type { Readable } from 'svelte/store';
 import { filesystemFolders, type FilesystemFolder } from './filesystem-folders';
+import { nativeFilePath } from './platform-files-types';
 import { startLoadoutTrackContextPublisher } from './loadout-track-context';
 import { appearanceSettings } from '$lib/stores/appearance-settings';
 import { loadouts } from '$lib/stores/loadouts';
@@ -88,6 +89,18 @@ export function resolveLoadoutFolderContext(
   }
 
   const rootName = getRootFolderName(track.path);
+  // Native Windows files have absolute paths, including direct file selections.
+  const path = track.path?.replaceAll('\\', '/').toLowerCase();
+  const nativeMatches = folders.flatMap(folder => {
+    const nativePath = folder.nativeFolder ? nativeFilePath(folder.nativeFolder) : null;
+    if (!path || !nativePath) return [];
+    const root = nativePath.replace(/\/$/, '').toLowerCase();
+    return path.startsWith(`${root}/`) ? [{ folder, length: root.length }] : [];
+  }).sort((first, second) => second.length - first.length);
+  if (nativeMatches.length) {
+    const folder = nativeMatches[0].folder;
+    return { id: folder.id, name: folder.name };
+  }
   if (!rootName) return null;
   const matchingFolders = folders.filter(
     (folder) => normalizedComparisonText(folder.name) === normalizedComparisonText(rootName)

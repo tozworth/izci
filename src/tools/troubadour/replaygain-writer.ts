@@ -1,3 +1,5 @@
+import type { MediaFileAccess } from '$lib/services/media-file-access';
+
 import {
   type MetadataTags
 } from 'mediabunny';
@@ -78,7 +80,7 @@ export async function buildReplayGainTaggedFile(file: File, values: ReplayGainVa
 }
 
 export async function writeReplayGainInPlace(
-  handle: FileSystemFileHandle,
+  handle: MediaFileAccess,
   values: ReplayGainValues
 ): Promise<void> {
   if (!handle.createWritable) throw new Error('This file handle does not allow in-place writing.');

@@ -253,8 +253,10 @@
     <div>
       <h2>{$t('options.folders.heading', { default: 'Folders' })}</h2>
       <p class="field-hint">{$t('options.folders.description', { default: 'Every folder izci has remembered, including folders used for library scans.' })}</p>
-      {#if nativeFilesystem}
+      {#if nativeFilesystem?.referenceScheme === 'content:'}
         <p class="field-hint">{$t('options.folders.androidAccess', { default: 'Android remembers access to selected files and folders across launches. If access is revoked, use Check access and select the same folder again.' })}</p>
+      {:else if nativeFilesystem}
+        <p class="field-hint">{$t('options.folders.desktopAccess', { default: 'Desktop folders are remembered by their native path. Windows controls access; disconnected or moved folders remain listed until you reconnect or remove them.' })}</p>
       {/if}
     </div>
     <div class="page-actions">
