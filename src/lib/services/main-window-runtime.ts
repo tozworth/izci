@@ -7,7 +7,7 @@
  * `main-window-runtime-state.ts`.
  */
 
-import { writable, get } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { t } from 'svelte-i18n';
 import { translate } from '$lib/i18n';
 import {
@@ -105,6 +105,7 @@ import {
 
 /** Handles owned by the composition root and surfaced to the component. */
 interface MainWindowRuntimeHandles {
+  getPatternSeekTimes(): readonly number[] | null;
   bindFileInput(element: HTMLInputElement | null): void;
   handleAppKeydown(event: KeyboardEvent): void;
   handlePopupWindowMessage(event: MessageEvent): void;
@@ -492,7 +493,17 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
   const miniPlayerTrack = writable<TrackItem | null>(null);
   const miniPlayerSelectedTrack = writable<TrackItem | null>(null);
   const miniPlayerArtworkUrl = writable<string | null>(null);
+  const patternSeekTimes = derived(
+    [playbackSettings, playerController.modulePattern, playerController.currentTrack],
+    ([settings, pattern, track]) => settings.patternAwareSeek && track?.kind === 'module' && pattern.trackId === track.id
+      ? pattern.song?.patternStartTimes ?? null
+      : null
+  );
+  function getPatternSeekTimes(): readonly number[] | null {
+    return state.playingTrack?.id === get(playerController.currentTrack)?.id ? get(patternSeekTimes) : null;
+  }
   const miniPlayer = createMiniPlayerController({
+    patternSeekTimes,
     snapshot: playerController.snapshot,
     track: miniPlayerTrack,
     selectedTrack: miniPlayerSelectedTrack,
@@ -541,6 +552,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
       : getTrackArtworkLoadKey(track)
   });
   const appShortcuts = createAppShortcuts({
+    getPatternSeekTimes,
     getState: () => ({
       isNowPlayingLayoutActive: state.isNowPlayingLayoutActive,
       videoTrackActive: state.videoTrackActive,
@@ -901,6 +913,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
 
   return {
     handles: {
+      getPatternSeekTimes,
       handleAppKeydown,
       handlePopupWindowMessage: (event) => troubadourBridge.handleMessage(event),
       togglePatterns,

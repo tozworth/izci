@@ -1,5 +1,5 @@
 import { mount, unmount } from 'svelte';
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import materialSymbolsFontUrl from '@material-symbols/font-400/material-symbols-outlined.woff2?url';
 import MiniPlayer from '$lib/components/mini-player/MiniPlayer.svelte';
 import { createPlatformMiniPlayerController } from '$platform';
@@ -171,9 +171,10 @@ export function createMiniPlayerController({
   track,
   selectedTrack,
   artworkUrl,
+  patternSeekTimes,
   handlers
 }: MiniPlayerControllerOptions) {
-  const platformController = createPlatformMiniPlayerController({ snapshot, track, selectedTrack, artworkUrl, handlers });
+  const platformController = createPlatformMiniPlayerController({ snapshot, track, selectedTrack, artworkUrl, handlers, patternSeekTimes });
   if (platformController) return platformController;
 
   const supported = supportsMiniPlayer();
@@ -270,6 +271,7 @@ export function createMiniPlayerController({
           trackStore: track,
           selectedTrackStore: selectedTrack,
           artworkUrlStore: artworkUrl,
+          getPatternSeekTimes: () => patternSeekTimes ? get(patternSeekTimes) : null,
           onTogglePlayback: handlers.togglePlayback,
           onPreviousTrack: handlers.previousTrack,
           onNextTrack: handlers.nextTrack,

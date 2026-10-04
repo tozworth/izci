@@ -15,6 +15,7 @@ describe('AHX AudioWorklet', () => {
       port: { messages: unknown[] };
       publishPatternData: () => void;
       publishPatternProgress: (force?: boolean) => void;
+      seek: (seconds: number) => void;
       readString: (pointer: number) => string;
     }) | undefined;
     class MockAudioWorkletProcessor {
@@ -49,6 +50,25 @@ describe('AHX AudioWorklet', () => {
     const bytes = new Uint8Array([0, 0x53, 0x69, 0x44, 0x56, 0x69, 0x42, 0x45, 0x53, 0x21, 0]);
     player.exports = { memory: { buffer: bytes.buffer } };
     expect(player.readString(1)).toBe('SiDViBES!');
+  });
+
+  it('keeps pattern-boundary seconds on their exact Hively frame', () => {
+    const Processor = loadProcessor();
+    const player = new Processor();
+    let frame = -1;
+    player.exports = {
+      memory: { buffer: new ArrayBuffer(8) },
+      ahx_duration_frames: () => 100,
+      ahx_seek_frame: (target: number) => { frame = target; },
+      ahx_current_frame: () => frame,
+      ahx_current_order: () => 1,
+      ahx_current_row: () => 0,
+      ahx_subsong_count: () => 1
+    };
+    player.seek(0.58);
+    expect(frame).toBe(29);
+    player.seek(0.579);
+    expect(frame).toBe(28);
   });
 
   it.each(['ahx', 'hvl'])('recovers %s playback after natural and seeked endings', async (format) => {

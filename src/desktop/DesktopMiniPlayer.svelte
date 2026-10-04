@@ -11,6 +11,7 @@
   import { MINI_PLAYER_COMMAND_EVENT, MINI_PLAYER_REQUEST_EVENT, MINI_PLAYER_STATE_EVENT, type MiniPlayerCommand, type MiniPlayerView } from './mini-player-protocol';
 
   const snapshot = writable<PlaybackSnapshot>({ state: 'idle', currentTime: 0, duration: 0, volume: 1, muted: false, backend: null });
+  let patternSeekTimes: readonly number[] | null = null;
   const track = writable<TrackItem | null>(null);
   const selectedTrack = writable<TrackItem | null>(null);
   const artwork = writable<string | null>(null);
@@ -47,6 +48,7 @@
       track.set(payload.track);
       selectedTrack.set(payload.selectedTrack);
       artwork.set(payload.artworkUrl);
+      patternSeekTimes = payload.patternSeekTimes;
     }).then(async (release) => {
       if (disposed) { release(); return; }
       unlisten = release;
@@ -74,6 +76,7 @@
     </button>
   </div>
   <MiniPlayer showTooltips snapshotStore={snapshot} trackStore={track} selectedTrackStore={selectedTrack} artworkUrlStore={artwork}
+    getPatternSeekTimes={() => patternSeekTimes}
     onTogglePlayback={() => command({ action: 'togglePlayback' })}
     onPreviousTrack={() => command({ action: 'previousTrack' })}
     onNextTrack={() => command({ action: 'nextTrack' })}

@@ -138,6 +138,18 @@
     <h2>{$t('options.playback.navigation.heading', { default: 'Navigation' })}</h2>
     <div class="field-grid">
       <SettingsField
+        title={$t('options.playback.patternAwareSeek.title', { default: 'Pattern-aware seek' })}
+        hint={$t('options.playback.patternAwareSeek.hint', { default: 'Arrow keys and the seek-bar scrollwheel jump to the start of the previous or next tracker pattern. Other files keep time-based seeking.' })}
+        advanced
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$playbackSettings.patternAwareSeek}
+          on:change={(event) => playbackSettings.update({ patternAwareSeek: checked(event) })}
+        />
+      </SettingsField>
+      <SettingsField
         title={$t('options.playback.restartCurrentTrackOnPrevious.title', { default: 'Previous restarts current track' })}
         hint={$t('options.playback.restartCurrentTrackOnPrevious.hint', { default: 'Restarts the current track when Previous is pressed after 3 seconds; press it again to go to the previous track.' })}
         checkbox

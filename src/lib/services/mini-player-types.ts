@@ -8,6 +8,7 @@ export interface MiniPlayerState {
 }
 
 export interface MiniPlayerControllerOptions {
+  patternSeekTimes?: Readable<readonly number[] | null>;
   snapshot: Readable<PlaybackSnapshot>;
   track: Readable<TrackItem | null>;
   selectedTrack: Readable<TrackItem | null>;

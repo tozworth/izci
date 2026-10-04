@@ -6,6 +6,7 @@
   import type { PlaybackSnapshot, TrackItem } from '$lib/types';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
   import { createWheelSeekController } from '$lib/services/wheel-seek';
+  import { createKeyboardSeekResolver } from '$lib/services/seek-step';
 
   export let showTooltips = false;
   export let snapshotStore: Readable<PlaybackSnapshot>;
@@ -16,12 +17,13 @@
   export let onPreviousTrack: () => void;
   export let onNextTrack: () => void;
   export let onSeek: (seconds: number) => void;
+  export let getPatternSeekTimes: () => readonly number[] | null = () => null;
   export let onVolume: (volume: number) => void;
   export let onToggleMute: () => void;
   export let onEnterNowPlaying: () => void;
 
   const RANGE_THUMB_SIZE_REM = 0.78;
-  const SEEK_STEP_SECONDS = 5;
+  const resolveKeyboardSeek = createKeyboardSeekResolver();
   const VOLUME_STEP = 0.05;
 
   let rootElement: HTMLElement | null = null;
@@ -62,9 +64,10 @@
   }
 
   const wheelSeek = createWheelSeekController({
+    getPatternSeekTimes: () => getPatternSeekTimes(),
     getCurrentTime: () => snapshot.currentTime,
     getDuration: () => snapshot.duration,
-    getContextKey: () => track?.id ?? null,
+    getContextKey: () => track ? `${track.id}:${snapshot.subsong ?? 0}` : null,
     onPreview: (seconds) => {
       seekWheelActive = seconds !== null;
       if (seconds !== null) seekPreview = seconds;
@@ -109,13 +112,23 @@
     }
 
     const direction = event.key === 'ArrowLeft' ? -1 : 1;
-    onSeek(clamp(snapshot.currentTime + direction * SEEK_STEP_SECONDS, 0, snapshot.duration));
+    wheelSeek.cancel();
+    onSeek(resolveKeyboardSeek(snapshot.currentTime, direction, snapshot.duration, getPatternSeekTimes(), `${track.id}:${snapshot.subsong ?? 0}`));
   }
 
   function beginSeek(): void {
     wheelSeek.cancel();
     seekPointerActive = true;
     seekPreview = snapshot.currentTime;
+  }
+
+  function handleSeekKeydown(event: KeyboardEvent): void {
+    if (!getPatternSeekTimes()?.length) return;
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key) || event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
+    event.preventDefault();
+    event.stopPropagation();
+    wheelSeek.cancel();
+    onSeek(resolveKeyboardSeek(snapshot.currentTime, event.key === 'ArrowLeft' ? -1 : 1, snapshot.duration, getPatternSeekTimes(), `${track?.id}:${snapshot.subsong ?? 0}`));
   }
 
   function previewSeek(event: Event): void {
@@ -252,6 +265,7 @@
         disabled={!track || snapshot.duration <= 0 || isLoading}
         on:pointerdown={beginSeek}
         on:input={previewSeek}
+        on:keydown={handleSeekKeydown}
         on:pointerup={commitSeek}
         on:pointercancel={cancelSeek}
         on:wheel|preventDefault={handleSeekWheel}

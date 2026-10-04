@@ -16,16 +16,18 @@ vi.mock('@tauri-apps/api/event', () => ({ emitTo: native.emitTo, listen: native.
 import { createDesktopMiniPlayerController } from './mini-player-controller';
 
 function setup() {
+  const patternSeekTimes = writable<readonly number[] | null>(null);
   const snapshot = writable<PlaybackSnapshot>({ state: 'playing', currentTime: 3, duration: 30, volume: 0.5, muted: false, backend: 'stream' });
   const handlers = {
     togglePlayback: vi.fn(), previousTrack: vi.fn(), nextTrack: vi.fn(),
     seek: vi.fn(), setVolume: vi.fn(), toggleMute: vi.fn(), enterNowPlaying: vi.fn()
   };
   const controller = createDesktopMiniPlayerController({
+    patternSeekTimes,
     snapshot, handlers, track: writable<TrackItem | null>(null),
     selectedTrack: writable<TrackItem | null>(null), artworkUrl: writable<string | null>(null)
   });
-  return { controller, snapshot, handlers };
+  return { controller, snapshot, handlers, patternSeekTimes };
 }
 
 describe('desktop miniplayer lifecycle', () => {
@@ -42,6 +44,21 @@ describe('desktop miniplayer lifecycle', () => {
     });
   });
   afterEach(() => vi.useRealTimers());
+
+  it('publishes pattern timing and setting changes while playback is paused', async () => {
+    const { controller, snapshot, patternSeekTimes } = setup();
+    snapshot.update((value) => ({ ...value, state: 'paused', backend: 'module' }));
+    await controller.open();
+    patternSeekTimes.set([0, 7.68, 11.52]);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(native.emitTo).toHaveBeenLastCalledWith('mini-player', MINI_PLAYER_STATE_EVENT,
+      expect.objectContaining({ patternSeekTimes: [0, 7.68, 11.52] }));
+    patternSeekTimes.set(null);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(native.emitTo).toHaveBeenLastCalledWith('mini-player', MINI_PLAYER_STATE_EVENT,
+      expect.objectContaining({ patternSeekTimes: null }));
+    controller.destroy();
+  });
 
   it('publishes current state and routes commands to the existing playback owner', async () => {
     const { controller, snapshot, handlers } = setup();

@@ -1462,6 +1462,10 @@
         "title": "Önceki geçerli parçayı baştan başlatır",
         "hint": "3 saniye geçtikten sonra Önceki'ye basıldığında geçerli parçayı baştan başlatır; önceki parçaya gitmek için tekrar basın."
       },
+      "patternAwareSeek": {
+        "title": "Örüntüye duyarlı sarma",
+        "hint": "Ok tuşları ve sarma çubuğundaki fare tekerleği, önceki veya sonraki tracker örüntüsünün başına atlar. Diğer dosyalarda zamana göre sarma sürer."
+      },
       "speed": {
         "heading": "Hız"
       },

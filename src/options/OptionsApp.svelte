@@ -172,6 +172,7 @@
         break;
       case 'playback':
         advancedTweaksModified =
+          $playbackSettings.patternAwareSeek !== DEFAULT_PLAYBACK_SETTINGS.patternAwareSeek ||
           $playbackSettings.rememberProgressDurationIndex !== DEFAULT_PLAYBACK_SETTINGS.rememberProgressDurationIndex ||
           $playbackSettings.logarithmicVolume !== DEFAULT_PLAYBACK_SETTINGS.logarithmicVolume ||
           $playbackSettings.gaplessPlayback !== DEFAULT_PLAYBACK_SETTINGS.gaplessPlayback ||

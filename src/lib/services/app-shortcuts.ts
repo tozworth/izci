@@ -5,8 +5,8 @@ import type {
   WorkspaceTab
 } from '$lib/types';
 import type { WorkspacePanelDefinition } from '$lib/components/workspace/types';
+import { createKeyboardSeekResolver } from './seek-step';
 
-const KEYBOARD_SEEK_STEP_SECONDS = 5;
 const KEYBOARD_VOLUME_STEP = 0.05;
 
 interface AppShortcutState {
@@ -45,6 +45,7 @@ interface AppShortcutHandlers {
 
 interface CreateAppShortcutsOptions {
   getState: () => AppShortcutState;
+  getPatternSeekTimes?: () => readonly number[] | null;
   handlers: AppShortcutHandlers;
 }
 
@@ -82,7 +83,8 @@ function shouldIgnorePlaybackKeyboardTarget(target: EventTarget | null): boolean
   return (tagName === 'BUTTON' || tagName === 'A') && !isTrackRowKeyboardTarget(target);
 }
 
-export function createAppShortcuts({ getState, handlers }: CreateAppShortcutsOptions) {
+export function createAppShortcuts({ getState, handlers, getPatternSeekTimes }: CreateAppShortcutsOptions) {
+  const resolveKeyboardSeek = createKeyboardSeekResolver();
   function handleContextMenu(event: MouseEvent): void {
     event.preventDefault();
   }
@@ -184,10 +186,12 @@ export function createAppShortcuts({ getState, handlers }: CreateAppShortcutsOpt
 
       const direction = event.key === 'ArrowLeft' ? -1 : 1;
       handlers.seek(
-        clamp(
-          state.playbackSnapshot.currentTime + direction * KEYBOARD_SEEK_STEP_SECONDS,
-          0,
-          state.playbackSnapshot.duration
+        resolveKeyboardSeek(
+          state.playbackSnapshot.currentTime,
+          direction,
+          state.playbackSnapshot.duration,
+          getPatternSeekTimes?.(),
+          `${state.playingTrack.id}:${state.playbackSnapshot.subsong ?? 0}`
         )
       );
       return;

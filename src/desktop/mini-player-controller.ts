@@ -29,7 +29,8 @@ export function createDesktopMiniPlayerController(options: MiniPlayerControllerO
       snapshot: get(options.snapshot),
       track: miniPlayerTrackView(get(options.track)),
       selectedTrack: miniPlayerTrackView(get(options.selectedTrack)),
-      artworkUrl: artworkData
+      artworkUrl: artworkData,
+      patternSeekTimes: options.patternSeekTimes ? get(options.patternSeekTimes) : null
     });
   }
 
@@ -73,6 +74,7 @@ export function createDesktopMiniPlayerController(options: MiniPlayerControllerO
   }
 
   const unsubscribers = [
+    ...(options.patternSeekTimes ? [options.patternSeekTimes.subscribe(schedulePublish)] : []),
     options.snapshot.subscribe(schedulePublish),
     options.track.subscribe(schedulePublish),
     options.selectedTrack.subscribe(schedulePublish),

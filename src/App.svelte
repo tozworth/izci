@@ -1343,6 +1343,7 @@
 
   {#if !isNowPlayingLayoutActive}
     <PlayerControls
+      getPatternSeekTimes={runtime.handles.getPatternSeekTimes}
       presentation={videoTheaterActive ? 'theater' : 'bar'}
       mobilePresentation={mobileMode}
       snapshotStore={displayPlaybackSnapshotStore}
