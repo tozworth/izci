@@ -83,6 +83,16 @@
     return null;
   }
 
+  function desktopTreeGroups(groups: SharedOptionsViewDefinition[][]): SharedOptionsViewDefinition[][] {
+    const odaView = groups.flat().find((view) => view.id === 'oda');
+    return groups.map((group) => group
+      .filter((view) => view.id !== 'oda')
+      .flatMap((view) => view.id === 'playback' && odaView
+        ? [{ ...odaView, parentId: 'appearance' }, view]
+        : [view])
+    ).filter((group) => group.length > 0);
+  }
+
   function setActiveView(view: OptionsViewName) {
     if (view === 'raf' && !playbackSettings.getSnapshot().enableRaf) {
       view = 'playback';
@@ -137,6 +147,7 @@
     parentId: parentViewId(view.id),
     hidden: view.id === 'raf' && !$playbackSettings.enableRaf
   })));
+  $: desktopViewGroups = desktopTreeGroups(sharedViewGroups);
   $: auxiliaryViews = [{
     ...OPTIONS_VIEWS.licenses,
     label: viewLabel('licenses'),
@@ -240,7 +251,7 @@
   windowTitle={$t('options.windowTitle', { default: 'izci Options' })}
   pageToolsLabel={$t('options.tools.label', { default: 'Page tools' })}
   categoriesLabel={$t('options.categories', { default: 'Options categories' })}
-  groups={sharedViewGroups}
+  groups={desktopViewGroups}
   {auxiliaryViews}
   activeView={activeView}
   bind:showAdvancedTweaks

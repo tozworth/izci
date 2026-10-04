@@ -1,30 +1,8 @@
-interface NowPlayingScreenGeometry {
-  width?: number;
-  height?: number;
-  availWidth?: number;
-  availHeight?: number;
-  availLeft?: number;
-  availTop?: number;
-  left?: number;
-  top?: number;
-}
+import { createTemporaryWindowSizer } from './window-sizing';
+import type { WindowBounds, WindowGeometry } from './window-geometry';
 
-export interface NowPlayingWindowGeometry {
-  innerWidth: number;
-  innerHeight: number;
-  outerWidth: number;
-  outerHeight: number;
-  screenX: number;
-  screenY: number;
-  screen: NowPlayingScreenGeometry;
-}
-
-export interface NowPlayingWindowBounds {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-}
+export type NowPlayingWindowGeometry = WindowGeometry;
+export type NowPlayingWindowBounds = WindowBounds;
 
 export const NOW_PLAYING_MIN_VIEWPORT_WIDTH = 901;
 export const NOW_PLAYING_MIN_VIEWPORT_HEIGHT = 721;
@@ -35,8 +13,6 @@ const MIN_WINDOW_WIDTH = 320;
 const MIN_WINDOW_HEIGHT = 240;
 const MIN_BROWSER_ZOOM_SCALE = 1.075;
 const MAX_BROWSER_ZOOM_SCALE = 3;
-
-let nowPlayingRestoreBounds: NowPlayingWindowBounds | null = null;
 
 function isFiniteNumber(value: number | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -123,81 +99,12 @@ export function resolveNowPlayingWindowBounds(
   };
 }
 
-function readWindowGeometry(): NowPlayingWindowGeometry | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
+const windowSizer = createTemporaryWindowSizer(resolveNowPlayingWindowBounds);
 
-  const screen = window.screen as Screen & {
-    availLeft?: number;
-    availTop?: number;
-    left?: number;
-    top?: number;
-  };
-
-  return {
-    innerWidth: window.innerWidth,
-    innerHeight: window.innerHeight,
-    outerWidth: window.outerWidth,
-    outerHeight: window.outerHeight,
-    screenX: window.screenX,
-    screenY: window.screenY,
-    screen: {
-      width: screen.width,
-      height: screen.height,
-      availWidth: screen.availWidth,
-      availHeight: screen.availHeight,
-      availLeft: screen.availLeft,
-      availTop: screen.availTop,
-      left: screen.left,
-      top: screen.top
-    }
-  };
+export function ensureComfortableNowPlayingWindowSize(): Promise<void> {
+  return windowSizer.ensure();
 }
 
-function readWindowBounds(geometry: NowPlayingWindowGeometry): NowPlayingWindowBounds {
-  return {
-    left: Math.round(geometry.screenX),
-    top: Math.round(geometry.screenY),
-    width: Math.round(geometry.outerWidth),
-    height: Math.round(geometry.outerHeight)
-  };
-}
-
-function applyNowPlayingWindowBounds(): boolean {
-  const geometry = readWindowGeometry();
-
-  if (!geometry) {
-    return false;
-  }
-
-  const bounds = resolveNowPlayingWindowBounds(geometry);
-
-  if (!bounds) {
-    return false;
-  }
-
-  nowPlayingRestoreBounds ??= readWindowBounds(geometry);
-  window.moveTo(bounds.left, bounds.top);
-  window.resizeTo(bounds.width, bounds.height);
-  return true;
-}
-
-export function ensureComfortableNowPlayingWindowSize(): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  applyNowPlayingWindowBounds();
-}
-
-export function restoreNowPlayingWindowSize(): void {
-  if (typeof window === 'undefined' || !nowPlayingRestoreBounds) {
-    return;
-  }
-
-  const bounds = nowPlayingRestoreBounds;
-  nowPlayingRestoreBounds = null;
-  window.moveTo(bounds.left, bounds.top);
-  window.resizeTo(bounds.width, bounds.height);
+export function restoreNowPlayingWindowSize(): Promise<void> {
+  return windowSizer.restore();
 }

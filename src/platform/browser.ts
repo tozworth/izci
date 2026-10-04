@@ -3,6 +3,10 @@ import type { PlatformIntegrationOptions } from '$lib/services/platform-integrat
 import type { TrackItem } from '$lib/types';
 import type { BuiltinSignalingOptions, BuiltinSignalingReady, SignalingSocket } from '$lib/services/platform-signaling-types';
 import type { NativeFilesystem } from '$lib/services/platform-files-types';
+export {
+  readBrowserWindowGeometry as readWindowGeometry,
+  applyBrowserWindowBounds as applyWindowBounds
+} from '$lib/services/window-geometry';
 
 export const nativeFilesystem: NativeFilesystem | null = null;
 

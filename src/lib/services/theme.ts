@@ -1,9 +1,9 @@
 import { appearanceSettings } from '$lib/stores/appearance-settings';
 import {
-  MAX_CHAMELEON_SATURATION,
+  MAX_COLOR_SATURATION,
   SYSTEM_FONT_FAMILY
 } from '$lib/stores/appearance-settings';
-import type { ColorScheme, ColorTheme } from '$lib/types';
+import type { AppearanceSettings, ColorScheme, ColorTheme } from '$lib/types';
 import { findColorThemeDefinition } from '$lib/theme-definitions';
 import { readable } from 'svelte/store';
 
@@ -44,10 +44,7 @@ function applyThemeColor(
 function applyTheme(
   theme: ColorTheme,
   scheme: ColorScheme,
-  chameleonHue: number,
-  chameleonSaturation: number,
-  synthwaveBackgroundBrightness: number,
-  fontFamily: string
+  settings: AppearanceSettings
 ): void {
   if (typeof document === 'undefined') {
     return;
@@ -55,6 +52,16 @@ function applyTheme(
 
   document.documentElement.dataset.theme = theme;
   document.documentElement.dataset.colorScheme = scheme;
+  const {
+    accentedHue,
+    accentedSaturation,
+    chameleonHue,
+    chameleonSaturation,
+    synthwaveBackgroundBrightness,
+    fontFamily
+  } = settings;
+  document.documentElement.style.setProperty('--accented-hue', String(accentedHue));
+  document.documentElement.style.setProperty('--accented-saturation', `${accentedSaturation}%`);
   document.documentElement.style.setProperty('--chameleon-hue', String(chameleonHue));
   document.documentElement.style.setProperty(
     '--chameleon-surface-saturation',
@@ -74,7 +81,7 @@ function applyTheme(
   );
   document.documentElement.style.setProperty(
     '--chameleon-vivid-saturation',
-    `${Math.min(chameleonSaturation + 8, MAX_CHAMELEON_SATURATION)}%`
+    `${Math.min(chameleonSaturation + 8, MAX_COLOR_SATURATION)}%`
   );
   document.documentElement.style.setProperty(
     '--synthwave-background-brightness',
@@ -102,14 +109,7 @@ export function initializeTheme(): void {
     const theme: ColorTheme = scheme === 'light'
       ? settings.lightColorTheme
       : settings.darkColorTheme;
-    applyTheme(
-      theme,
-      scheme,
-      settings.chameleonHue,
-      settings.chameleonSaturation,
-      settings.synthwaveBackgroundBrightness,
-      settings.fontFamily
-    );
+    applyTheme(theme, scheme, settings);
   };
   systemColorScheme.subscribe((nextScheme) => {
     systemScheme = nextScheme;

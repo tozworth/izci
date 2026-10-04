@@ -635,6 +635,7 @@
     "appearance": {
       "themes": {
         "pale": "Soluk (varsayılan)",
+        "accented": "Vurgulu",
         "lightsOut": "Işıksız",
         "solarized": "Solarized",
         "nordic": "Nordic",
@@ -729,6 +730,16 @@
         "system": "Sistem varsayılanı",
         "light": "Açık",
         "dark": "Koyu"
+      },
+      "accentedColor": {
+        "title": "Vurgu rengi",
+        "hint": "Soluk temanın arka planlarını koruyarak etkin kontrolleri, seçimleri ve odak göstergelerini renklendirir. Başka bir tema kullandığınızda bu seçim hatırlanır.",
+        "hueLabel": "Vurgu renginin tonu"
+      },
+      "accentedSaturation": {
+        "title": "Vurgu doygunluğu",
+        "hint": "Vurgu renginin yoğunluğunu ayarlar. %0 vurguları nötr yapar; arka planlar değişmez.",
+        "label": "Vurgu renginin doygunluğu"
       },
       "chameleonColor": {
         "title": "Bukalemun rengi",
@@ -2551,6 +2562,7 @@
   },
   "library": {
     "openGroup": "{group} grubunu aç",
+    "resizeSidebar": "Kitaplık kenar çubuğunu yeniden boyutlandır",
     "collapseFolder": "{folder} klasörünü daralt",
     "expandFolder": "{folder} klasörünü genişlet",
     "unpinNamed": "{group} sabitlemesini kaldır",

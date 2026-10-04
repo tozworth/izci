@@ -627,6 +627,7 @@
     "appearance": {
       "themes": {
         "pale": "Pale (default)",
+        "accented": "Accented",
         "lightsOut": "Lights Out",
         "solarized": "Solarized",
         "nordic": "Nordic",
@@ -721,6 +722,16 @@
         "system": "Follow system",
         "light": "Light",
         "dark": "Dark"
+      },
+      "accentedColor": {
+        "title": "Accent color",
+        "hint": "Colors active controls, selections, and focus indicators while keeping Pale backgrounds. This choice is remembered when you use another theme.",
+        "hueLabel": "Accent color hue"
+      },
+      "accentedSaturation": {
+        "title": "Accent saturation",
+        "hint": "Controls accent intensity. 0% makes the accents neutral; backgrounds stay unchanged.",
+        "label": "Accent color saturation"
       },
       "chameleonColor": {
         "title": "Chameleon color",
@@ -2543,6 +2554,7 @@
   },
   "library": {
     "openGroup": "Open {group}",
+    "resizeSidebar": "Resize library sidebar",
     "collapseFolder": "Collapse {folder}",
     "expandFolder": "Expand {folder}",
     "unpinNamed": "Unpin {group}",

@@ -667,6 +667,7 @@
   <div
     class="dropzone track-list-dropzone"
     class:library-list-navigation={libraryMode && !mobilePresentation && $appearanceSettings.libraryNavigationStyle === 'list'}
+    style:--library-sidebar-width={$libraryViewSettings.sidebarWidth === null ? undefined : `${$libraryViewSettings.sidebarWidth}px`}
     role="region"
     aria-label={$t('queue.listRegion', { default: '{name} list', values: { name: localizedRegionLabel } })}
     on:dragover={(event) => { if (!readOnly) event.preventDefault(); }}
@@ -919,7 +920,7 @@
 
   .track-list-dropzone.library-list-navigation {
     display: grid;
-    grid-template-columns: clamp(4.5rem, 30%, 9rem) minmax(0, 1fr);
+    grid-template-columns: min(var(--library-sidebar-width, clamp(4.5rem, 30%, 9rem)), max(4.5rem, calc(100% - 80px))) minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
   }
 

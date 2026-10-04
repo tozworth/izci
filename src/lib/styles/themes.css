@@ -4,7 +4,7 @@
   --system-font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
 }
 :root,
-:root[data-theme='pale'][data-color-scheme='dark'] {
+:root:is([data-theme='pale'], [data-theme='accented'])[data-color-scheme='dark'] {
   color-scheme: dark;
   font-family: var(--app-font-family);
   --bg-base: #18191b;
@@ -80,7 +80,7 @@
   --dropzone-background: linear-gradient(180deg, rgba(228, 231, 235, 0.022), transparent 18%);
 }
 
-:root[data-theme='pale'][data-color-scheme='light'] {
+:root:is([data-theme='pale'], [data-theme='accented'])[data-color-scheme='light'] {
   color-scheme: light;
   --bg-base: #e8e7e4;
   --menu-bar-bg: #e4e3e0;
@@ -156,7 +156,7 @@
   --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 18%);
 }
 
-:root[data-theme='pale'][data-color-scheme='dark'] {
+:root:is([data-theme='pale'], [data-theme='accented'])[data-color-scheme='dark'] {
   --bg-base: #101113;
   --menu-bar-bg: #101113;
   --window-topbar-bg: #101113;
@@ -228,6 +228,32 @@
   --track-list-header-shadow-gradient: linear-gradient(180deg, rgba(11, 12, 13, 0.34), rgba(11, 12, 13, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(11, 12, 13, 0), rgba(11, 12, 13, 0.34));
   --dropzone-background: linear-gradient(180deg, rgba(221, 225, 229, 0.02), transparent 18%);
+}
+
+/* Accented shares every Pale surface; only interaction colors change. */
+:root[data-theme='accented'][data-color-scheme='dark'] {
+  --theme-color-output-lightness: 78%;
+  --accent: hsl(var(--accented-hue) var(--accented-saturation) 64%);
+  --accent-strong: hsl(var(--accented-hue) var(--accented-saturation) 74%);
+  --accent-text: #101113;
+}
+
+:root[data-theme='accented'][data-color-scheme='light'] {
+  --theme-color-output-lightness: 32%;
+  --accent: color-mix(in srgb, hsl(var(--accented-hue) var(--accented-saturation) 38%) 75%, var(--text-strong));
+  --accent-strong: color-mix(in srgb, hsl(var(--accented-hue) var(--accented-saturation) 28%) 65%, var(--text-strong));
+}
+
+:root[data-theme='accented'][data-color-scheme] {
+  --accent-strong-soft: color-mix(in srgb, var(--accent-strong) 8%, transparent);
+  --accent-strong-faint: color-mix(in srgb, var(--accent-strong) 12%, transparent);
+  --accent-strong-border-hover: color-mix(in srgb, var(--accent-strong) 38%, transparent);
+  --accent-focus-border: color-mix(in srgb, var(--accent-strong) 32%, transparent);
+  --accent-dashed-border: color-mix(in srgb, var(--accent) 24%, transparent);
+  --selection-bg: color-mix(in srgb, var(--accent) 13%, transparent);
+  --selection-strong: color-mix(in srgb, var(--accent) 20%, transparent);
+  --menu-popover-hover: color-mix(in srgb, var(--accent) 10%, transparent);
+  --tree-hover: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 :root[data-theme='lights-out'] {
@@ -986,7 +1012,7 @@
 
 :root[data-theme='chameleon'][data-color-scheme='light'] {
   color-scheme: light;
-  --chameleon-output-lightness: 32%;
+  --theme-color-output-lightness: 32%;
   --bg-base: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 92%);
   --menu-bar-bg: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 90%);
   --window-topbar-bg: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 90%);
@@ -1063,7 +1089,7 @@
 
 :root[data-theme='chameleon'][data-color-scheme='dark'] {
   color-scheme: dark;
-  --chameleon-output-lightness: 72%;
+  --theme-color-output-lightness: 72%;
   --bg-base: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 9%);
   --menu-bar-bg: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 11%);
   --window-topbar-bg: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 11%);

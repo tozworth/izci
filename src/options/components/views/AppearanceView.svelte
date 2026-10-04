@@ -9,10 +9,10 @@
   import { hasLocalFontAccessPermission, queryLocalFontFamilies, supportsLocalFontAccess } from '$lib/services/local-fonts';
   import {
     CONTEXTUAL_TAB_AUTOMATION_OPTIONS,
-    MAX_CHAMELEON_HUE,
-    MAX_CHAMELEON_SATURATION,
-    MIN_CHAMELEON_HUE,
-    MIN_CHAMELEON_SATURATION,
+    MAX_COLOR_HUE,
+    MAX_COLOR_SATURATION,
+    MIN_COLOR_HUE,
+    MIN_COLOR_SATURATION,
     MAX_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
     MIN_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
     SYSTEM_FONT_FAMILY,
@@ -57,6 +57,9 @@
     ? $appearanceSettings.lightColorTheme
     : $appearanceSettings.darkColorTheme;
   $: availableColorThemes = COLOR_THEME_DEFINITIONS.filter((theme) => theme.variants[effectiveColorScheme]);
+  $: isAccented = activeColorTheme === 'accented';
+  $: colorHue = isAccented ? $appearanceSettings.accentedHue : $appearanceSettings.chameleonHue;
+  $: colorSaturation = isAccented ? $appearanceSettings.accentedSaturation : $appearanceSettings.chameleonSaturation;
 
   function handleColorThemeChange(event: CustomEvent<string>) {
     const value = event.detail;
@@ -66,8 +69,14 @@
   }
   function handleColorThemeModeChange(event: CustomEvent<string>) { appearanceSettings.update({ colorThemeMode: event.detail as ColorThemeMode }); }
   function handleLanguageChange(event: CustomEvent<string>) { appLocale.set(event.detail); }
-  function handleChameleonHueInput(event: Event) { appearanceSettings.update({ chameleonHue: Number((event.currentTarget as HTMLInputElement).value) }); }
-  function handleChameleonSaturationInput(event: Event) { appearanceSettings.update({ chameleonSaturation: Number((event.currentTarget as HTMLInputElement).value) }); }
+  function handleColorHueInput(event: Event) {
+    const hue = Number((event.currentTarget as HTMLInputElement).value);
+    appearanceSettings.update(isAccented ? { accentedHue: hue } : { chameleonHue: hue });
+  }
+  function handleColorSaturationInput(event: Event) {
+    const saturation = Number((event.currentTarget as HTMLInputElement).value);
+    appearanceSettings.update(isAccented ? { accentedSaturation: saturation } : { chameleonSaturation: saturation });
+  }
   function handleSynthwaveBackgroundBrightnessInput(event: Event) { appearanceSettings.update({ synthwaveBackgroundBrightness: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleAppearanceToggle(event: Event, key: BooleanAppearanceSetting) { appearanceSettings.update({ [key]: checked(event) }); }
   function handleFontFamilyChange(event: CustomEvent<string>) { appearanceSettings.update({ fontFamily: event.detail }); }
@@ -100,6 +109,7 @@
   function themeLabel(value: ColorTheme): string {
     switch (value) {
       case 'pale': return $t('options.appearance.themes.pale', { default: 'Pale (default)' });
+      case 'accented': return $t('options.appearance.themes.accented', { default: 'Accented' });
       case 'lights-out': return $t('options.appearance.themes.lightsOut', { default: 'Lights Out' });
       case 'solarized': return $t('options.appearance.themes.solarized', { default: 'Solarized' });
       case 'nordic': return $t('options.appearance.themes.nordic', { default: 'Nordic' });
@@ -202,48 +212,60 @@
         />
       </SettingsField>
 
-      {#if activeColorTheme === 'chameleon'}
+      {#if activeColorTheme === 'chameleon' || isAccented}
         <SettingsField
-          title={$t('options.appearance.chameleonColor.title', { default: 'Chameleon color' })}
-          hint={$t('options.appearance.chameleonColor.hint', { default: "Fine-tunes Chameleon's hue. This choice is remembered when you use another theme." })}
-          fieldClass="chameleon-hue-field"
-          controlClass="chameleon-slider-control"
+          title={isAccented
+            ? $t('options.appearance.accentedColor.title', { default: 'Accent color' })
+            : $t('options.appearance.chameleonColor.title', { default: 'Chameleon color' })}
+          hint={isAccented
+            ? $t('options.appearance.accentedColor.hint', { default: 'Colors active controls, selections, and focus indicators while keeping Pale backgrounds. This choice is remembered when you use another theme.' })
+            : $t('options.appearance.chameleonColor.hint', { default: "Fine-tunes Chameleon's hue. This choice is remembered when you use another theme." })}
+          fieldClass="theme-color-hue-field"
+          controlClass="theme-color-slider-control"
         >
             <input
-              class="chameleon-hue-slider"
+              class="theme-color-hue-slider"
               type="range"
-              min={MIN_CHAMELEON_HUE}
-              max={MAX_CHAMELEON_HUE}
+              min={MIN_COLOR_HUE}
+              max={MAX_COLOR_HUE}
               step="1"
-              value={$appearanceSettings.chameleonHue}
-              style={`--slider-hue: ${$appearanceSettings.chameleonHue}; --slider-saturation: ${$appearanceSettings.chameleonSaturation}%`}
-              aria-label={$t('options.appearance.chameleonColor.hueLabel', { default: 'Chameleon color hue' })}
-              on:input={handleChameleonHueInput}
+              value={colorHue}
+              style={`--slider-hue: ${colorHue}; --slider-saturation: ${colorSaturation}%`}
+              aria-label={isAccented
+                ? $t('options.appearance.accentedColor.hueLabel', { default: 'Accent color hue' })
+                : $t('options.appearance.chameleonColor.hueLabel', { default: 'Chameleon color hue' })}
+              on:input={handleColorHueInput}
             />
-            <output class="chameleon-slider-output" style={`--swatch-hue: ${$appearanceSettings.chameleonHue}; --swatch-saturation: ${$appearanceSettings.chameleonSaturation}%`} aria-label={$t('options.appearance.degrees', { default: '{value} degrees', values: { value: $appearanceSettings.chameleonHue } })}>
-              {$appearanceSettings.chameleonHue}°
+            <output class="theme-color-slider-output" style={`--swatch-hue: ${colorHue}; --swatch-saturation: ${colorSaturation}%`} aria-label={$t('options.appearance.degrees', { default: '{value} degrees', values: { value: colorHue } })}>
+              {colorHue}°
             </output>
         </SettingsField>
 
         <SettingsField
-          title={$t('options.appearance.chameleonSaturation.title', { default: 'Chameleon saturation' })}
-          hint={$t('options.appearance.chameleonSaturation.hint', { default: "Controls color intensity without changing the theme's contrast or brightness." })}
-          fieldClass="chameleon-saturation-field"
-          controlClass="chameleon-slider-control"
+          title={isAccented
+            ? $t('options.appearance.accentedSaturation.title', { default: 'Accent saturation' })
+            : $t('options.appearance.chameleonSaturation.title', { default: 'Chameleon saturation' })}
+          hint={isAccented
+            ? $t('options.appearance.accentedSaturation.hint', { default: 'Controls accent intensity. 0% makes the accents neutral; backgrounds stay unchanged.' })
+            : $t('options.appearance.chameleonSaturation.hint', { default: "Controls color intensity without changing the theme's contrast or brightness." })}
+          fieldClass="theme-color-saturation-field"
+          controlClass="theme-color-slider-control"
         >
             <input
-              class="chameleon-saturation-slider"
+              class="theme-color-saturation-slider"
               type="range"
-              min={MIN_CHAMELEON_SATURATION}
-              max={MAX_CHAMELEON_SATURATION}
+              min={MIN_COLOR_SATURATION}
+              max={MAX_COLOR_SATURATION}
               step="1"
-              value={$appearanceSettings.chameleonSaturation}
-              style={`--slider-hue: ${$appearanceSettings.chameleonHue}; --slider-saturation: ${$appearanceSettings.chameleonSaturation}%`}
-              aria-label={$t('options.appearance.chameleonSaturation.label', { default: 'Chameleon color saturation' })}
-              on:input={handleChameleonSaturationInput}
+              value={colorSaturation}
+              style={`--slider-hue: ${colorHue}; --slider-saturation: ${colorSaturation}%`}
+              aria-label={isAccented
+                ? $t('options.appearance.accentedSaturation.label', { default: 'Accent color saturation' })
+                : $t('options.appearance.chameleonSaturation.label', { default: 'Chameleon color saturation' })}
+              on:input={handleColorSaturationInput}
             />
-            <output class="chameleon-slider-output" aria-label={$t('options.appearance.percent', { default: '{value} percent', values: { value: $appearanceSettings.chameleonSaturation } })}>
-              {$appearanceSettings.chameleonSaturation}%
+            <output class="theme-color-slider-output" style={`--swatch-hue: ${colorHue}; --swatch-saturation: ${colorSaturation}%`} aria-label={$t('options.appearance.percent', { default: '{value} percent', values: { value: colorSaturation } })}>
+              {colorSaturation}%
             </output>
         </SettingsField>
       {/if}
@@ -253,7 +275,7 @@
           title={$t('options.appearance.synthwaveBackgroundBrightness.title', { default: 'Background brightness' })}
           hint={$t('options.appearance.synthwaveBackgroundBrightness.hint', { default: "Scales the sunset, grid, and background glows. 0% hides the scenery entirely; 100% is as loud as it gets." })}
           fieldClass="synthwave-brightness-field"
-          controlClass="chameleon-slider-control"
+          controlClass="theme-color-slider-control"
         >
             <input
               class="synthwave-brightness-slider"
@@ -266,7 +288,7 @@
               aria-label={$t('options.appearance.synthwaveBackgroundBrightness.label', { default: 'Synthwave background brightness' })}
               on:input={handleSynthwaveBackgroundBrightnessInput}
             />
-            <output class="chameleon-slider-output" style="--swatch-hue: 315" aria-label={$t('options.appearance.percent', { default: '{value} percent', values: { value: $appearanceSettings.synthwaveBackgroundBrightness } })}>
+            <output class="theme-color-slider-output" style="--swatch-hue: 315" aria-label={$t('options.appearance.percent', { default: '{value} percent', values: { value: $appearanceSettings.synthwaveBackgroundBrightness } })}>
               {$appearanceSettings.synthwaveBackgroundBrightness}%
             </output>
         </SettingsField>

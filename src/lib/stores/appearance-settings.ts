@@ -21,11 +21,13 @@ const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
 const DEFAULT_COLOR_THEME_MODE: ColorThemeMode = 'system';
 export const DEFAULT_LIGHT_COLOR_THEME: ColorTheme = 'pale';
 export const DEFAULT_DARK_COLOR_THEME: ColorTheme = 'pale';
-export const MIN_CHAMELEON_HUE = 0;
-export const MAX_CHAMELEON_HUE = 359;
+export const MIN_COLOR_HUE = 0;
+export const MAX_COLOR_HUE = 359;
+export const DEFAULT_ACCENTED_HUE = 210;
+export const DEFAULT_ACCENTED_SATURATION = 45;
 export const DEFAULT_CHAMELEON_HUE = 210;
-export const MIN_CHAMELEON_SATURATION = 0;
-export const MAX_CHAMELEON_SATURATION = 100;
+export const MIN_COLOR_SATURATION = 0;
+export const MAX_COLOR_SATURATION = 100;
 export const DEFAULT_CHAMELEON_SATURATION = 76;
 export const MIN_SYNTHWAVE_BACKGROUND_BRIGHTNESS = 0;
 export const MAX_SYNTHWAVE_BACKGROUND_BRIGHTNESS = 100;
@@ -136,6 +138,8 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   colorThemeMode: DEFAULT_COLOR_THEME_MODE,
   lightColorTheme: DEFAULT_LIGHT_COLOR_THEME,
   darkColorTheme: DEFAULT_DARK_COLOR_THEME,
+  accentedHue: DEFAULT_ACCENTED_HUE,
+  accentedSaturation: DEFAULT_ACCENTED_SATURATION,
   chameleonHue: DEFAULT_CHAMELEON_HUE,
   chameleonSaturation: DEFAULT_CHAMELEON_SATURATION,
   synthwaveBackgroundBrightness: DEFAULT_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
@@ -185,15 +189,28 @@ function normalizeDarkColorTheme(value: unknown): ColorTheme {
 }
 
 export function normalizeChameleonHue(value: unknown): number {
-  return normalizeRoundedNumber(value, MIN_CHAMELEON_HUE, MAX_CHAMELEON_HUE, DEFAULT_CHAMELEON_HUE);
+  return normalizeRoundedNumber(value, MIN_COLOR_HUE, MAX_COLOR_HUE, DEFAULT_CHAMELEON_HUE);
 }
 
 export function normalizeChameleonSaturation(value: unknown): number {
   return normalizeRoundedNumber(
     value,
-    MIN_CHAMELEON_SATURATION,
-    MAX_CHAMELEON_SATURATION,
+    MIN_COLOR_SATURATION,
+    MAX_COLOR_SATURATION,
     DEFAULT_CHAMELEON_SATURATION
+  );
+}
+
+export function normalizeAccentedHue(value: unknown): number {
+  return normalizeRoundedNumber(value, MIN_COLOR_HUE, MAX_COLOR_HUE, DEFAULT_ACCENTED_HUE);
+}
+
+export function normalizeAccentedSaturation(value: unknown): number {
+  return normalizeRoundedNumber(
+    value,
+    MIN_COLOR_SATURATION,
+    MAX_COLOR_SATURATION,
+    DEFAULT_ACCENTED_SATURATION
   );
 }
 
@@ -439,6 +456,8 @@ export function normalizeAppearanceSettings(value: unknown): AppearanceSettings 
     colorThemeMode: normalizeColorThemeMode(source.colorThemeMode),
     lightColorTheme: normalizeLightColorTheme(source.lightColorTheme),
     darkColorTheme: normalizeDarkColorTheme(source.darkColorTheme),
+    accentedHue: normalizeAccentedHue(source.accentedHue),
+    accentedSaturation: normalizeAccentedSaturation(source.accentedSaturation),
     chameleonHue: normalizeChameleonHue(source.chameleonHue),
     chameleonSaturation: normalizeChameleonSaturation(source.chameleonSaturation),
     synthwaveBackgroundBrightness: normalizeSynthwaveBackgroundBrightness(

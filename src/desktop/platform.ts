@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+export { readWindowGeometry, applyWindowBounds } from './window-sizing';
 export { nativeFilesystem } from './filesystem';
 export { hasBuiltinSignaling, startBuiltinSignaling, stopBuiltinSignaling, isBuiltinSignalingEndpoint, fetchSignaling, createSignalingSocket } from './signaling';
 export { createDesktopMiniPlayerController } from './mini-player-controller';

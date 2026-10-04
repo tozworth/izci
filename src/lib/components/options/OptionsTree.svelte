@@ -31,9 +31,8 @@
 
   function handleRowClick(event: MouseEvent, view: SharedOptionsViewDefinition): void {
     (event.currentTarget as HTMLButtonElement).focus();
-    if (categoryIds.has(view.id) && (event.target as Element).closest('.tree-chevron')) {
+    if (categoryIds.has(view.id)) {
       toggleCategory(view.id);
-      return;
     }
     dispatch('select', { view: view.id });
   }

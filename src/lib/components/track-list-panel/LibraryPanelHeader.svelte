@@ -7,7 +7,8 @@
   import LibraryLayoutSwitcher from './LibraryLayoutSwitcher.svelte';
   import type { LibraryBrowserLayout, LibraryNavigationStyle, LibraryViewId, MenuActionItem } from '$lib/types';
   import { LIBRARY_VIEW_DEFINITIONS } from './library-views';
-  import { LIBRARY_VIEW_IDS } from '$lib/stores/library-view-settings';
+  import { libraryViewSettings, LIBRARY_VIEW_IDS, LIBRARY_SIDEBAR_MIN_WIDTH, LIBRARY_SIDEBAR_MAX_WIDTH } from '$lib/stores/library-view-settings';
+  import { librarySidebarResize } from '$lib/services/library-sidebar-resize';
 
   export let activeView: LibraryViewId = 'allMedia';
   export let browserLayout: LibraryBrowserLayout = 'list';
@@ -255,6 +256,20 @@
         {/if}
       </div>
     {/if}
+    {#if navigationStyle === 'list'}
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+      <div
+        class="library-sidebar-resizer"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={$t('library.resizeSidebar')}
+        aria-valuemin={LIBRARY_SIDEBAR_MIN_WIDTH}
+        aria-valuemax={LIBRARY_SIDEBAR_MAX_WIDTH}
+        aria-valuenow={$libraryViewSettings.sidebarWidth ?? undefined}
+        tabindex="0"
+        use:librarySidebarResize
+      ></div>
+    {/if}
   </div>
 
   {#if showSearchInput || showBack}
@@ -351,6 +366,28 @@
 
   .list-navigation .library-toolbar::after {
     display: none;
+  }
+
+  .library-sidebar-resizer {
+    position: absolute;
+    inset: 0 -3px 0 auto;
+    z-index: 9;
+    width: 7px;
+    cursor: col-resize;
+    user-select: none;
+    touch-action: none;
+  }
+
+  .library-sidebar-resizer::before {
+    content: '';
+    position: absolute;
+    inset: 0 3px;
+  }
+
+  .library-sidebar-resizer:hover::before,
+  .library-sidebar-resizer:focus-visible::before,
+  .library-sidebar-resizer:global(.is-resizing)::before {
+    background: var(--accent-strong-border-hover);
   }
 
   .list-navigation .library-toolbar :global(.library-view-tabs) {
