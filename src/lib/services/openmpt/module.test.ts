@@ -16,6 +16,24 @@ function energy(module: OpenMptModule): number {
 }
 
 describe('direct libopenmpt WASM bindings', () => {
+  it('extracts pattern starts from tempo changes and excludes other subsongs', () => {
+    const bytes = new Uint8Array(toneModule(true));
+    // Remove the disconnected-order jumps; halve the second pattern's tempo.
+    bytes.fill(0, 1084 + 16, 1084 + 20);
+    bytes.fill(0, 1084 + 1024 + 16, 1084 + 1024 + 20);
+    bytes.set([0, 0, 0x0f, 62], 1084 + 1024 + 4);
+    const module = new OpenMptModule(core, bytes.buffer);
+    const subsongs = new OpenMptModule(core, toneModule(true), 1);
+    try {
+      expect(module.inspect(true).song?.patternStartTimes).toEqual([0, expect.closeTo(7.68)]);
+      module.seek(7.68);
+      expect(module.progress()).toMatchObject({ order: 1, row: 0 });
+      expect(subsongs.inspect(true).song?.patternStartTimes).toEqual([0]);
+      subsongs.selectSubsong(0);
+      expect(subsongs.inspect(true).song?.patternStartTimes).toEqual([0]);
+    } finally { module.dispose(); subsongs.dispose(); }
+  });
+
   it('reads metadata without formatting cells and extracts patterns separately', () => {
     const format = vi.spyOn(core, '_openmpt_module_format_pattern_row_channel');
     const module = new OpenMptModule(core, toneModule());

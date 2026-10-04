@@ -1,11 +1,12 @@
 import { audioBusService } from '$lib/services/audio-bus';
-import { logDebug, logError, logInfo } from '$lib/services/logging';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import {
   createHivelyPatternSong,
   type HivelyPatternData
 } from '$lib/services/hively-patterns';
 import { mediaSessionService } from '$lib/services/media-session';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
+import { playbackSettings } from '$lib/stores/playback-settings';
 import type {
   ModulePatternSnapshot,
   ModulePatternSong,
@@ -77,6 +78,11 @@ export class HivelyPlayerService {
   #patternSong: ModulePatternSong | null = null;
   #patternOrder = 0;
   #patternRow = 0;
+  #patternTimingWorker: Worker | null = null;
+  #patternTimingBuffer: ArrayBuffer | null = null;
+  #patternTimingWasm: ArrayBuffer | null = null;
+  #patternStartTimes: number[] | undefined;
+  #unsubscribePatternSeek: (() => void) | null = null;
   #settings = modulePlaybackSettings.getSnapshot();
   #transitionGain = 1;
   #onSnapshot: SnapshotHandler;
@@ -139,6 +145,9 @@ export class HivelyPlayerService {
     audioBusService.setSourceGain(gain, this.#transitionGain);
     this.#node = node;
     this.#gain = gain;
+    this.#patternTimingBuffer = moduleBuffer.slice(0);
+    this.#patternTimingWasm = wasm;
+    this.#unsubscribePatternSeek = playbackSettings.subscribe(() => this.#loadPatternTiming());
 
     try {
       await new Promise<void>((resolve, reject) => {
@@ -202,6 +211,7 @@ export class HivelyPlayerService {
     this.#node.port.postMessage({ type: 'play' });
     this.#playing = true;
     this.#started = true;
+    if (this.#patternSong) this.#publishPattern(this.#patternSong);
     this.#onSnapshot({ state: 'playing', error: undefined });
     mediaSessionService.playTransportAnchor();
   }
@@ -238,6 +248,14 @@ export class HivelyPlayerService {
   stepSubsong(direction: -1 | 1): number | null {
     if (!this.#node || this.#subsongCount <= 1) return null;
     this.#subsong = (this.#subsong + direction + this.#subsongCount) % this.#subsongCount;
+    this.#patternStartTimes = undefined;
+    this.#patternTimingWorker?.terminate();
+    this.#patternTimingWorker = null;
+    if (this.#patternSong) {
+      this.#patternSong = { ...this.#patternSong, patternStartTimes: undefined };
+      this.#publishPattern(this.#patternSong);
+    }
+    this.#loadPatternTiming();
     this.#node.port.postMessage({ type: 'subsong', subsong: this.#subsong });
     this.#onSnapshot({
       currentTime: 0,
@@ -278,8 +296,10 @@ export class HivelyPlayerService {
     }
     if (message.type === 'pattern-data' && message.data) {
       const song = createHivelyPatternSong(message.data);
+      song.patternStartTimes = this.#patternStartTimes;
       this.#patternSong = song;
       this.#publishPattern(song);
+      this.#loadPatternTiming();
       return;
     }
     if (message.type === 'pattern-progress') {
@@ -315,7 +335,43 @@ export class HivelyPlayerService {
     this.#onPattern({ song, order, pattern, row });
   }
 
+  #loadPatternTiming(): void {
+    if (!playbackSettings.getSnapshot().patternAwareSeek || !this.#patternSong || this.#patternStartTimes || this.#patternTimingWorker) return;
+    if (!this.#patternTimingBuffer || !this.#patternTimingWasm || typeof Worker === 'undefined') return;
+    const token = this.#loadToken;
+    const subsong = this.#subsong;
+    const worker = new Worker(new URL('./hively-pattern-timing.worker.ts', import.meta.url), { type: 'module' });
+    this.#patternTimingWorker = worker;
+    const finish = () => {
+      worker.terminate();
+      if (this.#patternTimingWorker === worker) this.#patternTimingWorker = null;
+    };
+    worker.onmessage = (event: MessageEvent<{ starts?: number[]; error?: string }>) => {
+      if (token !== this.#loadToken || subsong !== this.#subsong || this.#patternTimingWorker !== worker) { finish(); return; }
+      if (event.data.starts && this.#patternSong) {
+        this.#patternStartTimes = event.data.starts;
+        this.#patternSong = { ...this.#patternSong, patternStartTimes: event.data.starts };
+        this.#publishPattern(this.#patternSong);
+      } else if (event.data.error) {
+        logWarning('decode', 'Hively pattern timing could not be read', { error: event.data.error });
+      }
+      finish();
+    };
+    worker.onerror = () => {
+      logWarning('decode', 'Hively pattern timing worker failed');
+      finish();
+    };
+    const buffer = this.#patternTimingBuffer.slice(0);
+    worker.postMessage({ buffer, wasm: this.#patternTimingWasm.slice(0), subsong }, [buffer]);
+  }
+
   #disposeNode(): void {
+    this.#unsubscribePatternSeek?.();
+    this.#unsubscribePatternSeek = null;
+    this.#patternTimingWorker?.terminate();
+    this.#patternTimingWorker = null;
+    this.#patternTimingBuffer = this.#patternTimingWasm = null;
+    this.#patternStartTimes = undefined;
     const node = this.#node;
     const gain = this.#gain;
     this.#node = null;

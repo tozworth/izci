@@ -5,7 +5,7 @@ import { moduleDecoder } from './openmpt/decoder';
 import { OpenMptPlayer } from './openmpt/player';
 import type { OpenMptInspection, OpenMptProgress, OpenMptSettings } from './openmpt/protocol';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
-import type { ModulePatternSnapshot, ModulePlaybackSettings, PlaybackSnapshot, TrackItem, TrackMetadata } from '$lib/types';
+import type { ModulePatternSnapshot, ModulePatternSong, ModulePlaybackSettings, PlaybackSnapshot, TrackItem, TrackMetadata } from '$lib/types';
 
 /** App-facing backend; the controller owns its worklet and the decoder owns patterns. */
 export class ModulePlayerService {
@@ -14,6 +14,7 @@ export class ModulePlayerService {
   #extension = '';
   #loadToken = 0;
   #patternJob: AbortController | undefined;
+  #patternSong: ModulePatternSong | null = null;
   #playing = false;
   #ready = false;
   #currentTime = 0;
@@ -90,6 +91,7 @@ export class ModulePlayerService {
     audioBusService.resume();
     this.#player.play();
     this.#playing = true;
+    if (this.#patternSong) this.onPattern({ song: this.#patternSong });
     this.onSnapshot({ state: 'playing', error: undefined });
     mediaSessionService.playTransportAnchor();
   }
@@ -112,6 +114,7 @@ export class ModulePlayerService {
     ++this.#loadToken;
     this.#patternJob?.abort();
     this.#patternJob = undefined;
+    this.#patternSong = null;
     this.#disposePlayer();
     this.#buffer = null;
     this.#playing = this.#ready = false;
@@ -134,6 +137,8 @@ export class ModulePlayerService {
     this.#currentTime = 0;
     this.#lastPublishedTime = -1;
     this.#player.selectSubsong(this.#subsong);
+    this.#patternSong = null;
+    this.onPattern({ song: null, order: 0, pattern: 0, row: 0 });
     this.onSnapshot({ currentTime: 0, duration: 0, subsong: this.#subsong, error: undefined });
     this.#loadPatterns(this.#loadToken);
     return this.#subsong;
@@ -192,6 +197,7 @@ export class ModulePlayerService {
     void moduleDecoder.inspect(this.#buffer.slice(0), { patterns: true, subsong, signal: job.signal }).then((inspection) => {
       if (job.signal.aborted || token !== this.#loadToken || subsong !== this.#subsong || !inspection.song) return;
       // Progress can arrive while the worker expands patterns; preserve that position.
+      this.#patternSong = inspection.song;
       this.onPattern({ song: inspection.song });
     }).catch((error) => {
       if (!job.signal.aborted) logWarning('decode', 'Module patterns could not be read', { error });

@@ -52,6 +52,7 @@ export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   playbackRate: 1,
   trueSpeed: false,
   restartCurrentTrackOnPrevious: true,
+  patternAwareSeek: false,
   transitionMode: 'none',
   gaplessPlayback: true,
   fadeDurationSeconds: 5,
@@ -148,6 +149,7 @@ export function normalizePlaybackSettings(value: unknown): PlaybackSettings {
   return {
     playbackRate: normalizePlaybackRate(source.playbackRate),
     trueSpeed: normalizeBoolean(source.trueSpeed, DEFAULT_PLAYBACK_SETTINGS.trueSpeed),
+    patternAwareSeek: normalizeBoolean(source.patternAwareSeek, DEFAULT_PLAYBACK_SETTINGS.patternAwareSeek),
     restartCurrentTrackOnPrevious: normalizeBoolean(
       source.restartCurrentTrackOnPrevious,
       DEFAULT_PLAYBACK_SETTINGS.restartCurrentTrackOnPrevious
