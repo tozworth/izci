@@ -2620,7 +2620,15 @@
     "noResults": "\"{query}\" ile eşleşen kütüphane ögesi yok.",
     "favoritesEmpty": "Favorilenen parça ve altparçalar burada görünür.",
     "ratingsEmpty": "Puanlanan parçalar burada görünür.",
-    "empty": "Kütüphaneniz boş. Dosya veya klasör sürükleyin."
+    "empty": "Kütüphaneniz boş. Dosya veya klasör sürükleyin.",
+    "layout": {
+      "label": "Kütüphane düzeni",
+      "list": "Liste",
+      "grid": "Kapak ızgarası",
+      "gallery": "Galeri",
+      "smaller": "Küçük resimleri küçült",
+      "larger": "Küçük resimleri büyüt"
+    }
   },
   "queue": {
     "addFiles": "Dosya ekle",

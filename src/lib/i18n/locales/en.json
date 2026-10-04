@@ -2612,7 +2612,15 @@
     "noResults": "No library results match \"{query}\".",
     "favoritesEmpty": "Favorite tracks and subsongs will appear here.",
     "ratingsEmpty": "Rated tracks will appear here.",
-    "empty": "Your library is empty. Add files or drop a folder here."
+    "empty": "Your library is empty. Add files or drop a folder here.",
+    "layout": {
+      "label": "Library layout",
+      "list": "List",
+      "grid": "Artwork grid",
+      "gallery": "Gallery",
+      "smaller": "Smaller thumbnails",
+      "larger": "Larger thumbnails"
+    }
   },
   "queue": {
     "addFiles": "Add files",

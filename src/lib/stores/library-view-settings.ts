@@ -1,4 +1,5 @@
 import type {
+  LibraryBrowserLayout,
   LibraryColumnId,
   LibraryGroupViewId,
   LibraryViewId,
@@ -179,6 +180,8 @@ function createDefaultViewSettings(view: LibraryViewId): LibraryViewTableSetting
     : [...LIBRARY_COLUMN_IDS];
 
   return {
+    layout: 'list',
+    tileSize: 144,
     order,
     columns: createDefaultColumns(view),
     sort: {
@@ -310,6 +313,10 @@ function normalizeViewSettings(value: unknown, view: LibraryViewId): LibraryView
     : defaults.sort.columnId;
 
   return {
+    layout: source.layout === 'grid' || (source.layout === 'gallery' && (view === 'images' || view === 'videos'))
+      ? source.layout : 'list',
+    tileSize: typeof source.tileSize === 'number' && Number.isFinite(source.tileSize)
+      ? Math.max(80, Math.min(256, Math.round(source.tileSize))) : defaults.tileSize,
     order,
     columns,
     sort: {
@@ -362,6 +369,27 @@ function updateSettings(updater: (settings: LibraryViewSettings) => LibraryViewS
 export const libraryViewSettings = {
   subscribe: store.subscribe,
   getSnapshot: store.getSnapshot,
+  setLayout(layout: LibraryBrowserLayout, view = store.getSnapshot().activeView): LibraryViewSettings {
+    return updateSettings((settings) => ({
+      ...settings,
+      views: {
+        ...settings.views,
+        [view]: { ...settings.views[view], layout }
+      }
+    }));
+  },
+  adjustTileSize(delta: number, view = store.getSnapshot().activeView): LibraryViewSettings {
+    return updateSettings((settings) => ({
+      ...settings,
+      views: {
+        ...settings.views,
+        [view]: {
+          ...settings.views[view],
+          tileSize: settings.views[view].tileSize + delta
+        }
+      }
+    }));
+  },
   setActiveView(activeView: LibraryViewId): LibraryViewSettings {
     return updateSettings((settings) => ({
       ...settings,

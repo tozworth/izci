@@ -1,4 +1,4 @@
-export type CancelOdaThumbnailJob = () => boolean;
+export type CancelThumbnailJob = () => boolean;
 
 interface QueuedJob {
   started: boolean;
@@ -6,10 +6,10 @@ interface QueuedJob {
 }
 
 /**
- * Bounds file reads and image/video decoding shared by Oda's scrolling
+ * Bounds file reads and image/video decoding shared by scrolling library
  * browsers. Cancelling a job that has not started removes it immediately.
  */
-export function createOdaThumbnailJobQueue(maxConcurrent = 2) {
+export function createThumbnailJobQueue(maxConcurrent = 2) {
   const concurrency = Math.max(1, Math.floor(maxConcurrent));
   const pending: QueuedJob[] = [];
   let active = 0;
@@ -28,7 +28,7 @@ export function createOdaThumbnailJobQueue(maxConcurrent = 2) {
     }
   }
 
-  function schedule(run: () => Promise<void>): CancelOdaThumbnailJob {
+  function schedule(run: () => Promise<void>): CancelThumbnailJob {
     const job: QueuedJob = { started: false, run };
     pending.push(job);
     queueMicrotask(pump);
@@ -45,6 +45,6 @@ export function createOdaThumbnailJobQueue(maxConcurrent = 2) {
   return { schedule };
 }
 
-const odaThumbnailJobs = createOdaThumbnailJobQueue(2);
+const thumbnailJobs = createThumbnailJobQueue(2);
 
-export const scheduleOdaThumbnailJob = odaThumbnailJobs.schedule;
+export const scheduleThumbnailJob = thumbnailJobs.schedule;

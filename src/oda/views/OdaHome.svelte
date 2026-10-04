@@ -11,7 +11,7 @@
   import type { OdaCardModel, OdaHomeSectionModel } from '../oda-destinations';
   import type { OdaTranslate } from '../oda-translate';
   import { getOdaQueueCountSummary } from '../oda-queue';
-  import OdaVisualPreview from './OdaVisualPreview.svelte';
+  import VisualThumbnail from '$lib/components/VisualThumbnail.svelte';
 
   export let sections: OdaHomeSectionModel[];
   export let focusId: string | null = null;
@@ -222,7 +222,7 @@
               >
                 {#if mediaThumbnailKey && playingTrack}
                   {#key mediaThumbnailKey}
-                    <OdaVisualPreview
+                    <VisualThumbnail
                       track={playingTrack}
                       maxEdge={512}
                       eager

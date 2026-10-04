@@ -645,7 +645,11 @@ export interface LibraryViewSortState {
   direction: SortDirection;
 }
 
+export type LibraryBrowserLayout = 'list' | 'grid' | 'gallery';
+
 export interface LibraryViewTableSettings {
+  layout: LibraryBrowserLayout;
+  tileSize: number;
   order: LibraryColumnId[];
   columns: Record<LibraryColumnId, LibraryViewColumnState>;
   sort: LibraryViewSortState;

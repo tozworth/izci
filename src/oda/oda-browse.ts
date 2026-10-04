@@ -36,12 +36,6 @@ export function resolveOdaBrowserListRowHeight(zoomLevel: number): number {
   return ODA_LIST_ROW_HEIGHTS[clampZoomLevel(zoomLevel)];
 }
 
-/** Keep portrait/panorama outliers useful in a dense collage. */
-export function resolveOdaGalleryAspectRatio(width: number, height: number): number {
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return 4 / 3;
-  return Math.min(Math.max(width / height, 0.5), 2.4);
-}
-
 export const ODA_MUSIC_BROWSER_VIEWS: readonly OdaBrowseView[] = [
   'songs',
   'albums',

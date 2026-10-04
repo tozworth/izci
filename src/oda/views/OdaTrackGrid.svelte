@@ -3,7 +3,7 @@
   import type { TrackItem } from '$lib/types';
   import { odaBrowseTrackId } from '../oda-browse';
   import type { OdaBrowseGroupRow } from '../oda-browse';
-  import OdaArtworkThumb from './OdaArtworkThumb.svelte';
+  import ArtworkThumbnail from '$lib/components/ArtworkThumbnail.svelte';
 
   export let items: TrackItem[] = [];
   export let groups: OdaBrowseGroupRow[] = [];
@@ -116,7 +116,7 @@
           on:click={() => { onFocus(group.focusId); onOpenGroup(group.key); }}
         >
           <span class="oda-tile-visual">
-            <OdaArtworkThumb tracks={group.items} icon={groupIcon} />
+            <ArtworkThumbnail tracks={group.items} icon={groupIcon} />
             <span class="oda-tile-count">{group.count}</span>
           </span>
           <span class="oda-tile-copy">
@@ -137,7 +137,7 @@
           on:click={() => { onFocus(trackFocusId); onActivateTrack(track.id); }}
         >
           <span class="oda-tile-visual">
-            <OdaArtworkThumb tracks={[track]} icon={track.kind === 'module' ? 'equalizer' : 'music_note'} />
+            <ArtworkThumbnail tracks={[track]} icon={track.kind === 'module' ? 'equalizer' : 'music_note'} />
             {#if playingId === track.id}
               <span class="oda-playing-badge material-symbols-outlined" aria-hidden="true">graphic_eq</span>
             {/if}

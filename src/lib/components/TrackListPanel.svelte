@@ -21,6 +21,8 @@
   import LibraryPanelHeader from '$lib/components/track-list-panel/LibraryPanelHeader.svelte';
   import LibraryAlbumBackdrop from '$lib/components/track-list-panel/LibraryAlbumBackdrop.svelte';
   import LibraryGroupList from '$lib/components/track-list-panel/LibraryGroupList.svelte';
+  import LibraryTiles from '$lib/components/track-list-panel/LibraryTiles.svelte';
+  import { LIBRARY_VIEW_DEFINITIONS } from '$lib/components/track-list-panel/library-views';
   import TrackList from '$lib/components/track-list-panel/TrackList.svelte';
   import ColumnListView from '$lib/components/ColumnListView.svelte';
   import { DEFAULT_TRACK_ROW_HEIGHT } from '$lib/components/track-list-panel/track-list-virtualization';
@@ -143,6 +145,7 @@
   let dropzoneHeight = 0;
   let dropzoneScrollTop = 0;
   let trackRowHeight = DEFAULT_TRACK_ROW_HEIGHT;
+  let libraryTiles: LibraryTiles | null = null;
   let draggedColumnId: LibraryColumnId | null = null;
   let dropIndicator: ColumnDropIndicator | null = null;
   let pendingDragColumnId: LibraryColumnId | null = null;
@@ -226,6 +229,7 @@
   }
 
   function handleWindowKeydown(event: KeyboardEvent) {
+    if (event.defaultPrevented) return;
     handlePanelWindowKeydown(event, {
       displayItems,
       displaySelectedIds,
@@ -458,6 +462,12 @@
   }
 
   async function scrollTrackIntoView(id: string) {
+    await tick();
+    if (showLibraryTiles && libraryTiles) {
+      await libraryTiles.scrollTrackIntoView(id);
+      updateQueueHeaderState();
+      return;
+    }
     await scrollTrackIntoViewHelper(id, {
       dropzoneElement,
       displayItems,
@@ -513,6 +523,8 @@
   $: normalizedSearchQuery = searchQuery.trim().toLowerCase();
   $: showSearchInput = showSearchControl && (searchInputExpanded || searchQuery !== '');
   $: activeLibraryTableSettings = $libraryViewSettings.views[activeLibraryView];
+  $: browserLayout = libraryMode && !mobilePresentation ? activeLibraryTableSettings.layout : 'list';
+  $: showLibraryTiles = browserLayout !== 'list';
   $: orderedColumns = layout === 'columns'
     ? buildOrderedColumns(activeLibraryTableSettings.order, activeLibraryTableSettings.columns, $trackSettings.enableRatings, $t)
     : [];
@@ -666,13 +678,14 @@
       class:library-mode={libraryMode}
       class:compact-heading={hideEyebrow}
       class:is-covered={queueHeaderCovered}
-      class:has-column-header={showTrackRows && filteredItems.length > 0 && presentationLayout === 'columns' && !isCompactColumnLayout}
+      class:has-column-header={!showLibraryTiles && showTrackRows && filteredItems.length > 0 && presentationLayout === 'columns' && !isCompactColumnLayout}
       on:contextmenu={openPanelHeaderContextMenu}
     >
       {#if libraryMode}
         <LibraryPanelHeader
           bind:searchInputElement={searchInputElement}
           activeView={activeLibraryView}
+          {browserLayout}
           ratingsEnabled={$trackSettings.enableRatings}
           summary={librarySummary}
           tooltipDetails={libraryTooltipDetails}
@@ -720,7 +733,7 @@
       bind:headerElement={columnsHeaderElement}
       bind:clientWidth={dropzoneWidth}
       bind:clientHeight={dropzoneHeight}
-      showHeader={showTrackRows && filteredItems.length > 0 && presentationLayout === 'columns' && !isCompactColumnLayout}
+      showHeader={!showLibraryTiles && showTrackRows && filteredItems.length > 0 && presentationLayout === 'columns' && !isCompactColumnLayout}
       columnGap={`${COLUMN_GAP}px`}
       contextMenuLabel={$t('queue.contextMenu.columns', { default: '{panel} columns', values: { panel: localizedPanelTitle } })}
       {resizingColumnId}
@@ -754,7 +767,33 @@
         </button>
       </svelte:fragment>
 
-      {#if !showTrackRows && visibleLibraryGroups.length > 0 && groupView}
+      {#if showLibraryTiles && (displayItems.length > 0 || (!showTrackRows && visibleLibraryGroups.length > 0))}
+        <LibraryTiles
+          bind:this={libraryTiles}
+          items={displayItems}
+          groups={showTrackRows ? [] : visibleLibraryGroups}
+          groupIcon={LIBRARY_VIEW_DEFINITIONS.find((view) => view.id === activeLibraryView)?.icon ?? 'album'}
+          selectedIds={displaySelectedIds}
+          playingId={displayPlayingId}
+          pinnedKeys={groupView === 'folders' ? [] : pinnedLibraryGroupKeys}
+          gallery={browserLayout === 'gallery'}
+          visual={imagesViewActive || videosViewActive}
+          tileSize={activeLibraryTableSettings.tileSize}
+          scrollTop={dropzoneScrollTop}
+          viewportHeight={dropzoneHeight}
+          scrollElement={dropzoneElement}
+          on:itemClick={(event) => handleItemClick(event.detail.event, event.detail.id)}
+          on:itemDoubleClick={(event) => handleItemDoubleClick(event.detail)}
+          on:itemContextMenu={(event) => handleItemContextMenu(event.detail.event, event.detail.id)}
+          on:itemNavigate={(event) => {
+            dispatch('setSelection', buildOrderedSelection(displayItems, displaySelectedIds, displaySelectionAnchorId, event.detail.id, event.detail.range, false));
+            void focusTrackRow(event.detail.id);
+          }}
+          on:open={(event) => handleLibraryGroupOpen(event.detail)}
+          on:groupContextMenu={(event) => handleLibraryGroupContextMenu(event.detail.event, event.detail.key)}
+          on:movePin={(event) => handleLibraryGroupMove(event.detail)}
+        />
+      {:else if !showTrackRows && visibleLibraryGroups.length > 0 && groupView}
         <LibraryGroupList
           groups={visibleLibraryGroups}
           view={groupView}

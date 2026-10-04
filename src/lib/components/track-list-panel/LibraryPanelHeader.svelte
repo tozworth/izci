@@ -4,11 +4,13 @@
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import TabStrip from '$lib/components/TabStrip.svelte';
-  import type { LibraryViewId, MenuActionItem } from '$lib/types';
+  import LibraryLayoutSwitcher from './LibraryLayoutSwitcher.svelte';
+  import type { LibraryBrowserLayout, LibraryViewId, MenuActionItem } from '$lib/types';
   import { LIBRARY_VIEW_DEFINITIONS } from './library-views';
   import { LIBRARY_VIEW_IDS } from '$lib/stores/library-view-settings';
 
   export let activeView: LibraryViewId = 'allMedia';
+  export let browserLayout: LibraryBrowserLayout = 'list';
   export let ratingsEnabled = true;
   export let summary = '';
   export let tooltipDetails: Record<LibraryViewId, string>;
@@ -211,6 +213,7 @@
 
     {#if showPrimaryActions}
       <div class="library-primary-actions">
+        <LibraryLayoutSwitcher view={activeView} layout={browserLayout} />
         <button
           type="button"
           class="library-toolbar-button hover-tooltip-anchor"
