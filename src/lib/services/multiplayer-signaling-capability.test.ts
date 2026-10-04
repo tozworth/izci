@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('$platform', () => ({ isDesktop: true, hasBuiltinSignaling: false }));
+vi.mock('$platform', () => ({ platformCapabilities: { unrestrictedSignalingHttp: false }, hasBuiltinSignaling: false }));
 import { DEFAULT_MULTIPLAYER_SETTINGS } from '$lib/stores/multiplayer-settings';
 import { normalizeServerInviteEndpoint } from './multiplayer-server-invite';
 

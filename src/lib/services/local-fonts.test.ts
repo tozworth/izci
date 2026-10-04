@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const platform = vi.hoisted(() => ({ desktop: true, queryDesktopFontFamilies: vi.fn() }));
-vi.mock('$platform', () => ({
-  get isDesktop() { return platform.desktop; },
-  queryDesktopFontFamilies: platform.queryDesktopFontFamilies
-}));
+vi.mock('../../desktop/window-lifecycle', () => ({ queryDesktopFontFamilies: platform.queryDesktopFontFamilies }));
+vi.mock('$platform', async () => {
+  const { localFonts: desktop } = await import('../../desktop/local-fonts');
+  const { localFonts: pwa } = await import('../../platform/pwa/local-fonts');
+  return { localFonts: { supported: () => (platform.desktop ? desktop : pwa).supported(),
+    hasPermission: () => (platform.desktop ? desktop : pwa).hasPermission(),
+    query: () => (platform.desktop ? desktop : pwa).query() } };
+});
 
 import { hasLocalFontAccessPermission, queryLocalFontFamilies, supportsLocalFontAccess } from './local-fonts';
 

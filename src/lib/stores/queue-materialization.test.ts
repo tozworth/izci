@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TrackItem } from '$lib/types';
 import { materializeTrackItem } from './queue-materialization';
-import { ANDROID_FILE_SNAPSHOT_MAX_BYTES } from '$lib/utils/file-read-policy';
+import { ANDROID_FILE_SNAPSHOT_MAX_BYTES } from '../../platform/web-file-read-policy';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -60,7 +60,7 @@ function moduleItem(handle: FileSystemFileHandle): TrackItem {
     kind: 'module',
     size: 1,
     lastModified: 1,
-    fileHandle: handle,
+    fileHandle: { ...handle, kind: handle.kind ?? 'file', name: handle.name ?? 'remembered.xm' },
     path: 'Music/remembered.xm'
   };
 }

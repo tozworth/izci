@@ -16,7 +16,7 @@
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import OptionsTree from './OptionsTree.svelte';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
-  import { DesktopWindowControls, desktopTitlebar } from '$platform';
+  import { PlatformWindowControls, platformTitlebar } from '$platform';
 
   export let windowTitle: string;
   export let pageToolsLabel = 'Page tools';
@@ -85,7 +85,7 @@
       ? showModifiedAdvancedTweaksLabel
       : showAdvancedTweaksLabel;
   $: overlayState = $windowControlsOverlayState;
-  $: nativeTitlebar = !embedded && DesktopWindowControls !== null;
+  $: nativeTitlebar = !embedded && PlatformWindowControls !== null;
   $: overlayRect = overlayState.titlebarAreaRect;
   $: overlayInlineStyle = overlayState.visible
     ? `--window-controls-overlay-x: ${overlayRect.x}px; --window-controls-overlay-y: ${overlayRect.y}px; --window-controls-overlay-width: ${overlayRect.width}px; --window-controls-overlay-height: ${overlayRect.height}px;`
@@ -107,7 +107,7 @@
   <header
     class="window-topbar"
     class:desktop-titlebar={nativeTitlebar}
-    use:desktopTitlebar={nativeTitlebar}
+    use:platformTitlebar={nativeTitlebar}
     class:window-controls-overlay-active={overlayState.visible}
     style={overlayInlineStyle}
   >
@@ -166,7 +166,7 @@
       </button>
     </div>
     {#if nativeTitlebar}
-      <svelte:component this={DesktopWindowControls} />
+      <svelte:component this={PlatformWindowControls} />
     {/if}
   </header>
 

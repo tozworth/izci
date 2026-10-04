@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
-import { registerImportedFile } from '$lib/utils/files';
-import type { TrackItem } from '$lib/types';
+import { registerImportedFile } from '$lib/utils/file-sources';
+import type { FileReference } from '$lib/services/platform-files-types';
 import { desktopFileReference } from './file-references';
 
 type RestorationWindow = Window & {
@@ -9,7 +9,7 @@ type RestorationWindow = Window & {
 
 let pendingPermission: Promise<unknown> = Promise.resolve();
 
-export function preparePlaybackRestoration(track: TrackItem): Promise<void> {
+export function preparePlaybackRestoration(track: FileReference): Promise<void> {
   // Playback, metadata, and artwork can restore different handles together.
   // The native command invokes one window callback, so serialize its ownership.
   const result = pendingPermission.then(() => restoreFileAccess(track));
@@ -17,7 +17,7 @@ export function preparePlaybackRestoration(track: TrackItem): Promise<void> {
   return result;
 }
 
-async function restoreFileAccess(track: TrackItem): Promise<void> {
+async function restoreFileAccess(track: FileReference): Promise<void> {
   const handle = track.fileHandle;
   if (!handle || typeof handle.queryPermission !== 'function'
     || await handle.queryPermission({ mode: 'read' }) === 'granted') return;

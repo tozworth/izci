@@ -1,8 +1,8 @@
 import type { TrackItem, PlaybackOptions, RepeatMode, TrackSelection } from '$lib/types';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
 import { logInfo } from '$lib/services/logging';
-import { nativeFilesystem } from '$platform';
-import { isNativeFileReference, type NativeFileReference } from '$lib/services/platform-files-types';
+import { filesystem } from '$platform';
+import type { NativeFileReference } from '$lib/services/platform-files-types';
 
 export interface StoredTrackItem {
   id: string;
@@ -35,15 +35,6 @@ const QUEUE_DB_VERSION = 2;
 const QUEUE_STORE_NAME = 'queue';
 const QUEUE_STATE_KEY = 'state';
 
-function isFileSystemFileHandle(value: unknown): value is FileSystemFileHandle {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-
-  const source = value as Partial<FileSystemFileHandle>;
-  return source.kind === 'file' && typeof source.getFile === 'function';
-}
-
 export function normalizeStoredItem(value: unknown): StoredTrackItem | null {
   if (!value || typeof value !== 'object') {
     return null;
@@ -73,9 +64,7 @@ export function normalizeStoredItem(value: unknown): StoredTrackItem | null {
     kind: source.kind,
     size: source.size,
     lastModified: typeof source.lastModified === 'number' ? source.lastModified : 0,
-    fileHandle: isFileSystemFileHandle(source.fileHandle) ? source.fileHandle : undefined,
-    ...(nativeFilesystem && isNativeFileReference(source.nativeFile, nativeFilesystem.referenceScheme)
-      ? { nativeFile: { uri: source.nativeFile.uri } } : {}),
+    ...filesystem.normalizeFileReference(source),
     path: typeof source.path === 'string' ? source.path : undefined,
     sourceFolderId: typeof source.sourceFolderId === 'string' ? source.sourceFolderId : undefined,
     metadata: source.metadata,
@@ -95,9 +84,8 @@ export function restoreStoredItem(value: unknown): TrackItem | null {
 }
 
 export function serializeItem(item: TrackItem): StoredTrackItem | null {
-  const nativeFile = nativeFilesystem && isNativeFileReference(item.nativeFile, nativeFilesystem.referenceScheme)
-    ? { uri: item.nativeFile.uri } : undefined;
-  if (!item.fileHandle && !nativeFile) {
+  const reference = filesystem.normalizeFileReference(item);
+  if (!reference.fileHandle && !reference.nativeFile) {
     return null;
   }
 
@@ -110,8 +98,7 @@ export function serializeItem(item: TrackItem): StoredTrackItem | null {
     kind: item.kind,
     size: item.size,
     lastModified: item.lastModified,
-    fileHandle: item.fileHandle,
-    ...(nativeFile ? { nativeFile } : {}),
+    ...reference,
     path: item.path,
     sourceFolderId: item.sourceFolderId,
     metadata: item.metadata,

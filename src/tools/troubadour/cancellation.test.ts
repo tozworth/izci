@@ -16,6 +16,7 @@ vi.mock('$lib/services/logging', () => ({
 }));
 
 import { createTroubadourController } from './troubadour-controller';
+import { filesystem } from '$platform';
 
 function fileHandle(file: File) {
   const getFile = vi.fn(async () => file);
@@ -76,6 +77,21 @@ describe('Troubadour batch cancellation', () => {
     );
   });
 
+  it('cancels while the platform is resolving editing access for imported Files', async () => {
+    let release!: (access: { file: null; parent: null }) => void;
+    const gate = new Promise<{ file: null; parent: null }>(resolve => { release = resolve; });
+    const access = vi.spyOn(filesystem, 'getMediaAccess').mockReturnValueOnce(gate);
+    try {
+      const controller = createTroubadourController();
+      const loading = controller.ingestFiles([new File(['audio'], 'Track.mp3')]);
+      expect(controller.getSnapshot().busy).toBe(true);
+      expect(controller.cancelActiveJob()).toBe(true);
+      release({ file: null, parent: null });
+      await loading;
+      expect(controller.getSnapshot().items).toEqual([]);
+    } finally { access.mockRestore(); }
+  });
+
   it('stops a save batch mid-run and leaves remaining files dirty', async () => {
     const files = Array.from({ length: 4 }, (_, index) =>
       fileHandle(new File(['audio'], `Track ${index + 1}.mp3`, { lastModified: index }))
@@ -96,7 +112,7 @@ describe('Troubadour batch cancellation', () => {
       }
     }));
 
-    await controller.ingestHandles(files.map((entry) => entry.handle));
+    await controller.ingestMediaFiles(files.map((entry) => ({ file: entry.handle, parent: null, reference: { fileHandle: entry.handle }, path: entry.handle.name })));
     controller.selectAll();
     // Stage a patch on every item so the batch has work to do.
     for (const item of controller.getSnapshot().items) {
@@ -118,7 +134,7 @@ describe('Troubadour batch cancellation', () => {
   it('cancels a later file load after a save batch has completed', async () => {
     const saved = fileHandle(new File(['audio'], 'Saved.mp3'));
     const controller = createTroubadourController(hangingSaveHandler({ release: Promise.resolve() }));
-    await controller.ingestHandles([saved.handle]);
+    await controller.ingestMediaFiles([{ file: saved.handle, parent: null, reference: { fileHandle: saved.handle }, path: saved.handle.name }]);
     const savedItem = controller.getSnapshot().items[0];
     controller.editItemField(savedItem.id, 'title', 'Saved title');
     await controller.saveAndPublish();
@@ -135,7 +151,7 @@ describe('Troubadour batch cancellation', () => {
       })
     } as unknown as FileSystemFileHandle;
 
-    const loading = controller.ingestHandles([laterHandle]);
+    const loading = controller.ingestMediaFiles([{ file: laterHandle, parent: null, reference: { fileHandle: laterHandle }, path: laterHandle.name }]);
     await vi.waitFor(() => expect(laterHandle.getFile).toHaveBeenCalledOnce());
     expect(controller.cancelActiveJob()).toBe(true);
     releaseLoad();

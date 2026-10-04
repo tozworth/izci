@@ -1,3 +1,4 @@
+import { filesystem } from '$platform';
 import { invalidateCachedArtwork } from '$lib/services/artwork-cache';
 import { filesystemFolders } from '$lib/services/filesystem-folders';
 import { favoritesStore, libraryStore, queueStore } from '$lib/stores/queue';
@@ -115,17 +116,7 @@ export function createTroubadourMainWindowBridge(deps: TroubadourMainWindowDeps)
 
     const originalHandle = result.originalFileHandle ?? contextTrack?.fileHandle;
 
-    if (originalHandle && item.fileHandle) {
-      if (originalHandle === item.fileHandle) return true;
-
-      try {
-        if (typeof originalHandle.isSameEntry === 'function' && await originalHandle.isSameEntry(item.fileHandle)) {
-          return true;
-        }
-      } catch {
-        // Stale handles can still be matched by the immutable source fingerprint below.
-      }
-    }
+    if (originalHandle && item.fileHandle && await filesystem.sameFile({ fileHandle: originalHandle }, item)) return true;
 
     if (pathMismatch) return false;
 

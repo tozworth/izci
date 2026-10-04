@@ -1,7 +1,7 @@
 import { moduleDecoder } from './openmpt/decoder';
 import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 import { HIVELY_MODULE_EXTENSIONS, type TrackItem, type TrackMetadata } from '$lib/types';
-import { nativeFilesystem } from '$platform';
+import { resolveTrackFile } from './file-access';
 
 interface HivelyName {
   value: string;
@@ -60,24 +60,11 @@ export function parseHivelyMetadata(buffer: ArrayBuffer): TrackMetadata | null {
   };
 }
 
-async function resolveTrackFile(track: TrackItem): Promise<File | null> {
-  if (track.nativeFile && nativeFilesystem) return track.file ?? nativeFilesystem.materializeFile(track.nativeFile);
-  if (track.fileHandle) {
-    try {
-      return await track.fileHandle.getFile();
-    } catch {
-      // Fall back to the in-memory File when permission is unavailable or stale.
-    }
-  }
-
-  return track.file ?? null;
-}
-
 export async function loadModuleMetadata(track: TrackItem | null): Promise<TrackMetadata | null> {
   if (!track || track.kind !== 'module') return null;
   logDebug('decode', 'Probing module metadata', { id: track.id, name: track.name });
   try {
-    const file = await resolveTrackFile(track);
+    const file = await resolveTrackFile(track, { fresh: true });
     if (!file) return null;
     const buffer = await file.arrayBuffer();
     if ((HIVELY_MODULE_EXTENSIONS as readonly string[]).includes(track.extension.toLowerCase())) {

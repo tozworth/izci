@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('$platform', () => ({
-  isDesktop: true, hasBuiltinSignaling: true, startBuiltinSignaling: vi.fn(), stopBuiltinSignaling: vi.fn(),
+  platformCapabilities: { unrestrictedSignalingHttp: true }, getPublicInvitationOrigin: () => 'https://izci.xn--ala-hsa.net', hasBuiltinSignaling: true, startBuiltinSignaling: vi.fn(), stopBuiltinSignaling: vi.fn(),
   fetchSignaling: (url: string, init?: RequestInit) => fetch(url, init)
 }));
 

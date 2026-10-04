@@ -1,12 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildTrackItems, getTrackIdentity, registerImportedFile } from '$lib/utils/files';
+import { buildTrackItems, getTrackIdentity } from '$lib/utils/files';
+import { registerImportedFile } from '$lib/utils/file-sources';
 import { serializeItem, restoreStoredItem } from '$lib/stores/queue-persistence';
 import { materializeTrackItem } from '$lib/stores/queue-materialization';
 import { createTrackCollectionStore } from '$lib/stores/queue';
 import { get } from 'svelte/store';
 
 const native = vi.hoisted(() => ({ referenceScheme: 'content:', materializeFile: vi.fn() }));
-vi.mock('$platform', async (importOriginal) => ({ ...await importOriginal<object>(), nativeFilesystem: native }));
+vi.mock('$platform', async () => {
+  const { createNativeFilesystem } = await import('../platform/native-filesystem');
+  return { filesystem: createNativeFilesystem(native as never, { accessModel: 'persisted-grants' }) };
+});
 afterEach(() => vi.clearAllMocks());
 
 function nativeTrack(uri = 'content://provider/tree/Music/document/song', name = 'song.flac') {

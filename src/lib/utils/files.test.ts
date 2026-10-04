@@ -1,24 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { IMAGE_EXTENSIONS, MODULE_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/types';
 
-import {
-  buildTrackItems,
-  buildSeparatedSubsongItems,
-  discoverDirectoryFiles,
-  extractDroppedContent,
-  extractDroppedFiles,
-  formatDuration,
-  inferArtistTitleFromFileName,
-  inferExtension,
-  inferKind,
-  isVisualMediaFileName,
-  mergeInferredArtistTitle,
-  getTrackDisplayTitle,
-  getTrackQueueLabel,
-  readFileHandleFiles,
-  readDirectoryFiles,
-  stripFileExtension
-} from './files';
+import { buildTrackItems, buildSeparatedSubsongItems, formatDuration, inferArtistTitleFromFileName, inferExtension, inferKind, isVisualMediaFileName, mergeInferredArtistTitle, getTrackDisplayTitle, getTrackQueueLabel, stripFileExtension } from './files';
+import { discoverDirectoryFiles, extractDroppedContent, extractDroppedFiles, readFileHandleFiles, readDirectoryFiles } from '../../platform/web-file-handles';
 
 function fileHandle(file: File): FileSystemFileHandle {
   return {

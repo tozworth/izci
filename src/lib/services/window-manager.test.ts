@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const platform = vi.hoisted(() => ({
-  desktop: true, presentDesktopPopup: vi.fn(), exitDesktop: vi.fn()
+  desktop: true, presentPlatformPopup: vi.fn(), exitPlatform: vi.fn()
 }));
 vi.mock('$platform', () => ({
-  get isDesktop() { return platform.desktop; },
-  presentDesktopPopup: platform.presentDesktopPopup,
-  exitDesktop: platform.exitDesktop
+  platformCapabilities: { get directPopupNavigation() { return platform.desktop; }, get warmOptionsWindow() { return platform.desktop; } },
+  presentPlatformPopup: platform.presentPlatformPopup,
+  exitPlatform: platform.exitPlatform
 }));
 vi.mock('$lib/services/options-window-state', () => ({
   getOptionsWindowState: () => ({ activeView: 'appearance', showAdvancedTweaks: false })
@@ -24,7 +24,7 @@ describe('popup windows', () => {
     vi.resetModules();
     vi.resetAllMocks();
     platform.desktop = true;
-    platform.presentDesktopPopup.mockReturnValue(true);
+    platform.presentPlatformPopup.mockReturnValue(true);
     listeners = new Map();
     popup = {
       closed: false, close: vi.fn(), focus: vi.fn(), postMessage: vi.fn(),
@@ -57,7 +57,7 @@ describe('popup windows', () => {
     windowManager.openOptions('playback');
     expect(window.open).toHaveBeenCalledOnce();
     expect(popup.location.replace).not.toHaveBeenCalled();
-    expect(platform.presentDesktopPopup).toHaveBeenCalledWith('/options.html');
+    expect(platform.presentPlatformPopup).toHaveBeenCalledWith('/options.html');
     expect(popup.postMessage).toHaveBeenCalledWith(
       { type: 'izci:open-options-view', view: 'playback' }, window.location.origin
     );
@@ -84,12 +84,12 @@ describe('popup windows', () => {
     windowManager.openPopup('troubadourOptions');
     expect(window.open).toHaveBeenCalledOnce();
     expect(popup.location.replace).not.toHaveBeenCalled();
-    expect(platform.presentDesktopPopup).toHaveBeenCalledWith('/troubadour-options.html');
+    expect(platform.presentPlatformPopup).toHaveBeenCalledWith('/troubadour-options.html');
   });
 
   it('preserves background priming and normal focus in browser popups', async () => {
     platform.desktop = false;
-    platform.presentDesktopPopup.mockReturnValue(false);
+    platform.presentPlatformPopup.mockReturnValue(false);
     vi.stubGlobal('document', { documentElement: {} });
     vi.stubGlobal('getComputedStyle', () => ({ backgroundColor: '#18191b' }));
     const { warmOptionsWindow, windowManager } = await import('./window-manager');

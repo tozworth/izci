@@ -7,8 +7,14 @@ import trMessages from './src/lib/i18n/locales/tr.json';
 import { milkDropPresetsPlugin } from './scripts/vite/milkdrop-presets';
 
 export default defineConfig(({ mode }) => {
-  const desktop = mode === 'desktop';
-  const android = mode === 'android';
+  const platform = mode === 'desktop' ? 'desktop' : mode === 'android' ? 'android' : 'pwa';
+  const desktop = platform === 'desktop';
+  const android = platform === 'android';
+  const platformEntries = {
+    pwa: './src/platform/pwa/platform.ts',
+    desktop: './src/desktop/platform.ts',
+    android: './src/android/platform.ts'
+  };
   return {
     server: {
       host: '0.0.0.0',
@@ -45,8 +51,7 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
-        ...(desktop || android ? { 'virtual:pwa-register': fileURLToPath(new URL('./src/platform/pwa-disabled.ts', import.meta.url)) } : {}),
-        $platform: fileURLToPath(new URL(desktop ? './src/desktop/platform.ts' : android ? './src/android/platform.ts' : './src/platform/browser.ts', import.meta.url)),
+        $platform: fileURLToPath(new URL(platformEntries[platform], import.meta.url)),
         $lib: fileURLToPath(new URL('./src/lib', import.meta.url))
       }
     },
@@ -63,7 +68,7 @@ export default defineConfig(({ mode }) => {
         }
       } satisfies Plugin] : []),
       svelte(),
-      ...(!desktop && !android ? [VitePWA({
+      ...(platform === 'pwa' ? [VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['icons/izci-icon.svg', 'icons/izci-maskable.svg', 'icons/izci-file.png'],
         manifest: {

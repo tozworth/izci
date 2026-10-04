@@ -1,10 +1,71 @@
-import type { NativeMediaAccess } from './media-file-access';
+import type { NativeMediaAccess, MediaFileAccess, MediaDirectoryAccess } from './media-file-access';
 
 /** Serializable shell references; these are never File System Access handles. */
 export interface NativeFileReference { uri: string }
 export interface NativeFolderReference { uri: string; name: string }
 export type NativeReferenceScheme = 'content:' | 'file:';
 export type NativeFolderPermission = 'granted' | 'prompt' | 'denied' | 'unavailable';
+
+/** Storage representations stay distinct; a platform never invents FSA handles. */
+export interface FileReference {
+  fileHandle?: FileSystemFileHandle;
+  nativeFile?: NativeFileReference;
+}
+export interface FolderReference {
+  handle?: FileSystemDirectoryHandle;
+  nativeFolder?: NativeFolderReference;
+}
+export type SelectedFolder = FolderReference & { name: string };
+/** Current runtime File plus its independently persisted reference. */
+export type FileAccessSource = FileReference & { file?: File };
+export interface FileReadOptions { prompt?: boolean }
+export interface FolderReadOptions { maxDepth?: number; readConcurrency?: number }
+export interface DiscoveredMediaFile {
+  file: MediaFileAccess | null;
+  parent: MediaDirectoryAccess | null;
+  reference: FileReference;
+  path: string;
+  currentFile?: File;
+}
+export interface FolderDiscoveryOptions extends FolderReadOptions {
+  onFileFound?: (file: DiscoveredMediaFile) => void;
+}
+export interface FilePickerOptions extends OpenFilePickerOptions { targetWindow?: Window | null }
+export interface FolderPickerOptions { mode?: 'read' | 'readwrite'; targetWindow?: Window | null }
+export interface SaveFileOptions { suggestedName: string; types?: FilePickerAcceptType[] }
+export interface FileAccessContext {
+  path?: string;
+  sourceFolderId?: string;
+  folders?: (FolderReference & { id: string; name: string })[];
+}
+
+export interface PlatformFilesystem {
+  /** Presentation of the platform's grant model, independent of URI syntax. */
+  accessModel: 'browser-grants' | 'os-permissions' | 'persisted-grants';
+  supportsFilePicker(targetWindow?: Window | null): boolean;
+  supportsFolderPicker(targetWindow?: Window | null): boolean;
+  supportsWritableFolders(): boolean;
+  preferSnapshotReads(size: number): boolean;
+  pickFiles(options?: FilePickerOptions): Promise<File[]>;
+  pickFolder(options?: FolderPickerOptions): Promise<SelectedFolder | null>;
+  pickWritableFolder(): Promise<MediaDirectoryAccess | null>;
+  pickSaveFile(options: SaveFileOptions): Promise<MediaFileAccess | null>;
+  normalizeFileReference(value: unknown): FileReference;
+  normalizeFolderReference(value: unknown): SelectedFolder | null;
+  readFile(reference: FileAccessSource, options?: FileReadOptions): Promise<File | null>;
+  prepareFileAccess(reference: FileReference): Promise<void>;
+  readFolder(reference: FolderReference, options?: FolderReadOptions): Promise<File[]>;
+  discoverFolder(reference: FolderReference, options?: FolderDiscoveryOptions): Promise<DiscoveredMediaFile[]>;
+  queryFolderPermission(reference: FolderReference, probe?: boolean, timeoutMs?: number): Promise<NativeFolderPermission>;
+  requestFolderPermission(reference: FolderReference): Promise<NativeFolderPermission>;
+  sameFolder(first: FolderReference, second: FolderReference): Promise<boolean>;
+  sameFile(first: FileReference, second: FileReference): Promise<boolean>;
+  resolveFilePath(reference: FileReference, folder: FolderReference): Promise<string[] | null>;
+  getMediaAccess(reference: FileReference, context?: FileAccessContext): Promise<{
+    file: MediaFileAccess | null;
+    parent: MediaDirectoryAccess | null;
+  }>;
+}
 
 export interface NativeFilesystem {
   referenceScheme: NativeReferenceScheme;

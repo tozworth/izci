@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { withMediaFileReader } from './media-file-reader';
-import { ANDROID_FILE_SNAPSHOT_MAX_BYTES } from '$lib/utils/file-read-policy';
+import { ANDROID_FILE_SNAPSHOT_MAX_BYTES } from '../../platform/web-file-read-policy';
 
 afterEach(() => vi.unstubAllGlobals());
 const deferred = () => {

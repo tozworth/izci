@@ -1,8 +1,8 @@
 import type { FilesystemFolder, FilesystemFolderPermission } from '$lib/services/filesystem-folders';
 import type { TrackItem, TrackKind, TrackMetadata } from '$lib/types';
 import { getTrackIdentity } from '$lib/utils/files';
-import { isNativeFileReference, type NativeFileReference } from './platform-files-types';
-import { nativeFilesystem } from '$platform';
+import type { NativeFileReference, FolderReference } from './platform-files-types';
+import { filesystem } from '$platform';
 
 export const REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:request-batch-context';
 export const OPEN_TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:open-batch-context';
@@ -34,10 +34,9 @@ export interface TroubadourBatchTrack {
   metadata?: TrackMetadata;
 }
 
-export interface TroubadourRememberedFolder {
+export interface TroubadourRememberedFolder extends FolderReference {
   id: string;
   name: string;
-  handle: FileSystemDirectoryHandle;
   permission: FilesystemFolderPermission;
   libraryMode: FilesystemFolder['libraryMode'];
 }
@@ -122,12 +121,6 @@ function isTrackKind(value: unknown): value is TrackKind {
   return value === 'stream' || value === 'module' || value === 'video';
 }
 
-function isFileHandle(value: unknown): value is FileSystemFileHandle {
-  if (!value || typeof value !== 'object') return false;
-  const source = value as Partial<FileSystemFileHandle>;
-  return source.kind === 'file' && typeof source.getFile === 'function';
-}
-
 function isReference(value: unknown): value is TroubadourTrackReference {
   if (!value || typeof value !== 'object') return false;
   const source = value as Partial<TroubadourTrackReference>;
@@ -159,12 +152,10 @@ function normalizeResultItem(value: unknown): TroubadourBatchItemResult | null {
       typeof source.originalLastModified === 'number' && Number.isFinite(source.originalLastModified)
         ? source.originalLastModified
         : undefined,
-    originalFileHandle: isFileHandle(source.originalFileHandle) ? source.originalFileHandle : undefined,
+    originalFileHandle: filesystem.normalizeFileReference({ fileHandle: source.originalFileHandle }).fileHandle,
     metadata: source.metadata && typeof source.metadata === 'object' ? source.metadata : undefined,
     file: source.file instanceof File ? source.file : undefined,
-    fileHandle: isFileHandle(source.fileHandle) ? source.fileHandle : undefined,
-    nativeFile: nativeFilesystem && isNativeFileReference(source.nativeFile, nativeFilesystem.referenceScheme)
-      ? { uri: source.nativeFile.uri } : undefined,
+    ...filesystem.normalizeFileReference(source),
     path: typeof source.path === 'string' ? source.path : undefined,
     sourceFolderId: typeof source.sourceFolderId === 'string' ? source.sourceFolderId : undefined,
     name: typeof source.name === 'string' ? source.name : undefined,
@@ -245,10 +236,10 @@ export function buildTroubadourBatchContext(
 
   return {
     tracks: [...tracksByIdentity.values()],
-    rememberedFolders: folders.filter((folder) => folder.handle).map((folder) => ({
+    rememberedFolders: folders.map((folder) => ({
       id: folder.id,
       name: folder.name,
-      handle: folder.handle!,
+      ...filesystem.normalizeFolderReference(folder),
       permission: folder.permission,
       libraryMode: folder.libraryMode
     }))
@@ -309,7 +300,7 @@ function normalizeWriteTarget(value: unknown): TroubadourWriteTarget | null {
       typeof source.originalLastModified === 'number' && Number.isFinite(source.originalLastModified)
         ? source.originalLastModified
         : undefined,
-    originalFileHandle: isFileHandle(source.originalFileHandle) ? source.originalFileHandle : undefined
+    originalFileHandle: filesystem.normalizeFileReference({ fileHandle: source.originalFileHandle }).fileHandle
   };
 }
 

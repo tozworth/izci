@@ -17,13 +17,9 @@ import { normalizeStoredItem } from '$lib/stores/queue-persistence';
 import { trackSettings } from '$lib/stores/track-settings';
 import type { TrackItem, TrackMetadata } from '$lib/types';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
-import {
-  buildTrackItems,
-  getFavoriteIdentity,
-  getTrackIdentity,
-  readDirectoryFiles,
-  readFileHandleFiles
-} from '$lib/utils/files';
+import { buildTrackItems, getFavoriteIdentity, getTrackIdentity } from '$lib/utils/files';
+import { filesystem } from '$platform';
+import type { SelectedFolder } from './platform-files-types';
 
 export const BACKUP_EXTENSION = '.izci';
 const BACKUP_MIME_TYPE = 'application/vnd.izci.backup+zip';
@@ -163,7 +159,8 @@ function folderTrackKey(
 ): string {
   const normalizedPath = track.path?.replace(/\\/g, '/').replace(/^\/+/, '');
   const segments = normalizedPath?.split('/') ?? [];
-  if (segments[0]?.toLocaleLowerCase() === rootName.toLocaleLowerCase()) segments.shift();
+  const rootIndex = segments.findIndex(segment => segment.toLocaleLowerCase() === rootName.toLocaleLowerCase());
+  if (rootIndex >= 0) segments.splice(0, rootIndex + 1);
   const relativePath = segments.join('/') || track.name;
   return `${relativePath.toLocaleLowerCase()}:${track.size}:subsong:${track.subsong ?? 'all'}`;
 }
@@ -171,7 +168,7 @@ function folderTrackKey(
 function normalizePortableTrack(value: unknown): PortableTrackRecord | null {
   const normalized = normalizeStoredItem(value);
   if (!normalized) return null;
-  const { fileHandle: _fileHandle, ...portable } = normalized;
+  const { fileHandle: _fileHandle, nativeFile: _nativeFile, ...portable } = normalized;
   return portable;
 }
 
@@ -603,7 +600,7 @@ function releaseRuntimeFiles(items: TrackItem[]): TrackItem[] {
 
 export async function locatePendingFolder(
   folderId: string,
-  handle: FileSystemDirectoryHandle
+  handle: SelectedFolder
 ): Promise<LocateRestoreResult> {
   await Promise.all([pendingBackupRestore.ready(), libraryStore.ready(), favoritesStore.ready()]);
   const pending = pendingBackupRestore.getSnapshot();
@@ -617,7 +614,7 @@ export async function locatePendingFolder(
     expectedFavorites.map((track) => [folderTrackKey(track, descriptor.name), track])
   );
   const files = expected.length + expectedFavorites.length > 0
-    ? await prepareImportedFiles(await readDirectoryFiles(handle, {
+    ? await prepareImportedFiles(await filesystem.readFolder(handle, {
         maxDepth: trackSettings.getSnapshot().folderNestingLimit
       }))
     : [];
@@ -714,14 +711,14 @@ function trackFingerprint(track: Pick<PortableTrackRecord, 'name' | 'size' | 'la
   return `${track.name.toLocaleLowerCase()}:${track.size}:${track.lastModified}`;
 }
 
-export async function locatePendingFiles(handles: FileSystemFileHandle[]): Promise<LocateRestoreResult> {
+export async function locatePendingFiles(files: File[]): Promise<LocateRestoreResult> {
   await Promise.all([pendingBackupRestore.ready(), libraryStore.ready(), favoritesStore.ready()]);
   const pending = pendingBackupRestore.getSnapshot();
   const looseTracks = pending.tracks.filter((track) => !track.sourceFolderId);
   const expectedByIdentity = new Map(looseTracks.map((track) => [getTrackIdentity(track), track]));
   const expectedByFingerprint = new Map(looseTracks.map((track) => [trackFingerprint(track), track]));
-  const files = await prepareImportedFiles(await readFileHandleFiles(handles));
-  const selected = releaseRuntimeFiles(buildTrackItems(files));
+  const acceptedFiles = await prepareImportedFiles(files);
+  const selected = releaseRuntimeFiles(buildTrackItems(acceptedFiles));
   const restoredIds = new Set<string>();
   const added: TrackItem[] = [];
   for (const item of selected) {

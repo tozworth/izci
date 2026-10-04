@@ -1,5 +1,5 @@
 import type { TrackItem, TrackMetadata } from '$lib/types';
-import { isDesktop, preparePlaybackRestoration, nativeFilesystem } from '$platform';
+import { resolveTrackFile } from './file-access';
 
 import { toArrayBuffer } from './stream-meta-binary';
 import { readFlacMetadata } from './stream-meta-flac';
@@ -92,21 +92,6 @@ function canLoadStreamMetadata(extension: string): boolean {
   return extension === 'flac' || extension === 'opus' || extension === 'ogg' || extension === 'mp3';
 }
 
-async function resolveTrackFile(track: TrackItem): Promise<File | null> {
-  if (track.nativeFile && nativeFilesystem) return track.file ?? nativeFilesystem.materializeFile(track.nativeFile);
-  if (track.fileHandle) {
-    try {
-      if (isDesktop && !track.file) await preparePlaybackRestoration(track);
-      return await track.fileHandle.getFile();
-    } catch (error) {
-      // Fall back to the in-memory File when permission is unavailable or stale.
-      if (!track.file) throw error;
-    }
-  }
-
-  return track.file ?? null;
-}
-
 export function getTrackArtworkLoadKey(track: TrackItem | null): string {
   if (!track) {
     return '';
@@ -123,7 +108,7 @@ export async function loadTrackMetadata(track: TrackItem | null): Promise<TrackM
     return null;
   }
 
-  const file = await resolveTrackFile(track);
+  const file = await resolveTrackFile(track, { fresh: true });
 
   if (!file) {
     return null;
@@ -142,7 +127,7 @@ export async function loadEmbeddedStreamArtwork(track: TrackItem | null): Promis
     return null;
   }
 
-  const file = await resolveTrackFile(track);
+  const file = await resolveTrackFile(track, { fresh: true });
 
   if (!file) {
     // A negative cache entry requires a successful read of the source file.

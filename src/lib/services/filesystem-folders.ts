@@ -1,8 +1,7 @@
 import { writable, type Readable } from 'svelte/store';
 import { logError, logInfo, logWarning } from '$lib/services/logging';
-import { nativeFilesystem } from '$platform';
-import { isNativeFolderReference, type NativeFolderReference } from './platform-files-types';
-import { nativeFileIdentity } from '$lib/utils/native-media-files';
+import { filesystem } from '$platform';
+import type { FileReference, FolderReference, NativeFolderReference, SelectedFolder } from './platform-files-types';
 
 export type FilesystemFolderPermission = 'granted' | 'prompt' | 'denied' | 'unavailable';
 export type LibraryFolderMode = 'manual' | 'launch';
@@ -18,11 +17,8 @@ type LibraryFolderScanStatus =
   | 'permission-required'
   | 'error';
 
-export interface FilesystemFolder {
+export interface FilesystemFolder extends SelectedFolder {
   id: string;
-  name: string;
-  handle?: FileSystemDirectoryHandle;
-  nativeFolder?: NativeFolderReference;
   addedAt: number;
   permission: FilesystemFolderPermission;
   libraryMode: LibraryFolderMode | null;
@@ -44,37 +40,15 @@ const DATABASE_VERSION = 1;
 const STORE_NAME = 'folders';
 const STATE_KEY = 'state';
 const CHANNEL_NAME = 'izci-filesystem-folders';
-const FOLDER_ACCESS_TIMEOUT_MS = 3_000;
-
-async function settleWithin<T>(promise: Promise<T>, timeoutMs: number): Promise<T | undefined> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<undefined>((resolve) => {
-        timeoutId = setTimeout(() => resolve(undefined), timeoutMs);
-      })
-    ]);
-  } finally {
-    if (timeoutId !== undefined) clearTimeout(timeoutId);
-  }
-}
-
-function isDirectoryHandle(value: unknown): value is FileSystemDirectoryHandle {
-  if (!value || typeof value !== 'object') return false;
-  const source = value as Partial<FileSystemDirectoryHandle>;
-  return source.kind === 'directory' && typeof source.values === 'function';
-}
-
 function normalizeStoredFolder(value: unknown): StoredFilesystemFolder | null {
   if (!value || typeof value !== 'object') return null;
   const source = value as Partial<StoredFilesystemFolder>;
+  const reference = filesystem.normalizeFolderReference(source);
 
   if (
     typeof source.id !== 'string' ||
     typeof source.name !== 'string' ||
-    (!isDirectoryHandle(source.handle) && !(nativeFilesystem && isNativeFolderReference(source.nativeFolder, nativeFilesystem.referenceScheme)))
+    !reference
   ) {
     return null;
   }
@@ -89,10 +63,8 @@ function normalizeStoredFolder(value: unknown): StoredFilesystemFolder | null {
 
   return {
     id: source.id,
+    ...reference,
     name: source.name,
-    handle: isDirectoryHandle(source.handle) ? source.handle : undefined,
-    nativeFolder: nativeFilesystem && isNativeFolderReference(source.nativeFolder, nativeFilesystem.referenceScheme)
-      ? { uri: source.nativeFolder.uri, name: source.nativeFolder.name } : undefined,
     addedAt: typeof source.addedAt === 'number' ? source.addedAt : Date.now(),
     libraryMode: source.libraryMode === 'manual' || source.libraryMode === 'launch' ? source.libraryMode : null,
     lastScanAt: typeof source.lastScanAt === 'number' ? source.lastScanAt : undefined,
@@ -160,89 +132,21 @@ async function writeStoredFolders(folders: StoredFilesystemFolder[]): Promise<vo
   });
 }
 
-export async function queryFilesystemFolderPermission(
-  handle: FileSystemDirectoryHandle,
-  probe = true,
-  timeoutMs = FOLDER_ACCESS_TIMEOUT_MS
+export function queryFilesystemFolderAccess(
+  folder: FolderReference, probe = false, timeoutMs?: number
 ): Promise<FilesystemFolderPermission> {
-  let permission: FileSystemPermissionState = 'granted';
-
-  try {
-    if (typeof handle.queryPermission === 'function') {
-      const queriedPermission = await settleWithin(handle.queryPermission({ mode: 'read' }), timeoutMs);
-      if (!queriedPermission) return 'unavailable';
-      permission = queriedPermission;
-    }
-  } catch {
-    return 'unavailable';
-  }
-
-  if (permission !== 'granted' || !probe) return permission;
-
-  try {
-    const probeResult = await settleWithin(handle.values().next(), timeoutMs);
-    if (!probeResult) return 'unavailable';
-    return 'granted';
-  } catch {
-    return 'unavailable';
-  }
-}
-
-export async function queryFilesystemFolderAccess(folder: Pick<FilesystemFolder, 'handle' | 'nativeFolder'>, probe = false): Promise<FilesystemFolderPermission> {
-  if (folder.nativeFolder && nativeFilesystem) {
-    try { return await settleWithin(nativeFilesystem.queryFolderPermission(folder.nativeFolder, probe), FOLDER_ACCESS_TIMEOUT_MS) ?? 'unavailable'; }
-    catch { return 'unavailable'; }
-  }
-  return folder.handle ? queryFilesystemFolderPermission(folder.handle, probe) : 'unavailable';
-}
-
-async function requestFilesystemFolderPermission(
-  handle: FileSystemDirectoryHandle
-): Promise<FilesystemFolderPermission> {
-  try {
-    if (typeof handle.requestPermission === 'function') {
-      const permission = await handle.requestPermission({ mode: 'read' });
-      if (permission !== 'granted') return permission;
-    }
-    return await queryFilesystemFolderPermission(handle);
-  } catch {
-    return 'denied';
-  }
-}
-
-async function sameDirectory(
-  first: FileSystemDirectoryHandle,
-  second: FileSystemDirectoryHandle
-): Promise<boolean> {
-  if (first === second) return true;
-  try {
-    return typeof first.isSameEntry === 'function' ? await first.isSameEntry(second) : false;
-  } catch {
-    return false;
-  }
+  return filesystem.queryFolderPermission(folder, probe, timeoutMs);
 }
 
 export async function resolveFilesystemFileLocation(
-  handle: FileSystemFileHandle,
+  reference: FileReference,
   folders: FilesystemFolder[]
 ): Promise<FilesystemFileLocation | null> {
   const matches: FilesystemFileLocation[] = [];
 
   for (const folder of folders) {
-    if (typeof folder.handle?.resolve !== 'function') continue;
-
-    try {
-      const relativePath = await folder.handle.resolve(handle);
-
-      if (relativePath && relativePath.length > 0) {
-        matches.push({
-          folderId: folder.id,
-          path: [folder.name, ...relativePath].join('/')
-        });
-      }
-    } catch {
-      // A stale or unavailable remembered root cannot identify this file.
-    }
+    const relativePath = await filesystem.resolveFilePath(reference, folder);
+    if (relativePath?.length) matches.push({ folderId: folder.id, path: [folder.name, ...relativePath].join('/') });
   }
 
   return matches.length === 1 ? matches[0] : null;
@@ -257,7 +161,7 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
   ready(): Promise<void>;
   refresh(options?: { probe?: boolean }): Promise<FilesystemFolder[]>;
   remember(
-    handle: FileSystemDirectoryHandle | NativeFolderReference,
+    handle: SelectedFolder | FileSystemDirectoryHandle | NativeFolderReference,
     options?: { libraryMode?: LibraryFolderMode | null; preferredId?: string }
   ): Promise<FilesystemFolder>;
   rememberMany(handles: FileSystemDirectoryHandle[]): Promise<FilesystemFolder[]>;
@@ -349,18 +253,14 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
     refresh: (options = {}) => load(options.probe === true),
     getSnapshot: () => snapshot,
     async remember(handle, options = {}) {
-      if (!isDirectoryHandle(handle) && !(nativeFilesystem && isNativeFolderReference(handle, nativeFilesystem.referenceScheme))) {
-        throw new Error('This platform cannot remember the selected folder.');
-      }
-      const source = isDirectoryHandle(handle) ? { handle } : { nativeFolder: handle };
+      const source = filesystem.normalizeFolderReference(handle);
+      if (!source) throw new Error('This platform cannot remember the selected folder.');
       let remembered: FilesystemFolder | null = null;
       await mutate(async (current) => {
         for (const folder of current) {
-          if (source.nativeFolder ? folder.nativeFolder && nativeFileIdentity(folder.nativeFolder.uri) === nativeFileIdentity(source.nativeFolder.uri)
-            : folder.handle && await sameDirectory(folder.handle, source.handle!)) {
+          if (await filesystem.sameFolder(folder, source)) {
             remembered = {
               ...folder,
-              name: handle.name,
               ...source,
               permission: await queryFilesystemFolderAccess(source),
               libraryMode: options.libraryMode === undefined ? folder.libraryMode : options.libraryMode
@@ -374,7 +274,6 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
             options.preferredId && !current.some((folder) => folder.id === options.preferredId)
               ? options.preferredId
               : crypto.randomUUID(),
-          name: handle.name,
           ...source,
           addedAt: Date.now(),
           permission: await queryFilesystemFolderAccess(source),
@@ -397,9 +296,7 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
 
       // Keep the permission API call directly on the button's user activation.
       // IndexedDB work before requestPermission() can consume Chromium's gesture window.
-      const permission = target.nativeFolder && nativeFilesystem
-        ? await nativeFilesystem.requestFolderPermission(target.nativeFolder)
-        : target.handle ? await requestFilesystemFolderPermission(target.handle) : 'unavailable';
+      const permission = await filesystem.requestFolderPermission(target);
       await mutate((current) =>
         current.map((folder) => (folder.id === id ? { ...folder, permission } : folder))
       );
@@ -426,23 +323,6 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
       else if (patch.lastScanStatus === 'error') logError('library', 'Managed-folder scan failed', { id, name: folder?.name, failure: patch.lastScanFailure });
     }
   };
-}
-
-export async function getDroppedDirectoryHandles(
-  dataTransfer: DataTransfer
-): Promise<FileSystemDirectoryHandle[]> {
-  const handles: FileSystemDirectoryHandle[] = [];
-
-  for (const item of Array.from(dataTransfer.items)) {
-    try {
-      const handle = await item.getAsFileSystemHandle?.();
-      if (handle?.kind === 'directory') handles.push(handle as FileSystemDirectoryHandle);
-    } catch {
-      // Legacy directory drops still import their files, but cannot be remembered as FSA roots.
-    }
-  }
-
-  return handles;
 }
 
 export const filesystemFolders = createFilesystemFoldersStore();

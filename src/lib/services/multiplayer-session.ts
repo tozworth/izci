@@ -33,7 +33,7 @@ import type {
   MultiplayerCollection
 } from './multiplayer-protocol';
 import { closeServerHostRoom } from './multiplayer-server-host';
-import { isDesktop, stopBuiltinSignaling } from '$platform';
+import { hasBuiltinSignaling, stopBuiltinSignaling } from '$platform';
 import { serverSetup } from './multiplayer-server-setup';
 
 export function createMultiplayerSession({
@@ -282,7 +282,7 @@ export function createMultiplayerSession({
       } catch {
         // The lease lapses server-side; local state is already cleared.
       }
-      if (isDesktop) await stopBuiltinSignaling(serverHost.room.endpoint).catch(() => undefined);
+      if (hasBuiltinSignaling) await stopBuiltinSignaling(serverHost.room.endpoint).catch(() => undefined);
       serverSetup.clearHosted(serverHost.room.endpoint);
     }
     core.lastCatalogSources = null;

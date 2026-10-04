@@ -116,3 +116,7 @@ export async function getDesktopMediaAccess(reference: NativeFileReference): Pro
   const path = desktopFilePath(reference);
   return { file: new NativeFileAccess(path), parent: new NativeDirectoryAccess(parentPath(path)) };
 }
+
+export function getDesktopDirectoryAccess(reference: NativeFileReference): MediaDirectoryAccess {
+  return new NativeDirectoryAccess(desktopFilePath(reference));
+}

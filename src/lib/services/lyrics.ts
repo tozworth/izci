@@ -1,7 +1,7 @@
 import { withMediaFileReader } from './media-file-reader';
 import { MAX_EMBEDDED_LYRICS_BYTES, readStreamLyrics } from './stream-lyrics-reader';
 import type { TrackItem } from '$lib/types';
-import { nativeFilesystem } from '$platform';
+import { resolveTrackFile } from './file-access';
 
 interface TimedLyricLine {
   time: number;
@@ -47,23 +47,9 @@ export function clearRemoteTrackLyrics(): void {
   remoteLyricsRevision += 1;
 }
 
-async function resolveTrackFile(track: TrackItem): Promise<File | null> {
-  if (track.nativeFile && nativeFilesystem) return track.file ?? nativeFilesystem.materializeFile(track.nativeFile);
-  if (track.fileHandle) {
-    try {
-      return await track.fileHandle.getFile();
-    } catch {
-      // Fall through to the in-memory File if a persisted handle cannot be read.
-    }
-  }
-
-  return track.file ?? null;
-}
-
 function parseTimestamp(minutes: string, seconds: string, fraction: string | undefined): number | null {
   const minuteValue = Number(minutes);
   const secondValue = Number(seconds);
-
   if (!Number.isFinite(minuteValue) || !Number.isFinite(secondValue) || secondValue > 59) {
     return null;
   }
@@ -225,7 +211,7 @@ export function getTrackLyricsLoadKey(track: TrackItem | null): string {
 }
 
 async function loadTrackLyricsUncached(track: TrackItem): Promise<LoadedLyrics | null> {
-  const file = await resolveTrackFile(track);
+  const file = await resolveTrackFile(track, { fresh: true });
 
   if (!file) {
     return null;

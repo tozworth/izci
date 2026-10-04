@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { filesystem } from '$platform';
+  import { extractDroppedFiles } from '$lib/services/file-access';
   import { onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
@@ -447,16 +449,13 @@
   }
 
   async function chooseAudioFile(): Promise<void> {
-    const pickerWindow = window as Window & {
-      showOpenFilePicker?: (options?: OpenFilePickerOptions) => Promise<FileSystemFileHandle[]>;
-    };
-    if (!pickerWindow.showOpenFilePicker) {
+    if (!filesystem.supportsFilePicker()) {
       fileInput.click();
       return;
     }
     try {
-      const [handle] = await pickerWindow.showOpenFilePicker(OPEN_FILE_PICKER_OPTIONS);
-      if (handle) await openFile(await handle.getFile());
+      const [file] = await filesystem.pickFiles({ ...OPEN_FILE_PICKER_OPTIONS, multiple: false });
+      if (file) await openFile(file);
     } catch (error) {
       if ((error as DOMException)?.name !== 'AbortError') {
         errorMessage = error instanceof Error ? error.message : $t('editor.loadFailed', { default: 'The audio file could not be opened.' });
@@ -473,17 +472,8 @@
 
   async function handleWindowDrop(event: DragEvent): Promise<void> {
     event.preventDefault();
-    let droppedHandle: FileSystemHandle | null | undefined;
-    try {
-      droppedHandle = await event.dataTransfer?.items[0]?.getAsFileSystemHandle?.();
-    } catch {
-      droppedHandle = null;
-    }
-    if (droppedHandle?.kind === 'file') {
-      await openFile(await (droppedHandle as FileSystemFileHandle).getFile());
-      return;
-    }
-    const file = event.dataTransfer?.files[0];
+    if (!event.dataTransfer) return;
+    const [file] = await extractDroppedFiles(event.dataTransfer, { maxDepth: 0 });
     if (file) await openFile(file);
   }
 

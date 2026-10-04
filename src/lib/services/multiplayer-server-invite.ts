@@ -13,10 +13,10 @@
  * `redactServerSecrets` before surfacing errors or diagnostics.
  */
 
-import { hasBuiltinSignaling, isDesktop } from '$platform';
+import { hasBuiltinSignaling, getPublicInvitationOrigin } from '$platform';
 
 export const SERVER_INVITE_MAX_BYTES = 4 * 1024;
-export const SERVER_INVITE_WEB_ORIGIN = 'https://izci.xn--ala-hsa.net';
+export { PUBLIC_PWA_ORIGIN as SERVER_INVITE_WEB_ORIGIN } from '../../platform/public-origin';
 export const SERVER_INVITE_TITLE_MAX = 120;
 export const SERVER_INVITE_SECRET_MAX = 512;
 export const SERVER_ROOM_ID_PATTERN = /^[0-9a-f]{32}$/;
@@ -145,8 +145,7 @@ export function buildServerInvitationPayload(invitation: ServerInvitation): stri
 }
 
 export function buildServerInviteLink(invitation: ServerInvitation, origin?: string): string {
-  const candidate = origin ?? (isDesktop ? SERVER_INVITE_WEB_ORIGIN : typeof window !== 'undefined' ? window.location.origin : '');
-  const base = (candidate === 'https://tauri.localhost' ? SERVER_INVITE_WEB_ORIGIN : candidate).replace(/\/+$/, '');
+  const base = getPublicInvitationOrigin(origin);
   return `${base}/#party=${buildServerInvitationPayload(invitation)}`;
 }
 

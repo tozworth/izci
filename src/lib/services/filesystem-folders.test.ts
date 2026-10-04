@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  getDroppedDirectoryHandles,
-  queryFilesystemFolderPermission,
+  queryFilesystemFolderAccess,
   resolveFilesystemFileLocation,
   type FilesystemFolder
 } from './filesystem-folders';
+import { getDroppedDirectoryHandles } from './file-access';
 
 function directoryHandle(overrides: Partial<FileSystemDirectoryHandle> = {}): FileSystemDirectoryHandle {
   return {
@@ -39,7 +39,7 @@ describe('filesystem folder helpers', () => {
       values: values as unknown as FileSystemDirectoryHandle['values']
     });
 
-    await expect(queryFilesystemFolderPermission(handle)).resolves.toBe('prompt');
+    await expect(queryFilesystemFolderAccess({ handle }, true)).resolves.toBe('prompt');
     expect(values).not.toHaveBeenCalled();
   });
 
@@ -53,7 +53,7 @@ describe('filesystem folder helpers', () => {
       })) as unknown as FileSystemDirectoryHandle['values']
     });
 
-    await expect(queryFilesystemFolderPermission(handle)).resolves.toBe('unavailable');
+    await expect(queryFilesystemFolderAccess({ handle }, true)).resolves.toBe('unavailable');
   });
 
   it('does not wait indefinitely for an unavailable directory probe', async () => {
@@ -64,7 +64,7 @@ describe('filesystem folder helpers', () => {
       })) as unknown as FileSystemDirectoryHandle['values']
     });
 
-    await expect(queryFilesystemFolderPermission(handle, true, 10)).resolves.toBe('unavailable');
+    await expect(queryFilesystemFolderAccess({ handle }, true, 10)).resolves.toBe('unavailable');
   });
 
   it('collects only reusable directory handles from a drop', async () => {
@@ -95,7 +95,7 @@ describe('filesystem folder helpers', () => {
       resolve: async () => null
     }));
 
-    await expect(resolveFilesystemFileLocation(track, [music, other])).resolves.toEqual({
+    await expect(resolveFilesystemFileLocation({ fileHandle: track }, [music, other])).resolves.toEqual({
       folderId: 'music-id',
       path: 'Music/Artist/Track.flac'
     });
@@ -115,6 +115,6 @@ describe('filesystem folder helpers', () => {
       resolve: async () => ['Track.flac']
     }));
 
-    await expect(resolveFilesystemFileLocation(track, [parent, nested])).resolves.toBeNull();
+    await expect(resolveFilesystemFileLocation({ fileHandle: track }, [parent, nested])).resolves.toBeNull();
   });
 });

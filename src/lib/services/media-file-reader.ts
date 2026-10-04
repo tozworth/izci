@@ -1,4 +1,4 @@
-import { useAndroidFileSnapshot } from '$lib/utils/file-read-policy';
+import { filesystem } from '$platform';
 import { getNativeMediaUrl } from '$lib/utils/native-media-files';
 
 export type ReadFileBytes = (offset: number, length: number) => Promise<Uint8Array>;
@@ -19,7 +19,7 @@ export async function withMediaFileReader<T>(
   file: File, trackId: string, read: (readBytes: ReadFileBytes) => Promise<T>
 ): Promise<T> {
   const key = JSON.stringify([trackId, file.size, file.lastModified]);
-  const useSnapshot = !getNativeMediaUrl(file) && useAndroidFileSnapshot(file.size);
+  const useSnapshot = !getNativeMediaUrl(file) && filesystem.preferSnapshotReads(file.size);
   let snapshot = useSnapshot ? snapshots.get(key) : undefined;
   if (!snapshot && useSnapshot && reservedBytes + file.size <= SNAPSHOT_BUDGET_BYTES) {
     snapshot = { bytes: file.arrayBuffer().then((bytes) => new Uint8Array(bytes)), size: file.size, readers: 0 };

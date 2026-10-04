@@ -1,4 +1,4 @@
-import { initializeDesktopWindow } from '$platform';
+import { initializePlatformWindow } from '$platform';
 import '@material-symbols/font-400/outlined.css';
 import { mount } from 'svelte';
 import OptionsApp from './OptionsApp.svelte';
@@ -28,6 +28,6 @@ mount(OptionsApp, {
   target: document.getElementById('app')!
 });
 
-void initializeDesktopWindow().catch((error) => {
-  console.error('Could not present desktop window.', error);
+void initializePlatformWindow().catch((error) => {
+  console.error('Could not present window.', error);
 });

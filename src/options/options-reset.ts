@@ -10,13 +10,13 @@ import { videoSettings } from '$lib/stores/video-settings';
 import { visualizerSettings } from '$lib/stores/visualizer-settings';
 import { multiplayerSettings, DEFAULT_MULTIPLAYER_SETTINGS } from '$lib/stores/multiplayer-settings';
 import type { OptionsViewName } from './views';
-import { resetDesktopAppearance, resetDesktopTracks } from '$platform';
+import { resetPlatformAppearance, resetPlatformTracks } from '$platform';
 
 export function resetOptionsView(view: OptionsViewName): void {
   switch (view) {
     case 'appearance':
       appearanceSettings.reset();
-      resetDesktopAppearance();
+      resetPlatformAppearance();
       break;
     case 'backdrops':
       appearanceSettings.update({
@@ -76,7 +76,7 @@ export function resetOptionsView(view: OptionsViewName): void {
       break;
     case 'tracks':
       trackSettings.reset();
-      resetDesktopTracks();
+      resetPlatformTracks();
       break;
     case 'metadata':
       metadataSettings.reset();

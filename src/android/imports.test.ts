@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const native = vi.hoisted(() => ({ pickFiles: vi.fn(), pickFolder: vi.fn(), readFolder: vi.fn() }));
+const native = vi.hoisted(() => ({ referenceScheme: 'content:', pickFiles: vi.fn(), pickFolder: vi.fn(), readFolder: vi.fn() }));
 const remember = vi.hoisted(() => vi.fn());
-vi.mock('$platform', () => ({ nativeFilesystem: native }));
+vi.mock('$platform', async () => {
+  const { createNativeFilesystem } = await import('../platform/native-filesystem');
+  return { filesystem: createNativeFilesystem(native as never, { accessModel: 'persisted-grants' }) };
+});
 vi.mock('$lib/services/filesystem-folders', () => ({ filesystemFolders: { remember } }));
 vi.mock('$lib/services/file-verification', () => ({ prepareImportedFiles: async (files: File[]) => files }));
 vi.mock('$lib/services/logging', () => ({ logInfo: vi.fn(), logError: vi.fn() }));
@@ -29,7 +32,7 @@ describe('native SAF import dispatch', () => {
     native.readFolder.mockResolvedValue(files);
     const addFiles = vi.fn();
     await createImportController({ addFiles, clickFileInput: vi.fn(), getWindow: () => null }).openFolder('queue');
-    expect(remember).toHaveBeenCalledWith(root);
+    expect(remember).toHaveBeenCalledWith({ name: root.name, nativeFolder: root });
     expect(native.readFolder).toHaveBeenCalledWith(root, 8);
     expect(addFiles).toHaveBeenCalledWith(files, 'queue');
   });

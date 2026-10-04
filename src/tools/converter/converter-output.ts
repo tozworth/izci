@@ -1,11 +1,12 @@
+import type { MediaDirectoryAccess } from '$lib/services/media-file-access';
 interface ConverterOutputLocation {
-  directory: FileSystemDirectoryHandle;
+  directory: MediaDirectoryAccess;
   fileName: string;
 }
 import { logError, logInfo } from '$lib/services/logging';
 
 export async function resolveConverterOutputLocation(
-  root: FileSystemDirectoryHandle,
+  root: MediaDirectoryAccess,
   directories: readonly string[],
   fileName: string
 ): Promise<ConverterOutputLocation> {

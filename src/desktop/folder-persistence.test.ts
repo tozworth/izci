@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 const native = vi.hoisted(() => ({ referenceScheme: 'file:', queryFolderPermission: vi.fn(), requestFolderPermission: vi.fn(), pickFolder: vi.fn() }));
-vi.mock('$platform', () => ({ nativeFilesystem: native }));
+vi.mock('$platform', async () => {
+  const { createNativeFilesystem } = await import('../platform/native-filesystem');
+  return { filesystem: createNativeFilesystem(native as never, { accessModel: 'os-permissions' }) };
+});
 vi.mock('$lib/services/logging', () => ({ logInfo: vi.fn(), logWarning: vi.fn(), logError: vi.fn() }));
 beforeEach(() => {
   vi.resetModules(); vi.resetAllMocks();

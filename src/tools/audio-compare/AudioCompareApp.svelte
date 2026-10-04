@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { filesystem } from '$platform';
   import { onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
@@ -524,16 +525,13 @@
 
   async function chooseSource(id: ComparisonSourceId): Promise<void> {
     activeSource = id;
-    const pickerWindow = window as Window & {
-      showOpenFilePicker?: (options?: OpenFilePickerOptions) => Promise<FileSystemFileHandle[]>;
-    };
-    if (!pickerWindow.showOpenFilePicker) {
+    if (!filesystem.supportsFilePicker()) {
       (id === 'a' ? fileInputA : fileInputB).click();
       return;
     }
     try {
-      const [handle] = await pickerWindow.showOpenFilePicker(OPEN_FILE_PICKER_OPTIONS);
-      if (handle) await openSource(id, await handle.getFile());
+      const [file] = await filesystem.pickFiles({ ...OPEN_FILE_PICKER_OPTIONS, multiple: false });
+      if (file) await openSource(id, file);
     } catch (error) {
       if ((error as DOMException)?.name !== 'AbortError') {
         updateSource(id, { error: error instanceof Error ? error.message : $t('audioCompare.loadFailed', { default: 'The audio file could not be opened.' }) });
