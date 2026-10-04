@@ -6,6 +6,7 @@ import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import { mediaSessionService } from '$lib/services/media-session';
 import { ModulePlayerService } from '$lib/services/module-player';
 import { createPatternChannelControls } from '$lib/services/pattern-channel-controls';
+import { patternChannelMemory } from '$lib/stores/pattern-channel-memory';
 import { loadTrackMetadata } from '$lib/services/stream-artwork';
 import { VideoPlayerService } from '$lib/services/video-player';
 import { metadataSettings } from '$lib/stores/metadata-settings';
@@ -22,7 +23,7 @@ import {
   type TrackKind,
   type TrackMetadata
 } from '$lib/types';
-import { mergeInferredArtistTitle } from '$lib/utils/files';
+import { getTrackIdentity, mergeInferredArtistTitle } from '$lib/utils/files';
 
 interface PlaybackStatusSnapshot {
   state: PlaybackState;
@@ -129,7 +130,7 @@ function createPlayerController() {
     if (track?.kind !== 'module') return;
     (isHivelyModule(track) ? activeBundle.hively : activeBundle.module)
       .setChannelMutes(mutedChannels);
-  });
+  }, patternChannelMemory);
 
   function publishActiveMediaElements(): void {
     mediaElements.set({
@@ -185,7 +186,12 @@ function createPlayerController() {
     if (!bundle.track) return;
     bundle.track = applyMetadataInference(bundle.track, metadata);
     applyBundleTransitionGain(bundle);
-    if (bundle === activeBundle) currentTrack.set(bundle.track);
+    if (bundle === activeBundle) {
+      currentTrack.set(bundle.track);
+      if (bundle.track.kind === 'module' && metadata.channels !== undefined) {
+        patternChannels.setTrack(bundle.track.id, metadata.channels, getTrackIdentity(bundle.track));
+      }
+    }
   }
 
   function updateBundlePattern(
@@ -205,7 +211,7 @@ function createPlayerController() {
       ...partial,
       trackId: bundle.track?.id ?? null
     }));
-    if (partial.song) patternChannels.setTrack(bundle.track.id, partial.song.channels.length);
+    if (partial.song) patternChannels.setTrack(bundle.track.id, partial.song.channels.length, getTrackIdentity(bundle.track));
   }
 
   function createBundle(): PlaybackBundle {
@@ -392,7 +398,11 @@ function createPlayerController() {
     bundle.module.stop({ silent: true });
     bundle.hively.stop({ silent: true });
     bundle.video.unload();
-    if (bundle === activeBundle) mediaElements.set({ video: null });
+    if (bundle === activeBundle) {
+      mediaElements.set({ video: null });
+      patternChannels.setTrack(null);
+      modulePattern.set({ ...initialModulePatternSnapshot });
+    }
     const preparedTrack = await prepareTrackMetadata(track);
     if (loadId !== bundle.loadSequence) return false;
     bundle.track = preparedTrack;
@@ -419,6 +429,7 @@ function createPlayerController() {
       const service = isHivelyModule(preparedTrack) ? bundle.hively : bundle.module;
       await service.load(preparedTrack);
       if (loadId !== bundle.loadSequence) return false;
+      if (bundle === activeBundle && bundle.track) restorePatternChannels(bundle.track);
       applyBundleTransitionGain(bundle);
       if (autoPlay) {
         service.play();
@@ -450,6 +461,13 @@ function createPlayerController() {
       backend: activeBundle.track?.kind ?? null,
       error: undefined
     });
+  }
+
+  function restorePatternChannels(track: TrackItem): void {
+    if (track.kind !== 'module') return;
+    const key = getTrackIdentity(track);
+    const count = track.metadata?.channels ?? patternChannelMemory.getSnapshot()[key]?.length;
+    if (count !== undefined) patternChannels.setTrack(track.id, count, key);
   }
 
   async function loadActive(
@@ -528,6 +546,7 @@ function createPlayerController() {
     activeBundle = incoming;
     modulePattern.set({ ...initialModulePatternSnapshot });
     patternChannels.setTrack(null);
+    restorePatternChannels(incoming.track!);
     publishActiveMediaElements();
     outgoingBundle = previous;
     desiredPlaybackState = autoPlay ? 'playing' : 'paused';
@@ -694,6 +713,7 @@ function createPlayerController() {
       activeBundle = createBundle();
       publishActiveMediaElements();
       currentTrack.set(null);
+      patternChannels.setTrack(null);
       logInfo('playback', 'Playback unloaded');
       modulePattern.set({ ...initialModulePatternSnapshot });
       publish({
@@ -754,6 +774,7 @@ function createPlayerController() {
       unsubscribeModuleSettings();
       unsubscribeMetadataSettings();
       unsubscribePlaybackSettings();
+      patternChannels.destroy();
       if (outgoingTimer !== null) window.clearTimeout(outgoingTimer);
       for (const bundle of [...bundles]) destroyBundle(bundle);
       mediaElements.set({ video: null });

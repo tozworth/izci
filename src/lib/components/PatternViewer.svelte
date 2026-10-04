@@ -2,6 +2,7 @@
   import { createEventDispatcher, onDestroy, tick } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from './HoverTooltip.svelte';
+  import MenuSurface from './MenuSurface.svelte';
   import { isPatternCellEmpty, splitPatternCell } from '$lib/services/pattern-presentation';
   import { SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE } from '$lib/services/scrollbar-visibility';
   import { patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
@@ -16,11 +17,13 @@
   export let track: TrackItem | null = null;
   export let snapshot: ModulePatternSnapshot;
   export let playbackSnapshot: PlaybackSnapshot | null = null;
-  export let channelSnapshot: PatternChannelSnapshot = { trackId: null, channels: [] };
+  export let channelSnapshot: PatternChannelSnapshot = { trackId: null, channels: [], remembered: false };
 
   const dispatch = createEventDispatcher<{
     toggleChannelMute: { trackId: string; index: number };
     toggleChannelSolo: { trackId: string; index: number };
+    resetChannels: { trackId: string };
+    toggleRememberChannels: { trackId: string };
   }>();
 
   let viewport: HTMLDivElement | null = null;
@@ -32,6 +35,7 @@
   let ignoredScrollElement: HTMLElement | null = null;
   let ignoredScrollTimer: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
+  let channelMenu: { trackId: string; x: number; y: number } | null = null;
 
   const PROGRAMMATIC_SCROLL_MS = 720;
 
@@ -48,6 +52,11 @@
   }));
   $: channelControlsAvailable = isCurrentModule && channelSnapshot.trackId === track?.id;
   $: channelStates = channelControlsAvailable ? channelSnapshot.channels : [];
+  $: if (channelMenu && (!channelControlsAvailable || channelMenu.trackId !== track?.id)) channelMenu = null;
+  $: channelMenuItems = [
+    { id: 'reset', label: $t('main.patterns.resetChannels', { default: 'Reset channels' }), icon: 'restart_alt' },
+    { id: 'remember', label: $t('main.patterns.remember', { default: 'Remember' }), checked: channelSnapshot.remembered }
+  ];
   $: orderCount = song?.orders.length ?? 0;
   $: rowCount = pattern?.rows.length ?? 0;
   $: activeRow = Math.min(Math.max(snapshot.row, 0), Math.max(rowCount - 1, 0));
@@ -73,6 +82,21 @@
     }
 
     return value.toString(16).toUpperCase().padStart(minimumWidth, '0');
+  }
+
+  function openChannelMenu(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!track || !channelControlsAvailable) return;
+    channelMenu = { trackId: track.id, x: event.clientX, y: event.clientY };
+  }
+
+  function handleChannelMenuAction(action: string): void {
+    if (!channelMenu) return;
+    const { trackId } = channelMenu;
+    channelMenu = null;
+    if (action === 'reset') dispatch('resetChannels', { trackId });
+    else if (action === 'remember') dispatch('toggleRememberChannels', { trackId });
   }
 
   function formatPosition(value: number, total: number): string {
@@ -196,7 +220,7 @@
   aria-label={$t('main.patterns.modulePatterns', { default: 'Module patterns' })}
 >
   {#if track?.kind === 'module' && song && pattern}
-    <header class="pattern-toolbar">
+    <header class="pattern-toolbar" role="toolbar" tabindex="0" aria-label={$t('main.patterns.modulePatterns', { default: 'Module patterns' })} on:contextmenu={openChannelMenu}>
       <div class="pattern-toolbar-controls">
         <span class="pattern-channel-count">{$t('main.patterns.channelCount', {
           default: '{count, plural, one {# channel} other {# channels}}',
@@ -225,7 +249,7 @@
       aria-rowcount={rowCount + 1}
       aria-colcount={channelCount + 1}
     >
-      <div class="pattern-grid pattern-channel-header" role="row">
+      <div class="pattern-grid pattern-channel-header" role="row" tabindex="0" on:contextmenu={openChannelMenu}>
         <span class="pattern-row-heading" role="columnheader">{$t('main.patterns.rowAbbreviation', { default: 'ROW' })}</span>
         {#each channels as channel}
           <span
@@ -325,6 +349,17 @@
     </div>
   {/if}
 </section>
+
+{#if channelMenu}
+  <MenuSurface
+    items={channelMenuItems}
+    x={channelMenu.x}
+    y={channelMenu.y}
+    ariaLabel={$t('main.patterns.modulePatterns', { default: 'Module patterns' })}
+    on:action={(event) => handleChannelMenuAction(event.detail)}
+    on:dismiss={() => channelMenu = null}
+  />
+{/if}
 
 <style>
   .pattern-viewer {
