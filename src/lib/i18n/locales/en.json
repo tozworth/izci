@@ -1015,6 +1015,8 @@
       },
       "heading": "Folders",
       "description": "Every folder izci has remembered, including folders used for library scans.",
+      "androidAccess": "Android remembers access to selected files and folders across launches. If access is revoked, use Check access and select the same folder again.",
+      "accessFailed": "Folder access failed: {reason}",
       "actions": {
         "checkAllAccess": "Check all folder access",
         "add": "Add folder",

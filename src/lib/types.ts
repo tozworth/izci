@@ -1,4 +1,5 @@
 import type { PresetIcon } from '$lib/utils/preset-icons';
+import type { NativeFileReference } from '$lib/services/platform-files-types';
 
 export const STREAM_EXTENSIONS = ['mp3', 'wav', 'flac', 'ogg', 'opus'] as const;
 export const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'mov', 'webm', 'mkv'] as const;
@@ -564,6 +565,7 @@ export interface TrackItem {
   fileHandle?: FileSystemFileHandle;
   /** Disk-backed desktop association file, restored through the native shell. */
   desktopFile?: true;
+  nativeFile?: NativeFileReference;
   path?: string;
   sourceFolderId?: string;
   name: string;

@@ -1,7 +1,8 @@
 import { inferExtension, inferKind } from '$lib/utils/files';
 import { logDebug, logWarning } from '$lib/services/logging';
 import type { TrackItem } from '$lib/types';
-import { isDesktop, materializePlatformFile } from '$platform';
+import { isDesktop, materializePlatformFile, nativeFilesystem } from '$platform';
+import { getNativeMediaUrl } from '$lib/utils/native-media-files';
 import { useAndroidFileSnapshot } from '$lib/utils/file-read-policy';
 
 /**
@@ -15,6 +16,9 @@ function createObjectUrl(item: Pick<TrackItem, 'kind'>, file: File): Promise<str
   if (item.kind !== 'stream' && item.kind !== 'video' && item.kind !== 'image') {
     return Promise.resolve(undefined);
   }
+
+  const nativeUrl = getNativeMediaUrl(file);
+  if (nativeUrl) return Promise.resolve(nativeUrl);
 
   if (item.kind === 'stream' && useAndroidFileSnapshot(file.size)) {
     return file
@@ -70,6 +74,16 @@ export async function materializeTrackItem(item: TrackItem, prompt = false): Pro
     const kind = inferKind(extension);
     if (!kind) return null;
     return { ...item, file, extension, kind, size: file.size, lastModified: file.lastModified,
+      objectUrl: await createObjectUrl({ kind }, file) };
+  }
+
+  if (nativeFilesystem && item.nativeFile) {
+    const file = await nativeFilesystem.materializeFile(item.nativeFile);
+    // Preserve verified unknown-extension modules when restoring SAF references.
+    const extension = inferExtension(file.name);
+    const kind = inferKind(extension) ?? (item.kind === 'module' ? 'module' : null);
+    if (!kind) return null;
+    return { ...item, file, name: file.name, extension, kind, size: file.size, lastModified: file.lastModified,
       objectUrl: await createObjectUrl({ kind }, file) };
   }
 

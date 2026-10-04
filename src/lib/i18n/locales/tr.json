@@ -1023,6 +1023,8 @@
       },
       "heading": "Klasörler",
       "description": "izci'nin hatırladığı tüm klasörler: kütüphane taramalarında kullanılanlar dahil.",
+      "androidAccess": "Android, seçilen dosya ve klasörlere erişimi açılışlar arasında hatırlar. Erişim izni kaldırılırsa Erişimi kontrol et ile aynı klasörü yeniden seçin.",
+      "accessFailed": "Klasöre erişilemedi: {reason}",
       "actions": {
         "checkAllAccess": "Tüm klasör erişimlerini kontrol et",
         "add": "Klasör ekle",

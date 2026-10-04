@@ -9,6 +9,7 @@ import { milkDropPresetsPlugin } from './scripts/vite/milkdrop-presets';
 
 export default defineConfig(({ mode }) => {
   const desktop = mode === 'desktop';
+  const android = mode === 'android';
   return {
     server: {
       host: '0.0.0.0',
@@ -21,7 +22,10 @@ export default defineConfig(({ mode }) => {
       format: 'es'
     },
     build: {
-      outDir: desktop ? 'dist-desktop' : 'dist',
+      outDir: desktop ? 'dist-desktop' : android ? 'dist-android' : 'dist',
+      // The APK is a debug target. Keep bundled app and worker code readable,
+      // with original TS/Svelte sources available offline in DevTools.
+      ...(android ? { minify: false, cssMinify: false, sourcemap: true } : {}),
       rollupOptions: {
         input: {
           main: fileURLToPath(new URL('./index.html', import.meta.url)),
@@ -46,14 +50,24 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
-        ...(desktop ? { 'virtual:pwa-register': fileURLToPath(new URL('./src/desktop/pwa-disabled.ts', import.meta.url)) } : {}),
-        $platform: fileURLToPath(new URL(desktop ? './src/desktop/platform.ts' : './src/platform/browser.ts', import.meta.url)),
+        ...(desktop || android ? { 'virtual:pwa-register': fileURLToPath(new URL('./src/platform/pwa-disabled.ts', import.meta.url)) } : {}),
+        $platform: fileURLToPath(new URL(desktop ? './src/desktop/platform.ts' : android ? './src/android/platform.ts' : './src/platform/browser.ts', import.meta.url)),
         $lib: fileURLToPath(new URL('./src/lib', import.meta.url)),
         chiptune3: fileURLToPath(new URL('./src/lib/vendor/chiptune3/chiptune3.js', import.meta.url))
       }
     },
     plugins: [
       milkDropPresetsPlugin(),
+      ...(android ? [{
+        name: 'android-debug-build',
+        generateBundle() {
+          this.emitFile({
+            type: 'asset' as const,
+            fileName: 'android-debug.json',
+            source: JSON.stringify({ development: process.env.NODE_ENV === 'development', minified: false, sourcemaps: true })
+          });
+        }
+      }] : []),
       {
         name: 'emit-chiptune3-runtime',
         apply: 'build',
@@ -70,7 +84,7 @@ export default defineConfig(({ mode }) => {
         }
       },
       svelte(),
-      ...(!desktop ? [VitePWA({
+      ...(!desktop && !android ? [VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['icons/izci-icon.svg', 'icons/izci-maskable.svg', 'icons/izci-file.png'],
         manifest: {

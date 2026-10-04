@@ -1,0 +1,11 @@
+<resources>
+    <style name="IzciTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#a8c7fa</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#1c1d1e</item>
+        <item name="android:navigationBarColor">#1c1d1e</item>
+        <item name="android:windowBackground">#1c1d1e</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>

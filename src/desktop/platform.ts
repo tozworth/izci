@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+export { nativeFilesystem } from '../platform/browser';
 export { hasBuiltinSignaling, startBuiltinSignaling, stopBuiltinSignaling, isBuiltinSignalingEndpoint, fetchSignaling, createSignalingSocket } from './signaling';
 export { createDesktopMiniPlayerController } from './mini-player-controller';
 export { default as DesktopWindowControls } from './DesktopWindowControls.svelte';

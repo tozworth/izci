@@ -6,7 +6,7 @@ import type { TrackItem } from '$lib/types';
 const { materializePlatformFile, preparePlaybackRestoration } = vi.hoisted(() => ({
   materializePlatformFile: vi.fn(), preparePlaybackRestoration: vi.fn()
 }));
-vi.mock('$platform', () => ({ isDesktop: true, materializePlatformFile, preparePlaybackRestoration }));
+vi.mock('$platform', () => ({ isDesktop: true, materializePlatformFile, preparePlaybackRestoration, nativeFilesystem: null }));
 
 afterEach(() => {
   vi.unstubAllGlobals();

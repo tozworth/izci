@@ -3,6 +3,8 @@ import { loadModuleMetadata } from '$lib/services/module-metadata';
 import { loadTrackMetadata } from '$lib/services/stream-artwork';
 import type { TrackItem, TrackMetadata } from '$lib/types';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
+import { nativeFilesystem } from '$platform';
+import { createMediaFileUrl } from '$lib/utils/native-media-files';
 
 interface BackgroundDeadline {
   didTimeout: boolean;
@@ -110,6 +112,9 @@ async function readStreamDuration(item: TrackItem): Promise<number | undefined> 
   }
 
   let file: File | null = item.file ?? null;
+  if (!file && item.nativeFile && nativeFilesystem) {
+    file = await nativeFilesystem.materializeFile(item.nativeFile).catch(() => null);
+  }
 
   if (!file && item.fileHandle) {
     try {
@@ -119,7 +124,7 @@ async function readStreamDuration(item: TrackItem): Promise<number | undefined> 
     }
   }
 
-  const objectUrl = item.objectUrl ?? (file ? URL.createObjectURL(file) : undefined);
+  const objectUrl = item.objectUrl ?? (file ? createMediaFileUrl(file) : undefined);
 
   if (!objectUrl) {
     return undefined;

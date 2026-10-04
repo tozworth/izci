@@ -1,5 +1,5 @@
 import type { TrackItem, TrackMetadata } from '$lib/types';
-import { isDesktop, materializePlatformFile, preparePlaybackRestoration } from '$platform';
+import { isDesktop, materializePlatformFile, preparePlaybackRestoration, nativeFilesystem } from '$platform';
 
 import { toArrayBuffer } from './stream-meta-binary';
 import { readFlacMetadata } from './stream-meta-flac';
@@ -93,6 +93,7 @@ function canLoadStreamMetadata(extension: string): boolean {
 }
 
 async function resolveTrackFile(track: TrackItem): Promise<File | null> {
+  if (track.nativeFile && nativeFilesystem) return track.file ?? nativeFilesystem.materializeFile(track.nativeFile);
   if (track.fileHandle) {
     try {
       if (isDesktop && !track.file) await preparePlaybackRestoration(track);
@@ -118,7 +119,7 @@ export function getTrackArtworkLoadKey(track: TrackItem | null): string {
   // File wrappers change during hydration; their presence and content version
   // matter, but wrapper identity and metadata-only updates do not.
   return JSON.stringify([track.id, track.extension, track.size, track.lastModified,
-    Boolean(track.file), Boolean(track.fileHandle), track.desktopFile ? track.path : null]);
+    Boolean(track.file), Boolean(track.fileHandle), track.desktopFile ? track.path : null, track.nativeFile?.uri]);
 }
 
 export async function loadTrackMetadata(track: TrackItem | null): Promise<TrackMetadata | null> {

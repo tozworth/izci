@@ -1,5 +1,5 @@
 import { registerSW } from 'virtual:pwa-register';
-import { isDesktop } from '$platform';
+import { isDesktop, nativeFilesystem } from '$platform';
 import { writable } from 'svelte/store';
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import type { PwaUpdateStatus } from '$lib/types';
@@ -229,7 +229,7 @@ async function applyRegistrationUpdate(
 }
 
 export function registerAppServiceWorker(): void {
-  if (isDesktop) return;
+  if (isDesktop || nativeFilesystem) return;
   logDebug('system', 'Service-worker registration started');
   let registration: ServiceWorkerRegistration | undefined;
 
