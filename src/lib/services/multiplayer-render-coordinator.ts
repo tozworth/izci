@@ -151,12 +151,7 @@ class MultiplayerRenderCoordinator {
       moduleBytes: job.track.kind === 'module' ? await job.track.file!.arrayBuffer() : null,
       bitrateKbps: job.bitrateKbps,
       hivelyWasmUrl: new URL('/vendor/hively-replay.wasm', document.baseURI).href,
-      libopenmptUrl: new URL(
-        import.meta.env.DEV
-          ? '/src/lib/vendor/chiptune3/libopenmpt.worklet.js'
-          : '/assets/libopenmpt.worklet.js',
-        document.baseURI
-      ).href
+      subsong: job.track.subsong
     };
 
     let result: MultiplayerRenderResult;

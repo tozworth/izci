@@ -4,18 +4,9 @@
  * Editor adapter collects the same chunks when it needs complete channel data.
  */
 
-interface OpenMptModule {
-  HEAPU8: Uint8Array;
-  HEAPF32: Float32Array;
-  _malloc(size: number): number;
-  _free(pointer: number): void;
-  _openmpt_module_create_from_memory(data: number, size: number, log: number, user: number, error: number): number;
-  _openmpt_module_destroy(module: number): void;
-  _openmpt_module_get_duration_seconds(module: number): number;
-  _openmpt_module_read_float_stereo(module: number, sampleRate: number, frames: number, left: number, right: number): number;
-  _openmpt_module_set_repeat_count(module: number, count: number): void;
-  _openmpt_module_set_render_param(module: number, parameter: number, value: number): void;
-}
+import { initializeOpenMpt } from './openmpt/runtime';
+import { OpenMptModule } from './openmpt/module';
+import { DEFAULT_OPENMPT_SETTINGS } from './openmpt/protocol';
 
 interface HivelyExports extends WebAssembly.Exports {
   memory: WebAssembly.Memory;
@@ -25,6 +16,7 @@ interface HivelyExports extends WebAssembly.Exports {
   ahx_init(): void;
   ahx_load(data: number, size: number, sampleRate: number, stereo: number): number;
   ahx_unload(): void;
+  ahx_select_subsong(subsong: number): number;
   ahx_set_interpolation(filter: number): void;
   ahx_duration_frames(): number;
   ahx_decode_frame(): number;
@@ -38,7 +30,7 @@ export interface ModuleRenderRequest {
   extension: string;
   module: ArrayBuffer;
   hivelyWasmUrl: string;
-  libopenmptUrl: string;
+  subsong?: number;
   sampleRate: number;
 }
 
@@ -53,8 +45,6 @@ interface ModulePcmChunk {
   right: Float32Array<ArrayBuffer>;
 }
 
-const OPENMPT_STEREO_SEPARATION = 2;
-const OPENMPT_INTERPOLATION_FILTER_LENGTH = 3;
 const MODULE_CHUNK_FRAMES = 16_384;
 
 function grow(channel: Float32Array<ArrayBuffer>, requiredLength: number): Float32Array<ArrayBuffer> {
@@ -86,56 +76,27 @@ async function streamOpenMpt(
   onChunk: (chunk: ModulePcmChunk) => void | Promise<void>,
   onProgress: (progress: ModuleRenderProgress) => void
 ): Promise<number> {
-  const imported = await import(/* @vite-ignore */ request.libopenmptUrl) as {
-    default: () => Promise<OpenMptModule>;
-  };
-  const core = await imported.default();
-  const inputBytes = new Uint8Array(request.module);
-  const inputPointer = core._malloc(inputBytes.byteLength);
-  core.HEAPU8.set(inputBytes, inputPointer);
-  const modulePointer = core._openmpt_module_create_from_memory(inputPointer, inputBytes.byteLength, 0, 0, 0);
-  if (!modulePointer) {
-    core._free(inputPointer);
-    throw new Error('libopenmpt could not decode this module.');
-  }
-
-  const leftPointer = core._malloc(MODULE_CHUNK_FRAMES * 4);
-  const rightPointer = core._malloc(MODULE_CHUNK_FRAMES * 4);
-  const duration = Math.max(0, core._openmpt_module_get_duration_seconds(modulePointer));
-  const expectedFrames = Math.max(1, Math.ceil(duration * request.sampleRate));
-  const reportProgress = createProgressReporter(request.sampleRate, expectedFrames, onProgress);
+  const module = new OpenMptModule(await initializeOpenMpt(), request.module, request.subsong);
   let renderedFrames = 0;
-
   try {
-    core._openmpt_module_set_repeat_count(modulePointer, 0);
-    core._openmpt_module_set_render_param(modulePointer, OPENMPT_STEREO_SEPARATION, 100);
-    core._openmpt_module_set_render_param(modulePointer, OPENMPT_INTERPOLATION_FILTER_LENGTH, 4);
-
+    module.configure(DEFAULT_OPENMPT_SETTINGS);
+    const expectedFrames = Math.max(1, Math.ceil(module.duration * request.sampleRate));
+    const reportProgress = createProgressReporter(request.sampleRate, expectedFrames, onProgress);
     while (true) {
-      const frames = core._openmpt_module_read_float_stereo(
-        modulePointer,
-        request.sampleRate,
-        MODULE_CHUNK_FRAMES,
-        leftPointer,
-        rightPointer
-      );
+      let chunk: ModulePcmChunk | undefined;
+      const frames = module.read(request.sampleRate, MODULE_CHUNK_FRAMES, (left, right, length) => {
+        if (length) chunk = { startFrame: renderedFrames, left: left.slice(), right: right.slice() };
+      });
       if (frames <= 0) break;
-      const startFrame = renderedFrames;
-      const left = core.HEAPF32.slice(leftPointer / 4, leftPointer / 4 + frames);
-      const right = core.HEAPF32.slice(rightPointer / 4, rightPointer / 4 + frames);
-      await onChunk({ startFrame, left, right });
+      await onChunk(chunk!);
       renderedFrames += frames;
       reportProgress(renderedFrames);
     }
+    reportProgress(renderedFrames, true);
+    return renderedFrames;
   } finally {
-    core._openmpt_module_destroy(modulePointer);
-    core._free(leftPointer);
-    core._free(rightPointer);
-    core._free(inputPointer);
+    module.dispose();
   }
-
-  reportProgress(renderedFrames, true);
-  return renderedFrames;
 }
 
 async function streamHively(
@@ -161,6 +122,10 @@ async function streamHively(
   const loaded = core.ahx_load(inputPointer, inputBytes.byteLength, request.sampleRate, 2);
   core.free(inputPointer);
   if (!loaded) throw new Error('HivelyTracker could not decode this module.');
+  if (request.subsong && !core.ahx_select_subsong(request.subsong)) {
+    core.ahx_unload();
+    throw new Error('HivelyTracker could not select this subsong.');
+  }
   core.ahx_set_interpolation(4);
 
   const durationFrames = core.ahx_duration_frames();

@@ -19,7 +19,7 @@
 
 - Preserve all playback paths:
   - streamed / "regular" audio (`mp3`, `wav`, `flac`, `ogg`, `opus`) use Howler in HTML5 audio mode;
-  - tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) use Chiptune3/libopenmpt and Web Audio; Hively modules (`ahx`, `hvl`) use their own worklet-backed player and pattern data;
+  - tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) use the custom libopenmpt WASM controller/worklet and Web Audio; Hively modules (`ahx`, `hvl`) use their own worklet-backed player and pattern data;
   - videos (`mp4`, `m4v`, `mov`, `webm`, `mkv`) use a native video element with audio routed through the shared Web Audio graph when Chromium permits it.
 - Keep playback, persistence, DSP, and browser-integration logic in services/stores. Svelte components should primarily render and dispatch events.
 - Preserve persistence boundaries:
@@ -50,7 +50,7 @@
 - `src/options/`: separate Options Vite/Svelte entrypoint and settings UI. Options edits stores; it does not own audio nodes or main-window library mutation.
 - `src/tools/`: standalone Audio Compare, Editor, Converter, Logs, and Troubadour window code; `tool-shell.css` supplies their shared desktop-window styling.
 - `src/lib/types.ts`: shared domain types and canonical internally supported extensions.
-- `vite.config.ts`: build/PWA configuration, manifest/file handlers, and Chiptune3 worklet emission.
+- `vite.config.ts`: build/PWA configuration, manifest/file handlers, and module runtime assets.
 - `public/`: icons and other static assets.
 
 ## Playback and audio ownership
@@ -58,10 +58,10 @@
 - `player-controller.ts` owns backend switching and the shared playback snapshot.
 - `playback-commands.ts` owns app-level play/load/seek/navigation sequencing.
 - `howler-player.ts`, `module-player.ts`, `ahx-player.ts`, and `video-player.ts` own their respective backends; `player-controller.ts` remains the only backend switcher.
-- `module-player.ts`, `chiptune-loader.ts`, the libopenmpt worklet, and its Vite asset emission form one coupled module pipeline; `ahx-player.ts`, its worklet, and `hively-patterns.ts` form the coupled Hively pipeline.
+- `module-player.ts` and `services/openmpt/` own the libopenmpt controller, worklet, reusable decoder worker, and shared WASM bindings; `ahx-player.ts`, its worklet, and `hively-patterns.ts` form the coupled Hively pipeline.
 - `media-session.ts` owns Chromium media metadata/actions and the silent module transport anchor.
 - `audio-bus.ts` owns the shared Web Audio routing. The intended graph is:
-  `Howler/Chiptune3/video source -> transition envelope -> raw program tap` and
+  `Howler/libopenmpt/video source -> transition envelope -> raw program tap` and
   `transition envelope -> ReplayGain -> Raf -> analyser -> master volume -> destination`.
 - Player volume/mute belongs after Raf. Stream ReplayGain is a deliberate pre-Raf adjustment. Howler backend volume is only a fallback when media-element Web Audio routing is unavailable.
 - `raf-engine.ts` and `raf-effects/` own DSP. Raf settings are normalized, synchronized, and applied independently of the Options window lifecycle. Parameter updates should be differential and smoothed from a finite anchored value. Video bypasses Auto Amp but otherwise uses the shared chain.
@@ -71,7 +71,7 @@
 ## Files, metadata, and library
 
 - Extension/kind inference and supported-format behavior stay centralized in `src/lib/types.ts` and `src/lib/utils/files.ts`.
-- Unknown-extension verification applies only to unknown files: when enabled, a separate muted OpenMPT probe must accept them; when disabled, normal module playback may succeed or fail.
+- Unknown-extension verification applies only to unknown files: when enabled, the reusable background libopenmpt decoder must accept them without creating audio players; when disabled, normal module playback may succeed or fail.
 - Only media-element formats (streams and videos) receive object URLs. Preserve `ensureLoaded()` and File System Access permission behavior during materialization.
 - `queue.ts` remains the public queue/library store facade; focused sibling modules own persistence, materialization, selection, metadata, navigation, and deduplication.
 - Queue and library persist separately. The library deduplicates; the queue does not.

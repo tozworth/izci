@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
@@ -44,16 +43,11 @@ export default defineConfig(({ mode }) => {
         }
       }
     },
-    optimizeDeps: {
-      // Keep chiptune3 unbundled so its internal AudioWorklet URL resolves to the package runtime files.
-      exclude: ['chiptune3']
-    },
     resolve: {
       alias: {
         ...(desktop || android ? { 'virtual:pwa-register': fileURLToPath(new URL('./src/platform/pwa-disabled.ts', import.meta.url)) } : {}),
         $platform: fileURLToPath(new URL(desktop ? './src/desktop/platform.ts' : android ? './src/android/platform.ts' : './src/platform/browser.ts', import.meta.url)),
-        $lib: fileURLToPath(new URL('./src/lib', import.meta.url)),
-        chiptune3: fileURLToPath(new URL('./src/lib/vendor/chiptune3/chiptune3.js', import.meta.url))
+        $lib: fileURLToPath(new URL('./src/lib', import.meta.url))
       }
     },
     plugins: [
@@ -68,21 +62,6 @@ export default defineConfig(({ mode }) => {
           });
         }
       } satisfies Plugin] : []),
-      {
-        name: 'emit-chiptune3-runtime',
-        apply: 'build',
-        generateBundle() {
-          // Emit the local runtime, including izci's interactive-interface bridge,
-          // at the fixed relative path imported by chiptune3.worklet.js.
-          this.emitFile({
-            type: 'asset',
-            fileName: 'assets/libopenmpt.worklet.js',
-            source: readFileSync(
-              fileURLToPath(new URL('./src/lib/vendor/chiptune3/libopenmpt.worklet.js', import.meta.url))
-            )
-          });
-        }
-      },
       svelte(),
       ...(!desktop && !android ? [VitePWA({
         registerType: 'autoUpdate',

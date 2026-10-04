@@ -162,7 +162,6 @@ export const architectureConfig = Object.freeze({
     /^src\/(?:options|tools\/[^/]+)\/main\.ts$/,
     /(?:^|\/)\w[\w.-]*\.worker\.[jt]s$/,
     /(?:^|\/)\w[\w.-]*\.worklet\.[jt]s$/,
-    /^src\/lib\/vendor\/chiptune3\/chiptune3\.js$/,
     /^public\/vendor\/ahx-worklet\.js$/,
     /^sites-worker\.js$/,
     /^(?:svelte|vite)\.config\.[jt]s$/

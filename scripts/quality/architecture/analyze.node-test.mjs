@@ -115,7 +115,7 @@ test('classifies execution realms and isolates vendor and Node-build global obse
     'public/vendor/ahx-worklet.js': 'class Processor extends AudioWorkletProcessor {}\nWebAssembly.compile(new Uint8Array());\nregisterProcessor("ahx", Processor);\n',
     'src/main.ts': 'window.name = "app";\n',
     'src/render.worker.ts': 'self.postMessage("ready");\n',
-    'src/lib/vendor/chiptune3/runtime.js': 'window.name = "vendor";\n',
+    'src/lib/vendor/libopenmpt/runtime.js': 'window.name = "vendor";\n',
     'vite.config.ts': 'const base = new URL(".", import.meta.url);\nexport default { base };\n'
   });
   t.after(() => fs.rm(root, { recursive: true, force: true }));
@@ -128,7 +128,7 @@ test('classifies execution realms and isolates vendor and Node-build global obse
   assert.deepEqual(report.source.runtimes, {
     browser: ['src/main.ts'],
     'node-build': ['vite.config.ts'],
-    vendor: ['public/vendor/ahx-worklet.js', 'src/lib/vendor/chiptune3/runtime.js'],
+    vendor: ['public/vendor/ahx-worklet.js', 'src/lib/vendor/libopenmpt/runtime.js'],
     worker: ['public/raf-upward-compressor.worklet.js', 'src/render.worker.ts']
   });
   assert.ok(report.source.entrypoints.includes('public/raf-upward-compressor.worklet.js'));

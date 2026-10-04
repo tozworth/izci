@@ -186,14 +186,6 @@ Source: https://registry.npmjs.org/axobject-query/-/axobject-query-4.1.0.tgz
 
 Full license/notice texts: L013 (LICENSE).
 
-### chiptune3 0.8.4
-
-License: MIT
-
-Source: https://registry.npmjs.org/chiptune3/-/chiptune3-0.8.4.tgz
-
-Full license/notice texts: L014 (LICENSE).
-
 ### clsx 2.1.1
 
 License: MIT
@@ -402,13 +394,23 @@ Full license/notice texts: L030 (LICENSE).
 
 These native libraries are compiled into shipped WASM assets or into encoder JavaScript packages. Their licenses are separate from the license metadata of their wrappers.
 
+### Emscripten loader support
+
+The retained generated loader and AudioWorklet environment shims originated in
+the chiptune3 0.8.4 distribution. The Chiptune wrapper and package dependency
+have been removed; the original MIT notice is retained for artifact provenance.
+
+Source: https://registry.npmjs.org/chiptune3/-/chiptune3-0.8.4.tgz
+
+Full license/notice text: L014 (LICENSE).
+
 ### libopenmpt 0.8.4
 
 License: BSD-3-Clause
 
 Source: https://github.com/OpenMPT/openmpt/tree/libopenmpt-0.8.4
 
-The vendored libopenmpt.worklet.js embeds this version. Its build features identify MINIZ, MINIMP3, STBVORBIS and PLUGINS; it does not identify mpg123. izci adds a JavaScript bridge exposing interactive-interface function pointers.
+The direct libopenmpt.wasm artifact uses this version. Its Emscripten loader is runtime.js. Its build features identify MINIZ, MINIMP3, STBVORBIS and PLUGINS; it does not identify mpg123. izci adds a JavaScript bridge exposing interactive-interface function pointers.
 
 Full license/notice texts: L031 (LICENSE).
 

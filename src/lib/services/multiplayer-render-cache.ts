@@ -21,7 +21,7 @@ interface CacheEntry extends CachedRender {
   bytes: number;
 }
 
-const RENDER_VERSION = 2;
+const RENDER_VERSION = 3;
 
 interface RenderSourceIdentity {
   path?: string;

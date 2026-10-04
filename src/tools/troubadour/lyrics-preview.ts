@@ -1,7 +1,7 @@
 import { writable, type Readable } from 'svelte/store';
-import { createChiptunePlayer } from '$lib/services/chiptune-loader';
+import { OpenMptPlayer } from '$lib/services/openmpt/player';
+import { DEFAULT_OPENMPT_SETTINGS } from '$lib/services/openmpt/protocol';
 import { MODULE_EXTENSIONS, type TrackKind } from '$lib/types';
-import type { ChiptuneJsPlayer } from 'chiptune3';
 
 type PreviewBackend = 'stream' | 'module';
 
@@ -68,11 +68,9 @@ export function createLyricsPreview(): Readable<LyricsPreviewState> & {
   let objectUrl = '';
   let audioClock = 0;
 
-  let modulePlayer: ChiptuneJsPlayer | null = null;
-  let moduleBuffer: ArrayBuffer | null = null;
+  let modulePlayer: OpenMptPlayer | null = null;
   let moduleLoadToken = 0;
   let modulePlaying = false;
-  let moduleStarted = false;
   let moduleCurrentTime = 0;
   let moduleDuration = 0;
   let backend: PreviewBackend | null = null;
@@ -91,20 +89,9 @@ export function createLyricsPreview(): Readable<LyricsPreviewState> & {
   const disposeModulePlayer = () => {
     const player = modulePlayer;
     modulePlayer = null;
-    moduleBuffer = null;
     modulePlaying = false;
-    moduleStarted = false;
     if (!player) return;
-    try {
-      player.stop();
-    } catch {
-      // Ignore teardown failures.
-    }
-    try {
-      player.gain.disconnect();
-    } catch {
-      // Ignore disconnect failures during teardown.
-    }
+    player.dispose();
     void player.context.close().catch(() => undefined);
   };
 
@@ -146,80 +133,65 @@ export function createLyricsPreview(): Readable<LyricsPreviewState> & {
   const loadModule = async (file: File, loadToken: number) => {
     publish({ ...EMPTY_STATE });
     let buffer: ArrayBuffer;
-    try {
-      buffer = await file.arrayBuffer();
-    } catch {
-      if (loadToken === moduleLoadToken) publish({ error: 'decode' });
-      return;
-    }
+    try { buffer = await file.arrayBuffer(); }
+    catch { if (loadToken === moduleLoadToken) publish({ error: 'decode' }); return; }
     if (loadToken !== moduleLoadToken) return;
-    let player: ChiptuneJsPlayer;
-    try {
-      player = await createChiptunePlayer({ repeatCount: 0 });
-    } catch {
+    const context = new AudioContext();
+    let player: OpenMptPlayer;
+    try { player = await OpenMptPlayer.create(context); }
+    catch {
+      void context.close().catch(() => undefined);
       if (loadToken === moduleLoadToken) publish({ error: 'decode' });
       return;
     }
     if (loadToken !== moduleLoadToken) {
-      try {
-        player.stop();
-      } catch {
-        // Ignore teardown failures.
-      }
-      void player.context.close().catch(() => undefined);
+      player.dispose();
+      void context.close().catch(() => undefined);
       return;
     }
     modulePlayer = player;
-    moduleBuffer = buffer;
-    player.setVol(1);
-    player.onEnded(() => {
-      if (player !== modulePlayer) return;
-      modulePlaying = false;
-      moduleStarted = false;
-      moduleCurrentTime = moduleDuration;
-      publish({ currentTime: moduleCurrentTime, duration: moduleDuration, playing: false });
-    });
-    player.onError(() => {
-      if (player !== modulePlayer) return;
-      modulePlaying = false;
-      moduleStarted = false;
-      publish({ playing: false, ready: false, error: 'decode' });
-    });
-    player.onMetadata((metadata) => {
-      if (player !== modulePlayer) return;
-      const duration = typeof metadata.dur === 'number' && Number.isFinite(metadata.dur)
-        ? (metadata.dur > 1000 ? metadata.dur / 1000 : metadata.dur)
-        : 0;
-      moduleDuration = duration;
-      publish({ duration, ready: true, error: '' });
-    });
-    player.onProgress((progress) => {
-      if (player !== modulePlayer || !modulePlaying) return;
-      moduleCurrentTime = typeof progress.pos === 'number' && progress.pos > 1000
-        ? progress.pos / 1000
-        : progress.pos;
-      publish({ currentTime: moduleCurrentTime });
-    });
+    player.gain.connect(context.destination);
+    player.handlers = {
+      ended: () => {
+        if (player !== modulePlayer) return;
+        modulePlaying = false;
+        moduleCurrentTime = moduleDuration;
+        publish({ currentTime: moduleCurrentTime, duration: moduleDuration, playing: false });
+      },
+      error: () => {
+        if (player !== modulePlayer) return;
+        modulePlaying = false;
+        publish({ playing: false, ready: false, error: 'decode' });
+      },
+      metadata: ({ metadata }) => {
+        if (player !== modulePlayer) return;
+        moduleDuration = metadata.duration ?? 0;
+        publish({ duration: moduleDuration, ready: true, error: '' });
+      },
+      progress: (progress) => {
+        if (player !== modulePlayer) return;
+        moduleCurrentTime = progress.currentTime;
+        publish({ currentTime: moduleCurrentTime });
+      }
+    };
+    try {
+      const { metadata } = await player.load(buffer, 0, DEFAULT_OPENMPT_SETTINGS);
+      if (loadToken !== moduleLoadToken) return;
+      moduleDuration = metadata.duration ?? 0;
+      publish({ duration: moduleDuration, ready: true, error: '' });
+    } catch {
+      if (loadToken === moduleLoadToken) { disposeModulePlayer(); publish({ error: 'decode' }); }
+    }
   };
 
   const playModule = async () => {
     const player = modulePlayer;
-    if (!player || !moduleBuffer) return;
-    try {
-      if (player.context.state === 'suspended') await player.context.resume();
-    } catch {
-      // Autoplay policies surface as a decode error only when play itself fails.
-    }
-    if (!moduleStarted) {
-      player.play(moduleBuffer);
-      moduleStarted = true;
-      modulePlaying = true;
-    } else if (!modulePlaying) {
-      player.unpause();
-      modulePlaying = true;
-    } else {
-      return;
-    }
+    if (!player || !state.ready) return;
+    try { if (player.context.state === 'suspended') await player.context.resume(); }
+    catch { return; }
+    if (player !== modulePlayer || modulePlaying) return;
+    player.play();
+    modulePlaying = true;
     publish({ playing: true, error: '' });
   };
 
@@ -295,7 +267,7 @@ export function createLyricsPreview(): Readable<LyricsPreviewState> & {
     },
     seek(position) {
       if (backend === 'module') {
-        if (!modulePlayer || !moduleStarted) return;
+        if (!modulePlayer || !state.ready) return;
         modulePlayer.seek(Math.max(0, Math.min(position, moduleDuration || Number.POSITIVE_INFINITY)));
         moduleCurrentTime = Math.max(0, position);
         publish({ currentTime: moduleCurrentTime });

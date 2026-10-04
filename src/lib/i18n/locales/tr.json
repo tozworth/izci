@@ -628,7 +628,7 @@
       "desktopTagline": "Medya düzeneği",
       "openOnGitHub": "GitHub'da dunsparce9/izci repo'sunu aç",
       "openHostedPwa": "Herkese açık PWA olan izci.ağla.net’i aç",
-      "credits": "chiptune.js v3 (libopenmpt WASM), HivelyTracker, Howler.js ve Mediabunny olmasaydı izci mümkün olmazdı.",
+      "credits": "libopenmpt, HivelyTracker, Howler.js ve Mediabunny olmasaydı izci mümkün olmazdı.",
       "seeFull": "Tüm",
       "thirdPartyLicenses": "üçüncü taraf lisanslarını görün"
     },
@@ -1479,7 +1479,7 @@
       },
       "verify": {
         "title": "Eklenen dosyaları doğrula",
-        "hint": "Bilinmeyen dosya uzantılarını önce ayrı bir OpenMPT'de bi güzel kontrol eder. Kapalıysa izci, bilinmeyen her dosyayı izci modülü olarak ekler ve çalışıp çalışmadığını görmeyi size bırakır. Resmî OpenMPT uzantıları her türlü kabul edilir."
+        "hint": "Bilinmeyen dosya uzantılarını eklemeden önce arka plandaki libopenmpt çözücüsüyle denetleyin. Devre dışı olduğunda izci, bilinmeyen dosyaları izleyici modülü olarak ekler ve normal oynatma sırasında çalışıp çalışmadığını bildirir. Resmi OpenMPT uzantıları her iki durumda da doğrudan kabul edilir."
       },
       "associatedFiles": {
         "title": "izci ile açılan dosyalar",
