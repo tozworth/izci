@@ -256,9 +256,9 @@ code {
 }
 
 .tree-panel {
-  width: 190px;
+  width: 160px;
   min-width: 150px;
-  max-width: 190px;
+  max-width: 160px;
   padding: 8px 0;
   background: var(--bg-tree);
   border-right: 1px solid var(--border-soft);
@@ -321,7 +321,6 @@ code {
 
 .tree-item.child {
   padding-left: 28px;
-  color: var(--muted-strong);
 }
 
 .tree-item .material-symbols-outlined {

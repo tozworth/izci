@@ -3,6 +3,9 @@ import type { RepeatMode, TrackItem } from '$lib/types';
 import { resolveTrackFile, createTrackMediaUrl } from './file-access';
 import { ImageViewerService } from './image-viewer';
 import { createQueueNavigation } from '$lib/stores/queue-navigation';
+import { resetImagePan } from '$lib/stores/image-pan';
+import { resetImageRotation } from '$lib/stores/image-rotation';
+import { IMAGE_ZOOM_MIN, videoSettings } from '$lib/stores/video-settings';
 
 export interface ImageSessionSnapshot {
   item: TrackItem | null;
@@ -19,7 +22,12 @@ const defaultDeps = {
   createUrl: (file: File) => createTrackMediaUrl('image', file),
   revokeUrl: (url: string) => URL.revokeObjectURL(url),
   createViewer: (onState: ConstructorParameters<typeof ImageViewerService>[0],
-    onMetadata: ConstructorParameters<typeof ImageViewerService>[1]) => new ImageViewerService(onState, onMetadata)
+    onMetadata: ConstructorParameters<typeof ImageViewerService>[1]) => new ImageViewerService(onState, onMetadata),
+  resetViewport: () => {
+    resetImagePan();
+    resetImageRotation();
+    if (videoSettings.getSnapshot().imageZoom !== IMAGE_ZOOM_MIN) videoSettings.update({ imageZoom: IMAGE_ZOOM_MIN });
+  }
 };
 
 /** A transient viewing sequence, independent of the playback queue and transport. */
@@ -49,6 +57,7 @@ export function createImageSession(overrides: Partial<typeof defaultDeps> = {}) 
   async function show(item: TrackItem): Promise<void> {
     const request = ++sequence;
     release();
+    deps.resetViewport();
     publish({ item, element: null, state: 'loading', error: undefined });
     try {
       const file = await deps.resolveFile(item);

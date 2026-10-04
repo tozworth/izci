@@ -35,9 +35,9 @@ export function localizeLibraryGroup(group: LibraryGroup, translate: Translate):
   }
 
   if (group.secondaryKind === 'trackerModule') {
-    secondary = translate('library.trackerModule', { default: 'Tracker module' });
+    secondary = translate('library.trackerModule', { default: 'Module' });
   } else if (group.secondaryKind === 'stream') {
-    secondary = translate('library.stream', { default: 'Stream' });
+    secondary = translate('library.stream', { default: 'Audio' });
   } else if (group.secondaryKind === 'video') {
     secondary = translate('library.video', { default: 'Video' });
   } else if (group.secondaryKind === 'image') {

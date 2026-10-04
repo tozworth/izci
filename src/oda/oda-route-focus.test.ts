@@ -172,6 +172,14 @@ describe('resolveOdaRouteDefaultFocusId', () => {
 });
 
 describe('resolveOdaRouteFocusModel', () => {
+  it('keeps image navigation independent of the music queue and play/pause controls', () => {
+    const model = resolveOdaRouteFocusModel({ name: 'image-viewer' }, CONTEXT)!;
+    expect(model.resolveMove('th:previous', 'right', false)).toBe('th:next');
+    expect(model.resolveMove('th:next', 'right', false)).toBe('np:repeat');
+    expect(resolveOdaRouteFocusIds({ name: 'image-viewer' }, CONTEXT)).not.toContain('np:queue');
+    expect(resolveOdaRouteFocusIds({ name: 'now-playing' }, { ...CONTEXT, queueFlyoutOpen: false })).toContain('np:play-pause');
+  });
+
   it('moves across the Now Playing transport and queue regions', () => {
     const model = resolveOdaRouteFocusModel(
       { name: 'now-playing' },

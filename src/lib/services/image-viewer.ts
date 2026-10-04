@@ -62,6 +62,7 @@ export class ImageViewerService {
     this.#settlePendingLoad = null;
     if (this.#element) {
       this.#element.removeAttribute('src');
+      this.#element.remove();
       this.#element = null;
     }
   }

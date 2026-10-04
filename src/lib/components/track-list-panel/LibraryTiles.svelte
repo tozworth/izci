@@ -3,6 +3,7 @@
   import { t } from 'svelte-i18n';
   import ArtworkThumbnail from '$lib/components/ArtworkThumbnail.svelte';
   import VisualThumbnail from '$lib/components/VisualThumbnail.svelte';
+  import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import type { LibraryGroup } from './library-views';
   import type { TrackItem } from '$lib/types';
   import { getTrackDisplayTitle, getTrackDisplaySubtitle } from '$lib/utils/files';
@@ -43,6 +44,11 @@
   $: selected = new Set(selectedIds);
   $: pinned = new Set(pinnedKeys);
   afterUpdate(() => { if (host) top = host.offsetTop; });
+
+  function titleIsTruncated(anchor: HTMLElement): boolean {
+    const title = anchor.querySelector<HTMLElement>('.tile-copy strong');
+    return !!title && title.scrollWidth > title.clientWidth;
+  }
 
   async function scrollIndexIntoView(index: number) {
     if (!scrollElement || index < 0 || gallery) return;
@@ -112,7 +118,7 @@
           draggable={pinned.has(group.key)} on:dragstart={(event) => dragStart(event, group.key)}
           on:dragover={(event) => dragOver(event, group.key)} on:drop={(event) => drop(event, group.key)}
           on:dragend={() => { draggedKey = null; dropTarget = null; }}>
-          <button type="button" class="tile" title={group.label}
+          <button type="button" class="tile"
             on:click={() => dispatch('open', group.key)}
             on:keydown={(event) => handleKeydown(event, window.start + index, true)}
             on:contextmenu={(event) => dispatch('groupContextMenu', { key: group.key, event })}>
@@ -121,12 +127,13 @@
               {#if pinned.has(group.key)}<span class="tile-badge material-symbols-outlined" aria-hidden="true">keep</span>{/if}
             </span>
             <span class="tile-copy"><strong>{group.label}</strong><span>{group.secondary || getLocalizedItemCount(group.items, $t)}</span></span>
+            <HoverTooltip align="center" showWhen={titleIsTruncated}>{group.label}</HoverTooltip>
           </button>
         </li>
       {/each}
       {#each visibleItems as track, index (track.id)}
         <li data-track-id={track.id} class:selected={selected.has(track.id)} class:playing={playingId === track.id}>
-          <button type="button" class="tile" data-track-row-button title={getTrackDisplayTitle(track)}
+          <button type="button" class="tile" data-track-row-button
             aria-label={getTrackDisplayTitle(track)} aria-current={playingId === track.id ? 'true' : undefined}
             on:click={(event) => dispatch('itemClick', { id: track.id, event })}
             on:dblclick={() => dispatch('itemDoubleClick', track.id)}
@@ -142,6 +149,7 @@
             </span>
             {#if !gallery}
               <span class="tile-copy"><strong>{getTrackDisplayTitle(track)}</strong><span>{getTrackDisplaySubtitle(track) || track.extension.toUpperCase()}</span></span>
+              <HoverTooltip align="center" showWhen={titleIsTruncated}>{getTrackDisplayTitle(track)}</HoverTooltip>
             {/if}
           </button>
         </li>

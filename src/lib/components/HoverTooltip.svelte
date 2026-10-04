@@ -2,6 +2,7 @@
   export let placement: 'above' | 'below' = 'below';
   export let align: 'left' | 'center' | 'right' = 'right';
   export let nowrap = false;
+  export let showWhen: (anchor: HTMLElement) => boolean = () => true;
 
   let tooltipElement: HTMLSpanElement;
   let anchorElement: HTMLElement | null = null;
@@ -30,6 +31,7 @@
   }
 
   function showTooltip(): void {
+    if (!anchorElement || !showWhen(anchorElement)) return;
     visible = true;
     positionTooltip();
   }

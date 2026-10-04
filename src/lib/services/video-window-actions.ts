@@ -1,7 +1,7 @@
 import { appearanceSettings } from '$lib/stores/appearance-settings';
 import { IMAGE_ZOOM_MIN, stepImageZoom, videoSettings } from '$lib/stores/video-settings';
 import { resetImagePan } from '$lib/stores/image-pan';
-import { resetImageRotation, rotateImageClockwise } from '$lib/stores/image-rotation';
+import { rotateImageClockwise } from '$lib/stores/image-rotation';
 import { playerController } from '$lib/services/player-controller';
 import { windowFullscreen } from '$lib/services/window-fullscreen';
 import {
@@ -38,7 +38,6 @@ interface VideoWindowActionsDeps {
  */
 export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
   let presentationSignature = '';
-  let lastImageTrackId: string | null = null;
 
   function syncWindowSize(active: boolean, autoResizeWindow: boolean): void {
     if (active && autoResizeWindow) {
@@ -55,12 +54,6 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
 
   function syncPresentation(track: TrackItem | null, autoEnterTheater: boolean): void {
     const visualMediaActive = track?.kind === 'video' || track?.kind === 'image';
-    const imageTrackId = track?.kind === 'image' ? track.id : null;
-    if (imageTrackId !== lastImageTrackId) {
-      lastImageTrackId = imageTrackId;
-      resetZoom();
-      resetImageRotation();
-    }
     const signature = visualMediaActive
       ? `${track.id}:${autoEnterTheater ? 'auto' : 'manual'}`
       : 'inactive';
