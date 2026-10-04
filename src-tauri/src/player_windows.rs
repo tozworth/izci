@@ -95,11 +95,9 @@ pub fn dismiss_mini(app: &AppHandle) -> Result<(), String> {
     if app.tray_by_id("izci").is_some() {
         hide_mini(app)
     } else {
-        // Keep a taskbar entry available when the user has disabled the tray.
-        let mini = app
-            .get_webview_window("mini-player")
-            .ok_or("Miniplayer is unavailable")?;
-        mini.minimize().map_err(|error| error.to_string())
+        // The mini player has no taskbar entry. Restore access through the main
+        // window when the user has disabled the tray.
+        restore_main(app)
     }
 }
 

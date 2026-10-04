@@ -91,8 +91,8 @@ restore, and close controls appear on hover or keyboard focus without reserving
 a titlebar row. Native shadows are disabled to avoid Windows' nonclient border.
 Its pin preference persists; its active state and playback snapshots do not.
 Expanding it ends mini mode and restores the main window. Closing hides it to
-the tray while keeping mini mode active; without a tray icon, it minimizes to
-the taskbar instead. A single
+the tray while keeping mini mode active; without a tray icon, it restores the
+main window instead. The mini player never appears on the taskbar. A single
 tray click brings the mini player forward while in mini mode; a double-click
 ends mini mode and opens the main window. Every main-window restoration closes
 the mini player, so the two player surfaces cannot remain visible together.
