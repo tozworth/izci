@@ -256,13 +256,24 @@ code {
 }
 
 .tree-panel {
-  width: 160px;
+  width: max-content;
   min-width: 150px;
-  max-width: 160px;
   padding: 8px 0;
   background: var(--bg-tree);
   border-right: 1px solid var(--border-soft);
   overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.tree-sizing {
+  width: max-content;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.tree-sizing .tree-item {
+  width: max-content;
 }
 
 .tree {
