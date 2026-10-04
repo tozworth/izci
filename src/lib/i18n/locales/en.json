@@ -2601,8 +2601,8 @@
     "unknownYear": "Unknown year",
     "unknownFormat": "Unknown format",
     "unknownFolder": "Unknown folder",
-    "trackerModule": "Tracker module",
-    "stream": "Stream",
+    "trackerModule": "Module",
+    "stream": "Audio",
     "video": "Video",
     "image": "Image",
     "columns": {

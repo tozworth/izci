@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TrackItem } from '$lib/types';
 
 const playbackMocks = vi.hoisted(() => ({
+  viewImage: vi.fn(async (..._args: unknown[]) => undefined),
   player: {
     resumeAudio: vi.fn(() => Promise.resolve()),
     reportError: vi.fn(),
@@ -28,6 +29,8 @@ const playbackMocks = vi.hoisted(() => ({
     replaceAll: vi.fn()
   }
 }));
+
+vi.mock('./image-session', () => ({ imageSession: { open: playbackMocks.viewImage } }));
 
 vi.mock('$lib/services/player-controller', () => ({
   playerController: playbackMocks.player
@@ -292,6 +295,45 @@ describe('automatic crossfade skip behavior', () => {
 });
 
 describe('launched-file theater pre-arm', () => {
+  it('keeps an in-flight music load alive when an image is activated', async () => {
+    const playable = deferred<TrackItem>();
+    const song = track('a');
+    playbackMocks.queue.ensureLoaded.mockReturnValue(playable.promise);
+    const { controller } = createCommands();
+    const loading = controller.playTrack(song);
+    const image = { ...track('photo'), kind: 'image' as const };
+    await controller.playTrack(image);
+    expect(controller.getSnapshot().pendingPlaybackTrackId).toBe(song.id);
+    playable.resolve(song);
+    await loading;
+    expect(playbackMocks.player.load).toHaveBeenCalledWith(song, { autoPlay: true, initialPosition: 0 });
+  });
+
+  it('opens image-only launches without replacing the queue or stopping music', async () => {
+    const { controller, tracks, setPlayingTrack } = createCommands();
+    setPlayingTrack(tracks.get('a')!);
+    await controller.importLaunchedFiles([new File(['image'], 'Photo.png')], 'replace');
+    expect(playbackMocks.viewImage).toHaveBeenCalledWith(expect.objectContaining({ kind: 'image' }), expect.arrayContaining([expect.objectContaining({ name: 'Photo.png' })]));
+    expect(playbackMocks.queue.replaceAll).not.toHaveBeenCalled();
+    expect(playbackMocks.queue.add).not.toHaveBeenCalled();
+    expect(playbackMocks.player.unload).not.toHaveBeenCalled();
+    expect(playbackMocks.player.load).not.toHaveBeenCalled();
+    expect(playbackMocks.player.resumeAudio).not.toHaveBeenCalled();
+  });
+
+  it('opens library images without queue insertion, resume lookup, or a playback request', async () => {
+    const image = { ...track('photo'), kind: 'image' as const };
+    const images = [image, { ...image, id: 'other-photo' }];
+    const resolveResumePosition = vi.fn();
+    const { controller } = createCommands({ getTrackById: () => image, getLibraryItems: () => images, resolveResumePosition });
+    await controller.activateLibraryTrack(image.id);
+    expect(playbackMocks.viewImage).toHaveBeenCalledWith(image, images);
+    expect(playbackMocks.queue.add).not.toHaveBeenCalled();
+    expect(playbackMocks.queue.ensureLoaded).not.toHaveBeenCalled();
+    expect(resolveResumePosition).not.toHaveBeenCalled();
+    expect(controller.getSnapshot().pendingPlaybackTrackId).toBeNull();
+  });
+
   it('activates the media tab for visual launches when auto-enter is enabled', async () => {
     const { videoSettings, DEFAULT_VIDEO_SETTINGS } = await import('$lib/stores/video-settings');
     videoSettings.set({ ...DEFAULT_VIDEO_SETTINGS, autoEnterTheater: true });

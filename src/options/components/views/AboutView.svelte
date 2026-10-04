@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { locale, t } from 'svelte-i18n';
-  import { platformCapabilities, platformId } from '$platform';
+  import { platformCapabilities } from '$platform';
   import { version as appVersion } from '../../../../package.json';
   import {
     applyAvailableServiceWorkerUpdate,
@@ -54,9 +54,6 @@
         <span class="about-version">{displayVersion}</span>
         <span class="about-codename">“{codename}”</span>
       </h1>
-      <p class="about-tagline">{platformId !== 'pwa'
-        ? $t('options.about.desktopTagline', { default: 'Media contraption' })
-        : $t('options.about.tagline', { default: 'PWA media contraption' })}</p>
       <p class="about-author">Toz · 2026</p>
     </div>
   </div>
@@ -181,12 +178,6 @@
   .about-codename {
     color: #9aaec7;
     font-size: 0.8em;
-  }
-
-  .about-tagline {
-    margin: 3px 0 0;
-    color: #b8cbe0;
-    font-size: 0.82rem;
   }
 
   .about-author {

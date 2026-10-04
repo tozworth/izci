@@ -70,6 +70,26 @@ afterEach(() => {
 });
 
 describe('track collection hydration characterization', () => {
+  it('keeps images out of restored and mutated playback queues while libraries retain them', async () => {
+    const image: TrackItem = { ...item('photo'), name: 'photo.png', extension: 'png', kind: 'image', fileHandle: fileHandle('photo.png') };
+    persistenceHarness.readStoredState.mockResolvedValue({
+      items: [item('song'), image], selection: { ids: ['photo'], anchorId: 'photo', focusId: 'photo' },
+      playbackOptions: { shuffle: false, repeatMode: 'off' }
+    });
+    const { createTrackCollectionStore } = await import('./queue');
+    const queue = createTrackCollectionStore({ dbName: 'test-image-free-queue', dedupe: false, acceptItem: (entry) => entry.kind !== 'image' });
+    const library = createTrackCollectionStore({ dbName: 'test-image-library', dedupe: true });
+    await Promise.all([queue.ready(), library.ready()]);
+    expect(get(queue.items).map((entry) => entry.id)).toEqual(['song']);
+    expect(get(queue.selectedIds)).toEqual([]);
+    expect(get(library.items).map((entry) => entry.id)).toEqual(['song', 'photo']);
+    expect(queue.add([image])).toEqual([]);
+    expect(queue.replaceAll([image])).toEqual({ addedItems: [], removedItems: [] });
+    expect(queue.replaceItem('song', [image])).toBe(false);
+    queue.reconcileFolder('photos', [image]);
+    expect(get(queue.items).map((entry) => entry.id)).toEqual(['song']);
+  });
+
   it('replays queued mutations after stored state and persists their combined result', async () => {
     let resolveHydration!: (state: StoredQueueState) => void;
     const hydration = new Promise<StoredQueueState>((resolve) => {

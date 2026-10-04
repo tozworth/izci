@@ -24,6 +24,7 @@ beforeEach(() => {
     naturalHeight = 600;
     set src(_url: string) { queueMicrotask(() => this.dispatchEvent(new Event('load'))); }
     removeAttribute() {}
+    remove() {}
   });
 });
 afterEach(() => vi.unstubAllGlobals());

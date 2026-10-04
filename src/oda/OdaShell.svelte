@@ -197,6 +197,7 @@
   $: imageItems = selectOdaImages(libraryItems);
   $: recentsItems = selectOdaRecents(libraryItems);
   $: activeRoute = sessionState.route;
+  $: if (activeRoute.name === 'image-viewer' && !imageSnapshot.item) session.back();
   $: activeBrowserMedium = activeRoute.name === 'browse' ? activeRoute.medium : 'music';
   $: activeBrowserLayout = settings.odaBrowserLayouts[activeBrowserMedium];
   $: activeBrowserZoomLevel = settings.odaBrowserZoomLevels[activeBrowserMedium][activeBrowserLayout];
@@ -377,8 +378,9 @@
     const item = source === 'library' ? libraryItems.find((entry) => entry.id === id) : null;
     if (item?.kind === 'image') {
       const sourceItems = resolveOdaRouteTrackItems(activeRoute, focusContext());
-      await commands.viewImage(item, sourceItems);
+      const viewing = commands.viewImage(item, sourceItems);
       session.push({ name: 'image-viewer' });
+      await viewing;
       return;
     }
     const activated = source === 'queue'

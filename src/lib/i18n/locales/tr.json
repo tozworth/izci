@@ -2609,8 +2609,8 @@
     "unknownYear": "Bilinmeyen yıl",
     "unknownFormat": "Bilinmeyen tür",
     "unknownFolder": "Bilinmeyen klasör",
-    "trackerModule": "İzci modülü",
-    "stream": "Akış",
+    "trackerModule": "Modül",
+    "stream": "Ses",
     "video": "Video",
     "image": "Görsel",
     "columns": {

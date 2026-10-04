@@ -57,6 +57,7 @@
   let loadedTrackKey = '';
   let scroller: HTMLDivElement | null = null;
   let scrollerHeight = 0;
+  let initialScrollPending = true;
   let lastAutoScrollSignature = '';
   let userScrollPaused = false;
   let lastUserScrollAt = 0;
@@ -93,9 +94,18 @@
 
   function measureScroller(node: HTMLDivElement) {
     scroller = node;
+    initialScrollPending = true;
+    lastAutoScrollSignature = '';
 
     const updateScrollerHeight = () => {
-      scrollerHeight = node.clientHeight;
+      const nextHeight = node.clientHeight;
+
+      if (scrollerHeight <= 0 && nextHeight > 0) {
+        initialScrollPending = true;
+        lastAutoScrollSignature = '';
+      }
+
+      scrollerHeight = nextHeight;
     };
 
     updateScrollerHeight();
@@ -158,6 +168,11 @@
   }
 
   function getScrollBehavior(): ScrollBehavior {
+    // Opening a view should reveal the current line without animating from the top.
+    if (initialScrollPending) {
+      return 'instant';
+    }
+
     return displayStyle === 'theater' && !theaterSmoothScroll ? 'auto' : 'smooth';
   }
 
@@ -255,6 +270,7 @@
       top: nextScrollTop,
       behavior
     });
+    initialScrollPending = false;
     return true;
   }
 
@@ -373,6 +389,7 @@
 
   function resetScrollState(): void {
     rowElements.clear();
+    initialScrollPending = true;
     lastAutoScrollSignature = '';
     userScrollPaused = false;
     clearUserScrollResumeTimer();
@@ -472,6 +489,8 @@
   $: if (
     resolvedAutoScroll &&
     !userScrollPaused &&
+    scroller &&
+    scrollerHeight > 0 &&
     activeScrollRowKey &&
     autoScrollSignature !== lastAutoScrollSignature
   ) {

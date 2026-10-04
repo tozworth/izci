@@ -144,12 +144,12 @@ function getGroupValues(
       return normalized(item.extension)
         ? [{
             label: normalized(item.extension).toUpperCase(),
-            secondary: item.kind === 'module' ? 'Tracker module' : item.kind === 'video' ? 'Video' : item.kind === 'image' ? 'Image' : 'Stream',
+            secondary: item.kind === 'module' ? 'Module' : item.kind === 'video' ? 'Video' : item.kind === 'image' ? 'Image' : 'Audio',
             secondaryKind: item.kind === 'module' ? 'trackerModule' : item.kind
           }]
         : [{
             label: 'Unknown format',
-            secondary: item.kind === 'module' ? 'Tracker module' : item.kind === 'video' ? 'Video' : item.kind === 'image' ? 'Image' : 'Stream',
+            secondary: item.kind === 'module' ? 'Module' : item.kind === 'video' ? 'Video' : item.kind === 'image' ? 'Image' : 'Audio',
             placeholder: 'format',
             secondaryKind: item.kind === 'module' ? 'trackerModule' : item.kind
           }];
