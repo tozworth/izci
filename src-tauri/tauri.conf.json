@@ -38,6 +38,7 @@
         "decorations": false,
         "shadow": true,
         "alwaysOnTop": true,
+        "skipTaskbar": true,
         "visible": false,
         "resizable": false,
         "useHttpsScheme": true,
