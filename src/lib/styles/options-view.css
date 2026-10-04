@@ -256,9 +256,10 @@ code {
 }
 
 .tree-panel {
+  width: 190px;
   min-width: 150px;
   max-width: 190px;
-  padding: 8px 6px 8px 8px;
+  padding: 8px 0;
   background: var(--bg-tree);
   border-right: 1px solid var(--border-soft);
   overflow: auto;
@@ -283,9 +284,30 @@ code {
   align-items: center;
   gap: 6px;
   text-align: left;
-  border-radius: 6px;
-  padding: 3px 7px;
+  border-radius: 0;
+  padding: 3px 8px;
   font-size: 0.8rem;
+  cursor: default;
+}
+
+.tree-item:focus-visible {
+  outline-offset: -2px;
+}
+
+.tree-chevron {
+  flex: 0 0 14px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tree-chevron .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.tree-icon {
+  flex: 0 0 16px;
 }
 
 .tree-item:hover {
@@ -298,7 +320,7 @@ code {
 }
 
 .tree-item.child {
-  padding-left: 18px;
+  padding-left: 28px;
   color: var(--muted-strong);
 }
 
