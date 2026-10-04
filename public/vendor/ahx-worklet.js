@@ -208,7 +208,7 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
     if (!this.exports) return;
     const duration = this.exports.ahx_duration_frames() / FRAMES_PER_SECOND;
     const target = Math.min(Math.max(Number(seconds) || 0, 0), duration || Number.MAX_SAFE_INTEGER);
-    this.exports.ahx_seek_frame(Math.floor(target * FRAMES_PER_SECOND));
+    this.exports.ahx_seek_frame(Math.floor(target * FRAMES_PER_SECOND + 1e-7));
     this.resetBufferedFrame();
     this.publishPatternProgress(true);
     this.publishProgress(true);

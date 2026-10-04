@@ -10,6 +10,7 @@ export interface MiniPlayerView {
   track: TrackItem | null;
   selectedTrack: TrackItem | null;
   artworkUrl: string | null;
+  patternSeekTimes: readonly number[] | null;
 }
 
 export type MiniPlayerCommand =

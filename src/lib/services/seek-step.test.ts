@@ -1,8 +1,28 @@
-import { describe, expect, it } from 'vitest';
-import { resolveSeekStep } from './seek-step';
+import { describe, expect, it, vi } from 'vitest';
+import { resolveSeekStep, createKeyboardSeekResolver } from './seek-step';
 
 describe('pattern-aware seek steps', () => {
   const starts = [0, 7.68, 11.52, 26.88];
+
+  it('accumulates repeated keys while progress is stale, resetting on track/subsong changes', () => {
+    const resolve = createKeyboardSeekResolver();
+    expect(resolve(5, 1, 40, starts, 'track:0')).toBe(7.68);
+    expect(resolve(5, 1, 40, starts, 'track:0')).toBe(11.52);
+    expect(resolve(5, -1, 40, starts, 'track:0')).toBe(7.68);
+    expect(resolve(5, 1, 40, starts, 'track:1')).toBe(7.68);
+    expect(resolve(12, 1, 40, starts, 'track:1')).toBe(26.88);
+  });
+
+  it('expires a pending keyboard target and honors disabling pattern seeks', () => {
+    vi.useFakeTimers();
+    try {
+      const resolve = createKeyboardSeekResolver();
+      expect(resolve(5, 1, 40, starts, 'track')).toBe(7.68);
+      vi.advanceTimersByTime(251);
+      expect(resolve(5, 1, 40, starts, 'track')).toBe(7.68);
+      expect(resolve(5, 1, 40, null, 'track')).toBe(10);
+    } finally { vi.useRealTimers(); }
+  });
 
   it('seeks to adjacent patterns rather than restarting the current pattern', () => {
     expect(resolveSeekStep(10, -1, 40, starts)).toBe(0);

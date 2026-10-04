@@ -9,6 +9,7 @@
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import { sessionIdlePlayerQuip, type IdlePlayerQuipId } from '$lib/services/idle-player-copy';
   import { createWheelSeekController } from '$lib/services/wheel-seek';
+  import { createKeyboardSeekResolver } from '$lib/services/seek-step';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import RatingPicker from '$lib/components/RatingPicker.svelte';
@@ -175,10 +176,23 @@
     wheelSeek.step(event.deltaY);
   }
 
+  export let getPatternSeekTimes: () => readonly number[] | null = () => null;
+  const resolveKeyboardSeek = createKeyboardSeekResolver();
+
+  function handleSeekKeydown(event: KeyboardEvent): void {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key) || event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
+    if (!getPatternSeekTimes()?.length) return;
+    event.preventDefault();
+    event.stopPropagation();
+    wheelSeek.cancel();
+    dispatch('seek', resolveKeyboardSeek(snapshot.currentTime, event.key === 'ArrowLeft' ? -1 : 1, snapshot.duration, getPatternSeekTimes(), `${track?.id}:${snapshot.subsong ?? 0}`));
+  }
+
   const wheelSeek = createWheelSeekController({
+    getPatternSeekTimes: () => getPatternSeekTimes(),
     getCurrentTime: () => snapshot.currentTime,
     getDuration: () => snapshot.duration,
-    getContextKey: () => track?.id ?? null,
+    getContextKey: () => track ? `${track.id}:${snapshot.subsong ?? 0}` : null,
     onPreview: (seconds) => {
       seekWheelActive = seconds !== null;
       if (seconds !== null) seekPreview = seconds;
@@ -687,6 +701,7 @@
         disabled={!track || snapshot.duration <= 0 || isLoading}
         on:pointerdown={beginSeekPointer}
         on:input={previewSeek}
+        on:keydown={handleSeekKeydown}
         on:pointerup={commitSeekPointer}
         on:pointercancel={cancelSeekPointer}
         on:wheel|preventDefault={handleSeekWheel}

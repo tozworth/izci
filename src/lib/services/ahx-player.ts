@@ -340,7 +340,13 @@ export class HivelyPlayerService {
     if (!this.#patternTimingBuffer || !this.#patternTimingWasm || typeof Worker === 'undefined') return;
     const token = this.#loadToken;
     const subsong = this.#subsong;
-    const worker = new Worker(new URL('./hively-pattern-timing.worker.ts', import.meta.url), { type: 'module' });
+    let worker: Worker;
+    try {
+      worker = new Worker(new URL('./hively-pattern-timing.worker.ts', import.meta.url), { type: 'module' });
+    } catch (error) {
+      logWarning('decode', 'Hively pattern timing worker could not start', { error });
+      return;
+    }
     this.#patternTimingWorker = worker;
     const finish = () => {
       worker.terminate();
@@ -361,8 +367,13 @@ export class HivelyPlayerService {
       logWarning('decode', 'Hively pattern timing worker failed');
       finish();
     };
-    const buffer = this.#patternTimingBuffer.slice(0);
-    worker.postMessage({ buffer, wasm: this.#patternTimingWasm.slice(0), subsong }, [buffer]);
+    try {
+      const buffer = this.#patternTimingBuffer.slice(0);
+      worker.postMessage({ buffer, wasm: this.#patternTimingWasm.slice(0), subsong }, [buffer]);
+    } catch (error) {
+      finish();
+      logWarning('decode', 'Hively pattern timing could not be requested', { error });
+    }
   }
 
   #disposeNode(): void {

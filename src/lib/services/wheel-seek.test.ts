@@ -6,6 +6,26 @@ afterEach(() => {
 });
 
 describe('createWheelSeekController', () => {
+  it('accumulates pattern steps and reverses direction within a wheel burst', () => {
+    vi.useFakeTimers();
+    const commits: number[] = [];
+    const previews: Array<number | null> = [];
+    const controller = createWheelSeekController({
+      getCurrentTime: () => 5,
+      getDuration: () => 40,
+      getContextKey: () => 'module-a:0',
+      getPatternSeekTimes: () => [0, 7.68, 11.52, 26.88],
+      onPreview: (seconds) => previews.push(seconds),
+      onCommit: (seconds) => commits.push(seconds)
+    });
+    controller.step(-1);
+    controller.step(-1);
+    controller.step(1);
+    expect(previews).toEqual([7.68, 11.52, 7.68]);
+    vi.advanceTimersByTime(80);
+    expect(commits).toEqual([7.68]);
+  });
+
   it('accumulates a rapid wheel burst independently of stale playback progress', () => {
     vi.useFakeTimers();
     let currentTime = 60;

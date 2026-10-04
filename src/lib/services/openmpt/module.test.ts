@@ -22,10 +22,14 @@ describe('direct libopenmpt WASM bindings', () => {
     bytes.fill(0, 1084 + 16, 1084 + 20);
     bytes.fill(0, 1084 + 1024 + 16, 1084 + 1024 + 20);
     bytes.set([0, 0, 0x0f, 62], 1084 + 1024 + 4);
+    bytes[950] = 3;
+    bytes[954] = 0;
     const module = new OpenMptModule(core, bytes.buffer);
     const subsongs = new OpenMptModule(core, toneModule(true), 1);
     try {
-      expect(module.inspect(true).song?.patternStartTimes).toEqual([0, expect.closeTo(7.68)]);
+      expect(module.inspect(true).song?.patternStartTimes).toEqual([
+        0, expect.closeTo(7.68), expect.closeTo(7.68 + 64 * 6 * 2.5 / 62)
+      ]);
       module.seek(7.68);
       expect(module.progress()).toMatchObject({ order: 1, row: 0 });
       expect(subsongs.inspect(true).song?.patternStartTimes).toEqual([0]);

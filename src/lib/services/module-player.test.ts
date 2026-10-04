@@ -16,7 +16,7 @@ const harness = vi.hoisted(() => {
   return {
     player, players,
     create: vi.fn(async () => { const next = player(); players.push(next); return next; }),
-    inspect: vi.fn(async (_buffer: ArrayBuffer, _options: { patterns: boolean; subsong: number; signal: AbortSignal }) => ({ subsong: 0, metadata: {} }))
+    inspect: vi.fn(async (_buffer: ArrayBuffer, _options: { patterns: boolean; subsong: number; signal: AbortSignal }): Promise<OpenMptInspection> => ({ subsong: 0, metadata: {} }))
   };
 });
 
@@ -49,6 +49,18 @@ describe('module backend lifecycle', () => {
     service = new ModulePlayerService(snapshot, metadata, pattern, vi.fn());
   });
   afterEach(() => service.stop());
+
+  it('republishes prepared pattern timing on activation and clears it on subsong changes', async () => {
+    const song = { channels: [''], instruments: [], samples: [], orders: [], patterns: [], numSubsongs: 3, patternStartTimes: [0, 7.68] };
+    harness.inspect.mockResolvedValueOnce({ subsong: 0, metadata: {}, song });
+    await service.load(track);
+    await Promise.resolve();
+    pattern.mockClear();
+    service.play();
+    expect(pattern).toHaveBeenCalledWith({ song });
+    service.stepSubsong(1);
+    expect(pattern).toHaveBeenLastCalledWith({ song: null, order: 0, pattern: 0, row: 0 });
+  });
 
   it('updates settings on the paused player, preserving channel masks and position', async () => {
     await service.load(track);

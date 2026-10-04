@@ -1,9 +1,12 @@
+import { resolveSeekStep } from './seek-step';
+
 interface WheelSeekControllerOptions {
   getCurrentTime: () => number;
   getDuration: () => number;
   getContextKey: () => string | null;
   onPreview: (seconds: number | null) => void;
   onCommit: (seconds: number) => void;
+  getPatternSeekTimes?: () => readonly number[] | null;
   stepSeconds?: number;
   settleDelayMs?: number;
 }
@@ -21,6 +24,7 @@ export function createWheelSeekController({
   getContextKey,
   onPreview,
   onCommit,
+  getPatternSeekTimes = () => null,
   stepSeconds = DEFAULT_STEP_SECONDS,
   settleDelayMs = DEFAULT_SETTLE_DELAY_MS
 }: WheelSeekControllerOptions) {
@@ -81,11 +85,7 @@ export function createWheelSeekController({
       contextKey = nextContextKey;
     }
 
-    target = clamp(
-      target + (deltaY < 0 ? stepSeconds : -stepSeconds),
-      0,
-      duration
-    );
+    target = resolveSeekStep(target, deltaY < 0 ? 1 : -1, duration, getPatternSeekTimes(), stepSeconds);
     onPreview(target);
 
     clearCommitTimer();
