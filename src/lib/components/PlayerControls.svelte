@@ -37,11 +37,6 @@
     TrackItem,
     RafPreset
   } from '$lib/types';
-  import {
-    IMAGE_ZOOM_BUTTON_FACTOR,
-    IMAGE_ZOOM_MAX,
-    IMAGE_ZOOM_MIN
-  } from '$lib/stores/video-settings';
 
   function localizeIdlePlayerQuip(quip: IdlePlayerQuipId): string {
     switch (quip) {
@@ -92,8 +87,7 @@
   export let selectedRafPresetId: string | null = null;
   export let rafPresetDirty = false;
   export let showVideoTheaterToggle = false;
-  export let imageMode = false;
-  export let imageZoom = 1;
+  export let visualMediaKind: 'video' | 'image' = 'video';
   export let videoTheaterActive = false;
   export let videoFullscreenActive = false;
 
@@ -103,9 +97,6 @@
     next: void;
     previousSubsong: void;
     nextSubsong: void;
-    zoomStep: number;
-    resetZoom: void;
-    rotateImage: void;
     seek: number;
     volume: number;
     mute: void;
@@ -162,10 +153,10 @@
   $: videoTheaterToggleLabel = videoFullscreenActive
     ? $t('main.player.exitFullscreen', { default: 'Exit fullscreen' })
     : videoTheaterActive
-      ? imageMode
+      ? visualMediaKind === 'image'
         ? $t('main.player.exitImageTheater', { default: 'Exit image theater' })
         : $t('main.player.exitVideoTheater', { default: 'Exit video theater' })
-      : imageMode
+      : visualMediaKind === 'image'
         ? $t('main.player.enterImageTheater', { default: 'Enter image theater' })
         : $t('main.player.enterVideoTheater', { default: 'Enter video theater' });
 
@@ -590,14 +581,13 @@
   class:compact-player-bar={compactPlayerBar}
   class:loading={isLoading}
   class:video-track-active={displayTrack?.kind === 'video'}
-  class:image-track-active={imageMode}
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
   class:visualizer-backdrop-active={visualizerBackdropActive}
   aria-label={presentation === 'now-playing'
     ? $t('main.player.nowPlayingControls', { default: 'Now Playing controls' })
     : presentation === 'theater'
-      ? imageMode
+      ? visualMediaKind === 'image'
         ? $t('main.player.imageTheaterControls', { default: 'Image theater controls' })
         : $t('main.player.videoTheaterControls', { default: 'Video theater controls' })
       : undefined}
@@ -607,7 +597,7 @@
   style={rootStyle}
 >
   <div class="player-track-group">
-    {#if displayTrack?.kind !== 'video' && displayTrack?.kind !== 'image'}
+    {#if displayTrack?.kind !== 'video'}
       <button
         type="button"
         class="player-artwork-button"
@@ -671,7 +661,7 @@
     </div>
   </div>
 
-  {#if !imageMode}
+
   <div class="player-range">
     <span>{formatDuration(displayedSeekTime)}</span>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -704,7 +694,7 @@
     </div>
     <span>{formatDuration(displayDuration)}</span>
   </div>
-  {/if}
+
 
   <div class="player-control-strip">
     <div class="player-actions">
@@ -718,7 +708,7 @@
       >
       <span class="material-symbols-outlined" aria-hidden="true">skip_previous</span>
       </button>
-      {#if !imageMode}
+
       <button
         type="button"
         class="transport-button transport-button-primary"
@@ -734,7 +724,7 @@
           {isLoading ? 'progress_activity' : snapshot.state === 'playing' ? 'pause' : 'play_arrow'}
         </span>
       </button>
-      {/if}
+
       <button
         type="button"
         class="transport-button transport-button-next"
@@ -761,57 +751,7 @@
           </HoverTooltip>
         </button>
       {/if}
-      {#if imageMode}
-        <div class="image-zoom-controls" role="group" aria-label={$t('main.player.imageZoom', { default: 'Image zoom' })}>
-          <button
-            type="button"
-            class="transport-button image-zoom-button hover-tooltip-anchor"
-            aria-label={$t('main.player.zoomOut', { default: 'Zoom out' })}
-            disabled={imageZoom <= IMAGE_ZOOM_MIN}
-            on:click={() => dispatch('zoomStep', 1 / IMAGE_ZOOM_BUTTON_FACTOR)}
-          >
-            <span class="material-symbols-outlined" aria-hidden="true">zoom_out</span>
-            <HoverTooltip placement="above" align="center" nowrap>
-              {$t('main.player.zoomOut', { default: 'Zoom out' })}
-            </HoverTooltip>
-          </button>
-          <button
-            type="button"
-            class="transport-button image-zoom-reset hover-tooltip-anchor"
-            aria-label={$t('main.player.resetZoom', { default: 'Reset zoom' })}
-            disabled={imageZoom <= IMAGE_ZOOM_MIN}
-            on:click={() => dispatch('resetZoom')}
-          >
-            <span aria-hidden="true">{Math.round(imageZoom * 100)}%</span>
-            <HoverTooltip placement="above" align="center" nowrap>
-              {$t('main.player.resetZoom', { default: 'Reset zoom' })}
-            </HoverTooltip>
-          </button>
-          <button
-            type="button"
-            class="transport-button image-zoom-button hover-tooltip-anchor"
-            aria-label={$t('main.player.zoomIn', { default: 'Zoom in' })}
-            disabled={imageZoom >= IMAGE_ZOOM_MAX}
-            on:click={() => dispatch('zoomStep', IMAGE_ZOOM_BUTTON_FACTOR)}
-          >
-            <span class="material-symbols-outlined" aria-hidden="true">zoom_in</span>
-            <HoverTooltip placement="above" align="center" nowrap>
-              {$t('main.player.zoomIn', { default: 'Zoom in' })}
-            </HoverTooltip>
-          </button>
-          <button
-            type="button"
-            class="transport-button image-zoom-button hover-tooltip-anchor"
-            aria-label={$t('main.player.rotateImage', { default: 'Rotate clockwise' })}
-            on:click={() => dispatch('rotateImage')}
-          >
-            <span class="material-symbols-outlined" aria-hidden="true">rotate_right</span>
-            <HoverTooltip placement="above" align="center" nowrap>
-              {$t('main.player.rotateImage', { default: 'Rotate clockwise' })}
-            </HoverTooltip>
-          </button>
-        </div>
-      {/if}
+
       {#if presentation !== 'now-playing' && showFavoriteToggle}
         <div class="favorite-rating-control">
           <button
@@ -857,7 +797,7 @@
     </div>
 
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    {#if !imageMode}
+
     <div
       class="volume"
       data-muted={snapshot.muted ? 'true' : 'false'}
@@ -929,7 +869,7 @@
       </div>
     </div>
     </div>
-    {/if}
+
   </div>
 </svelte:element>
 
@@ -978,18 +918,6 @@
 {/if}
 
 <style>
-  .image-zoom-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.15rem;
-  }
-
-  .image-zoom-reset {
-    min-width: 2.2rem;
-    font-size: 0.68rem;
-    font-variant-numeric: tabular-nums;
-  }
-
   .player-artwork-button,
   .player-track-link {
     padding: 0;

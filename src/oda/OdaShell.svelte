@@ -72,6 +72,7 @@
     resolveOdaRouteDefaultFocusId,
     resolveOdaRouteFocusIds,
     resolveOdaRouteFocusModel,
+    resolveOdaRouteTrackItems,
     type OdaRouteFocusContext
   } from './oda-route-focus';
   import {
@@ -87,6 +88,7 @@
   export let libraryItems: TrackItem[] = [];
   export let queueItems: TrackItem[] = [];
   export let playingTrack: TrackItem | null = null;
+  export let imageSnapshot: import('$lib/services/image-session').ImageSessionSnapshot;
   export let playbackSnapshot: PlaybackSnapshot;
   export let artworkUrl: string | null = null;
   export let shuffleEnabled = false;
@@ -372,6 +374,13 @@
   async function activateAndRoute(focusId: string | null, source: 'library' | 'queue'): Promise<void> {
     const id = odaBrowseTrackId(focusId);
     if (!id) return;
+    const item = source === 'library' ? libraryItems.find((entry) => entry.id === id) : null;
+    if (item?.kind === 'image') {
+      const sourceItems = resolveOdaRouteTrackItems(activeRoute, focusContext());
+      await commands.viewImage(item, sourceItems);
+      session.push({ name: 'image-viewer' });
+      return;
+    }
     const activated = source === 'queue'
       ? await commands.activateQueueTrack(id)
       : await commands.activateLibraryTrack(id);
@@ -512,6 +521,17 @@
   function handleActivate(focusId: string | null): void {
     if (!focusId) return;
 
+    if (activeRoute.name === 'image-viewer') {
+      switch (focusId) {
+        case ODA_THEATER_PREVIOUS: commands.stepImage(-1); break;
+        case ODA_THEATER_NEXT: commands.stepImage(1); break;
+        case ODA_NP_SHUFFLE: commands.toggleImageShuffle(); break;
+        case ODA_NP_REPEAT: commands.cycleImageRepeat(); break;
+        case ODA_THEATER_FIT: commands.setVideoFit(media.fitMode === 'contain' ? 'cover' : 'contain'); break;
+      }
+      return;
+    }
+
     if (activeRoute.name === 'home') {
       handleHomeActivate(focusId);
       return;
@@ -588,6 +608,7 @@
   }
 
   function handleBack(): void {
+    if (activeRoute.name === 'image-viewer') commands.closeImages();
     if (queueFlyoutOpen) {
       closeQueueFlyout();
       return;
@@ -601,6 +622,10 @@
   }
 
   function handleTransport(action: OdaTransportAction): void {
+    if (activeRoute.name === 'image-viewer' && (action === 'previous' || action === 'next')) {
+      commands.stepImage(action === 'previous' ? -1 : 1);
+      return;
+    }
     if (action === 'play-pause') commands.togglePlayback();
     else if (action === 'stop') commands.stop();
     else if (action === 'previous') commands.stepTrack(-1);
@@ -737,6 +762,26 @@
         onActivate={(id) => void activateAndRoute(odaTrackFocusId(id), 'queue')}
         onFocus={(focusId) => focus.setFocus(focusId)}
       />
+    {:else if activeRoute.name === 'image-viewer'}
+      <OdaImageTheater
+        track={imageSnapshot.item}
+        element={imageSnapshot.element}
+        error={imageSnapshot.error ? translate('main.image.openFailed', 'Could not open this image.') : null}
+        parkingHost={media.parkingHost}
+        fitMode={media.fitMode}
+        zoom={media.imageZoom}
+        focusId={sessionState.focusId}
+        shuffleEnabled={imageSnapshot.shuffle}
+        repeatMode={imageSnapshot.repeatMode}
+        {translate}
+        onStepTrack={commands.stepImage}
+        onToggleShuffle={commands.toggleImageShuffle}
+        onCycleRepeat={commands.cycleImageRepeat}
+        onSetFit={commands.setVideoFit}
+        onZoomStep={commands.zoomStep}
+        onResetZoom={commands.resetZoom}
+        onFocus={(focusId) => focus.setFocus(focusId)}
+      />
     {:else if activeRoute.name === 'now-playing'}
       {#if playingTrack?.kind === 'video'}
         <OdaVideoTheater
@@ -757,26 +802,6 @@
           onSeek={commands.seek}
           onVolumeStep={handleVolumeStep}
           onSetFit={commands.setVideoFit}
-          onToggleQueue={openQueueFlyout}
-          onFocus={(focusId) => focus.setFocus(focusId)}
-        />
-      {:else if playingTrack?.kind === 'image'}
-        <OdaImageTheater
-          track={playingTrack}
-          element={media.imageElement}
-          parkingHost={media.parkingHost}
-          fitMode={media.fitMode}
-          zoom={media.imageZoom}
-          focusId={sessionState.focusId}
-          {shuffleEnabled}
-          {repeatMode}
-          {translate}
-          onStepTrack={commands.stepTrack}
-          onToggleShuffle={commands.toggleShuffle}
-          onCycleRepeat={commands.cycleRepeat}
-          onSetFit={commands.setVideoFit}
-          onZoomStep={commands.zoomStep}
-          onResetZoom={commands.resetZoom}
           onToggleQueue={openQueueFlyout}
           onFocus={(focusId) => focus.setFocus(focusId)}
         />
@@ -837,7 +862,7 @@
     />
   {/if}
 
-  {#if !(activeRoute.name === 'now-playing' && (playingTrack?.kind === 'video' || playingTrack?.kind === 'image'))}
+  {#if activeRoute.name !== 'image-viewer' && !(activeRoute.name === 'now-playing' && playingTrack?.kind === 'video')}
     <OdaTopChrome />
 
     <div class="oda-version" aria-hidden="true"><strong>izci</strong> {appVersion}</div>

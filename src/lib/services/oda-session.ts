@@ -18,6 +18,7 @@ export type OdaRoute =
   | { name: 'recents' }
   | { name: 'queue' }
   | { name: 'now-playing' }
+  | { name: 'image-viewer' }
   | { name: 'options'; view: OptionsViewName };
 
 export interface OdaRouteEntry {

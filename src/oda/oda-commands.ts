@@ -1,10 +1,9 @@
 import type { TrackItem, VideoFitMode } from '$lib/types';
 import type { VideoSeekFeedback } from '$lib/components/workspace/types';
 
-/** The single player-owned visual media elements Oda theaters host. */
+/** The player-owned video element and shared visual viewport settings. */
 export interface OdaMediaHost {
   videoElement: HTMLVideoElement | null;
-  imageElement: HTMLImageElement | null;
   parkingHost: HTMLDivElement | null;
   fitMode: VideoFitMode;
   imageZoom: number;
@@ -19,6 +18,11 @@ export interface OdaMediaHost {
  * local/client/Freeplay branching.
  */
 export interface OdaCommands {
+  viewImage(item: TrackItem, sourceItems: TrackItem[]): Promise<void>;
+  stepImage(direction: -1 | 1): void;
+  toggleImageShuffle(): void;
+  cycleImageRepeat(): void;
+  closeImages(): void;
   activateLibraryTrack(id: string): TrackItem | null | Promise<TrackItem | null>;
   activateQueueTrack(id: string): TrackItem | null | Promise<TrackItem | null>;
   removeQueueTracks(ids: string[]): void;

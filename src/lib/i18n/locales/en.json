@@ -307,7 +307,16 @@
       "menu": "Image",
       "display": "Image display",
       "zoom": "Zoom {percent}%",
-      "resetZoom": "Reset zoom"
+      "resetZoom": "Reset zoom",
+      "loading": "Loading image…",
+      "previous": "Previous image",
+      "next": "Next image",
+      "shuffle": "Shuffle images",
+      "wrap": "Wrap image navigation",
+      "close": "Close image viewer",
+      "zoomOut": "Zoom out",
+      "zoomIn": "Zoom in",
+      "openFailed": "Could not open this image."
     },
     "visualizer": {
       "loading": "Loading MilkDrop…",

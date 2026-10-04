@@ -1,6 +1,7 @@
 import { appInstallService } from '$lib/services/app-install';
 import { logWarning } from '$lib/services/logging';
 import { playerController } from '$lib/services/player-controller';
+import { imageSession } from './image-session';
 import {
   buildLibraryContextActions,
   buildFavoritesContextActions,
@@ -81,6 +82,10 @@ export function createWorkspaceCollectionsController({
 
   function addFiles(files: FileList | File[], target: WorkspaceCollection): TrackItem[] {
     const nextItems = buildTrackItems(files);
+    if (target === 'queue') {
+      const images = nextItems.filter((item) => item.kind === 'image');
+      if (images.length > 0) void imageSession.open(images[0], images);
+    }
 
     if (nextItems.length === 0) {
       return [];
@@ -182,6 +187,7 @@ export function createWorkspaceCollectionsController({
   }
 
   function queueTracksFromCollection(tracks: TrackItem[], position: 'front' | 'end'): void {
+    tracks = tracks.filter((item) => item.kind !== 'image');
     if (tracks.length === 0) return;
 
     const addedItems = queueStore.add(cloneTrackItems(tracks));
@@ -316,7 +322,9 @@ export function createWorkspaceCollectionsController({
   }
 
   function handleLibraryContextAction(actionId: string, ids: string[]): void {
-    const tracks = buildSelectedWorkspaceTracks(getState().libraryItems, ids);
+    const selected = buildSelectedWorkspaceTracks(getState().libraryItems, ids);
+    const queueAction = ['add-to-queue', 'replace-queue', 'shuffle-play', 'play-next'].includes(actionId);
+    const tracks = queueAction ? selected.filter((item) => item.kind !== 'image') : selected;
 
     if (tracks.length === 0) {
       return;
@@ -364,7 +372,9 @@ export function createWorkspaceCollectionsController({
   }
 
   function handleFavoriteContextAction(actionId: string, ids: string[]): void {
-    const tracks = buildSelectedWorkspaceTracks(getState().favoriteItems, ids);
+    const selected = buildSelectedWorkspaceTracks(getState().favoriteItems, ids);
+    const queueAction = ['add-to-queue', 'replace-queue', 'play-next'].includes(actionId);
+    const tracks = queueAction ? selected.filter((item) => item.kind !== 'image') : selected;
 
     if (tracks.length === 0) {
       return;

@@ -315,7 +315,16 @@
       "menu": "Görsel",
       "display": "Görsel gösterimi",
       "zoom": "%{percent} yakınlaştırma",
-      "resetZoom": "Yakınlaştırmayı sıfırla"
+      "resetZoom": "Yakınlaştırmayı sıfırla",
+      "loading": "Görsel yükleniyor…",
+      "previous": "Önceki görsel",
+      "next": "Sonraki görsel",
+      "shuffle": "Görselleri karıştır",
+      "wrap": "Görsel gezinmesini döngüye al",
+      "close": "Görsel görüntüleyiciyi kapat",
+      "zoomOut": "Uzaklaştır",
+      "zoomIn": "Yakınlaştır",
+      "openFailed": "Bu görsel açılamadı."
     },
     "visualizer": {
       "loading": "MilkDrop yükleniyor…",

@@ -38,7 +38,7 @@ import {
 } from './oda-now-playing';
 import {
   ODA_THEATER_PLAY_PAUSE,
-  ODA_THEATER_SLIDESHOW,
+  ODA_THEATER_PREVIOUS,
   resolveOdaTheaterControlIds,
   resolveOdaTheaterControlRows
 } from './oda-theater';
@@ -115,13 +115,13 @@ export function resolveOdaRouteFocusIds(
   route: OdaRoute,
   context: OdaRouteFocusContext
 ): string[] {
+  if (route.name === 'image-viewer') return resolveOdaTheaterControlIds('image');
   if (route.name === 'options') {
     return [...context.optionCategoryIds];
   }
   if (route.name === 'now-playing') {
     if (!context.queueFlyoutOpen) {
       if (context.playingKind === 'video') return resolveOdaTheaterControlIds('video');
-      if (context.playingKind === 'image') return resolveOdaTheaterControlIds('image');
       return resolveOdaNowPlayingTransportIds();
     }
     return [
@@ -150,6 +150,7 @@ export function resolveOdaRouteDefaultFocusId(
   route: OdaRoute,
   context: OdaRouteFocusContext
 ): string | null {
+  if (route.name === 'image-viewer') return ODA_THEATER_PREVIOUS;
   if (route.name === 'home') {
     return waterfallFocusId(initialWaterfallFocus(context.homeWaterfallSections), context.homeWaterfallSections);
   }
@@ -167,8 +168,8 @@ export function resolveOdaRouteDefaultFocusId(
           ? odaTrackFocusId(context.queueItems[0].id)
           : ODA_NP_QUEUE;
     }
-    return context.playingKind === 'video' || context.playingKind === 'image'
-      ? context.playingKind === 'video' ? ODA_THEATER_PLAY_PAUSE : ODA_THEATER_SLIDESHOW
+    return context.playingKind === 'video'
+      ? ODA_THEATER_PLAY_PAUSE
       : ODA_NP_PLAY_PAUSE;
   }
   if (route.name === 'browse') {
@@ -185,6 +186,7 @@ export function resolveOdaRouteFocusModel(
   route: OdaRoute,
   context: OdaRouteFocusContext
 ): OdaFocusModel | null {
+  if (route.name === 'image-viewer') return createNowPlayingFocusModel(resolveOdaTheaterControlRows('image'), []);
   if (route.name === 'home') {
     return createWaterfallFocusModel(context.homeWaterfallSections);
   }
@@ -193,7 +195,7 @@ export function resolveOdaRouteFocusModel(
   }
   if (route.name === 'now-playing') {
     if (!context.queueFlyoutOpen) {
-      if (context.playingKind === 'video' || context.playingKind === 'image') {
+      if (context.playingKind === 'video') {
         return createNowPlayingFocusModel(resolveOdaTheaterControlRows(context.playingKind), []);
       }
       return createNowPlayingFocusModel(resolveOdaNowPlayingTransportRows(), []);

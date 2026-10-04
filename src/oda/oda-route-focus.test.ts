@@ -130,9 +130,9 @@ describe('resolveOdaRouteFocusIds', () => {
       { ...CONTEXT, playingKind: 'video', queueFlyoutOpen: false }
     )).toContain('th:play-pause');
     expect(resolveOdaRouteFocusIds(
-      { name: 'now-playing' },
-      { ...CONTEXT, playingKind: 'image', queueFlyoutOpen: false }
-    )).toContain('th:slideshow');
+      { name: 'image-viewer' },
+      { ...CONTEXT, playingKind: 'stream', queueFlyoutOpen: false }
+    )).toEqual(['th:fit', 'np:shuffle', 'th:previous', 'th:next', 'np:repeat']);
     expect(resolveOdaRouteFocusIds(
       { name: 'now-playing' },
       { ...CONTEXT, playingKind: 'video', queueFlyoutOpen: false }
@@ -165,9 +165,9 @@ describe('resolveOdaRouteDefaultFocusId', () => {
       { ...CONTEXT, playingKind: 'video', queueFlyoutOpen: false }
     )).toBe('th:play-pause');
     expect(resolveOdaRouteDefaultFocusId(
-      { name: 'now-playing' },
-      { ...CONTEXT, playingKind: 'image', queueFlyoutOpen: false }
-    )).toBe('th:slideshow');
+      { name: 'image-viewer' },
+      { ...CONTEXT, playingKind: 'stream', queueFlyoutOpen: false }
+    )).toBe('th:previous');
   });
 });
 

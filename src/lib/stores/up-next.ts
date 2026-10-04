@@ -11,7 +11,7 @@ export interface UpNextEntry {
 type UpNextPosition = 'front' | 'end';
 
 function buildEntries(items: TrackItem[]): UpNextEntry[] {
-  return items.map((item) => ({
+  return items.filter((item) => item.kind !== 'image').map((item) => ({
     id: item.id,
     identity: getFavoriteIdentity(item)
   }));

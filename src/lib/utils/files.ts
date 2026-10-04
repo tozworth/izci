@@ -43,7 +43,7 @@ export function markFileAsModule(file: File): void {
 }
 
 function createTrackObjectUrl(kind: TrackKind, file: File): string | undefined {
-  return kind === 'stream' || kind === 'video' || kind === 'image' ? createMediaFileUrl(file) : undefined;
+  return kind === 'stream' || kind === 'video' ? createMediaFileUrl(file) : undefined;
 }
 
 export function inferExtension(fileName: string): string {

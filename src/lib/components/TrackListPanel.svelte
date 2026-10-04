@@ -127,6 +127,7 @@
     select: { id: string; range: boolean; toggle: boolean };
     setSelection: TrackSelection;
     activate: string;
+    viewImage: { item: TrackItem; items: TrackItem[] };
     contextAction: { actionId: string; ids: string[] };
     libraryGroupRequestHandled: number;
     toggleShuffle: void;
@@ -242,6 +243,18 @@
   }
 
   function handleWindowKeydownCapture(event: KeyboardEvent) {
+    const activationTarget = event.target instanceof HTMLElement
+      && (event.target.matches('input, textarea, select, button:not([data-track-row-button])') || event.target.isContentEditable);
+    if (keyboardActive && libraryMode && !activationTarget && !contextMenu && event.key === 'Enter'
+      && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+      const item = displayItems.find((entry) => entry.id === displaySelectedIds.at(-1));
+      if (item?.kind === 'image') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        dispatch('viewImage', { item, items: displayItems });
+        return;
+      }
+    }
     handlePanelWindowKeydownCapture(event, {
       keyboardActive,
       showTrackRows,
@@ -278,7 +291,7 @@
 
   function handleItemClick(event: MouseEvent, id: string) {
     if (mobilePresentation && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
-      dispatch('activate', id);
+      handleItemDoubleClick(id);
       closeContextMenu();
       return;
     }
@@ -288,6 +301,11 @@
   }
 
   function handleItemDoubleClick(id: string) {
+    const item = displayItems.find((entry) => entry.id === id);
+    if (item?.kind === 'image') {
+      dispatch('viewImage', { item, items: displayItems });
+      return;
+    }
     dispatch('activate', id);
   }
 

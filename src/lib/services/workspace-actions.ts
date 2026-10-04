@@ -211,6 +211,12 @@ export function buildQueueContextActions(
   ];
 }
 
+/** Images are catalog entries, never playback queue candidates. */
+function filterImagePlaybackActions(actions: MenuActionItem[], tracks: TrackItem[]): MenuActionItem[] {
+  if (tracks.length === 0 || tracks.some((item) => item.kind !== 'image')) return actions;
+  return actions.filter((action) => !['add-to-queue', 'replace-queue', 'shuffle-play', 'play-next', 'reset-play-count'].includes(action.id));
+}
+
 export function buildLibraryContextActions(
   libraryItems: TrackItem[] = [],
   favoriteItems: TrackItem[] = [],
@@ -224,7 +230,7 @@ export function buildLibraryContextActions(
     : null;
   const sendToChatAction = buildSendToChatAction(tracks, sendToChat);
 
-  return [
+  return filterImagePlaybackActions([
     {
       id: 'add-to-queue',
       label: 'Add to queue',
@@ -268,7 +274,7 @@ export function buildLibraryContextActions(
       icon: 'delete',
       shortcut: 'Delete'
     }
-  ];
+  ], tracks);
 }
 
 export function buildLibraryGroupContextActions(actions: MenuActionItem[]): MenuActionItem[] {
@@ -299,7 +305,7 @@ export function buildFavoritesContextActions(
     : null;
   const sendToChatAction = buildSendToChatAction(tracks, sendToChat);
 
-  return [
+  return filterImagePlaybackActions([
     {
       id: 'add-to-queue',
       label: 'Add to queue',
@@ -331,7 +337,7 @@ export function buildFavoritesContextActions(
       icon: 'heart_minus',
       separatorBefore: true
     }
-  ];
+  ], tracks);
 }
 
 export function buildUpNextContextActions(
@@ -402,7 +408,7 @@ export function buildFreeplayLibraryContextActions(
     ? buildGoToLibraryAction(tracks[0], libraryItems)
     : null;
   const sendToChatAction = buildSendToChatAction(tracks, sendToChat);
-  return [
+  return filterImagePlaybackActions([
     { id: 'add-to-queue', label: 'Add to queue', icon: 'playlist_add' },
     ...(tracks.length > 1
       ? [{ id: 'replace-queue', label: 'Replace queue', icon: 'playlist_play' }]
@@ -412,7 +418,7 @@ export function buildFreeplayLibraryContextActions(
     { id: 'track-details', label: 'Track details', icon: 'info' },
     ...(sendToChatAction ? [sendToChatAction] : []),
     { id: 'copy-filename', label: 'Copy filename', icon: 'content_copy' }
-  ];
+  ], tracks);
 }
 
 export function buildCoopQueueContextActions(
@@ -450,7 +456,7 @@ export function buildCoopLibraryContextActions(
     : null;
   const sendToChatAction = buildSendToChatAction(tracks, sendToChat);
 
-  return [
+  return filterImagePlaybackActions([
     { id: 'add-to-queue', label: 'Add to queue', icon: 'playlist_add' },
     { id: 'replace-queue', label: 'Replace queue', icon: 'playlist_play' },
     { id: 'play-next', label: 'Play next', icon: 'queue_play_next' },
@@ -458,5 +464,5 @@ export function buildCoopLibraryContextActions(
     { id: 'track-details', label: 'Track details', icon: 'info' },
     ...(sendToChatAction ? [sendToChatAction] : []),
     { id: 'copy-filename', label: 'Copy filename', icon: 'content_copy' }
-  ];
+  ], tracks);
 }

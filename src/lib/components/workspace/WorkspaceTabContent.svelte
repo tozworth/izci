@@ -6,7 +6,7 @@
   import UpNextPanel from '$lib/components/UpNextPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
   import ChatPanel from '$lib/components/ChatPanel.svelte';
-  import ImageStage from '$lib/components/workspace/ImageStage.svelte';
+  import ImageViewer from '$lib/components/workspace/ImageViewer.svelte';
   import VideoStage from '$lib/components/workspace/VideoStage.svelte';
   import VisualizerPanel from '$lib/components/workspace/VisualizerPanel.svelte';
   import type { VideoFitMode, WorkspaceTab } from '$lib/types';
@@ -67,6 +67,7 @@
     on:select={content.libraryPanelHandlers.select}
     on:setSelection={(event) => content.libraryPanelHandlers.setSelection?.(event)}
     on:activate={content.libraryPanelHandlers.activate}
+    on:viewImage={(event) => content.libraryPanelHandlers.viewImage?.(event)}
     on:contextAction={content.libraryPanelHandlers.contextAction}
     on:libraryGroupRequestHandled={(event) => content.libraryPanelHandlers.libraryGroupRequestHandled?.(event)}
   />
@@ -124,22 +125,10 @@
     connected={content.chatConnected}
   />
 {:else if tab === 'media'}
-  <div class="media-tab-stage" class:is-image={Boolean(content.imageElement) || content.playbackSnapshot?.backend === 'image'}>
-    {#if content.imageElement}
-      <ImageStage
+  <div class="media-tab-stage" class:is-image={content.imageActive}>
+    {#if content.imageActive}
+      <ImageViewer
         element={mediaTheaterActive ? null : content.imageElement}
-        parkingHost={content.videoParkingHost}
-        fitMode={content.videoFitMode}
-        zoom={content.imageZoom}
-        on:toggleTheater={() => dispatch('toggleVideoTheater')}
-        on:setFit={(event) => dispatch('setVideoFit', event.detail)}
-        on:zoomStep
-        on:resetZoom
-      />
-    {:else if content.playbackSnapshot?.backend === 'image'}
-      <!-- Themed placeholder while the image element decodes; avoids a black VideoStage flash. -->
-      <ImageStage
-        element={null}
         parkingHost={content.videoParkingHost}
         fitMode={content.videoFitMode}
         zoom={content.imageZoom}

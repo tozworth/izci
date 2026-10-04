@@ -14,6 +14,7 @@ import type {
   WorkspacePanelHandlers
 } from '$lib/components/workspace/types';
 import type { FilesystemFolder } from '$lib/services/filesystem-folders';
+import { imageSession } from './image-session';
 import type {
   LibraryViewId,
   TrackSelection,
@@ -124,6 +125,7 @@ export function createMainWindowPanelHandlers(deps: MainWindowPanelHandlerDeps):
   };
 
   const libraryPanelHandlers: WorkspacePanelHandlers = {
+    viewImage: (event) => { void imageSession.open(event.detail.item, event.detail.items); },
     addFiles: (files) => {
       if (!deps.getIsMultiplayerClient()) deps.workspaceCollections.handleAddFiles(files, 'library');
     },
