@@ -31,6 +31,7 @@
 
 ## Working rules
 
+- For long-running tasks, progressively commit coherent, reviewable milestones instead of accumulating the entire task into one final commit. Name commits after the behavior or architectural change they introduce. Keep tightly coupled changes together, and exclude unrelated pre-existing changes.
 - Ignore `node_modules/`, `dist/`, and `dev-dist/` unless the task explicitly concerns generated output or dependencies.
 - Builds require an explicit user request outside debugging sessions, including frontend, desktop, Android, and izci-server builds. A user-requested debugging session authorizes relevant builds, reinstalls, reloads, and runtime restarts needed to reproduce and verify fixes without asking again; preserve app data and grants. This applies to all agents; ordinary iteration and validation alone do not authorize builds.
 - Update `en.json` and `tr.json`, but **never** `en-askew.json`; Askew is a manually curated inside joke.
