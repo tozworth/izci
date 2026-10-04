@@ -11,6 +11,15 @@ import { createPersistentStore, normalizeBoolean } from './persistent-store';
 
 const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v7';
 const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings-v7';
+export const LIBRARY_SIDEBAR_MIN_WIDTH = 72;
+export const LIBRARY_SIDEBAR_MAX_WIDTH = 480;
+
+export function normalizeLibrarySidebarWidth(width: unknown): number | null {
+  return typeof width === 'number' && Number.isFinite(width)
+    ? Math.max(LIBRARY_SIDEBAR_MIN_WIDTH, Math.min(LIBRARY_SIDEBAR_MAX_WIDTH, Math.round(width)))
+    : null;
+}
+
 export const LIBRARY_VIEW_IDS: LibraryViewId[] = [
   'favorites',
   'ratings',
@@ -209,6 +218,7 @@ function createDefaultVisibleViews(): LibraryViewId[] {
 }
 
 const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
+  sidebarWidth: null,
   activeView: 'allMedia',
   views: createDefaultViews(),
   pinnedGroupKeys: createDefaultPinnedGroupKeys(),
@@ -344,6 +354,7 @@ function normalizeSettings(value: unknown): LibraryViewSettings {
 
   return {
     activeView,
+    sidebarWidth: normalizeLibrarySidebarWidth(source.sidebarWidth),
     views: Object.fromEntries(
       LIBRARY_VIEW_IDS.map((view) => [view, normalizeViewSettings(viewsSource[view], view)])
     ) as LibraryViewSettings['views'],
@@ -369,6 +380,9 @@ function updateSettings(updater: (settings: LibraryViewSettings) => LibraryViewS
 export const libraryViewSettings = {
   subscribe: store.subscribe,
   getSnapshot: store.getSnapshot,
+  setSidebarWidth(width: number): LibraryViewSettings {
+    return updateSettings((settings) => ({ ...settings, sidebarWidth: normalizeLibrarySidebarWidth(width) }));
+  },
   setLayout(layout: LibraryBrowserLayout, view = store.getSnapshot().activeView): LibraryViewSettings {
     return updateSettings((settings) => ({
       ...settings,

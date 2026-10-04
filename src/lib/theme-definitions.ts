@@ -17,6 +17,13 @@ export const COLOR_THEME_DEFINITIONS: ColorThemeDefinition[] = [
       dark: { themeColor: '#101113' }
     }
   },
+  {
+    value: 'accented',
+    variants: {
+      light: { themeColor: '#e4e3e0' },
+      dark: { themeColor: '#101113' }
+    }
+  },
   { value: 'lights-out', variants: { dark: { themeColor: '#000000' } } },
   {
     value: 'solarized',

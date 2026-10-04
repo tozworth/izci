@@ -1,3 +1,4 @@
+import { createTemporaryWindowSizer } from './window-sizing';
 import {
   resolveNowPlayingBrowserZoomScale,
   type NowPlayingWindowBounds,
@@ -11,8 +12,6 @@ export const VIDEO_WINDOW_HEIGHT = 720;
 
 const MIN_WINDOW_WIDTH = 320;
 const MIN_WINDOW_HEIGHT = 240;
-
-let videoRestoreBounds: NowPlayingWindowBounds | null = null;
 
 function isFiniteNumber(value: number | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -60,72 +59,12 @@ export function resolveVideoWindowBounds(
   };
 }
 
-function readWindowGeometry(): NowPlayingWindowGeometry | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
+const windowSizer = createTemporaryWindowSizer(resolveVideoWindowBounds);
 
-  const screen = window.screen as Screen & {
-    availLeft?: number;
-    availTop?: number;
-    left?: number;
-    top?: number;
-  };
-
-  return {
-    innerWidth: window.innerWidth,
-    innerHeight: window.innerHeight,
-    outerWidth: window.outerWidth,
-    outerHeight: window.outerHeight,
-    screenX: window.screenX,
-    screenY: window.screenY,
-    screen: {
-      width: screen.width,
-      height: screen.height,
-      availWidth: screen.availWidth,
-      availHeight: screen.availHeight,
-      availLeft: screen.availLeft,
-      availTop: screen.availTop,
-      left: screen.left,
-      top: screen.top
-    }
-  };
+export function ensureComfortableVideoWindowSize(): Promise<void> {
+  return windowSizer.ensure();
 }
 
-function readWindowBounds(geometry: NowPlayingWindowGeometry): NowPlayingWindowBounds {
-  return {
-    left: Math.round(geometry.screenX),
-    top: Math.round(geometry.screenY),
-    width: Math.round(geometry.outerWidth),
-    height: Math.round(geometry.outerHeight)
-  };
-}
-
-export function ensureComfortableVideoWindowSize(): void {
-  const geometry = readWindowGeometry();
-
-  if (!geometry) {
-    return;
-  }
-
-  const bounds = resolveVideoWindowBounds(geometry);
-
-  if (!bounds) {
-    return;
-  }
-
-  videoRestoreBounds ??= readWindowBounds(geometry);
-  window.moveTo(bounds.left, bounds.top);
-  window.resizeTo(bounds.width, bounds.height);
-}
-
-export function restoreVideoWindowSize(): void {
-  if (typeof window === 'undefined' || !videoRestoreBounds) {
-    return;
-  }
-
-  const bounds = videoRestoreBounds;
-  videoRestoreBounds = null;
-  window.moveTo(bounds.left, bounds.top);
-  window.resizeTo(bounds.width, bounds.height);
+export function restoreVideoWindowSize(): Promise<void> {
+  return windowSizer.restore();
 }

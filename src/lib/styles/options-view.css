@@ -494,11 +494,11 @@ code {
   overflow-wrap: anywhere;
 }
 
-.chameleon-slider-control {
+.theme-color-slider-control {
   gap: 12px;
 }
 
-.field input.chameleon-hue-slider {
+.field input.theme-color-hue-slider {
   width: min(240px, 32vw);
   height: 18px;
   margin: 0;
@@ -506,7 +506,7 @@ code {
   appearance: none;
 }
 
-.chameleon-hue-slider::-webkit-slider-runnable-track {
+.theme-color-hue-slider::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 999px;
   background: linear-gradient(
@@ -522,7 +522,7 @@ code {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 1px 2px rgba(0, 0, 0, 0.36);
 }
 
-.chameleon-hue-slider::-webkit-slider-thumb {
+.theme-color-hue-slider::-webkit-slider-thumb {
   width: 16px;
   height: 16px;
   margin-top: -6px;
@@ -533,7 +533,7 @@ code {
   appearance: none;
 }
 
-.field input.chameleon-saturation-slider,
+.field input.theme-color-saturation-slider,
 .field input.synthwave-brightness-slider {
   width: min(240px, 32vw);
   height: 18px;
@@ -542,7 +542,7 @@ code {
   appearance: none;
 }
 
-.chameleon-saturation-slider::-webkit-slider-runnable-track,
+.theme-color-saturation-slider::-webkit-slider-runnable-track,
 .synthwave-brightness-slider::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 999px;
@@ -554,7 +554,7 @@ code {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 1px 2px rgba(0, 0, 0, 0.36);
 }
 
-.chameleon-saturation-slider::-webkit-slider-thumb,
+.theme-color-saturation-slider::-webkit-slider-thumb,
 .synthwave-brightness-slider::-webkit-slider-thumb {
   width: 16px;
   height: 16px;
@@ -566,9 +566,9 @@ code {
   appearance: none;
 }
 
-.chameleon-slider-output {
+.theme-color-slider-output {
   min-width: 4.5ch;
-  color: hsl(var(--swatch-hue, var(--chameleon-hue)) var(--swatch-saturation, var(--chameleon-accent-saturation)) var(--chameleon-output-lightness));
+  color: hsl(var(--swatch-hue, var(--chameleon-hue)) var(--swatch-saturation, var(--chameleon-accent-saturation)) var(--theme-color-output-lightness));
   font-variant-numeric: tabular-nums;
   text-align: right;
 }

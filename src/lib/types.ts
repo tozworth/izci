@@ -103,6 +103,7 @@ export type LibraryViewId = 'favorites' | 'ratings' | 'allMedia' | 'songs' | 'im
 export type LibraryGroupViewId = Exclude<LibraryViewId, 'favorites' | 'ratings' | 'allMedia' | 'songs' | 'images' | 'videos'>;
 export type ColorTheme =
   | 'pale'
+  | 'accented'
   | 'lights-out'
   | 'solarized'
   | 'nordic'
@@ -423,6 +424,8 @@ export interface AppearanceSettings {
   colorThemeMode: ColorThemeMode;
   lightColorTheme: ColorTheme;
   darkColorTheme: ColorTheme;
+  accentedHue: number;
+  accentedSaturation: number;
   chameleonHue: number;
   chameleonSaturation: number;
   synthwaveBackgroundBrightness: number;
@@ -659,6 +662,7 @@ export interface LibraryViewTableSettings {
 }
 
 export interface LibraryViewSettings {
+  sidebarWidth: number | null;
   activeView: LibraryViewId;
   views: Record<LibraryViewId, LibraryViewTableSettings>;
   pinnedGroupKeys: Record<LibraryGroupViewId, string[]>;
