@@ -1,10 +1,12 @@
-//! Build script: link the pinned reference libopus static build.
+//! Build script: link the pinned reference static builds.
 //!
-//! The library itself is produced by `libzci/scripts/acquire-media-deps.sh`
-//! from the `libzci/vendor/dependencies.json` pin (libopus 1.5.2,
-//! `--disable-shared`). This script only points rustc at the prebuilt
-//! archive; it never downloads, builds, or overwrites frontend/server
-//! assets. Run the acquisition script first — the panic message says so.
+//! The libraries themselves are produced by
+//! `libzci/scripts/acquire-media-deps.sh` (libopus 1.5.2) and
+//! `libzci/scripts/acquire-module-deps.sh` (libopenmpt 0.8.4,
+//! hively context) from the `libzci/vendor/dependencies.json` pins.
+//! This script only points rustc at the prebuilt archives; it never
+//! downloads, builds, or overwrites frontend/server assets. Run the
+//! acquisition scripts first — the panic messages say so.
 
 use std::path::PathBuf;
 
@@ -30,20 +32,36 @@ fn manifest_field(id: &str, field: &str) -> String {
     after[value_start..value_start + value_end].to_string()
 }
 
-fn main() {
-    let release = manifest_field("libopus", "pinnedRelease");
+fn link_prestatic(id: &str, lib: &str, script: &str) {
+    let release = manifest_field(id, "pinnedRelease");
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let prefix = manifest_dir.join("../../../.local/libzci/vendor/libopus").join(&release).join("build-native");
-    let lib = prefix.join("lib").join("libopus.a");
-    if !lib.is_file() {
+    let prefix = manifest_dir
+        .join("../../../.local/libzci/vendor")
+        .join(id)
+        .join(&release)
+        .join("build-native");
+    let archive = prefix.join("lib").join(format!("lib{lib}.a"));
+    if !archive.is_file() {
         panic!(
-            "missing pinned libopus {release} static build at {}.\n\
-             Run `libzci/scripts/acquire-media-deps.sh` first (see libzci/vendor/dependencies.json).",
-            lib.display()
+            "missing pinned {id} {release} static build at {}.\n\
+             Run `{script}` first (see libzci/vendor/dependencies.json).",
+            archive.display()
         );
     }
+    println!("cargo:rustc-link-search=native={}", prefix.join("lib").display());
+    println!("cargo:rustc-link-lib=static={lib}");
+}
+
+fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../../vendor/dependencies.json");
-    println!("cargo:rustc-link-search=native={}", prefix.join("lib").display());
-    println!("cargo:rustc-link-lib=static=opus");
+    link_prestatic("libopus", "opus", "libzci/scripts/acquire-media-deps.sh");
+    link_prestatic("libopenmpt", "openmpt", "libzci/scripts/acquire-module-deps.sh");
+    link_prestatic(
+        "hivelytracker-replay",
+        "hivelycontext",
+        "libzci/scripts/acquire-module-deps.sh",
+    );
+    // libopenmpt is C++; the Rust link needs the C++ standard library.
+    println!("cargo:rustc-link-lib=stdc++");
 }

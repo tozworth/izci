@@ -12,8 +12,8 @@ depends on it.
 - `crates/libzci-native`: native file sources and session-serialized
   runtime assembly (Phase 1.1).
 - `crates/libzci-codecs`: reference Opus provider over statically
-  linked libopus 1.5.2 plus the shared Ogg packet reader (Phase 1.2).
-  Module providers land here in Phase 1.4.
+  linked libopus 1.5.2 plus the shared Ogg packet reader (Phase 1.2);
+  libopenmpt 0.8.4 and instance-safe Hively providers (Phase 1.4).
 - `crates/libzci-web`: browser adapter core — WASM engine facade
   (`engine.rs`: selection, sessions, generations over a feed-driven
   host decoder), shared Ogg demux (`demux.rs`), and wasm-bindgen

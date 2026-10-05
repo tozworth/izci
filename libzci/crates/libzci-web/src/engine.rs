@@ -333,6 +333,74 @@ pub fn plan_opus_seek(
     }
 }
 
+/// Browser module factory: probes with the same centralized sniff
+/// as native; opening waits on the Emscripten provider modules
+/// (pending: no `emcc` in this environment). The failure is an
+/// explicit visible `Unsupported`, never a demo decoder or a second
+/// JS player.
+#[derive(Debug, Default)]
+pub struct BrowserModuleFactory;
+
+impl ProviderFactory for BrowserModuleFactory {
+    fn info(&self) -> ProviderInfo {
+        ProviderInfo {
+            id: ProviderId::OPENMPT,
+            version: "libopenmpt-0.8.4/p1-browser-pending",
+            display_name: "Browser libopenmpt",
+        }
+    }
+
+    fn probe(&self, input: &libzci::ProbeInput<'_>) -> libzci::ProbeScore {
+        match libzci::sniff_module_family(input.header) {
+            Some(libzci::ModuleFamily::Openmpt) => libzci::ProbeScore::Magic,
+            _ => libzci::ProbeScore::No,
+        }
+    }
+
+    fn open(
+        &self,
+        _source: Arc<dyn RuntimeSource>,
+        cancel: &CancelFlag,
+    ) -> Result<Box<dyn DecoderInstance>> {
+        cancel.check()?;
+        Err(LibzciError::Unsupported {
+            detail: "browser libopenmpt module not yet built (pending Emscripten toolchain)".into(),
+        })
+    }
+}
+
+/// Browser Hively factory: same terms as [`BrowserModuleFactory`].
+#[derive(Debug, Default)]
+pub struct BrowserHivelyFactory;
+
+impl ProviderFactory for BrowserHivelyFactory {
+    fn info(&self) -> ProviderInfo {
+        ProviderInfo {
+            id: ProviderId::HIVELY,
+            version: "hivelytracker-f393ca7/p1-browser-pending",
+            display_name: "Browser Hively",
+        }
+    }
+
+    fn probe(&self, input: &libzci::ProbeInput<'_>) -> libzci::ProbeScore {
+        match libzci::sniff_module_family(input.header) {
+            Some(libzci::ModuleFamily::Hively(_)) => libzci::ProbeScore::Magic,
+            _ => libzci::ProbeScore::No,
+        }
+    }
+
+    fn open(
+        &self,
+        _source: Arc<dyn RuntimeSource>,
+        cancel: &CancelFlag,
+    ) -> Result<Box<dyn DecoderInstance>> {
+        cancel.check()?;
+        Err(LibzciError::Unsupported {
+            detail: "browser hively module not yet built (pending Emscripten toolchain)".into(),
+        })
+    }
+}
+
 /// One browser engine: registry, sessions, and the shared decoder
 /// cells. File bytes stay in the decode worker; only bounded
 /// header/index/PCM messages cross.
@@ -355,6 +423,12 @@ impl Default for Engine {
         registry
             .register(factory.clone())
             .expect("fresh registry accepts browser opus");
+        registry
+            .register(Arc::new(BrowserModuleFactory))
+            .expect("fresh registry accepts browser modules");
+        registry
+            .register(Arc::new(BrowserHivelyFactory))
+            .expect("fresh registry accepts browser hively");
         Self {
             factory,
             registry,
@@ -710,7 +784,26 @@ mod tests {
     #[test]
     fn probe_selects_browser_opus() {
         let engine = Engine::new();
-        assert_eq!(engine.provider_ids(), vec![ProviderId::OPUS]);
+        assert_eq!(
+            engine.provider_ids(),
+            vec![ProviderId::OPUS, ProviderId::OPENMPT, ProviderId::HIVELY]
+        );
+    }
+
+    #[test]
+    fn browser_module_opens_stay_visibly_pending() {
+        let mut probe_registry = ProviderRegistry::new();
+        probe_registry.register(Arc::new(BrowserModuleFactory)).unwrap();
+        probe_registry.register(Arc::new(BrowserHivelyFactory)).unwrap();
+        // Minimal MOD magic: the module factory claims it by sniff, then
+        // reports the pending Emscripten build instead of decoding.
+        let mut header = vec![0u8; 1084];
+        header[1080..1084].copy_from_slice(b"M.K.");
+        let cancel = CancelFlag::default();
+        match probe_registry.open_best(Arc::new(MemSource::new(header)), Some("mod"), &cancel) {
+            Err(e) => assert_eq!(e.kind(), "unsupported"),
+            Ok(_) => panic!("expected Unsupported, opened successfully"),
+        }
     }
 
     #[test]

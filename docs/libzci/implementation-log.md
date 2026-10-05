@@ -211,6 +211,60 @@ code (`libzci/crates/libzci/src/` plus the planned `libzci-native`
 package). Runtime decode/playback proofs are pending by design. There
 is still no reason to open a libzci profile.
 
+## Phase 1: sources, provider instances, and cross-target decode
+
+### 1.1 Implement runtime sources and decoder lifecycle — implemented, verification pending
+
+Created (all new, no existing runtime owners touched):
+
+- `libzci/crates/libzci/src/ids.rs`: `SourceId`/`SessionId`/`RequestId`
+  plus `Generation` (stale-output fence) and `Revision` (snapshot
+  versions). No Library/queue schema.
+- `error.rs`: `AccessRequired` / `Unavailable` / `Unsupported` /
+  `Corrupt` / `Cancelled` / `DecoderFailure` / `DeviceUnavailable` /
+  `InvalidArgument` / `ResourceExhausted` with stable `kind()` labels.
+- `source.rs`: `RuntimeSource` (bounded `read_at`, `revision`,
+  `cancellation`), `SourceCaps`, `CancelFlag`, in-memory `MemSource`.
+- `provider.rs`: `ProviderRegistry` (factories, magic-outranks-hint
+  selection, duplicate-ID rejection), `DecoderInstance` (independent
+  per-open position), `ProbeScore`, `AppliedAdjustments` trim/gain
+  declarations, `decode_chunk` validation. Test-only `FakeFactory` /
+  `FakeInstance` / `HintOnlyFactory`; no production command uses them.
+- `session.rs`: `TransportState`
+  (Idle/Loading/Ready/Playing/Ended/Failed/OutputSuspended),
+  per-session serialized `Session::apply` / `load_source`, generation
+  fence (`is_current`), `PcmCollector` device-free render that drops
+  stale generations.
+- `command.rs`: typed `Load`/`Play`/`Pause`/`Seek`/`Stop`/`Dispose`
+  with request/session IDs plus `CommandAccept`.
+- `event.rs`: `Snapshot` + `Event` with bounded `EventQueue`
+  (progress coalescing, completion/error protection).
+- `audio/pcm.rs` (+ `audio/mod.rs`): interleaved finite `f32`
+  `PcmChunk` with layout/rate validation.
+- `libzci/crates/libzci-native/`: `NativeFileSource` (verbatim case,
+  `Unavailable` vs `AccessRequired`, clamped bounded reads, no
+  whole-file copy) and `NativeRuntime` (registry/sources/serialized
+  sessions, `load`/`submit`/`snapshot`/`render_to_collector`/
+  `dispose_session`).
+- `libzci/Cargo.toml`: workspace members
+  `crates/libzci`, `crates/libzci-native`.
+
+Evidence:
+
+- Command: `cargo test --manifest-path libzci/Cargo.toml -p libzci -p libzci-native`
+- Toolchain: local cargo 1.99.0 / rustc 1.99.0 (informational; formal
+  pin lands in 1.2).
+- Result: pass — `libzci` 16 passed, `libzci-native` 4 passed.
+  Covers: delayed decode then seek/stop/dispose rejects stale PCM;
+  two sessions hold separate fake-provider state; error kinds stay
+  distinct; ordinary file reads are bounded slices; magic outranks
+  extension hints; duplicate providers rejected; progress coalesces.
+- Profile: `none` (no storage in this phase, by design).
+- Pending: real codec providers (1.2 Opus, 1.4 modules/Hively),
+  browser worker proof (1.3), audible output (Phase 2). No profile,
+  service worker, or runtime beyond the above.
+
+
 ### 1.2 Acquire reference Opus and implement the native provider — implemented, verification pending
 
 Pins resolved (see `libzci/vendor/dependencies.json`):
@@ -346,55 +400,92 @@ Evidence (profile `none` throughout):
   per the repo operating guide, so no browser was launched. The page
   remains an ordinary proof page (no manifest/SW/install until 3.4).
 
-## Phase 1: sources, provider instances, and cross-target decode
+### 1.4 Add instance-safe libopenmpt and Hively providers — implemented, verification pending
 
-### 1.1 Implement runtime sources and decoder lifecycle — implemented, verification pending
+Pins (`libzci/vendor/dependencies.json`, archives verified):
 
-Created (all new, no existing runtime owners touched):
+- `libopenmpt` 0.8.4 (`sha256:97530b25…afa76f`), BSD-3-Clause.
+- `hivelytracker-replay` `f393ca7…` (`sha256:523de29e…5ad01d5`),
+  BSD-3-Clause. Both revisions already had notice entries; no new
+  third-party text was needed.
 
-- `libzci/crates/libzci/src/ids.rs`: `SourceId`/`SessionId`/`RequestId`
-  plus `Generation` (stale-output fence) and `Revision` (snapshot
-  versions). No Library/queue schema.
-- `error.rs`: `AccessRequired` / `Unavailable` / `Unsupported` /
-  `Corrupt` / `Cancelled` / `DecoderFailure` / `DeviceUnavailable` /
-  `InvalidArgument` / `ResourceExhausted` with stable `kind()` labels.
-- `source.rs`: `RuntimeSource` (bounded `read_at`, `revision`,
-  `cancellation`), `SourceCaps`, `CancelFlag`, in-memory `MemSource`.
-- `provider.rs`: `ProviderRegistry` (factories, magic-outranks-hint
-  selection, duplicate-ID rejection), `DecoderInstance` (independent
-  per-open position), `ProbeScore`, `AppliedAdjustments` trim/gain
-  declarations, `decode_chunk` validation. Test-only `FakeFactory` /
-  `FakeInstance` / `HintOnlyFactory`; no production command uses them.
-- `session.rs`: `TransportState`
-  (Idle/Loading/Ready/Playing/Ended/Failed/OutputSuspended),
-  per-session serialized `Session::apply` / `load_source`, generation
-  fence (`is_current`), `PcmCollector` device-free render that drops
-  stale generations.
-- `command.rs`: typed `Load`/`Play`/`Pause`/`Seek`/`Stop`/`Dispose`
-  with request/session IDs plus `CommandAccept`.
-- `event.rs`: `Snapshot` + `Event` with bounded `EventQueue`
-  (progress coalescing, completion/error protection).
-- `audio/pcm.rs` (+ `audio/mod.rs`): interleaved finite `f32`
-  `PcmChunk` with layout/rate validation.
-- `libzci/crates/libzci-native/`: `NativeFileSource` (verbatim case,
-  `Unavailable` vs `AccessRequired`, clamped bounded reads, no
-  whole-file copy) and `NativeRuntime` (registry/sources/serialized
-  sessions, `load`/`submit`/`snapshot`/`render_to_collector`/
-  `dispose_session`).
-- `libzci/Cargo.toml`: workspace members
-  `crates/libzci`, `crates/libzci-native`.
+Created:
 
-Evidence:
+- `libzci/scripts/acquire-module-deps.sh`: downloads/verifies both
+  archives to ignored `.local/libzci/vendor/`, builds native
+  `libopenmpt.a` (upstream GNU Makefile, static only, bundled
+  miniz/minimp3/stb_vorbis, no mpg123 — the same feature set the
+  checked-in browser WASM reports) and `libhivelycontext.a`
+  (upstream `hvl2wav/replay.c` unmodified plus the new wrapper;
+  rebuilds when the wrapper changes). Touches nothing under
+  `public/vendor/`, `src/lib/vendor/`, or `izci-server/`.
+  Emscripten `build-wasm/` pending (no `emcc`).
+- `libzci-codecs/c/hively_context.{c,h}`: per-instance source/tune/
+  probe-tune/buffer/position/duration/subsong/mutes/interpolation,
+  pointer-sized native handles, sub-frame spill, order/row and
+  subsong/mute getters for isolation tests. Duration/seek are bounded
+  steps (`probe_step`/`seek_step`) with cancellation between batches
+  on decode jobs — never one uncancellable call, never on audio
+  callbacks. `lz_hively_init_tables` fills upstream waveform/pan plus
+  interpolation tables; the Rust owner calls it under `Once`, after
+  which tables are immutable.
+- `libzci-codecs` (`openmpt_ffi.rs`/`openmpt.rs`,
+  `hively_ffi.rs`/`hively.rs`, `test_helpers.rs`, extended
+  `build.rs` linking `openmpt`/`hivelycontext`/`stdc++`): MOD/XM/
+  S3M/IT/MO3 sniff→open through libopenmpt (repeat 0 for finite EOF,
+  stereo 48 kHz, subsong clamp+rewind, interpolation control,
+  interactive mutes reapplied after seeks, inspection without
+  output); AHX/HVL through the new wrapper (bounded cancellable
+  duration probe, sample-exact seeks, per-instance mutes).
+  `format.rs` centralizes MOD/XM/S3M/IT/MO3/AHX/HVL magics and
+  extension lists for both targets.
+- `libzci-web`: `BrowserModuleFactory`/`BrowserHivelyFactory` probe
+  with the same sniff; opens report explicit `Unsupported`
+  (pending Emscripten modules) instead of a demo decoder.
 
-- Command: `cargo test --manifest-path libzci/Cargo.toml -p libzci -p libzci-native`
-- Toolchain: local cargo 1.99.0 / rustc 1.99.0 (informational; formal
-  pin lands in 1.2).
-- Result: pass — `libzci` 16 passed, `libzci-native` 4 passed.
-  Covers: delayed decode then seek/stop/dispose rejects stale PCM;
-  two sessions hold separate fake-provider state; error kinds stay
-  distinct; ordinary file reads are bounded slices; magic outranks
-  extension hints; duplicate providers rejected; progress coalesces.
-- Profile: `none` (no storage in this phase, by design).
-- Pending: real codec providers (1.2 Opus, 1.4 modules/Hively),
-  browser worker proof (1.3), audible output (Phase 2). No profile,
-  service worker, or runtime beyond the above.
+Upstream audit (Hively): playback (`hvl_play_irq`,
+`hvl_DecodeFrame`, `hvl_mixchunk`) writes no global state — all
+replay state is per-`hvl_tune`. Only `waves`/`waves2`/`panning_*`
+(plus the wrapper's interpolation tables) are shared, written solely
+by the once-synchronized init. Two live native contexts were
+exercised with interleaved seeks/mutes/dispose (see below).
+
+Evidence (all native, profile `none`):
+
+- `cargo test -p libzci-codecs` module suites: `tone.mod`
+  renders exactly 368640 finite stereo frames (7.68 s @48 kHz,
+  nonzero content, 4 ch, 1 subsong, title/type metadata);
+  libopenmpt's 0.1 s trailing-silence past its own duration estimate
+  is measured and end-trimmed (documented in-provider). Two-subsong
+  helper: count 2, select/clamp/rewind, exact seeks. Mutes apply,
+  survive seeks, reject out-of-range channels. Two interleaved MOD
+  instances stay independent; one survives the other's dispose.
+- Blank AHX/HVL (ported construction): open, finite probed EOF,
+  render-to-EOF matches the probe, play-after-end restart, seek to
+  duration ends, sub-frame seek lands exactly, order/row advance.
+  Interleaved AHX contexts: mute/seek/subsong on A leave B alone;
+  survivor reaches EOF after sibling dispose. Magic-less input is
+  `Unsupported`; zero-duration tunes are `Corrupt`.
+- Recorded leniency (not concealed): magic-claiming structural
+  garbage can still "load" through the lenient upstream parser; the
+  provider then renders bounded finite silence to a clean EOF rather
+  than audible success. Audible AHX/HVL plus XM/S3M/IT/MO3 corpus
+  inputs remain explicit acquisition work; Hively DSP/mute sonics are
+  unverified by design (blank tunes are silent).
+- Missing audible/module coverage is a named Phase 2 concern, per the
+  roadmap's allowance — not hidden by these tests.
+- Pending: browser module execution (same authorization as 1.3),
+  Emscripten provider builds.
+
+## Phase 1 completion
+
+The shared source/provider/session API drives real Opus and MOD
+decode natively, Hively lifetime hazards are addressed, recipes are
+reproducible, and native uses compiled media code directly. Browser
+worker/module execution is pending (authorization), with the code
+structured for it. No step depends on an existing frontend
+controller or persisted profile.
+
+Next work item: Phase 2.1 — shared audio processing and native
+device output (`audio/{processor,buffer,clock,resampler}.rs`, native
+`audio.rs`, CPAL output in the native runtime).
