@@ -486,6 +486,16 @@ Embedded by @mediabunny/flac-encoder 1.52.0. The compiled encoder identifies ref
 
 Full license/notice texts: L042 (COPYING.Xiph).
 
+### libzci reference media libraries (libogg 1.3.5, libopus 1.5.2, libopusfile 0.12)
+
+License: BSD-3-Clause (Xiph.Org license)
+
+Source: https://downloads.xiph.org/releases/ogg/libogg-1.3.5.tar.gz ; https://downloads.xiph.org/releases/opus/opus-1.5.2.tar.gz ; https://downloads.xiph.org/releases/opus/opusfile-0.12.tar.gz
+
+Pinned by libzci/vendor/dependencies.json and acquired/built by libzci/scripts/acquire-media-deps.sh into ignored .local/libzci/vendor/ locations; never overwriting the frontend/server assets above. libzci-codecs links the native libopus 1.5.2 static build for its Opus provider and mirrors opusfile header-gain/trim semantics. Copyrights are held by the Xiph.Org Foundation and the contributors identified in each source tree.
+
+Full license/notice texts: L042 (COPYING.Xiph).
+
 ## WASM runtime support
 
 The replay and encoder binaries were produced with Emscripten. The runtime/glue and applicable C/C++ runtime notices are retained here. Exact Emscripten/LLVM revisions are not recorded for every precompiled upstream binary; these entries do not assert a single common toolchain version for all codecs.

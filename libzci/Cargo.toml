@@ -1,3 +1,3 @@
 [workspace]
-members = ["crates/libzci", "crates/libzci-native"]
+members = ["crates/libzci", "crates/libzci-codecs", "crates/libzci-native"]
 resolver = "2"

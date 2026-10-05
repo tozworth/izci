@@ -7,8 +7,13 @@ depends on it.
 
 ## Current members
 
-- `crates/libzci`: the central engine crate (Phase 0). It owns behavior
-  and imports no browser, device, Tauri, Svelte, or server APIs.
+- `crates/libzci`: the central engine crate (Phase 1.1: runtime
+  sources, provider/session lifecycle, PCM transport).
+- `crates/libzci-native`: native file sources and session-serialized
+  runtime assembly (Phase 1.1).
+- `crates/libzci-codecs`: reference Opus provider over statically
+  linked libopus 1.5.2 plus the shared Ogg packet reader (Phase 1.2).
+  Module providers land here in Phase 1.4.
 
 ## Planned additions (created by their phases, not scaffolded empty)
 
