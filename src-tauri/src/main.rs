@@ -1,33 +1,58 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-#[cfg(not(target_os = "windows"))]
-compile_error!("The izci desktop MVP currently supports Windows only.");
+#[cfg(not(any(target_os = "windows", target_os = "linux")))]
+compile_error!("izci desktop supports Windows and Linux.");
 
-mod associations;
-mod autostart;
-mod desktop_files;
-mod file_icons;
-mod fonts;
-mod native_file_picker;
-mod native_filesystem;
-mod native_media_access;
-mod playback_restoration;
-mod player_windows;
-#[cfg(feature = "builtin-signaling")]
-mod signaling;
-#[cfg(feature = "builtin-signaling")]
-mod signaling_transport;
-mod tray;
-mod tray_bubble;
-mod tray_scroll;
-mod window_lifecycle;
-mod window_presentation;
-mod window_resources;
-mod window_state;
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+#[path = "linux/windows.rs"]
 mod windows;
 
+#[cfg(target_os = "windows")]
+mod associations;
+#[cfg(target_os = "windows")]
+mod autostart;
+#[cfg(target_os = "windows")]
+mod desktop_files;
+#[cfg(target_os = "windows")]
+mod file_icons;
+#[cfg(target_os = "windows")]
+mod fonts;
+#[cfg(target_os = "windows")]
+mod native_file_picker;
+mod native_filesystem;
+#[cfg(target_os = "windows")]
+mod native_media_access;
+#[cfg(target_os = "windows")]
+mod playback_restoration;
+#[cfg(target_os = "windows")]
+mod player_windows;
+#[cfg(all(target_os = "windows", feature = "builtin-signaling"))]
+mod signaling;
+#[cfg(all(target_os = "windows", feature = "builtin-signaling"))]
+mod signaling_transport;
+#[cfg(target_os = "windows")]
+mod tray;
+#[cfg(target_os = "windows")]
+mod tray_bubble;
+#[cfg(target_os = "windows")]
+mod tray_scroll;
+#[cfg(target_os = "windows")]
+mod window_lifecycle;
+#[cfg(target_os = "windows")]
+mod window_presentation;
+#[cfg(target_os = "windows")]
+mod window_resources;
+#[cfg(target_os = "windows")]
+mod window_state;
+#[cfg(target_os = "windows")]
+mod windows;
+
+#[cfg(target_os = "windows")]
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow, WindowEvent};
 
+#[cfg(target_os = "windows")]
 fn require_player_window(window: &WebviewWindow) -> Result<(), String> {
     match window.label() {
         "main" | "mini-player" => Ok(()),
@@ -35,6 +60,7 @@ fn require_player_window(window: &WebviewWindow) -> Result<(), String> {
     }
 }
 
+#[cfg(target_os = "windows")]
 #[tauri::command]
 fn open_mini_player(app: AppHandle, window: WebviewWindow) -> Result<(), String> {
     if window.label() != "main" {
@@ -43,16 +69,19 @@ fn open_mini_player(app: AppHandle, window: WebviewWindow) -> Result<(), String>
     player_windows::open_mini(&app)
 }
 
+#[cfg(target_os = "windows")]
 fn close_mini(app: &AppHandle) -> Result<(), String> {
     player_windows::restore_main(app)
 }
 
+#[cfg(target_os = "windows")]
 #[tauri::command]
 fn close_mini_player(app: AppHandle, window: WebviewWindow) -> Result<(), String> {
     require_player_window(&window)?;
     close_mini(&app)
 }
 
+#[cfg(target_os = "windows")]
 #[tauri::command]
 fn dismiss_mini_player(app: AppHandle, window: WebviewWindow) -> Result<(), String> {
     if window.label() != "mini-player" {
@@ -61,12 +90,14 @@ fn dismiss_mini_player(app: AppHandle, window: WebviewWindow) -> Result<(), Stri
     player_windows::dismiss_mini(&app)
 }
 
+#[cfg(target_os = "windows")]
 #[tauri::command]
 fn restore_main_window(app: AppHandle, window: WebviewWindow) -> Result<(), String> {
     require_player_window(&window)?;
     windows::restore_main(&app)
 }
 
+#[cfg(target_os = "windows")]
 #[tauri::command]
 fn pin_mini_player(window: WebviewWindow, pinned: bool) -> Result<(), String> {
     if window.label() != "mini-player" {
@@ -77,6 +108,7 @@ fn pin_mini_player(window: WebviewWindow, pinned: bool) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+#[cfg(target_os = "windows")]
 #[tauri::command]
 fn exit_desktop(window: WebviewWindow) -> Result<(), String> {
     if window.label() != "main" {
@@ -86,6 +118,7 @@ fn exit_desktop(window: WebviewWindow) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(target_os = "windows")]
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
@@ -139,17 +172,17 @@ fn main() {
             pin_mini_player,
             exit_desktop,
             player_windows::configure_desktop_close,
-            #[cfg(feature = "builtin-signaling")]
+            #[cfg(all(target_os = "windows", feature = "builtin-signaling"))]
             signaling::start_builtin_signaling,
-            #[cfg(feature = "builtin-signaling")]
+            #[cfg(all(target_os = "windows", feature = "builtin-signaling"))]
             signaling::stop_builtin_signaling,
-            #[cfg(feature = "builtin-signaling")]
+            #[cfg(all(target_os = "windows", feature = "builtin-signaling"))]
             signaling_transport::signaling_http,
-            #[cfg(feature = "builtin-signaling")]
+            #[cfg(all(target_os = "windows", feature = "builtin-signaling"))]
             signaling_transport::cancel_signaling_http,
-            #[cfg(feature = "builtin-signaling")]
+            #[cfg(all(target_os = "windows", feature = "builtin-signaling"))]
             signaling_transport::open_signaling_socket,
-            #[cfg(feature = "builtin-signaling")]
+            #[cfg(all(target_os = "windows", feature = "builtin-signaling"))]
             signaling_transport::send_signaling_socket,
             playback_restoration::prepare_desktop_playback_restoration,
             window_presentation::desktop_window_ready,
@@ -179,9 +212,9 @@ fn main() {
             tray_bubble::hide_desktop_track_bubble
         ])
         .setup(|app| {
-            #[cfg(feature = "builtin-signaling")]
+            #[cfg(all(target_os = "windows", feature = "builtin-signaling"))]
             app.manage(signaling::Signaling::default());
-            #[cfg(feature = "builtin-signaling")]
+            #[cfg(all(target_os = "windows", feature = "builtin-signaling"))]
             app.manage(signaling_transport::Transport::default());
             windows::create_player_windows(app.handle())?;
             Ok(())
@@ -262,4 +295,9 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("Could not start izci");
+}
+
+#[cfg(target_os = "linux")]
+fn main() {
+    linux::run();
 }

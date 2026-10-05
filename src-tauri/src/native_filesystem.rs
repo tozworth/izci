@@ -35,8 +35,15 @@ pub(crate) fn canonical_path(path: &Path, folder: bool) -> Result<String, String
 
 // Do not follow junctions/symlinks: they can escape the selected root or loop.
 fn linked_directory(entry: &fs::DirEntry) -> io::Result<bool> {
-    use std::os::windows::fs::MetadataExt;
-    Ok(entry.file_type()?.is_symlink() || entry.metadata()?.file_attributes() & 0x400 != 0)
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::fs::MetadataExt;
+        Ok(entry.file_type()?.is_symlink() || entry.metadata()?.file_attributes() & 0x400 != 0)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(entry.file_type()?.is_symlink())
+    }
 }
 
 fn collect_folder(
@@ -119,15 +126,20 @@ pub async fn pick_desktop_paths(
     folder: bool,
 ) -> Result<Option<Vec<String>>, String> {
     require_app_window(&window)?;
-    let owner = window.hwnd().map_err(|error| error.to_string())?.0 as usize;
-    // A dedicated STA owns the COM dialog and releases all COM objects before exit.
-    tauri::async_runtime::spawn_blocking(move || {
-        std::thread::spawn(move || crate::native_file_picker::pick_paths(owner, folder))
-            .join()
-            .map_err(|_| "The file picker was interrupted".to_string())?
-    })
-    .await
-    .map_err(|error| error.to_string())?
+    #[cfg(target_os = "linux")]
+    return crate::linux::file_picker::pick_paths(window, folder).await;
+    #[cfg(target_os = "windows")]
+    {
+        let owner = window.hwnd().map_err(|error| error.to_string())?.0 as usize;
+        // A dedicated STA owns the COM dialog and releases all COM objects before exit.
+        tauri::async_runtime::spawn_blocking(move || {
+            std::thread::spawn(move || crate::native_file_picker::pick_paths(owner, folder))
+                .join()
+                .map_err(|_| "The file picker was interrupted".to_string())?
+        })
+        .await
+        .map_err(|error| error.to_string())?
+    }
 }
 
 #[cfg(test)]

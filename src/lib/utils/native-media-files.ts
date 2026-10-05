@@ -9,7 +9,10 @@ export function createMediaFileUrl(file: File): string { return getNativeMediaUr
 export function nativeFileIdentity(uri: string): string {
   try {
     const parsed = new URL(uri);
-    if (parsed.protocol === 'file:') return decodeURIComponent(parsed.href).toLowerCase();
+    if (parsed.protocol === 'file:') {
+      const value = decodeURIComponent(parsed.href);
+      return parsed.host || /^\/[a-z]:\//i.test(parsed.pathname) ? value.toLowerCase() : value;
+    }
     const marker = '/document/';
     const index = parsed.pathname.lastIndexOf(marker);
     if (parsed.protocol === 'content:' && index >= 0) return `${parsed.host}/document/${decodeURIComponent(parsed.pathname.slice(index + marker.length))}`;

@@ -86,7 +86,7 @@ export function isNativeFileReference(value: unknown, scheme?: NativeReferenceSc
     return (uri.protocol === 'content:' || uri.protocol === 'file:')
       && (!scheme || uri.protocol === scheme)
       && !uri.username && !uri.password && !uri.search && !uri.hash
-      && (uri.protocol === 'file:' ? /^\/[a-z]:\//i.test(uri.pathname) || Boolean(uri.host && uri.pathname !== '/') : Boolean(uri.host));
+      && (uri.protocol === 'file:' ? /^file:\/\//i.test(value.uri) && uri.pathname.startsWith('/') : Boolean(uri.host));
   } catch { return false; }
 }
 
@@ -99,8 +99,9 @@ export function nativeFilePath(reference: NativeFileReference): string | null {
   if (!isNativeFileReference(reference, 'file:')) return null;
   try {
     const uri = new URL(reference.uri);
-    if (/%2f|%5c|%00/i.test(uri.pathname)) return null;
+    if (/%2f|%00/i.test(uri.pathname)
+      || ((uri.host || /^\/[a-z]:\//i.test(uri.pathname)) && /%5c/i.test(uri.pathname))) return null;
     const path = decodeURIComponent(uri.pathname);
-    return uri.host ? `//${uri.host}${path}` : path.slice(1);
+    return uri.host ? `//${uri.host}${path}` : /^\/[a-z]:\//i.test(path) ? path.slice(1) : path;
   } catch { return null; }
 }

@@ -1686,6 +1686,7 @@ version = "0.4.0"
 dependencies = [
  "futures-util",
  "getrandom 0.3.4",
+ "gtk",
  "reqwest",
  "serde",
  "serde_json",
@@ -1694,6 +1695,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tokio",
  "tokio-tungstenite",
+ "webkit2gtk",
  "webview2-com",
  "windows",
  "winreg",
