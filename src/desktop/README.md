@@ -49,8 +49,9 @@ After `desktop:frontend`, run `cargo run --example linux_smoke --features
 tauri/custom-protocol -- /absolute/test.wav /absolute/test.mp3 /absolute/test.mod`
 from `src-tauri/` for the isolated native picker/playback check. It uses its own
 app identifier and automatically selects the supplied fixtures in GTK's native
-dialogs. Run it under `xvfb-run -a` for a hidden display. It also opens the first
-fixture's folder and cancels another file picker. Use a small fixture folder;
+dialogs. Run it under `xvfb-run -a` for a hidden display. It also checks Options
+opening, reuse, native close/reopen, and settings sync, opens the first fixture's
+folder, and cancels another file picker. Use a small fixture folder;
 the folder check scans and imports its media into the disposable profile only.
 
 ## Windows desktop MVP

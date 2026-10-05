@@ -16,7 +16,19 @@ pub fn builder<'a>(
 ) -> tauri::Result<WebviewWindowBuilder<'a, tauri::Wry, AppHandle>> {
     let popup_app = app.clone();
     Ok(WebviewWindowBuilder::from_config(app, config)?
-        .on_page_load(|window, _| {
+        .on_page_load(|window, payload| {
+            // WebKit's initial related-page load inherits the opener's scripts,
+            // including Tauri's native identity. Rebind at commit, before the
+            // page's frontend modules mount and subscribe to window events.
+            if payload.event() == tauri::webview::PageLoadEvent::Started
+                && is_app_url(payload.url())
+            {
+                let label = serde_json::to_string(window.label()).unwrap();
+                let _ = window.eval(format!(
+                    "window.__TAURI_INTERNALS__.metadata.currentWindow.label = {label};
+                    window.__TAURI_INTERNALS__.metadata.currentWebview.label = {label};"
+                ));
+            }
             // Native picker responses, restored playback, and remote transport
             // can run after a DOM gesture. Match Windows' native autoplay policy.
             let _ = window.with_webview(|webview| {

@@ -1,8 +1,18 @@
 // Operate the mounted app through its ordinary menu and track row events.
+// Related WebKit views inherit initialization scripts; only the owner runs it.
+if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
 // Make repeated folder imports observable despite the optional queue dedupe.
 localStorage.setItem('izci.track-settings', JSON.stringify({ deduplicateQueue: false }));
+localStorage.setItem('izci.appearance-settings', JSON.stringify({ colorThemeMode: 'light' }));
 const smokeContexts = [];
 const smokeMedia = new Set();
+const smokePopups = [];
+const nativeOpen = window.open;
+window.open = function(...args) {
+  const popup = nativeOpen.apply(this, args);
+  smokePopups.push(popup);
+  return popup;
+};
 const NativeAudioContext = window.AudioContext;
 window.AudioContext = class extends NativeAudioContext {
   constructor(...args) { super(...args); smokeContexts.push(this); }
@@ -21,7 +31,7 @@ window.addEventListener('load', async () => {
   const wait = async (predicate, label) => {
     const deadline = Date.now() + 25000;
     while (Date.now() < deadline) {
-      const result = predicate();
+      const result = await predicate();
       if (result) return result;
       await new Promise(resolve => setTimeout(resolve, 100));
     }
@@ -30,6 +40,38 @@ window.addEventListener('load', async () => {
   const results = [];
   try {
     await wait(() => document.querySelector('.app-shell'), 'main shell');
+    const openOptions = async () => {
+      document.querySelector('.app-menu-trigger').click();
+      const action = await wait(() => Array.from(document.querySelectorAll('[role="menuitem"]'))
+        .find(button => button.textContent.includes('Options')), 'Options action');
+      action.click();
+    };
+    await openOptions();
+    const options = await wait(() => smokePopups.at(-1), 'Options window reference');
+    await wait(() => options.document.querySelector('.options-page-host'), 'Options content');
+    await wait(async () => (await invoke('smoke_windows')).find(window => window.url?.includes('/options.html') && window.visible), 'visible native Options');
+    if (options.opener !== window) throw new Error('Options lost its opener');
+    if (options.__TAURI_INTERNALS__.metadata.currentWindow.label === 'main') {
+      throw new Error('Options inherited the main native window identity');
+    }
+    const appearance = await wait(() => options.document.querySelector('[role="combobox"][aria-label="Appearance"]'), 'Appearance setting');
+    appearance.click();
+    const dark = await wait(() => Array.from(options.document.querySelectorAll('[role="option"]'))
+      .find(option => option.textContent.includes('Dark')), 'Dark appearance option');
+    dark.click();
+    await wait(() => document.documentElement.dataset.colorScheme === 'dark'
+      && options.document.documentElement.dataset.colorScheme === 'dark', 'settings sync to player');
+    await openOptions();
+    if (smokePopups.length !== 1) throw new Error('Options did not reuse the existing window');
+    options.document.querySelector('.close-control').click();
+    await wait(() => options.closed, 'Options close');
+    await openOptions();
+    await wait(() => smokePopups.at(-1)?.document.querySelector('.options-page-host'), 'reopened Options content');
+    const reopenedOptions = smokePopups.at(-1);
+    reopenedOptions.document.querySelector('.close-control').click();
+    await wait(() => reopenedOptions.closed, 'reopened Options close');
+    // Let the native close/focus events settle before opening the next menu.
+    await new Promise(resolve => setTimeout(resolve, 200));
     document.querySelector('button[aria-label="Mute"]')?.click();
     for (const path of paths) {
       const fileMenu = await wait(() => document.querySelector('button[aria-label="File"]'), 'File menu');
@@ -65,13 +107,14 @@ window.addEventListener('load', async () => {
       throw new Error('Cancellation changed the queue or produced an error');
     }
     await invoke('smoke_report', { result: { ok: true, shell: true, nativePicker: true,
-      folderPicker: true, cancellation: true, playback: results, errors } });
+      folderPicker: true, cancellation: true, options: true, settingsSync: true, playback: results, errors } });
   } catch (error) {
     const media = Array.from(smokeMedia).map(element => ({
       time: element.currentTime, paused: element.paused, readyState: element.readyState,
       error: element.error?.message
     }));
     const contexts = smokeContexts.map(context => ({ state: context.state, time: context.currentTime }));
-    await invoke('smoke_report', { result: { ok: false, error: String(error), playback: results, media, contexts, errors } });
+    await invoke('smoke_report', { result: { ok: false, error: String(error), windows: await invoke('smoke_windows'), playback: results, media, contexts, errors } });
   }
 });
+}
