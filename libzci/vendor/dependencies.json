@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "note": "Phase 0 acquisition inventory. Pinned entries name exact sources already proven in this checkout; pending entries must resolve to an exact release plus digest in Phase 1.2 before any download. Floating URLs or version ranges are not acquisition inputs.",
+  "libraries": [
+    {
+      "id": "libogg",
+      "role": "Ogg container for the reference Opus provider (with libopusfile).",
+      "status": "pending-pin",
+      "pinnedRelease": null,
+      "digest": null,
+      "upstream": null,
+      "license": "pending (record SPDX + notice text against the pinned release in 1.2)",
+      "evidence": "No pinned libogg release exists in this checkout; server ordinary-audio decoding goes through FFmpeg, not a bundled reference provider."
+    },
+    {
+      "id": "libopus",
+      "role": "Reference Opus decoder behind the native provider and the Emscripten browser module.",
+      "status": "pending-pin",
+      "pinnedRelease": null,
+      "digest": null,
+      "upstream": null,
+      "license": "pending (record SPDX + notice text against the pinned release in 1.2)",
+      "evidence": "Working reference Opus is mandatory from the first useful player, but no bundled reference provider exists yet (scaffolding §1)."
+    },
+    {
+      "id": "libopusfile",
+      "role": "Ogg Opus stream open/read/seek/comments/close wrapped with explicit instance handles (op_open_callbacks). Header gain mode is used explicitly with zero additional offset; ReplayGain/R128 tag policy stays core-owned later.",
+      "status": "pending-pin",
+      "pinnedRelease": null,
+      "digest": null,
+      "upstream": null,
+      "license": "pending (record SPDX + notice text against the pinned release in 1.2)",
+      "evidence": "No pinned libopusfile release exists in this checkout."
+    },
+    {
+      "id": "libopenmpt",
+      "role": "Tracker-module provider (MOD/XM/S3M/IT/MO3 surface): handle ownership, float decode, seek/subsong, finite EOF, metadata, interpolation/render controls, interactive channel mutes; probe without audio output.",
+      "status": "pinned-source",
+      "pinnedRelease": "0.8.4",
+      "upstream": "https://github.com/OpenMPT/openmpt/tree/libopenmpt-0.8.4",
+      "license": "BSD-3-Clause (plus bundled miniz/minimp3/stb_vorbis/TinyFFT/Opal notices; see docs/THIRD-PARTY-NOTICES.md)",
+      "evidence": "src/lib/vendor/libopenmpt/README.md: libopenmpt.wasm is byte-for-byte 0.8.4 from the chiptune3 0.8.4 distribution with matching generated loader. Provenance covers the checked-in browser artifact; a reproducible native/Emscripten source recipe from this pinned source is Phase 1.4 work, not yet present."
+    },
+    {
+      "id": "hivelytracker-replay",
+      "role": "AHX/HVL provider behind a new instance-safe C context wrapper in libzci-codecs/c/ (per-instance source/tune/buffer/position/duration/subsong/mutes/interpolation; pointer-sized native handles; one synchronized immutable table init; bounded probe/seek stepping). The old static wrapper and its users stay untouched.",
+      "status": "pinned-source",
+      "pinnedRelease": "f393ca7c6416f00bcb574b334a7e8b57dcb19eb2",
+      "upstream": "https://github.com/pete-gordon/hivelytracker/tree/f393ca7c6416f00bcb574b334a7e8b57dcb19eb2",
+      "license": "BSD-3-Clause (Pete Gordon 2006-2018; see LICENSE.md and public/vendor/hivelytracker-LICENSE.txt)",
+      "evidence": "scripts/vendor/ahx/README.md + scripts/vendor/ahx/build.ps1: WASM built from exactly this commit via a PowerShell Emscripten recipe. Portable native/browser commands are Phase 1.4 work; the server's separately stored Hively binary is not byte-identical and is not provenance for the new build."
+    }
+  ],
+  "recipesToAddIn1_2": {
+    "command": "libzci/scripts/acquire-media-deps.sh (to be created in Phase 1.2; not present in Phase 0)",
+    "inputs": ["libzci/vendor/dependencies.json (this file, with pending pins resolved)"],
+    "outputs": [
+      ".local/libzci/vendor/<library>/<pinned-release>/source/ (ignored download + digest check)",
+      ".local/libzci/vendor/<library>/<pinned-release>/build-native/ (ignored native artifacts)",
+      ".local/libzci/vendor/<library>/<pinned-release>/build-wasm/ (ignored Emscripten artifacts)"
+    ],
+    "records": [
+      "compiler flags, Emscripten exports, and the exact command that produced each artifact",
+      "reproducible recipe + required licenses/notices committed alongside the provider (1.2, 1.4)"
+    ],
+    "constraints": [
+      "Downloads and builds go only into ignored locations (.local/libzci/, libzci/target/).",
+      "Must not overwrite public/vendor/*, src/lib/vendor/*, or any izci-server asset.",
+      "Commit the resolved Rust toolchain pin and workspace lockfile with the 1.2 resolutions."
+    ]
+  },
+  "defaultExperiment": {
+    "design": "Rust WASM core plus separate Emscripten codec modules; native links compiled libraries directly (scaffolding §3).",
+    "fallback": "If the synchronous-C-callback bridge (bounded FileReaderSync Blob-slice reads in a dedicated decode worker) fails, use the core's shared Ogg reader with packet-level libopus, confined to the Opus provider. Compare a unified Emscripten build on the same scenarios and document the replacement before proceeding."
+  },
+  "firstExperiment": {
+    "input": {
+      "fixtureId": "audio-opus",
+      "path": ".local/verification-fixtures/v1/media/audio/tone.opus",
+      "provenance": "Project-generated 440 Hz sine, CC0-1.0; sha256 b468897fbcfc1611eefb3187a3f439651e95a955addd4b376c8753b4d3a77f7a (fixtures/manifest.json)"
+    },
+    "success": "The same Opus fixture opens, decodes finite nonempty PCM, seeks on the normalized timeline, and closes through the core session/provider API on both native and browser. Native execution uses compiled media code directly with no JS/WASM runtime, webview, or Node dependency.",
+    "explicitlyDeferred": [
+      "SQLite/browser glue and OPFS integration (Phase 3.2).",
+      "Native device output and shared audio processing (Phase 2.1).",
+      "AudioWorklet output and WebCodecs packet providers (Phase 2.4)."
+    ]
+  }
+}

@@ -156,8 +156,62 @@ missing samples (xm/s3m/it/mo3/ahx/hvl audible coverage) are
 distinguished above. No private music checked in; no ungenerated file
 is marked as a passed decode test.
 
-## Phase 0 completion — pending 0.4
+### 0.4 Specify dependency acquisition and the first build experiment — verified
 
-Next work item: 0.4 — specify dependency acquisition and the first
-build experiment in `libzci/vendor/dependencies.json`, then close out
-Phase 0 with the 1.1 work item.
+Created `libzci/vendor/dependencies.json` (schemaVersion 1):
+
+- `libogg` / `libopus` / `libopusfile`: `pending-pin`. No pinned
+  release exists in this checkout; exact release plus digest must land
+  in 1.2 before acquisition. No floating URL is recorded as an input.
+- `libopenmpt` source `0.8.4`: `pinned-source`
+  (`https://github.com/OpenMPT/openmpt/tree/libopenmpt-0.8.4`,
+  BSD-3-Clause). Evidence: `src/lib/vendor/libopenmpt/README.md` —
+  checked-in `libopenmpt.wasm` is byte-for-byte 0.8.4 with a matching
+  loader. The reproducible native/Emscripten source recipe is 1.4
+  work, not present.
+- `hivelytracker-replay` commit
+  `f393ca7c6416f00bcb574b334a7e8b57dcb19eb2`: `pinned-source`
+  (`https://github.com/pete-gordon/hivelytracker`), BSD-3-Clause.
+  Evidence: `scripts/vendor/ahx/README.md` + `build.ps1` (PowerShell
+  Emscripten recipe). Portable native/browser commands and the new
+  instance-safe C wrapper in `libzci-codecs/c/` are 1.4 work; the old
+  wrapper/artifacts stay intact. The server's separately stored Hively
+  binary is not byte-identical and is not provenance for the new build.
+
+Recipe outputs/commands for 1.2 (defined, not added yet):
+
+- Command to add: `libzci/scripts/acquire-media-deps.sh`, reading this
+  manifest, downloading exact sources to ignored
+  `.local/libzci/vendor/<library>/<pinned-release>/`, checking
+  digests, and building native/WASM outputs separately with recorded
+  compiler flags, exports, licenses, and producing commands.
+- Constraint: must not overwrite `public/vendor/*`,
+  `src/lib/vendor/*`, or any `izci-server` asset.
+
+Experiment defaults recorded:
+
+- Default: Rust WASM core plus separate Emscripten codec modules;
+  native links compiled libraries directly. Scoped fallback if the
+  synchronous callback bridge fails: core Ogg reader with
+  packet-level libopus confined to the Opus provider (scaffolding §3).
+- First experiment input/success: fixture `audio-opus`
+  (`.local/verification-fixtures/v1/media/audio/tone.opus`) opens,
+  decodes finite nonempty PCM, seeks on the normalized timeline, and
+  closes through the core session/provider API on native and browser;
+  native uses compiled media code with no JS/WASM runtime, webview, or
+  Node dependency.
+- SQLite/browser glue (3.2) and native device output (2.1) are
+  separate later steps; workspace creation is not blocked on them.
+
+## Phase 0 completion
+
+The workspace exists, acquisition/fixture inputs are named with pins
+and pending items explicit, and Phase 1.1 has an actual place to add
+code (`libzci/crates/libzci/src/` plus the planned `libzci-native`
+package). Runtime decode/playback proofs are pending by design. There
+is still no reason to open a libzci profile.
+
+Next work item: Phase 1.1 — runtime sources and decoder lifecycle
+(`ids.rs`, `error.rs`, `source.rs`, `provider.rs`, `session.rs`,
+`command.rs`, `event.rs`, `audio/pcm.rs`, plus `libzci-native` file
+sources and minimal runtime).
