@@ -17,3 +17,24 @@
 //! contracts, and consumers assemble adapters/providers and call this
 //! public interface. This crate has no browser, device, Tauri, Svelte,
 //! or Go dependency.
+
+pub mod audio;
+pub mod command;
+pub mod error;
+pub mod event;
+pub mod ids;
+pub mod provider;
+pub mod session;
+pub mod source;
+
+pub use audio::pcm::{ChannelLayout, PcmChunk, PcmLayout};
+pub use command::{Command, CommandAccept};
+pub use error::{LibzciError, Result};
+pub use event::{Event, EventQueue, Snapshot};
+pub use ids::{Generation, RequestId, Revision, SessionId, SourceId};
+pub use provider::{
+    AppliedAdjustments, DecoderInstance, PROBE_BYTES, ProbeInput, ProbeScore, ProviderFactory,
+    ProviderId, ProviderInfo, ProviderMetadata, ProviderRegistry, decode_chunk,
+};
+pub use session::{PcmCollector, Session, TransportState};
+pub use source::{CancelFlag, MemSource, RuntimeSource, SourceCaps};

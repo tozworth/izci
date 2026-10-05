@@ -1,0 +1,13 @@
+[package]
+name = "libzci-native"
+version = "0.1.0"
+edition = "2021"
+description = "Native adapter for libzci: file sources and minimal runtime assembly (no browser/device policy)."
+license = "MIT"
+
+[lib]
+name = "libzci_native"
+path = "src/lib.rs"
+
+[dependencies]
+libzci = { path = "../libzci" }
