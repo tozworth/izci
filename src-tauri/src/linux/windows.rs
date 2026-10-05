@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::{
     utils::config::WindowConfig, webview::NewWindowResponse, AppHandle, WebviewWindowBuilder,
 };
+use webkit2gtk::{SettingsExt, WebViewExt};
 
 static POPUP_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -15,6 +16,15 @@ pub fn builder<'a>(
 ) -> tauri::Result<WebviewWindowBuilder<'a, tauri::Wry, AppHandle>> {
     let popup_app = app.clone();
     Ok(WebviewWindowBuilder::from_config(app, config)?
+        .on_page_load(|window, _| {
+            // Native picker responses, restored playback, and remote transport
+            // can run after a DOM gesture. Match Windows' native autoplay policy.
+            let _ = window.with_webview(|webview| {
+                if let Some(settings) = webview.inner().settings() {
+                    settings.set_media_playback_requires_user_gesture(false);
+                }
+            });
+        })
         .on_navigation(|url| is_app_url(url) || url.as_str() == "about:blank")
         .on_document_title_changed(|window, title| {
             let _ = window.set_title(&title);

@@ -3,6 +3,7 @@ import { RafEngine } from '$lib/services/raf-engine';
 import { setAudioParam } from '$lib/services/raf-effects/shared';
 import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 import type { RafEffectType } from '$lib/types';
+import { platformCapabilities } from '$platform';
 
 type AudioBusSource = AudioNode | MediaElementAudioSourceNode;
 
@@ -29,7 +30,7 @@ export class AudioBusService {
   }
 
   connectHtmlMediaElement(element: HTMLMediaElement | null): MediaElementAudioSourceNode | null {
-    if (!element) {
+    if (!element || platformCapabilities.mediaElementWebAudio === false) {
       return null;
     }
 

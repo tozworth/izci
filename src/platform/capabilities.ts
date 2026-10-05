@@ -8,4 +8,6 @@ export interface PlatformCapabilities {
   directPopupNavigation: boolean;
   warmOptionsWindow: boolean;
   unrestrictedSignalingHttp: boolean;
+  /** Some native WebViews cannot reliably clock media through Web Audio. */
+  mediaElementWebAudio: boolean;
 }

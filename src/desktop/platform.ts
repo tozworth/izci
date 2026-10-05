@@ -16,7 +16,7 @@ export const platformId = 'desktop' as const;
 export const platformCapabilities: import('../platform/capabilities').PlatformCapabilities = {
   serviceWorkerUpdates: false, appInstallation: false, windowControlsOverlay: false,
   directPopupNavigation: true, warmOptionsWindow: true,
-  unrestrictedSignalingHttp: hasBuiltinSignaling
+  unrestrictedSignalingHttp: hasBuiltinSignaling, mediaElementWebAudio: true
 };
 
 export function exitPlatform(): boolean {

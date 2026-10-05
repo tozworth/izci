@@ -8,7 +8,8 @@ export { packagedInvitationOrigin as getPublicInvitationOrigin } from '../../pla
 export const platformId = 'desktop' as const;
 export const platformCapabilities: import('../../platform/capabilities').PlatformCapabilities = {
   serviceWorkerUpdates: false, appInstallation: false, windowControlsOverlay: false,
-  directPopupNavigation: false, warmOptionsWindow: false, unrestrictedSignalingHttp: false
+  directPopupNavigation: false, warmOptionsWindow: false, unrestrictedSignalingHttp: false,
+  mediaElementWebAudio: false
 };
 
 export async function initializePlatformWindow(): Promise<void> {
