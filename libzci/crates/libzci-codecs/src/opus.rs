@@ -32,8 +32,7 @@ use libzci::{
     audio::pcm::{ChannelLayout, PcmLayout},
     format::{parse_opus_tags_packet, sniff_opus_head_page},
     ogg_reader::{
-        GRANULE_NONE, MAX_SINGLE_READ, PageEntry, PageScanner, ogg_crc, split_packets_with_carry,
-        validate_ogg_index,
+        GRANULE_NONE, PageEntry, PageScanner, ogg_crc, split_packets_with_carry, validate_ogg_index,
     },
 };
 
@@ -953,7 +952,7 @@ mod tests {
             }
         }
         let max = counting.max_single.load(std::sync::atomic::Ordering::Relaxed);
-        assert!(max <= MAX_SINGLE_READ, "single read {max} exceeds bound");
+        assert!(max <= libzci::MAX_SINGLE_READ, "single read {max} exceeds bound");
     }
 
     #[test]

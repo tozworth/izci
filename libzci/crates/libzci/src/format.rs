@@ -10,6 +10,16 @@ use crate::error::{LibzciError, Result};
 /// Extensions that suggest (never prove) Ogg Opus content.
 pub const OPUS_EXTENSIONS: &[&str] = &["opus", "ogg", "oga"];
 
+/// Extensions suggesting tracker-module content (libopenmpt surface).
+pub const MODULE_EXTENSIONS: &[&str] = &[
+    "mod", "mptm", "s3m", "xm", "it", "mo3", "669", "amf", "ams", "dbm", "digi", "dmf", "dsm",
+    "far", "gdm", "imf", "j2b", "mdl", "med", "mt2", "mtm", "okt", "psm", "ptm", "s3z", "stm",
+    "stx", "ult", "umx", "xmz", "itz",
+];
+
+/// Extensions suggesting Hively content.
+pub const HIVELY_EXTENSIONS: &[&str] = &["ahx", "hvl"];
+
 /// Normalized Opus identification facts from an `OpusHead` packet.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct OpusStreamParams {
@@ -115,6 +125,77 @@ pub fn is_opus_extension_hint(ext: &str) -> bool {
     OPUS_EXTENSIONS.contains(&ext)
 }
 
+/// Whether an extension hint suggests tracker-module content.
+pub fn is_module_extension_hint(ext: &str) -> bool {
+    MODULE_EXTENSIONS.contains(&ext)
+}
+
+/// Whether an extension hint suggests Hively content.
+pub fn is_hively_extension_hint(ext: &str) -> bool {
+    HIVELY_EXTENSIONS.contains(&ext)
+}
+
+/// Which module family sniffed bytes claim.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ModuleFamily {
+    /// libopenmpt surface (MOD/XM/S3M/IT/MO3 magics).
+    Openmpt,
+    /// HivelyTracker replay surface.
+    Hively(HivelyKind),
+}
+
+/// AHX vs HVL flavor.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum HivelyKind {
+    /// `THX` magic.
+    Ahx,
+    /// `HVL` magic.
+    Hvl,
+}
+
+/// Sniff tracker-module magics in a header (needs 1084+ bytes for MOD,
+/// far less for the rest). Returns the claimed family, if any.
+pub fn sniff_module_family(header: &[u8]) -> Option<ModuleFamily> {
+    if header.len() >= 3 {
+        if &header[0..3] == b"THX" {
+            return Some(ModuleFamily::Hively(HivelyKind::Ahx));
+        }
+        if &header[0..3] == b"HVL" {
+            return Some(ModuleFamily::Hively(HivelyKind::Hvl));
+        }
+    }
+    if header.starts_with(b"Extended Module: ") {
+        return Some(ModuleFamily::Openmpt);
+    }
+    if header.len() >= 4 && &header[0..4] == b"IMPM" {
+        return Some(ModuleFamily::Openmpt);
+    }
+    if header.len() >= 48 && &header[44..48] == b"SCRM" {
+        return Some(ModuleFamily::Openmpt);
+    }
+    if header.len() >= 3 && &header[0..3] == b"MO3" {
+        return Some(ModuleFamily::Openmpt);
+    }
+    if header.len() >= 1084 {
+        let tag = &header[1080..1084];
+        // ProTracker 4-channel, TakeTracker, and `xCHN`/`xxCH` clones.
+        if tag == b"M.K."
+            || tag == b"M!K!"
+            || tag == b"FLT4"
+            || tag == b"FLT8"
+            || tag == b"CD81"
+            || tag == b"OKTA"
+            || tag.ends_with(b"CHN")
+            || tag.ends_with(b"CH")
+            || tag.starts_with(b"TDZ")
+            || tag.starts_with(b"FLT")
+        {
+            return Some(ModuleFamily::Openmpt);
+        }
+    }
+    None
+}
+
 /// Parsed `OpusTags` facts. Tags are diagnostics only: ReplayGain and
 /// R128 tags are never applied by providers (core policy, later).
 #[derive(Clone, Debug)]
@@ -191,5 +272,23 @@ mod tests {
             parse_opus_head_packet(&packet).unwrap_err().kind(),
             "unsupported"
         );
+    }
+
+    #[test]
+    fn sniffs_module_magics() {
+        assert_eq!(sniff_module_family(b"THX rest"), Some(ModuleFamily::Hively(HivelyKind::Ahx)));
+        assert_eq!(sniff_module_family(b"HVL rest"), Some(ModuleFamily::Hively(HivelyKind::Hvl)));
+        assert_eq!(
+            sniff_module_family(b"Extended Module: title"),
+            Some(ModuleFamily::Openmpt)
+        );
+        let mut mod_bytes = vec![0u8; 1084];
+        mod_bytes[1080..1084].copy_from_slice(b"M.K.");
+        assert_eq!(sniff_module_family(&mod_bytes), Some(ModuleFamily::Openmpt));
+        mod_bytes[1080..1084].copy_from_slice(b"8CHN");
+        assert_eq!(sniff_module_family(&mod_bytes), Some(ModuleFamily::Openmpt));
+        assert_eq!(sniff_module_family(b"garbage bytes here"), None);
+        assert!(is_module_extension_hint("xm") && !is_module_extension_hint("opus"));
+        assert!(is_hively_extension_hint("ahx") && !is_hively_extension_hint("mod"));
     }
 }

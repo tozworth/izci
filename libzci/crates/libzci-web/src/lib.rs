@@ -21,6 +21,6 @@ pub mod bindings;
 
 pub use demux::OggDemux;
 pub use engine::{
-    BrowserOpusFactory, Engine, EngineCommand, HostDecoder, HostShared, SeekPlan, BROWSER_OPUS_VERSION,
-    plan_opus_seek,
+    BrowserHivelyFactory, BrowserModuleFactory, BrowserOpusFactory, Engine, EngineCommand, HostDecoder,
+    HostShared, SeekPlan, BROWSER_OPUS_VERSION, plan_opus_seek,
 };

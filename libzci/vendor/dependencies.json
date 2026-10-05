@@ -43,20 +43,24 @@
     {
       "id": "libopenmpt",
       "role": "Tracker-module provider (MOD/XM/S3M/IT/MO3 surface): handle ownership, float decode, seek/subsong, finite EOF, metadata, interpolation/render controls, interactive channel mutes; probe without audio output.",
-      "status": "pinned-source",
+      "status": "pinned-release",
       "pinnedRelease": "0.8.4",
+      "archive": "https://github.com/OpenMPT/openmpt/archive/refs/tags/libopenmpt-0.8.4.tar.gz",
+      "digest": "sha256:97530b25f88564fba8128333580ca0b12ac52c0c11c18ea5b8882a23176afa76",
       "upstream": "https://github.com/OpenMPT/openmpt/tree/libopenmpt-0.8.4",
       "license": "BSD-3-Clause (plus bundled miniz/minimp3/stb_vorbis/TinyFFT/Opal notices; see docs/THIRD-PARTY-NOTICES.md)",
-      "evidence": "src/lib/vendor/libopenmpt/README.md: libopenmpt.wasm is byte-for-byte 0.8.4 from the chiptune3 0.8.4 distribution with matching generated loader. Provenance covers the checked-in browser artifact; a reproducible native/Emscripten source recipe from this pinned source is Phase 1.4 work, not yet present."
+      "evidence": "Downloaded, digest-verified, and natively built (static bin/libopenmpt.a, bundled miniz/minimp3/stb_vorbis, no mpg123 — same feature set as the checked-in WASM in src/lib/vendor/libopenmpt/) by libzci/scripts/acquire-module-deps.sh; linked by libzci-codecs/build.rs (Phase 1.4)."
     },
     {
       "id": "hivelytracker-replay",
-      "role": "AHX/HVL provider behind a new instance-safe C context wrapper in libzci-codecs/c/ (per-instance source/tune/buffer/position/duration/subsong/mutes/interpolation; pointer-sized native handles; one synchronized immutable table init; bounded probe/seek stepping). The old static wrapper and its users stay untouched.",
-      "status": "pinned-source",
+      "role": "AHX/HVL provider behind the new instance-safe C context wrapper in libzci-codecs/c/ (per-instance source/tune/buffer/position/duration/subsong/mutes/interpolation; pointer-sized native handles; one synchronized immutable table init; bounded probe/seek stepping). The old static wrapper and its users stay untouched.",
+      "status": "pinned-release",
       "pinnedRelease": "f393ca7c6416f00bcb574b334a7e8b57dcb19eb2",
+      "archive": "https://github.com/pete-gordon/hivelytracker/archive/f393ca7c6416f00bcb574b334a7e8b57dcb19eb2.tar.gz",
+      "digest": "sha256:523de29ec7da41cd1e308e08297ec18f5545cc59d6e90cc61b0015ad01d5baba",
       "upstream": "https://github.com/pete-gordon/hivelytracker/tree/f393ca7c6416f00bcb574b334a7e8b57dcb19eb2",
       "license": "BSD-3-Clause (Pete Gordon 2006-2018; see LICENSE.md and public/vendor/hivelytracker-LICENSE.txt)",
-      "evidence": "scripts/vendor/ahx/README.md + scripts/vendor/ahx/build.ps1: WASM built from exactly this commit via a PowerShell Emscripten recipe. Portable native/browser commands are Phase 1.4 work; the server's separately stored Hively binary is not byte-identical and is not provenance for the new build."
+      "evidence": "Upstream hvl2wav/replay.c downloaded and digest-verified; compiled with the new libzci-codecs/c/hively_context.c wrapper into an ignored static lib by libzci/scripts/acquire-module-deps.sh; linked by libzci-codecs/build.rs (Phase 1.4). Upstream playback touches no global state (audit in implementation-log §1.4); tables go immutable after one Rust-Once-synchronized init."
     }
   ],
   "recipesToAddIn1_2": {
