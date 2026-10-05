@@ -9,6 +9,7 @@ android/**/build/
 android/local.properties
 src-tauri/target/
 src-tauri/gen/
+libzci/target/
 .codex
 .vite
 coverage
