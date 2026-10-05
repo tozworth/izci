@@ -211,7 +211,58 @@ code (`libzci/crates/libzci/src/` plus the planned `libzci-native`
 package). Runtime decode/playback proofs are pending by design. There
 is still no reason to open a libzci profile.
 
-Next work item: Phase 1.1 — runtime sources and decoder lifecycle
-(`ids.rs`, `error.rs`, `source.rs`, `provider.rs`, `session.rs`,
-`command.rs`, `event.rs`, `audio/pcm.rs`, plus `libzci-native` file
-sources and minimal runtime).
+Next work item: Phase 1.2 — reference Opus acquisition and native
+provider (`libzci-codecs`, `opus.rs`, scripts under `libzci/scripts/`).
+
+## Phase 1: sources, provider instances, and cross-target decode
+
+### 1.1 Implement runtime sources and decoder lifecycle — implemented, verification pending
+
+Created (all new, no existing runtime owners touched):
+
+- `libzci/crates/libzci/src/ids.rs`: `SourceId`/`SessionId`/`RequestId`
+  plus `Generation` (stale-output fence) and `Revision` (snapshot
+  versions). No Library/queue schema.
+- `error.rs`: `AccessRequired` / `Unavailable` / `Unsupported` /
+  `Corrupt` / `Cancelled` / `DecoderFailure` / `DeviceUnavailable` /
+  `InvalidArgument` / `ResourceExhausted` with stable `kind()` labels.
+- `source.rs`: `RuntimeSource` (bounded `read_at`, `revision`,
+  `cancellation`), `SourceCaps`, `CancelFlag`, in-memory `MemSource`.
+- `provider.rs`: `ProviderRegistry` (factories, magic-outranks-hint
+  selection, duplicate-ID rejection), `DecoderInstance` (independent
+  per-open position), `ProbeScore`, `AppliedAdjustments` trim/gain
+  declarations, `decode_chunk` validation. Test-only `FakeFactory` /
+  `FakeInstance` / `HintOnlyFactory`; no production command uses them.
+- `session.rs`: `TransportState`
+  (Idle/Loading/Ready/Playing/Ended/Failed/OutputSuspended),
+  per-session serialized `Session::apply` / `load_source`, generation
+  fence (`is_current`), `PcmCollector` device-free render that drops
+  stale generations.
+- `command.rs`: typed `Load`/`Play`/`Pause`/`Seek`/`Stop`/`Dispose`
+  with request/session IDs plus `CommandAccept`.
+- `event.rs`: `Snapshot` + `Event` with bounded `EventQueue`
+  (progress coalescing, completion/error protection).
+- `audio/pcm.rs` (+ `audio/mod.rs`): interleaved finite `f32`
+  `PcmChunk` with layout/rate validation.
+- `libzci/crates/libzci-native/`: `NativeFileSource` (verbatim case,
+  `Unavailable` vs `AccessRequired`, clamped bounded reads, no
+  whole-file copy) and `NativeRuntime` (registry/sources/serialized
+  sessions, `load`/`submit`/`snapshot`/`render_to_collector`/
+  `dispose_session`).
+- `libzci/Cargo.toml`: workspace members
+  `crates/libzci`, `crates/libzci-native`.
+
+Evidence:
+
+- Command: `cargo test --manifest-path libzci/Cargo.toml -p libzci -p libzci-native`
+- Toolchain: local cargo 1.99.0 / rustc 1.99.0 (informational; formal
+  pin lands in 1.2).
+- Result: pass — `libzci` 16 passed, `libzci-native` 4 passed.
+  Covers: delayed decode then seek/stop/dispose rejects stale PCM;
+  two sessions hold separate fake-provider state; error kinds stay
+  distinct; ordinary file reads are bounded slices; magic outranks
+  extension hints; duplicate providers rejected; progress coalesces.
+- Profile: `none` (no storage in this phase, by design).
+- Pending: real codec providers (1.2 Opus, 1.4 modules/Hively),
+  browser worker proof (1.3), audible output (Phase 2). No profile,
+  service worker, or runtime beyond the above.
