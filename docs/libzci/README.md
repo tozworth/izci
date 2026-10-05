@@ -27,6 +27,14 @@ integration into the existing Svelte application is not a completion criterion.
    preparation, real-time processing, SQLite, and external frame ownership.
 3. [Initial scaffolding](scaffolding.md): repository shape and the proofs needed
    before committing to the native/WASM integration strategy.
+4. [CLI and crudes](crudes.md): public-API discipline, progressive controls, and
+   browser lifecycle/installation responsibilities.
+5. [Phases and subphases](phases.md): dependency sequence, exit gates, server
+   adoption, and the intentionally outlined Svelte migration endgame.
+6. [Verification and maturity](validation.md): evidence required to finish slices
+   and declare the engine ready for adoption.
+7. [Codebase discovery reference](reference.md): useful existing behavior,
+   provenance, test inputs, and primary platform documentation.
 
 These documents describe the intended new runtime. The current application is
 the behavior reference and remains operational while the new consumers develop.
