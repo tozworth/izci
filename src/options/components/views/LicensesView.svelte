@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import licenseText from '../../../../LICENSE.md?raw';
-  import thirdPartyNotices from '../../../../THIRD-PARTY-NOTICES.md?raw';
+  import thirdPartyNotices from '../../../../docs/THIRD-PARTY-NOTICES.md?raw';
 </script>
 
 <article class="view license-view">

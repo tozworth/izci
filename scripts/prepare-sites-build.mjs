@@ -6,7 +6,7 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const distDirectory = join(projectRoot, 'dist');
 const clientDirectory = join(distDirectory, 'client');
 const serverDirectory = join(distDirectory, 'server');
-const workerSource = join(projectRoot, 'sites-worker.js');
+const workerSource = join(projectRoot, 'deployment', 'sites-worker.js');
 
 await Promise.all([
   access(join(distDirectory, 'index.html')),

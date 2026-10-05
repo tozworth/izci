@@ -93,19 +93,19 @@ test('tracks browser globals through nested scopes and destructuring without fil
   ]);
 });
 
-test('includes configured root runtime sources and parses JavaScript imports', async (t) => {
+test('includes configured build and deployment runtime sources and parses JavaScript imports', async (t) => {
   const root = await fixture({
     'src/shared.js': 'export const value = 1;\n',
     'vite.config.ts': 'import { value } from "./src/shared.js";\nexport default value;\n',
-    'sites-worker.js': 'import { value } from "./src/shared.js";\nself.value = value;\n'
+    'deployment/sites-worker.js': 'import { value } from "../src/shared.js";\nself.value = value;\n'
   });
   t.after(() => fs.rm(root, { recursive: true, force: true }));
-  const config = { ...fixtureConfig, sourceFiles: ['sites-worker.js', 'vite.config.ts'] };
+  const config = { ...fixtureConfig, sourceFiles: ['deployment/sites-worker.js', 'vite.config.ts'] };
   const report = await analyzeProject({ root, config, includeBundle: false });
-  assert.deepEqual(report.source.files, ['sites-worker.js', 'src/shared.js', 'vite.config.ts']);
+  assert.deepEqual(report.source.files, ['deployment/sites-worker.js', 'src/shared.js', 'vite.config.ts']);
   assert.equal(report.imports.internalEdges, 2);
   assert.deepEqual(report.browserGlobalAccess.findings, [
-    { scope: 'production', runtime: 'worker', file: 'sites-worker.js', global: 'self', lines: [2], applicable: true, allowed: false }
+    { scope: 'production', runtime: 'worker', file: 'deployment/sites-worker.js', global: 'self', lines: [2], applicable: true, allowed: false }
   ]);
 });
 

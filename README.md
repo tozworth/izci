@@ -68,7 +68,7 @@ Vite will print the local address, which you can then open in "any browser" (see
 
 HTML entry pages live in `pages/`; Vite serves and emits them at their existing root URLs (such as `/options.html`). Application code remains in `src/` and static assets in `public/`.
 
-Multiplayer uses a self-hosted izci-server for signaling. Official builds have no server configured; hosts configure their server under Hosting and guests join with an izci-server invitation. Firebase Hosting serves the PWA; Firebase Auth and Realtime Database signaling are retired.
+Multiplayer uses a self-hosted izci-server for signaling. Official builds have no server configured; hosts configure their server under Hosting and guests join with an izci-server invitation. Firebase Hosting serves the PWA; Firebase Auth and Realtime Database signaling are retired. Use `npm run hosting:preview` or `npm run hosting:deploy` with the root `firebase.json` for Firebase Hosting. Sites packaging uses `deployment/sites-worker.js` through `npm run sites:build`.
 
 ### Windows executable
 
@@ -89,7 +89,7 @@ Desktop and PWA media playback use disk-backed file URLs without copying entire 
 izci's original code, documentation, and assets are licensed under the MIT License.
 Bundled third-party components remain under their respective licenses, including MIT-licensed Howler.js, Svelte, and Workbox; BSD-3-Clause-licensed libopenmpt and the HivelyTracker replayer; and Apache-2.0-licensed Material Symbols.
 
-See [LICENSE.md](LICENSE.md) for the full license and third-party notices.
+See [LICENSE.md](LICENSE.md) and [third-party notices](docs/THIRD-PARTY-NOTICES.md) for the full license texts.
 
 ## Name
 
