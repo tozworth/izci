@@ -202,6 +202,45 @@ impl Session {
         ))
     }
 
+    /// Load an already-opened provider instance (e.g. a module with
+    /// a selected subsong applied before the session takes over).
+    /// Same generation/state/event discipline as [`Session::load_source`].
+    pub fn load_opened(
+        &mut self,
+        request_id: RequestId,
+        info: ProviderInfo,
+        instance: Box<dyn DecoderInstance>,
+        cancel: &CancelFlag,
+    ) -> Result<Vec<Event>> {
+        self.check_live()?;
+        self.generation.bump();
+        let generation = self.generation;
+        self.state = TransportState::Loading;
+        self.error = None;
+        self.last_request = Some(request_id);
+        self.commit();
+        cancel.check()?;
+        self.layout = Some(instance.layout());
+        self.total_frames = instance.total_frames();
+        self.position_frames = instance.position_frames();
+        self.decoder = Some(instance);
+        self.provider = Some(info);
+        self.state = TransportState::Ready;
+        self.commit();
+        Ok(vec![
+            Event::StateChanged {
+                session: self.id,
+                generation,
+                revision: self.revision,
+            },
+            Event::Completed {
+                session: self.id,
+                request_id,
+                generation,
+            },
+        ])
+    }
+
     /// Real open path: bind a registered source through the registry.
     /// Used by the runtime and tests; keeps `apply` free of source-map
     /// plumbing while preserving identical generation rules.
