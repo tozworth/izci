@@ -1,0 +1,16 @@
+[package]
+name = "zci-play"
+version = "0.1.0"
+edition = "2021"
+description = "aplay-style native CLI over libzci: open a media source, play it, report failures. Transient by default (no database/profile)."
+license = "MIT"
+
+[[bin]]
+name = "zci-play"
+path = "src/main.rs"
+
+[dependencies]
+libzci = { path = "../../crates/libzci" }
+libzci-native = { path = "../../crates/libzci-native" }
+libzci-codecs = { path = "../../crates/libzci-codecs" }
+ctrlc = "3"

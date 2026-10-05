@@ -90,6 +90,24 @@ impl NativeRuntime {
         sess.load_source(RequestId::fresh(), src, extension_hint, &registry, cancel)
     }
 
+    /// Load an already-opened provider instance into a session
+    /// (e.g. a module with options applied first). The session takes
+    /// ownership with the same generation discipline as [`Self::load`].
+    pub fn load_opened(
+        &self,
+        session: SessionId,
+        info: libzci::ProviderInfo,
+        instance: Box<dyn libzci::DecoderInstance>,
+        cancel: &CancelFlag,
+    ) -> Result<Vec<Event>> {
+        let sessions = self.sessions.lock().unwrap();
+        let cell = sessions.get(&session).ok_or_else(|| LibzciError::InvalidArgument {
+            detail: "unknown session".into(),
+        })?;
+        let mut sess = cell.lock().unwrap();
+        sess.load_opened(RequestId::fresh(), info, instance, cancel)
+    }
+
     /// Submit one serialized command to a session.
     pub fn submit(&self, command: &Command, cancel: &CancelFlag) -> Result<(CommandAccept, Vec<Event>)> {
         let sessions = self.sessions.lock().unwrap();

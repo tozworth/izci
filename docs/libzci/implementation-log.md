@@ -542,3 +542,59 @@ Evidence (native, profile `none`):
   underruns, and device label all observed.
 - Pending: browser AudioWorklet output and optional platform codecs
   (2.4); gapless/preparation semantics (Phase 5).
+
+### 2.2 Implement zci-play as the first useful consumer — implemented, verification pending
+
+Created (`libzci/consumers/zci-play/`, binary package `zci-play`):
+
+- `src/main.rs`: `zci-play <path>` over native runtime assembly
+  (provider registration, source registration, session load/play,
+  terminal events, disposal). Flags `--device`, `--volume`
+  (linear 0..1), `--start` (seconds), `--subsong` (module content),
+  `--diagnostics` (all stderr; stdout stays clean). Parsing only
+  converts arguments to core commands.
+- Subsong path opens the concrete module instance, applies
+  `select_subsong`, and hands it over via the new
+  `Session::load_opened` (same generation/state/event discipline as
+  registry opens; also mirrored by `NativeRuntime::load_opened`).
+  `--subsong` on non-module content is an actionable failure.
+- `--render-pcm <file>`: explicit stereo float32-LE @48 kHz render
+  without opening any device (playable via
+  `aplay -f FLOAT_LE -c 2 -r 48000`). No implicit render mode, no
+  FFmpeg subprocess anywhere.
+- Exit status: 0 EOF success · 2 usage/media/device failure with an
+  actionable stderr hint per error kind · 130 Ctrl-C interruption.
+- `README.md`: exact build/run commands, `aplay` playback recipe,
+  exit codes, and the native-independence statement.
+
+Evidence (all native, profile `none`):
+
+- `zci-play --help` → exit 0 with units/ranges.
+- Audible Opus (`tone.opus --diagnostics`): exit 0; decoded 12000,
+  device consumed through `finished`; provider/device/clock lines on
+  stderr. Audible MOD (`tone.mod`): played to EOF, exit 0.
+- Renders: MOD → exactly 368640 stereo frames (2,949,120 bytes, peak
+  0.281); Opus `--start 0.1` → exactly 7200 frames (12000 − 4800);
+  blank AHX → 5760 frames (total matches the lifecycle probe).
+  Content verified finite/nonzero (MOD/Opus) via sample inspection.
+- Failures: missing path (`Unavailable`), garbage bytes
+  (`Unsupported`), `--subsong` on Opus (`InvalidArgument`) → exit 2
+  with hints. Ctrl-C during the 30 s synth → exit 130
+  ("interrupted"); `--start 15` seeks from the supplied position
+  (start_frame 720000 in diagnostics).
+- `ldd`: libc/libm/ALSA/libstdc++ only — no JS engine, webview, or
+  WASM interpreter. The CLI embeds the native library directly.
+- Pending: browser AudioWorklet output and optional platform codecs
+  (2.4). No database/profile opened (deferred to 3.2 by design).
+
+## Phase 2 status (task scope ends at 2.2)
+
+`zci-play` is independently useful with Opus mandatory: it plays
+Opus/MOD/Hively-lifecycle inputs audibly, seeks from a supplied
+start, selects module subsongs, renders explicit PCM, handles
+EOF/interruption, and frees resources. Registry changes (not CLI
+dispatch) decide format support. Deliberately out of scope here:
+2.3 (Symphonia-backed ordinary formats, unknown-extension
+verification, audible module-fixture broadening) and 2.4
+(AudioWorklet output, optional WebCodecs providers) — the browser
+audible path. No database/profile opened (deferred to 3.2).

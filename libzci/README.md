@@ -32,8 +32,6 @@ depends on it.
   `js/` worker/worklet glue (Phases 1–3).
 - `crates/libzci-ffi`: opaque-handle C boundary over the native runtime
   (Phase 7).
-- `consumers/zci-play`: aplay-style native CLI, transient by default
-  (Phase 2).
 - `consumers/crude-native`: eframe/egui native crude, no webview
   (Phase 3).
 - `consumers/crude-pwa/`: independent package.json/TS/Vite/PWA config
