@@ -30,6 +30,7 @@ pub mod session;
 pub mod source;
 
 pub use audio::pcm::{ChannelLayout, PcmChunk, PcmLayout};
+pub use audio::{AudioProcessor, OutputClock, PcmRing, RateConverter, RequestedState, RunningState};
 pub use command::{Command, CommandAccept};
 pub use error::{LibzciError, Result};
 pub use event::{Event, EventQueue, Snapshot};

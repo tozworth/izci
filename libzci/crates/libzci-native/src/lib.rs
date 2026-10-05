@@ -1,11 +1,16 @@
-//! Native adapter for libzci: file sources and minimal runtime.
+//! Native adapter for libzci: file sources, runtime, and output.
 //!
 //! Phase 1.1: bounded seekable file sources plus session-serialized
-//! runtime assembly. Device output (CPAL), SQLite, and GUI arrive in
-//! later phases through their own modules.
+//! runtime assembly. Phase 2.1: CPAL device output (`audio`) and the
+//! decode/process/resample/feed pipeline (`playback`). SQLite and GUI
+//! arrive in later phases through their own modules.
 
+pub mod audio;
+pub mod playback;
 pub mod runtime;
 pub mod source;
 
+pub use audio::{DeviceOutput, OutputSpec, list_devices, open_output};
+pub use playback::{OutputId, OutputObservation};
 pub use runtime::NativeRuntime;
 pub use source::NativeFileSource;

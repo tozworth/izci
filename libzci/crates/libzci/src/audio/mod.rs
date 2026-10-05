@@ -1,7 +1,19 @@
-//! Shared audio execution types (moved here in Phase 2.1).
+//! Shared audio execution types.
 //!
-//! Phase 1.1 only needs PCM transport ([`pcm`]); processing, buffering,
-//! clock, and resampling land with native device output in 2.1 and are
-//! re-exported from their modules there.
+//! - [`pcm`]: normalized float transport (Phase 1.1).
+//! - [`buffer`]: preallocated lock-free PCM transport (Phase 2.1).
+//! - [`clock`]: audible output clock and requested/running states.
+//! - [`resampler`]: device-rate conversion over pinned rubato.
+//! - [`processor`]: channel mapping plus master gain/mute with the
+//!   raw-program tap point (ReplayGain/Raf arrive later).
 
+pub mod buffer;
+pub mod clock;
 pub mod pcm;
+pub mod processor;
+pub mod resampler;
+
+pub use buffer::PcmRing;
+pub use clock::{OutputClock, RequestedState, RunningState};
+pub use processor::AudioProcessor;
+pub use resampler::RateConverter;

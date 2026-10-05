@@ -11,3 +11,7 @@ path = "src/lib.rs"
 
 [dependencies]
 libzci = { path = "../libzci" }
+cpal = "0.18"
+
+[dev-dependencies]
+libzci-codecs = { path = "../libzci-codecs" }

@@ -489,3 +489,56 @@ controller or persisted profile.
 Next work item: Phase 2.1 — shared audio processing and native
 device output (`audio/{processor,buffer,clock,resampler}.rs`, native
 `audio.rs`, CPAL output in the native runtime).
+
+## Phase 2: audible zci-play and browser audio output
+
+### 2.1 Add shared audio processing and native device output — implemented, verification pending
+
+Created:
+
+- `libzci/src/audio/` (`buffer.rs`, `clock.rs`, `resampler.rs`,
+  `processor.rs`): preallocated lock-free SPSC stereo ring (no
+  alloc/lock/SQL in the callback path; under/overruns counted);
+  `OutputClock` with requested-vs-running states and
+  latency-adjusted media time (never wall-clock); `RateConverter`
+  over pinned `rubato` 5 FFT sinc (arbitrary chunks in, fixed blocks
+  through, FIFO out; matched rates bypass for bit-exact renders;
+  flush pads one tail block — the delay is a leading transient);
+  `AudioProcessor` with explicit mono→stereo upmix, finite anchored
+  gain/mute ramps, and the raw-program tap point (no consumer
+  attached). Master sits after the future Raf slot, per the signal
+  graph.
+- `libzci-native/src/audio.rs`: CPAL `DeviceOutput` (F32 stereo
+  required, anything else a typed failure; preallocated ~2 s ring;
+  latency estimate; pause/resume the stream; drop releases the
+  device). No device, unknown name, or stream failure is a typed
+  `DeviceUnavailable`.
+- `libzci-native/src/playback.rs`: one worker thread per output —
+  decode through the public session path, explicit channel mapping,
+  shared master processor, device-rate conversion, ring feed.
+  Generation changes (seek/stop/load) flush the ring and reset
+  conversion; pause holds decode and the stream; stop joins the
+  thread and drops queued stale audio with it. `render_to_vec`
+  reuses the same stages device-free for tests and `--render-pcm`.
+
+Evidence (native, profile `none`):
+
+- `cargo test -p libzci` audio suites: ring bounds/under/overrun,
+  clock requested-vs-running + suspend behavior, identity resample
+  (delay-compensated correlation > 0.999), exact 2:1 downsample,
+  mute/volume ramp shape (monotonic, ends silent, no full-scale
+  steps), mono upmix.
+- `cargo test -p libzci-native`: device outcome typed either way;
+  fake pipeline renders exact provider totals with identical channel
+  pairs; zero volume renders silence; 48k→44.1k converts within
+  block tolerance; Opus/MOD fixtures render exact audible totals
+  (12000 / 368640 stereo frames, finite, nonzero); Hively lifecycle
+  renders to EOF.
+- Audible smoke (`tests/audible.rs`, real hardware): Default Audio
+  Device @48000 Hz consumed 15360 device frames for the 0.25 s Opus
+  fixture (audible total plus ring play-out; 7 startup hungry pops),
+  pause held the consumed clock exactly across 300 ms, resume
+  drained to `drained + finished`. Requested/running, clock,
+  underruns, and device label all observed.
+- Pending: browser AudioWorklet output and optional platform codecs
+  (2.4); gapless/preparation semantics (Phase 5).
