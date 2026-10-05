@@ -231,6 +231,10 @@ the callback bridge cannot work.
    duration/subsong/mutes/interpolation; pointer-sized handles on native.
    Audit upstream shared initialization and make tables immutable after one
    synchronized initialization.
+   Replace the old load-time `measure_duration()` and full replay seek loops
+   with bounded probe/seek steps on owned contexts. Yield between batches so
+   cancellation/navigation can be processed; do not make a 30-minute duration
+   scan an uncancellable load call or run it on the audio thread.
 4. Add native and browser bindings to the same context API. Do not alter the
    old static wrapper or its users during these phases.
 5. Use MOD/two-subsong helpers and blank AHX/HVL inputs for initial lifecycle

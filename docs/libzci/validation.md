@@ -123,9 +123,31 @@ Svelte. Scope changes need an explicit recorded decision.
 
 ## 5. Evidence format
 
-Keep a compact implementation progress record under this directory as phases
-land. For a check record scenario/phase, commit/API identity, target/toolchain,
-browser/device, fixture/profile, result, relevant measurements, and limitations.
-Differentiate passed, failed, unsupported, and not run. Link detailed logs only
+Create `docs/libzci/implementation-log.md` in Phase 0.1. Track each numbered
+subphase as not started, implemented with verification pending, or verified.
+The initial log records the checkout and missing inputs; it cannot contain
+playback results or a profile because those do not exist yet.
+
+For a check record subphase/scenario, commit/API identity, exact command or crude
+interaction, target/toolchain, browser/device, fixture ID/path, result, relevant
+measurements, and limitations. Profile is `none` before storage; afterwards use
+the actual isolated profile name. Differentiate passed, failed, unsupported, and
+not run. Link detailed logs only
 when useful; avoid dumping sensitive paths, file contents, tokens, or signaling
 data. This plan itself is not evidence that any implementation gate passed.
+
+The first cross-target scenarios are concrete:
+
+| Introduced in | Scenario | Required observation |
+| --- | --- | --- |
+| 1.1 | Delayed decode, then seek/dispose | Old-generation results are rejected/released; no observer update after disposal |
+| 1.2–1.3 | Reference Opus open/EOF/seek on native and browser | Provider version, bounded reads, finite PCM, audible sample count/timing, release |
+| 1.4 | Interleave two Hively contexts | Seek/subsong/mute/dispose on A does not mutate B; silent lifecycle alone does not prove sound |
+| 2.1–2.4 | Audible transport on both outputs | Requested/running state, consumed-frame clock, pause/seek/drain and underruns |
+| 3.2 | Shared SQL setting/queue commit and reopen | Same core statements, committed revision, persisted order/duplicates, failed write unchanged |
+| 3.3 | Two windows and owner loss | One engine/output/SQL owner, snapshot reconnect, paused durable recovery |
+| 3.4 | Installed PWA offline/background/update | Actual required assets, coherent version, audible output and OS actions recorded separately |
+
+Use these scenarios to identify the first tests, not to build a second generic
+test framework. Existing Vitest tests validate the old runtime; a passing old
+test does not verify the corresponding new Rust/browser implementation.
