@@ -6,9 +6,11 @@ export { desktopTitlebar as platformTitlebar } from '../window-titlebar';
 export { packagedInvitationOrigin as getPublicInvitationOrigin } from '../../platform/public-origin';
 
 export const platformId = 'desktop' as const;
+// WebKit popup creation needs a real destination. Browser-style blank priming
+// also depends on animation frames that hidden native windows can throttle.
 export const platformCapabilities: import('../../platform/capabilities').PlatformCapabilities = {
   serviceWorkerUpdates: false, appInstallation: false, windowControlsOverlay: false,
-  directPopupNavigation: false, warmOptionsWindow: false, unrestrictedSignalingHttp: false,
+  directPopupNavigation: true, warmOptionsWindow: false, unrestrictedSignalingHttp: false,
   mediaElementWebAudio: false
 };
 

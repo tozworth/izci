@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const platform = vi.hoisted(() => ({
-  desktop: true, presentPlatformPopup: vi.fn(), exitPlatform: vi.fn()
+  desktop: true, warm: true, presentPlatformPopup: vi.fn(), exitPlatform: vi.fn()
 }));
 vi.mock('$platform', () => ({
-  platformCapabilities: { get directPopupNavigation() { return platform.desktop; }, get warmOptionsWindow() { return platform.desktop; } },
+  platformCapabilities: { get directPopupNavigation() { return platform.desktop; }, get warmOptionsWindow() { return platform.warm; } },
   presentPlatformPopup: platform.presentPlatformPopup,
   exitPlatform: platform.exitPlatform
 }));
@@ -24,6 +24,7 @@ describe('popup windows', () => {
     vi.resetModules();
     vi.resetAllMocks();
     platform.desktop = true;
+    platform.warm = true;
     platform.presentPlatformPopup.mockReturnValue(true);
     listeners = new Map();
     popup = {
@@ -89,6 +90,7 @@ describe('popup windows', () => {
 
   it('preserves background priming and normal focus in browser popups', async () => {
     platform.desktop = false;
+    platform.warm = false;
     platform.presentPlatformPopup.mockReturnValue(false);
     vi.stubGlobal('document', { documentElement: {} });
     vi.stubGlobal('getComputedStyle', () => ({ backgroundColor: '#18191b' }));
@@ -98,6 +100,24 @@ describe('popup windows', () => {
     windowManager.openOptions();
     expect(vi.mocked(window.open).mock.calls[0][0]).toBe('');
     expect(popup.location.replace).toHaveBeenCalledWith('https://tauri.localhost/options.html');
+    expect(popup.focus).toHaveBeenCalledOnce();
+  });
+
+  it('opens Linux popups directly without warming or waiting for a hidden animation frame', async () => {
+    const { platformCapabilities } = await import('../../desktop/linux/platform');
+    platform.desktop = platformCapabilities.directPopupNavigation;
+    platform.warm = platformCapabilities.warmOptionsWindow;
+    platform.presentPlatformPopup.mockReturnValue(false);
+    const { warmOptionsWindow, windowManager } = await import('./window-manager');
+    warmOptionsWindow();
+    expect(window.open).not.toHaveBeenCalled();
+    windowManager.openOptions('playback');
+    expect(window.open).toHaveBeenCalledWith(
+      'https://tauri.localhost/options.html?view=playback', 'izci-options', expect.any(String)
+    );
+    expect(popup.location.replace).not.toHaveBeenCalled();
+    windowManager.openOptions('tracks');
+    expect(window.open).toHaveBeenCalledOnce();
     expect(popup.focus).toHaveBeenCalledOnce();
   });
 });
