@@ -33,6 +33,8 @@ and typed access failures. They may represent a native file, browser capability,
 or SAF URI. The browser bridge supports asynchronous reads; no core synchronous
 file call may secretly block the browser main thread. Native source access must
 not copy whole ordinary audio/video files merely to start streaming them.
+Module providers may require a complete bounded source buffer; declare that
+requirement and maximum size instead of implying all providers stream packets.
 
 Separate grant-required, unavailable/deleted, corrupt, unsupported, and cancelled
 results. Startup scans do not prompt. Explicit commands can return a
@@ -86,11 +88,18 @@ Register providers at startup with IDs, versions, supported operations/formats,
 configuration probes, resource limits, and selection preferences. An extension
 is a hint; actual media/configuration support and bounded verification decide
 whether a provider can open it. A present API is not proof of codec support.
+Keep supported-extension/kind policy centralized. The optional unknown-extension
+verification setting invokes a background module probe only for unknown inputs;
+metadata inspection is a separate job and never creates an audio output player.
 
 Support both packet-decoder providers and source-decoder providers. libopus,
 libopusfile, libopenmpt/Hively, and FFmpeg have different useful boundaries; do
 not force all of them into a fake identical demux interface. Normalize their
 output/timing/error contracts, and keep provider-specific controls explicit.
+Declare which container trims and mandatory header gains a source provider has
+already applied, so packet and source providers normalize to the same audible
+timeline without doubling trimming or loudness adjustments. ReplayGain tag
+policy remains engine-owned.
 
 Each opened instance is independent. The current source, prepared next source,
 outgoing transition source, metadata probe, and offline render can coexist within
