@@ -52,6 +52,7 @@
 - `src/options/`: separate Options Vite/Svelte entrypoint and settings UI. Options edits stores; it does not own audio nodes or main-window library mutation.
 - `src/tools/`: standalone Audio Compare, Editor, Converter, Logs, and Troubadour window code; `tool-shell.css` supplies their shared desktop-window styling.
 - `src/lib/types.ts`: shared domain types and canonical internally supported extensions.
+- `pages/`: HTML entrypoints for all shells/windows; Vite keeps their served and emitted URLs at the root.
 - `vite.config.ts`: build/PWA configuration, manifest/file handlers, and module runtime assets.
 - `public/`: icons and other static assets.
 

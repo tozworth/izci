@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
@@ -17,6 +18,13 @@ export default defineConfig(({ mode }) => {
     android: './src/android/platform.ts'
   };
   return {
+    // A dedicated HTML root keeps source pages grouped without changing window URLs.
+    root: fileURLToPath(new URL('./pages', import.meta.url)),
+    publicDir: fileURLToPath(new URL('./public', import.meta.url)),
+    cacheDir: fileURLToPath(new URL('./node_modules/.vite', import.meta.url)),
+    test: {
+      root: fileURLToPath(new URL('.', import.meta.url))
+    },
     server: {
       host: '0.0.0.0',
       allowedHosts: ['localhost', 'badomen.dala-pierce.ts.net'],
@@ -28,25 +36,26 @@ export default defineConfig(({ mode }) => {
       format: 'es'
     },
     build: {
-      outDir: desktop ? 'dist-desktop' : android ? 'dist-android' : 'dist',
+      outDir: fileURLToPath(new URL(desktop ? './dist-desktop' : android ? './dist-android' : './dist', import.meta.url)),
+      emptyOutDir: true,
       // The APK is a debug target. Keep bundled app and worker code readable,
       // with original TS/Svelte sources available offline in DevTools.
       ...(android ? { minify: false, cssMinify: false, sourcemap: true } : {}),
       rollupOptions: {
         input: {
-          main: fileURLToPath(new URL('./index.html', import.meta.url)),
+          main: fileURLToPath(new URL('./pages/index.html', import.meta.url)),
           ...(desktop && !linux ? {
-            miniPlayer: fileURLToPath(new URL('./mini-player.html', import.meta.url)),
-            trayMenu: fileURLToPath(new URL('./tray-menu.html', import.meta.url)),
-            trayBubble: fileURLToPath(new URL('./tray-bubble.html', import.meta.url))
+            miniPlayer: fileURLToPath(new URL('./pages/mini-player.html', import.meta.url)),
+            trayMenu: fileURLToPath(new URL('./pages/tray-menu.html', import.meta.url)),
+            trayBubble: fileURLToPath(new URL('./pages/tray-bubble.html', import.meta.url))
           } : {}),
-          options: fileURLToPath(new URL('./options.html', import.meta.url)),
-          audioCompare: fileURLToPath(new URL('./audio-compare.html', import.meta.url)),
-          editor: fileURLToPath(new URL('./editor.html', import.meta.url)),
-          converter: fileURLToPath(new URL('./converter.html', import.meta.url)),
-          logs: fileURLToPath(new URL('./logs.html', import.meta.url)),
-          troubadour: fileURLToPath(new URL('./troubadour.html', import.meta.url)),
-          troubadourOptions: fileURLToPath(new URL('./troubadour-options.html', import.meta.url))
+          options: fileURLToPath(new URL('./pages/options.html', import.meta.url)),
+          audioCompare: fileURLToPath(new URL('./pages/audio-compare.html', import.meta.url)),
+          editor: fileURLToPath(new URL('./pages/editor.html', import.meta.url)),
+          converter: fileURLToPath(new URL('./pages/converter.html', import.meta.url)),
+          logs: fileURLToPath(new URL('./pages/logs.html', import.meta.url)),
+          troubadour: fileURLToPath(new URL('./pages/troubadour.html', import.meta.url)),
+          troubadourOptions: fileURLToPath(new URL('./pages/troubadour-options.html', import.meta.url))
         }
       }
     },
@@ -68,7 +77,7 @@ export default defineConfig(({ mode }) => {
           });
         }
       } satisfies Plugin] : []),
-      svelte(),
+      svelte({ configFile: fileURLToPath(new URL('./svelte.config.js', import.meta.url)) }),
       ...(platform === 'pwa' ? [VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['icons/izci-icon.svg', 'icons/izci-maskable.svg', 'icons/izci-file.png'],
