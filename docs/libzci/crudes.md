@@ -11,19 +11,21 @@ izci stores, a browser wrapped as native, or a separate JS runtime implementatio
 
 Provide an aplay-style entry point: open a media source, play it, report failures,
 and terminate cleanly on EOF or interruption. Opus is the first useful path.
-Add ordinary formats and modules through registered providers. Useful initial
-flags are source, output device, volume, start position, and module subsong; exact
-syntax is finalized in its implementation.
+Add ordinary formats and modules through registered providers. The planned CLI
+syntax and flags are specified in
+[Phase 2.2](phases.md#22-implement-zci-play-as-the-first-useful-consumer).
 
-Default to an in-memory/isolated engine profile. A later explicit profile option
-can exercise durable state. Do not open or mutate the ordinary player's profile.
+The initial CLI has transient runtime state and no database/profile. An explicit
+`--profile <directory>` option is added when SQLite lands in Phase 3.2. Do not
+open or mutate the ordinary player's profile.
 Diagnostics go to stderr; any PCM/file-render mode is explicit and bypasses the
 audio device. CLI argument parsing may translate inputs to public commands, but
 must not implement playback, metadata inference, or navigation policy itself.
 
 ## 2. Native crude
 
-Use native widgets and a simple table/list. Spend effort on complete controls,
+Use the native eframe/egui consumer described in scaffolding and a simple
+table/list. Spend effort on complete controls,
 observability, and reproducible interactions, not design or UX. Linux is the first
 development output path; keep Windows/native portability visible in dependencies
 and validation. Android source/grant behavior is a separate adapter concern,
@@ -52,6 +54,10 @@ must work without this window open. Reproduce enough current functionality to
 shape the engine API; do not reproduce desktop column/layout machinery.
 
 ## 3. Crude PWA
+
+The browser proof page starts in Phase 1.3, receives output in Phase 2.4, and
+becomes an installed offline PWA in Phase 3.4. Keep that one consumer throughout;
+do not discard its actual adapter wiring to create a new demo.
 
 The PWA is a maintained peer consumer, not a late compatibility check. It uses
 the actual WASM engine, browser sources, SQLite/OPFS wiring, decoder providers,
@@ -107,7 +113,51 @@ promises inferred from the presence of WebCodecs. If a browser cannot decode a
 configuration, show a supported capability failure. Native providers can support
 more formats without silently enlarging the browser bundle.
 
-## 4. Shared acceptance and diagnostics
+## 4. How each control interacts with core
+
+Start with a small binding that both native runtime and BrowserHost expose:
+create/dispose session, register/release runtime source, submit a typed command,
+query a snapshot, and subscribe/unsubscribe. Add queue/catalog/settings/job
+operations when their phases implement them. These are proposed API operations,
+not functions already exported by the repository.
+
+The normal interaction is:
+
+1. The consumer translates input into a command with a request ID/session ID.
+   A file picker first obtains a real platform source; its handle is registered
+   through the adapter. The consumer does not infer a decoder from the filename.
+2. Core accepts or rejects the request. Acceptance can precede a completed open,
+   seek, scan, or durable mutation; display that distinction.
+3. Core selects providers, changes generations/state, and performs the operation.
+   The adapter supplies reads/output/SQLite calls, without choosing application
+   policy. Native uses the library directly; BrowserHost carries worker messages.
+4. Snapshots/events report the resulting state, completion/error, and revision.
+   The consumer renders those values. It does not write a second queue/settings
+   copy and then try to reconcile it with core later.
+
+| Interaction | Core operation | What the crude observes |
+| --- | --- | --- |
+| Open/play | Register source, load session, play | Loading/ready/running, provider/error, actual output clock |
+| Drag seek rapidly | Seek commands with increasing generation | Final requested target and acknowledged position; old PCM/frames discarded |
+| Add duplicate/reorder/remove | Queue occurrence commands | Authoritative ordered occurrences and active/prepared identity |
+| Rescan/cancel | Root scan job and cancellation | Progress, terminal result, committed catalog revision, access-required outcome |
+| Favorite/rate/bookmark | Typed fact mutation | Post-commit fact in Library/Favorites/details; failed write leaves prior value |
+| Change an effect/preset | Normalized rack/settings command | Effective parameters, pending topology preparation, DSP latency/telemetry |
+| Open/navigate image | Create image session from captured IDs; navigate | Independent current image/asset lease; audio session unchanged |
+| Hide/show video | Surface/lifecycle capability event | Core suspend/preroll decisions; adapter executes frame deadlines locally |
+
+For access-required results, show a grant button that calls the platform adapter
+under user activation and then retries the core command. Startup/restore cannot
+press that button automatically. For a client reconnect, request a complete
+snapshot before applying new deltas. Closing a diagnostic client releases its
+subscription; closing the playback owner has the separate lifecycle defined
+in Phase 3.3.
+
+Queue, catalog, and settings controls must work if driven by another client or
+test harness. A crude-specific timer may refresh meters/widgets; it cannot run
+play-count policy, advance transport, choose the next source, or schedule video.
+
+## 5. Shared acceptance and diagnostics
 
 Give both crudes the same scenario IDs, current API/build identity, and capability
 vocabulary. Use the same small media sources and domain command sequences.

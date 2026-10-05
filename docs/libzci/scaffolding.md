@@ -1,176 +1,279 @@
-# Initial scaffolding and feasibility proofs
+# Initial scaffolding
 
 [Plan entry point](README.md) · [Ownership boundaries](boundaries.md) ·
-[Runtime contracts](contracts.md)
+[Implementation steps](phases.md) · [Runtime contracts](contracts.md)
 
-This document gives detail for the first implementation work. Later feature
-designs must grow from exercised contracts rather than empty framework code.
-All builds and live browser/device checks require the authorization described in
-the [entry point](README.md#how-to-execute-the-plan).
+This is the orientation for implementation. The paths under `libzci/` below
+are proposed outputs. Create them in the subphase that uses them; there is no
+libzci workspace to run today.
 
-## 1. Repository shape
+## 1. What the checkout actually contains
 
-Start with an isolated `libzci/` workspace in this repository. Leave `src-tauri/`,
-`izci-server/`, and the current frontend dependency/build graph independent.
-Ordinary PWA work must continue to work without Go or native decoder toolchains.
+| Area | Present now | Work needed for libzci |
+| --- | --- | --- |
+| Rust | [src-tauri/Cargo.toml](../../src-tauri/Cargo.toml), a Tauri shell | Separate Cargo workspace; no Tauri/webview dependency |
+| Regular audio | [howler-player.ts](../../src/lib/services/howler-player.ts), HTML5 audio; server FFmpeg | New compiled decoder providers and audio-device output |
+| Opus | Fixture recipe and browser/server playback paths | Acquire/build libopus, libopusfile, libogg; no bundled reference provider exists |
+| Tracker modules | libopenmpt 0.8.4 WASM/loader and [OpenMptModule](../../src/lib/services/openmpt/module.ts) | Reproducible source build, native binding, browser provider binding |
+| Hively | Pinned WASM recipe, C wrapper, worklet | Native build and instance-safe wrapper; audible/concurrent fixtures |
+| Database | Frontend IDB/localStorage; Go server SQLite | New shared schema/SQL and native/browser SQLite integration |
+| Browser video | [video-player.ts](../../src/lib/services/video-player.ts), literal video element | Core demux/timing and WebCodecs adapter, much later |
+| Browser build | Root Vite/Svelte/PWA project | Independent crude PWA configuration, assets, install identity |
+| Fixtures | [fixtures/manifest.json](../../fixtures/manifest.json), generators and test helpers | Generate media with pinned tools; extend missing coverage |
 
-Suggested ownership layout (create packages only as their slices need them):
+Do not call this an extraction of an existing native engine. Some behavior and
+C source can be reused, but the shared runtime, ordinary decoders, SQL integration,
+native output, and WebCodecs video transport are new implementation work.
+Use current services and tests as behavior references, without importing their
+Svelte stores into the new consumers.
+
+## 2. Workspace and module placement
+
+Create an independent workspace at `libzci/Cargo.toml`. Do not put it under
+the Tauri Cargo project or change the root frontend build to require it.
 
 ```text
 libzci/
-  Cargo.toml                 workspace, separate from src-tauri
+  Cargo.toml / Cargo.lock / rust-toolchain.toml
   crates/
-    libzci/                  domain, sessions, DSP, SQL, provider contracts
-    libzci-codecs/           portable compiled media implementations
-    libzci-native/           native sources/devices/runtime wiring
-    libzci-web/              WASM exports and browser runtime wiring
-    libzci-ffi/              small C-facing binding
+    libzci/
+      src/{lib,ids,error,source,provider,session,command,event}.rs
+      src/audio/             PCM, mixing, resampling, taps, output clock
+      src/storage/           SQLite statements, schema, transactions
+      src/catalog/           media, roots, scans, facts, paged queries
+      src/metadata/          bounded tag/lyrics readers
+      src/assets/            artwork, renditions, image sessions
+      src/raf/               settings, rack, shared DSP kernels
+      src/video/             demux, timeline, scheduling, frame leases
+    libzci-codecs/
+      src/{opus,openmpt,hively,symphonia}.rs
+      c/                     instance-safe C bridges
+    libzci-native/
+      src/{source,audio,sqlite,runtime}.rs
+    libzci-web/
+      src/                   Rust WASM binding and host imports
+      js/                    browser mechanisms and worker/worklet glue
+    libzci-ffi/
+      src/                   C binding over native runtime
+      include/libzci.h
   consumers/
-    zci-play/                native CLI
-    crude-native/            native test UI, no webview
-    crude-pwa/               isolated browser app/manifest/service worker
-  tests/                     cross-target contract scenarios
-  vendor/                    pinned source acquisition/patch manifests
+    zci-play/                Cargo binary, no UI runtime
+    crude-native/            native Rust GUI
+    crude-pwa/              its own package.json, TS/Vite/PWA config
+  scripts/                  acquisition/build/asset verification commands
+  vendor/dependencies.json  revisions, digests, licenses, patch records
+  tests/                    scenario descriptions and cross-target checks
 ```
 
-The central crate must not import native device APIs, browser APIs, Tauri, Svelte,
-or server transport code. Keep modules focused; split crates only when dependency
-or build ownership benefits. Do not introduce a crate for every future feature.
-The crudes may share presentation-only resources; they do not share a second
-application controller outside libzci.
+Phase 0 creates only the workspace and central crate. Phase 1 adds the provider,
+native, and web packages as their first functions land. Phase 2 adds the CLI;
+Phase 3 adds the native GUI. Do not create empty future feature modules.
 
-Choose a lightweight native widget toolkit when the native crude begins. For the
-PWA crude, plain TypeScript/HTML is sufficient; Svelte is acceptable for rendering
-if it does not pull in current application stores/controllers. The PWA requires
-no local native service. Give it a distinct origin or scoped asset/SW/profile
-namespace so it cannot replace the installed old player's service worker/data.
+The central crate owns behavior and imports no browser, device, Tauri, Svelte,
+or server APIs. Codec libraries depend on its provider contracts; adapters depend
+on its access/output/SQLite contracts. Consumers assemble adapters/providers and
+call its public interface. Dependency direction does not reverse to accommodate
+one shell's convenience.
 
-## 2. Native/WASM dependency proof
+Defaults for later consumers are CPAL for native output and eframe/egui for the
+native crude. The crude uses native rendering with ordinary buttons, lists, and
+sliders, without a webview. Use plain TypeScript/HTML for the PWA crude. This
+avoids pulling in existing stores and lets API deficiencies show up directly.
+Pin compatible releases during the relevant implementation step; these are
+starting choices, not claims that dependencies are already installed.
 
-Start with Rust, reference Opus decoding, libopenmpt, the pinned Hively replay
-source, and SQLite. Browser video codecs are imported capabilities, never part
-of this compiled set. Other ordinary-audio decoders are selected by coverage and
-actual test results; a "pure Rust" dependency is not itself a selection criterion.
+## 3. The initial native/browser build strategy
 
-Prove the following with tiny public-API consumers before growing the engine:
+Use Rust for the shared engine and DSP. Start its browser build with
+`wasm32-unknown-unknown` and wasm-bindgen. Build C/C++ media providers separately
+with Emscripten for browser use, and link native C/C++ libraries into native
+providers. Browser provider wrappers translate calls, buffer ownership, and
+errors; they do not implement track sequencing or DSP in JavaScript.
 
-1. Native library produces audible/inspectable PCM for an Opus file and a MOD.
-2. The WASM build invokes the same engine/provider contracts for those sources.
-3. Native Hively replay loads and produces frames through an instance handle;
-   browser replay uses the same source/profile with independent instances.
-4. Engine-owned SQL commits and reopens the same small domain record natively
-   and through browser OPFS.
-5. Native consumption needs no JavaScript/WASM runtime or browser. Browser
-   exports/glue do not pull native bridges or software video codecs into assets.
+This choice avoids assuming that a Rust WASM target automatically links existing
+Emscripten libraries. It also lets the first browser proof use the pinned
+libopenmpt loader/ABI while its reproducible source recipe is established.
+Phase 1 must prove the extra buffer copies and instance lifetimes are acceptable.
+If this arrangement fails the stated checks, compare a unified Emscripten build
+with the same scenarios and document the selected replacement before proceeding.
+Do not spend the first phase comparing every conceivable toolchain.
 
-Do not select `wasm32-unknown-unknown` and assume C/C++ dependencies or ordinary
-filesystem/thread APIs will link and behave automatically. Evaluate a coherent
-Rust/C toolchain (including Emscripten where appropriate), host imports, memory
-ownership, and any separate decoder instances. Record exact commands, pinned
-versions, required exports, and artifact ownership after successful execution.
+Native uses real libopus/libopusfile, libopenmpt, and Hively machine code.
+It must not embed Node, a webview, or wazero to reuse the server's Hively path.
 
-Separate WASM media modules are acceptable when required by toolchains, provided
-libzci owns their instance lifetimes and normalized behavior. They are not an
-excuse to retain the old JS player controller or run WASM on native as a shortcut.
+### Acquisition and C bridges
 
-### Critical Hively issue
+The new acquisition script reads `vendor/dependencies.json`, downloads exact
+source archives/revisions to ignored workspace directories, checks digests, and
+builds native/WASM outputs separately. Never run a recipe that overwrites the old
+app's checked-in WASM. Record compiler flags, exports, licenses, and the command
+that produced each artifact.
 
-`scripts/vendor/ahx/ahx-wrapper.c` currently holds tune, buffers, subsong, channel
-mutes, and playback position in static mutable globals. Separate WASM instances
-isolate these today. Direct native linking would create a singleton. Introduce
-per-instance replay contexts and audit upstream initialization/shared data before
-claiming concurrent preload, probing, Freeplay, or offline renders work. Preserve
-the existing interpolation/channel/pattern capabilities while changing ownership.
-The pinned upstream replayer also generates shared waveform/panning tables;
-initialize them once with synchronization and then freeze them, or own them in
-an immutable shared runtime. Test two live contexts with interleaved decoding,
-seeking, subsong changes, and mutes; sequential WASM lifecycle tests do not prove
-native reentrancy.
+- **Opus:** acquire libopus, libopusfile, and libogg. Wrap open/read/seek/metadata/
+  close with explicit instance handles and callback ownership. Normalize output
+  to float PCM with its audible sample timeline. Declare trimming/header-gain
+  already performed by opusfile. Explicitly use header gain with zero additional
+  offset; core later decides ReplayGain/R128 tag policy. See the
+  [opusfile gain modes](https://opus-codec.org/docs/opusfile_api-0.12/group__stream__decoding.html).
+- **libopenmpt:** start at source version 0.8.4, matching the current
+  [artifact provenance](../../src/lib/vendor/libopenmpt/README.md). Translate
+  [OpenMptCore](../../src/lib/services/openmpt/abi.ts) and
+  [OpenMptModule](../../src/lib/services/openmpt/module.ts) operations into the
+  provider. The native system loader in
+  [openmpt.go](../../izci-server/internal/media/openmpt.go) is API evidence, not a
+  bundled source recipe.
+- **Hively:** acquire the commit pinned in
+  [build.ps1](../../scripts/vendor/ahx/build.ps1). Put a new context wrapper in
+  `libzci-codecs/c/`; leave the old wrapper/artifacts intact. Move tune, source
+  buffer, decode buffer, subsong, mutes, interpolation, position, and duration
+  state out of static globals. Initialize upstream waveform/pan/interpolation
+  tables once safely and keep them immutable. Return a pointer-sized native
+  handle; do not copy the current wasm32 pointer-to-uint32 assumptions.
 
-### Dependency acquisition
+The current Hively recipe is a PowerShell WASM build; portable native and browser
+commands must be added. Browser/server Hively binaries differ and the server's
+source revision is unverified. Neither binary substitutes for new provenance.
 
-Record pinned upstream revisions, licenses/notices, build flags, patches, and
-how to reproduce artifacts on each target. Hively already has a pinned source
-recipe; libopenmpt has checked-in WASM/runtime assets and an ABI wrapper. Reuse
-provenance where useful, not opaque binaries as substitutes for native source.
-Optional FFmpeg remains absent from default browser builds and is not necessary
-to establish basic Opus playback.
-The server and browser currently contain different Hively WASM artifacts, and
-the server artifact's upstream revision is unverified in the notices. Establish
-new reproducible source provenance rather than asserting they already match.
+### Bounded source access and synchronous C callbacks
 
-## 3. Browser storage proof
+The source contract supports requests for a byte range, cancellation, source
+revision, and typed access errors. An opened source is a runtime handle; it is
+not yet a Library record or durable profile entry.
 
-Keep schema/transactions inside shared engine code. Prove that actual code against
-SQLite/OPFS; a standalone JS SQLite demo proves only the VFS.
+libopusfile expects synchronous read/seek callbacks. For native decode jobs,
+serve them from a seekable native file. For the first browser proof, materialize
+a browser File snapshot, send that File to a dedicated decode worker, and test
+bounded Blob-slice reads with FileReaderSync in that worker. Do not read the
+entire Opus file, block the window thread, or send whole files through JSON.
+The File snapshot is separate from the durable FSA handle and its grant.
 
-Default toward one browser storage owner and attached clients. Evaluate
-`opfs-sahpool` for a single owner without isolation headers; choose another
-supported VFS if the tested ownership model needs it. Do not choose by a desktop
-concurrency assumption. Pin the selected SQLite/VFS implementation and establish
-non-destructive initialization failure behavior.
+The browser proof must verify callback reentry, errors, seek, cancellation between
+bounded decode calls, and reads on a large file. If this bridge fails, use the
+core's Ogg reader with packet-level libopus rather than pretending asynchronous
+callbacks are synchronous. Keep that fallback confined to the Opus provider
+implementation; ordinary source APIs must remain usable by future SAF/ranged
+providers. Modules may request a complete buffer under an explicit size limit.
 
-Exercise commit, close/reopen, reload, simultaneous attached clients, owner loss,
-busy/quota failures, and unsupported storage. Distinguish "unavailable persistence"
-from a usable in-memory test mode; never silently claim durable success.
+## 4. First engine and browser execution layout
 
-FSA references use a small IndexedDB capability registry. Prove handle restoration
-and denied/prompt outcomes separately from SQL reopening. No fake handle
-serialization and no duplicate catalog stored there.
+Implement the first control API before adding persistence:
 
-## 4. Browser execution and output proof
+```text
+create runtime -> register provider -> register runtime source -> create session
+    -> load source -> decode/play -> pause/seek/stop -> dispose
+```
 
-WASM compilation is not browser playback evidence. Wire a real source reader,
-bounded decode queues, shared DSP with at least gain/mute, and an AudioWorklet
-output path. Prove transport, seek generation cancellation, EOF/drain, and output
-timing with reference Opus. Probe WebCodecs audio as an optional platform provider
-through the same contract, with reference Opus available when appropriate.
+A session has its own generation counter, transport state, decoder, and bounded
+PCM buffers. A generation identifies the currently valid load/seek: a later seek
+increments it, and output from an older generation is discarded. This is how
+rapid seeks avoid playing stale samples. Introduce IDs/types for objects that
+actually exist in this slice; Library memberships and queue occurrence IDs come
+when those modules are implemented.
 
-Choose buffer transport after measuring transferred-buffer and shared-memory
-approaches. An initial path without SharedArrayBuffer may reduce hosting
-constraints; require actual underrun/CPU evidence before selecting it. If shared
-memory/isolation headers are required, document and test their effects on popup
-opener relationships, asset loading, installed/offline launch, and service-worker
-responses. Do not accidentally require those headers just by adopting a sample.
+Use this starting browser topology:
 
-Define the context topology: control/storage owner, dedicated decoder workers,
-audio worklet, rendering context, main-thread integration. WebCodecs APIs are not
-universally exposed in every worker type. A shared storage host need not host
-decoding or audio. Keep consumer-window attach/detach separate from playback-host
-and database lifetimes; record restart/reconnect semantics.
+| Context | Initial job |
+| --- | --- |
+| Main document | File picker/activation, AudioContext, Media Session, controls |
+| Engine worker | Shared Rust control code, snapshots, later SQLite and mutations |
+| Dedicated decode worker(s) | Source reads, C provider modules, bounded PCM production |
+| AudioWorklet | Bounded output and the shared Rust audio/DSP module |
+| Service worker, Phase 3 | Offline assets/update lifecycle; no engine/audio/database authority |
 
-## 5. Minimal API to exercise first
+The browser adapter carries requests/results between these contexts. Rust owns
+the generation, transport state, and playback policy. The worklet receives a
+small audio-only WASM build without SQL/catalog/codec dependencies. Use the same
+Rust gain/mute and later Raf kernels as native; JS worklet code schedules buffer
+delivery and calls processing exports.
 
-Implement just enough to create/dispose an engine/session, register/open sources,
-load/play/pause/seek/stop, observe state/capabilities/errors, produce PCM, and use
-the initial SQL record. Include cancellation/generation identity, explicit
-resource release, and injected clock/test-source support immediately.
+Start PCM transport with a preallocated pool of transferable buffers and explicit
+credit/recycle messages. Bound frames in flight, report underruns, and tag them
+with the generation. Measure foreground/background results before deciding a
+SharedArrayBuffer path is necessary. If isolation headers are introduced, verify
+installed/offline responses and attached-window relationships explicitly.
 
-Expose provider ID/version, source format, sample rate/channels, queue depth,
-position, underruns, and preparation failures as bounded diagnostics. These
-observations help the crudes improve the engine; they are not persisted or baked
-into its catalog API. Prevent paths/secrets from leaking through future remote
-diagnostics.
+The output adapter reports consumed frames and its best available audible
+clock/latency estimate. The core computes media position from that clock plus
+the loaded timeline. Wall-clock/UI timers never claim progress while output is
+suspended. Diagnostics expose both requested play state and actual output state.
 
-## 6. Proof records and stop conditions
+## 5. SQLite integration when storage begins
 
-For each proof, record target, toolchain/browser/device version, profile, scenario,
-observed result, limitations, and the resulting technical choice. Keep artifact
-locations separate from the current app. A build failure or missing fixture is
-not a passed gate.
+Storage first appears in Phase 3, after file playback works. Before then the CLI
+has no profile and the engine uses only transient state.
 
-Resolve toolchain incompatibility, singleton decoding, SQL ownership, or broken
-Opus before adding library/UI breadth. Do not solve a failed proof by dropping
-the PWA, requiring a JS runtime natively, bundling browser video decoders, or
-reimplementing domain behavior in a crude.
+Put schema, SQL strings, validation, and transactions in
+`crates/libzci/src/storage/`. Start native bindings with rusqlite and a pinned
+bundled SQLite build; the browser uses the official
+SQLite WASM build with an OPFS VFS in the engine owner worker. Start with
+`opfs-sahpool` and one owner; independent concurrent SQL connections are unnecessary.
 
-## Primary technical references
+Keep native SQLite/device/C-linking dependencies target-specific. The core's
+audio-only WASM build excludes catalog/SQL/provider code; its control build uses
+the browser SQLite host bridge. A compile-time dependency check should make
+these boundaries visible rather than relying on dead-code elimination.
 
-- [Rust WASM target constraints](https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html).
-- [libopenmpt C API](https://lib.openmpt.org/doc/libopenmpt_c_overview.html).
-- [Reference Ogg Opus decoding and custom I/O](https://opus-codec.org/docs/opusfile_api-0.12/index.html).
-- [SQLite browser persistence/VFS options](https://sqlite.org/wasm/doc/trunk/persistence.md).
-- [WebCodecs](https://www.w3.org/TR/webcodecs/).
+Use a narrow SQLite binding interface: prepare/execute, bind typed values, read
+rows, finalize, and report SQLite errors. Native and browser adapters execute the
+same statements. This is SQLite plumbing, not an intermediate storage dialect or
+a JS Library implementation. In the browser, initialize SQLite and Rust WASM in
+the same worker so synchronous SQLite host calls do not require a cross-worker
+round trip. Long scans perform short transactions between asynchronous reads.
 
-Recheck relevant upstream documentation when executing these proofs. These links
-describe mechanisms; they do not establish that izci's chosen wiring works.
+First prove one settings row committed by Rust and reopened through both adapters.
+Then add the domain schema. Select a SQLite/VFS version or audited patch that
+preserves stored files on initialization failure; the SAH-pool default must not
+wipe data while handling an error.
+
+Profile names reserved in Phase 0 become actual storage here:
+
+- Native default crude profile: `.local/libzci/profiles/crude-native/`.
+  `zci-play` stays transient unless given an explicit `--profile`.
+- Browser: independent origin at a dedicated port, manifest ID, OPFS directory
+  `/libzci-crude-v1/`, and IndexedDB registry `libzci-crude-capabilities-v1`.
+- Tests: uniquely named temporary directories/OPFS namespaces with explicit
+  disposal. Do not remove ordinary profiles on startup, failure, or rebuild.
+
+An owner lock precedes opening the pool/database. Auxiliary windows attach as
+clients; they cannot acquire a second database/player. Phase 3 spells out attach,
+owner loss, and re-election. FSA capabilities live in IndexedDB with pending/
+committed references because SQL and IDB cannot transact together.
+
+## 6. Fixtures available to start
+
+The checked-in corpus is a manifest and generator, not checked-in media.
+Generation writes `.local/verification-fixtures/v1/` and requires the exact
+FFmpeg/FFprobe pin in [fixtures/README.md](../../fixtures/README.md).
+
+First decoder inputs are `audio-opus` (`media/audio/tone.opus`) and
+`module-mod` (`media/modules/tone.mod`). They are only 0.25 seconds and 7.68
+seconds respectively; add longer synthetic Opus for audible/seek/background
+checks. Keep private-library listening separate from redistributable fixtures.
+
+Two existing helpers can seed tests without claiming complete format coverage:
+
+- [toneModule()](../../src/lib/services/openmpt/test-fixtures.ts) constructs MOD
+  data and an optional two-subsong example.
+- [ahx-worklet.test.ts](../../src/lib/services/ahx-worklet.test.ts) constructs blank
+  AHX/HVL tunes for real-WASM load/EOF/restart/seek. These silent lifecycle inputs
+  do not prove instrument audio, interpolation, channel muting, or reentrancy.
+
+The corpus still lacks audible/pinned XM, S3M, IT, MO3, AHX, and HVL samples.
+Acquisition or a deterministic generator is explicit work in Phase 2.
+
+## 7. Technical references
+
+These support the proposed mechanisms, not a claim that the new wiring works:
+
+- [Rust WASM constraints](https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html)
+  and [C interoperability](https://doc.rust-lang.org/stable/embedded-book/interoperability/rust-with-c.html).
+- [opusfile callbacks](https://opus-codec.org/docs/opusfile_api-0.12/group__stream__open__close.html)
+  and [libopenmpt C API](https://lib.openmpt.org/doc/libopenmpt_c_overview.html).
+- [File API and synchronous worker reads](https://www.w3.org/TR/FileAPI/).
+- [SQLite persistence/VFS](https://sqlite.org/wasm/doc/trunk/persistence.md).
+- [CPAL](https://github.com/RustAudio/cpal),
+  [eframe](https://github.com/emilk/egui/tree/main/crates/eframe),
+  [Symphonia](https://github.com/pdeljanov/Symphonia).
+
+Recheck exact upstream versions/target support when pinning dependencies. Use
+[phases.md](phases.md) for the ordered code changes and completion checks.
