@@ -211,8 +211,76 @@ code (`libzci/crates/libzci/src/` plus the planned `libzci-native`
 package). Runtime decode/playback proofs are pending by design. There
 is still no reason to open a libzci profile.
 
-Next work item: Phase 1.2 — reference Opus acquisition and native
-provider (`libzci-codecs`, `opus.rs`, scripts under `libzci/scripts/`).
+### 1.2 Acquire reference Opus and implement the native provider — implemented, verification pending
+
+Pins resolved (see `libzci/vendor/dependencies.json`):
+
+- `libogg` 1.3.5 (`sha256:0eb4b4b…799b664`), `libopus` 1.5.2
+  (`sha256:65c1d2f7…f9a7ce1`), `libopusfile` 0.12
+  (`sha256:118d8601…ae3550b6`) — all BSD-3-Clause (Xiph.Org); notice
+  entry added to `docs/THIRD-PARTY-NOTICES.md` reusing L042 (COPYING.Xiph).
+- Toolchain: local `rustc 1.99.0 (b940084d7 2026-09-28)` via
+  `stable-x86_64-unknown-linux-gnu`, recorded in
+  `dependencies.json#toolchain` with the workspace `Cargo.lock`
+  committed. No `rust-toolchain.toml`: the reported version has no
+  matching versioned rustup channel here, so a channel file would break
+  builds; re-evaluate when a real channel exists.
+
+Created:
+
+- `libzci/scripts/acquire-media-deps.sh`: reads the pins, downloads to
+  ignored `.local/libzci/vendor/<id>/<release>/`, verifies digests,
+  builds native static libs (`--disable-shared`, `-O2 -fPIC`;
+  opusfile additionally `--disable-http` against the just-built
+  ogg/opus prefixes), writes per-library `BUILD-RECORD.txt`. Touches
+  nothing under `public/vendor/`, `src/lib/vendor/`, or `izci-server/`.
+  Emscripten `build-wasm/` is explicitly pending (no `emcc` here).
+- `libzci/crates/libzci-codecs/` (`opus_ffi.rs`, `opus.rs`,
+  `build.rs` linking the prebuilt `libopus.a`): the reference Opus
+  provider. Native decode path is the scoped packet-level fallback
+  from scaffolding §3 — shared Ogg reader (page/lacing/continued
+  packets, CRC, granule index) plus reference libopus 1.5.2 packets —
+  chosen over the `opusfile-sys` 0.2 stack (stale `opus-sys` 0.2 era
+  bindings) so native and browser share one provider with identical
+  timeline/gain semantics. opusfile semantics are mirrored exactly
+  once: OpusHead output gain applied, zero additional offset,
+  pre-skip/end-trim on the normalized timeline (`AppliedAdjustments`
+  all true); ReplayGain/R128 tags parsed for diagnostics, never
+  applied. Mono/stereo mapping family 0 only; family 1+, >stereo,
+  and chained Ogg fail explicitly as named gaps.
+- `libzci/tests/synth-opus-30s.sh`: checked-in recipe for the longer
+  synthetic Opus (30 s stereo L440/R660, CC0-1.0) in ignored
+  `.local/libzci/media/` with a `.provenance.txt` record.
+- `libzci/Cargo.toml`: added `crates/libzci-codecs`. `ogg = "0.9"`
+  (pure-Rust demux) locked in the committed `Cargo.lock`.
+
+Evidence (all native, profile `none`):
+
+- Acquisition: `libzci/scripts/acquire-media-deps.sh` → `libogg.a`,
+  `libopus.a`, `libopusfile.a` (+`libopusurl.a`) under
+  `.local/libzci/vendor/*/build-native/lib/` with BUILD-RECORDs.
+- Corpus: `node fixtures/generate.mjs` → 21 fixtures;
+  `tone.opus`/`tone.mod` digests match the manifest.
+- `cargo test -p libzci-codecs` → 8 passed: linked version asserts
+  `libopus 1.5.2`; `tone.opus` opens with finite total 12000 frames
+  (0.25 s @48 kHz), decodes to exactly 12000 finite samples with
+  nonzero content; seek lands mid-stream with exact tail length;
+  reopen reproduces the total; truncated input reports
+  Corrupt/Unsupported (never success); two handles interleave and one
+  survives the other's dispose; single reads stay ≤ 64.5 KiB;
+  oversized sources refused observably. The 30 s stereo synth
+  (1,440,000 frames, 33 pages, continued packets) decodes exactly and
+  seeks mid-stream, near-EOF (end-trim exact), and back to zero.
+- Two real bugs found and fixed by these tests (header-skip dropping
+  audio packets when headers occupy own pages; seek preroll ignoring
+  end-trim); see the provider module docs.
+- Disposing one native handle leaves the other usable (covered).
+- Pending: browser worker proof (1.3), module/Hively providers (1.4),
+  audible output (Phase 2). No database, profile, or JS/WASM runtime
+  involved natively.
+
+Next work item: Phase 1.3 — the same Opus operation in the browser
+worker plus the first `consumers/crude-pwa/` page/config.
 
 ## Phase 1: sources, provider instances, and cross-target decode
 

@@ -1,36 +1,44 @@
 {
   "schemaVersion": 1,
   "note": "Phase 0 acquisition inventory. Pinned entries name exact sources already proven in this checkout; pending entries must resolve to an exact release plus digest in Phase 1.2 before any download. Floating URLs or version ranges are not acquisition inputs.",
+  "toolchain": {
+    "rustc": "1.99.0 (b940084d7 2026-09-28) via stable-x86_64-unknown-linux-gnu",
+    "policy": "No rust-toolchain.toml is committed: the environment toolchain reports a version with no matching versioned rustup channel, so a channel file would break builds. The exact rustc version above plus the committed libzci/Cargo.lock are the Phase 1.2 pin; re-evaluate a versioned channel when a real release channel exists.",
+    "lockfile": "libzci/Cargo.lock (committed)"
+  },
   "libraries": [
     {
       "id": "libogg",
-      "role": "Ogg container for the reference Opus provider (with libopusfile).",
-      "status": "pending-pin",
-      "pinnedRelease": null,
-      "digest": null,
-      "upstream": null,
-      "license": "pending (record SPDX + notice text against the pinned release in 1.2)",
-      "evidence": "No pinned libogg release exists in this checkout; server ordinary-audio decoding goes through FFmpeg, not a bundled reference provider."
+      "role": "Ogg container reference for the Opus provider (container parsing itself is the shared pure-Rust Ogg reader in libzci-codecs; the reference source is acquired/built for provenance and the Emscripten comparison).",
+      "status": "pinned-release",
+      "pinnedRelease": "1.3.5",
+      "archive": "https://downloads.xiph.org/releases/ogg/libogg-1.3.5.tar.gz",
+      "digest": "sha256:0eb4b4b9420a0f51db142ba3f9c64b333f826532dc0f48c6410ae51f4799b664",
+      "upstream": "https://xiph.org/ogg/ + https://downloads.xiph.org/releases/ogg/",
+      "license": "BSD-3-Clause (Xiph.Org Foundation; see COPYING in the source tree)",
+      "evidence": "Downloaded and digest-verified by libzci/scripts/acquire-media-deps.sh (Phase 1.2)."
     },
     {
       "id": "libopus",
-      "role": "Reference Opus decoder behind the native provider and the Emscripten browser module.",
-      "status": "pending-pin",
-      "pinnedRelease": null,
-      "digest": null,
-      "upstream": null,
-      "license": "pending (record SPDX + notice text against the pinned release in 1.2)",
-      "evidence": "Working reference Opus is mandatory from the first useful player, but no bundled reference provider exists yet (scaffolding §1)."
+      "role": "Reference Opus decoder behind the native provider (statically linked 1.5.2) and the future Emscripten browser module.",
+      "status": "pinned-release",
+      "pinnedRelease": "1.5.2",
+      "archive": "https://downloads.xiph.org/releases/opus/opus-1.5.2.tar.gz",
+      "digest": "sha256:65c1d2f78b9f2fb20082c38cbe47c951ad5839345876e46941612ee87f9a7ce1",
+      "upstream": "https://opus-codec.org/ + https://downloads.xiph.org/releases/opus/",
+      "license": "BSD-3-Clause (Xiph.Org Foundation et al.; see COPYING in the source tree)",
+      "evidence": "Downloaded, digest-verified, and natively built (--disable-shared) by libzci/scripts/acquire-media-deps.sh; linked by libzci-codecs/build.rs. Runtime version asserted via opus_get_version_string in provider tests."
     },
     {
       "id": "libopusfile",
-      "role": "Ogg Opus stream open/read/seek/comments/close wrapped with explicit instance handles (op_open_callbacks). Header gain mode is used explicitly with zero additional offset; ReplayGain/R128 tag policy stays core-owned later.",
-      "status": "pending-pin",
-      "pinnedRelease": null,
-      "digest": null,
-      "upstream": null,
-      "license": "pending (record SPDX + notice text against the pinned release in 1.2)",
-      "evidence": "No pinned libopusfile release exists in this checkout."
+      "role": "Ogg Opus stream reference (header-gain/trim semantics). Acquired/built for provenance and the browser-module comparison; the native provider decodes packets with reference libopus through the shared Ogg reader (scoped packet-level fallback per scaffolding §3) and mirrors opusfile semantics: header output gain applied, zero additional offset, pre-skip/end-trim applied exactly once. ReplayGain/R128 tag policy stays core-owned later.",
+      "status": "pinned-release",
+      "pinnedRelease": "0.12",
+      "archive": "https://downloads.xiph.org/releases/opus/opusfile-0.12.tar.gz",
+      "digest": "sha256:118d8601c12dd6a44f52423e68ca9083cc9f2bfe72da7a8c1acb22a80ae3550b",
+      "upstream": "https://opus-codec.org/ + https://downloads.xiph.org/releases/opus/",
+      "license": "BSD-3-Clause (Xiph.Org Foundation; see COPYING in the source tree)",
+      "evidence": "Downloaded, digest-verified, and natively built (--disable-shared --disable-http) by libzci/scripts/acquire-media-deps.sh (Phase 1.2). Native provider rationale recorded in docs/libzci/implementation-log.md §1.2."
     },
     {
       "id": "libopenmpt",

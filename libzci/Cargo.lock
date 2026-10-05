@@ -3,12 +3,35 @@
 version = 4
 
 [[package]]
+name = "byteorder"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
+
+[[package]]
 name = "libzci"
 version = "0.1.0"
+
+[[package]]
+name = "libzci-codecs"
+version = "0.1.0"
+dependencies = [
+ "libzci",
+ "ogg",
+]
 
 [[package]]
 name = "libzci-native"
 version = "0.1.0"
 dependencies = [
  "libzci",
+]
+
+[[package]]
+name = "ogg"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fdab8dcd8d4052eaacaf8fb07a3ccd9a6e26efadb42878a413c68fc4af1dee2b"
+dependencies = [
+ "byteorder",
 ]

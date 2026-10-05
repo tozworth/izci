@@ -1,0 +1,16 @@
+[package]
+name = "libzci-codecs"
+version = "0.1.0"
+edition = "2021"
+description = "libzci codec providers over compiled reference media libraries (Opus first; modules in Phase 1.4)."
+license = "MIT"
+
+[lib]
+name = "libzci_codecs"
+path = "src/lib.rs"
+
+[dependencies]
+libzci = { path = "../libzci" }
+ogg = "0.9"
+
+[build-dependencies]
