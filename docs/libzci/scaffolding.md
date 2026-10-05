@@ -129,6 +129,10 @@ that produced each artifact.
   state out of static globals. Initialize upstream waveform/pan/interpolation
   tables once safely and keep them immutable. Return a pointer-sized native
   handle; do not copy the current wasm32 pointer-to-uint32 assumptions.
+  The old wrapper computes duration during load and replays from the beginning
+  in a synchronous seek loop. Introduce bounded probe/seek stepping so control
+  messages can cancel work between batches; duration discovery must not delay
+  the whole engine or audio callback.
 
 The current Hively recipe is a PowerShell WASM build; portable native and browser
 commands must be added. Browser/server Hively binaries differ and the server's
@@ -271,6 +275,8 @@ These support the proposed mechanisms, not a claim that the new wiring works:
   and [libopenmpt C API](https://lib.openmpt.org/doc/libopenmpt_c_overview.html).
 - [File API and synchronous worker reads](https://www.w3.org/TR/FileAPI/).
 - [SQLite persistence/VFS](https://sqlite.org/wasm/doc/trunk/persistence.md).
+- [rusqlite native bindings and bundled SQLite](https://github.com/rusqlite/rusqlite)
+  and [wasm-bindgen](https://rustwasm.github.io/docs/wasm-bindgen/introduction.html).
 - [CPAL](https://github.com/RustAudio/cpal),
   [eframe](https://github.com/emilk/egui/tree/main/crates/eframe),
   [Symphonia](https://github.com/pdeljanov/Symphonia).
