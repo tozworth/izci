@@ -3,7 +3,7 @@ export const architectureConfig = Object.freeze({
   sourceFiles: [
     'public/raf-upward-compressor.worklet.js',
     'public/vendor/ahx-worklet.js',
-    'sites-worker.js',
+    'deployment/sites-worker.js',
     'svelte.config.js',
     'vite.config.ts'
   ],
@@ -30,7 +30,7 @@ export const architectureConfig = Object.freeze({
     {
       runtime: 'worker',
       description: 'Worker, worklet, and Sites Worker entrypoints execute outside the browser window realm.',
-      paths: ['sites-worker.js'],
+      paths: ['deployment/sites-worker.js'],
       patterns: [/(?:^|\/)\w[\w.-]*\.(?:worker|worklet)\.[jt]s$/]
     }
   ],
@@ -163,7 +163,7 @@ export const architectureConfig = Object.freeze({
     /(?:^|\/)\w[\w.-]*\.worker\.[jt]s$/,
     /(?:^|\/)\w[\w.-]*\.worklet\.[jt]s$/,
     /^public\/vendor\/ahx-worklet\.js$/,
-    /^sites-worker\.js$/,
+    /^deployment\/sites-worker\.js$/,
     /^(?:svelte|vite)\.config\.[jt]s$/
   ],
   bundleDirectory: 'dist'

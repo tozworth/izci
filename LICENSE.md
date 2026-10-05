@@ -28,7 +28,7 @@ SOFTWARE.
 The MIT license above covers izci's original work. Third-party code, fonts,
 compiled libraries, SDK material and runtime support retain their own licenses.
 Full copyright notices, license texts and upstream NOTICE files are reproduced
-in THIRD-PARTY-NOTICES.md. The Options license page bundles both documents, so
+in docs/THIRD-PARTY-NOTICES.md. The Options license page bundles both documents, so
 they can be read offline in the PWA and desktop application.
 
 This notice snapshot was reviewed on 2026-10-02 for izci 0.3.2. Versions refer
@@ -42,7 +42,7 @@ in the notice inventory without being present in every application binary.
 - The direct libopenmpt WASM artifact and matching generated Emscripten loader
   originated in the chiptune3 0.8.4 distribution. Its wrapper and package are
   removed; the MIT notice for retained loader support is preserved in
-  THIRD-PARTY-NOTICES.md alongside libopenmpt’s BSD-3-Clause notice.
+  docs/THIRD-PARTY-NOTICES.md alongside libopenmpt’s BSD-3-Clause notice.
 
 - Howler.js 2.2.4: MIT. Copyright (c) 2013-2020 James Simpson and GoldFire
   Studios, Inc. Source: https://github.com/goldfire/howler.js
@@ -53,7 +53,7 @@ in the notice inventory without being present in every application binary.
 - intl-messageformat 10.7.18: BSD-3-Clause. FormatJS's supporting parser,
   locale-matching and memoization packages use MIT; tslib uses 0BSD;
   decimal.js and deepmerge use MIT. Exact versions and notices are listed
-  in THIRD-PARTY-NOTICES.md. Source: https://github.com/formatjs/formatjs
+  in docs/THIRD-PARTY-NOTICES.md. Source: https://github.com/formatjs/formatjs
 - fflate 0.8.3: MIT. Copyright (c) 2026 Arjun Barrett.
   Source: https://github.com/101arrowz/fflate
 - Material Symbols font-400 0.40.2: Apache-2.0. Material Symbols are created
@@ -87,7 +87,7 @@ The MPL covers these components and their covered modifications. It does not
 replace the licenses of LAME or libFLAC compiled into the extensions. The
 original izci source files retain MIT. Third-party source distributed in
 minified or compiled form remains available under its applicable source
-license; the full MPL text is reproduced in THIRD-PARTY-NOTICES.md.
+license; the full MPL text is reproduced in docs/THIRD-PARTY-NOTICES.md.
 
 ### LAME MP3 encoding
 
@@ -100,7 +100,7 @@ LAME was originally developed by Mike Cheng, subsequently developed by Mark
 Taylor, and is maintained by the LAME Project. Copyright holders and additional
 contributors are identified in the LAME source. The full LGPL version 2 text,
 LAME's LICENSE guidance and its encoding-library license header are reproduced
-in THIRD-PARTY-NOTICES.md.
+in docs/THIRD-PARTY-NOTICES.md.
 
 Project: https://lame.sourceforge.io/
 Source release: https://sourceforge.net/projects/lame/files/lame/3.100/lame-3.100.tar.gz
@@ -138,7 +138,7 @@ Copyright (C) 2011-2025 Xiph.Org Foundation
 Source: https://github.com/xiph/flac/tree/3f1ecff8
 Build recipe: https://github.com/Vanilagy/mediabunny/tree/v1.52.0/packages/flac-encoder
 
-The full COPYING.Xiph text is reproduced in THIRD-PARTY-NOTICES.md. The GPL
+The full COPYING.Xiph text is reproduced in docs/THIRD-PARTY-NOTICES.md. The GPL
 license used by separate FLAC command-line programs is not the license of
 this embedded codec library.
 
@@ -159,7 +159,7 @@ stb_vorbis (MIT OR Unlicense), Ryuhei Mori's TinyFFT (BSD-2-Clause, adapted by
 OpenMPT), and the public-domain Opal OPL3 emulator released by Shayde/Reality.
 It uses minimp3 for embedded MP3 decoding; it is not a mpg123 build.
 The applicable full licenses and source-file attribution notices are included
-in THIRD-PARTY-NOTICES.md.
+in docs/THIRD-PARTY-NOTICES.md.
 
 The HivelyTracker AHX/HVL replayer is licensed under BSD-3-Clause:
 
@@ -178,7 +178,7 @@ embedded replay library. Rebuild information lives in scripts/vendor/ahx/README.
 The shipped WASM libraries use Emscripten glue/runtime code (MIT OR NCSA) and
 applicable musl and LLVM C/C++ runtime support. These components retain their
 individual notices, including LLVM's Apache-2.0 exception and legacy terms.
-The corresponding license texts are reproduced in THIRD-PARTY-NOTICES.md.
+The corresponding license texts are reproduced in docs/THIRD-PARTY-NOTICES.md.
 Exact compiler revisions were not recorded for every precompiled upstream
 codec; this document does not assert one shared toolchain revision.
 
@@ -190,7 +190,7 @@ LLVM source: https://github.com/llvm/llvm-project
 The desktop application uses Tauri, wry, tao, tray-icon, Windows API bindings,
 WebView2 COM bindings, serde and other Rust dependencies. The exact resolved
 Windows MSVC package inventory, including procedural macros and build-time
-support, appears in THIRD-PARTY-NOTICES.md. It includes their full license and
+support, appears in docs/THIRD-PARTY-NOTICES.md. It includes their full license and
 NOTICE files, rather than applying izci's MIT license to them. MPL-licensed
 dependencies retain their covered source obligations.
 
@@ -204,7 +204,7 @@ https://github.com/rust-lang/rust
 
 webview2-com-sys 0.39.1 supplies the statically linked WebView2 SDK loader from
 Microsoft.Web.WebView2 1.0.3800.47. The SDK's BSD-3-Clause LICENSE.txt and its
-complete NOTICE.txt are reproduced in THIRD-PARTY-NOTICES.md. Copyright (C)
+complete NOTICE.txt are reproduced in docs/THIRD-PARTY-NOTICES.md. Copyright (C)
 Microsoft Corporation. All rights reserved. The SDK notice includes additional
 SDK attribution; it does not imply that every SDK tool is embedded in izci.
 The WebView2 browser runtime is separately installed on Windows.
@@ -222,7 +222,7 @@ UPX/UCL use GPL-2.0-or-later with a special exception for compressed programs,
 including commercial executables. The exception requires the official,
 unmodified stub and restricts its use to startup decompression. Both the full
 GPL COPYING and the full exception in LICENSE are reproduced unchanged in
-THIRD-PARTY-NOTICES.md. This exception does not relicense izci's original code.
+docs/THIRD-PARTY-NOTICES.md. This exception does not relicense izci's original code.
 
 Copyright (C) 1996-2026 Markus Franz Xaver Johannes Oberhumer
 Copyright (C) 1996-2026 Laszlo Molnar
@@ -233,7 +233,7 @@ Source: https://github.com/upx/upx/tree/v5.2.1
 ### Optional signaling and dedicated-server distributions
 
 Only signaling-enabled desktop builds embed the Go signaling child. Its Go
-runtime and module notices are included in THIRD-PARTY-NOTICES.md. Ordinary
+runtime and module notices are included in docs/THIRD-PARTY-NOTICES.md. Ordinary
 desktop builds do not embed this child or dedicated-host media dependencies.
 
 The dedicated izci-server module has its own LICENSE.md and detailed

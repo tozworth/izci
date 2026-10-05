@@ -50,7 +50,7 @@ export function sourceFingerprint(root) {
     }
   }
   for (const directory of ['src', 'src-tauri', 'public', 'scripts', 'pages']) visit(directory);
-  for (const file of ['package.json', 'package-lock.json', 'vite.config.ts', 'tsconfig.json', 'svelte.config.js']) {
+  for (const file of ['package.json', 'package-lock.json', 'vite.config.ts', 'tsconfig.json', 'svelte.config.js', 'LICENSE.md', 'docs/THIRD-PARTY-NOTICES.md']) {
     if (existsSync(join(root, file))) { hash.update(file); hash.update(readFileSync(join(root, file))); }
   }
   return hash.digest('hex');

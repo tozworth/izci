@@ -10,7 +10,7 @@ chiptune3 0.8.4 distribution; retained loader support keeps its MIT attribution.
 Upstream source: https://github.com/OpenMPT/openmpt/tree/libopenmpt-0.8.4
 
 The binary reports MINIZ, MINIMP3, STBVORBIS and PLUGINS. Retained licenses and
-notices are in the repository's `LICENSE.md` and `THIRD-PARTY-NOTICES.md`.
+notices are in the repository's `LICENSE.md` and `docs/THIRD-PARTY-NOTICES.md`.
 The loader's `getWasmTableEntry` export exposes libopenmpt's documented
 `interactive` C interface for channel mute controls; wasm32 ABI details live
 only in `services/openmpt/module.ts`.
