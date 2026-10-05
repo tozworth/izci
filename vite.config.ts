@@ -61,6 +61,7 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
+        '/src': fileURLToPath(new URL('./src', import.meta.url)),
         $platform: fileURLToPath(new URL(platformEntries[platform], import.meta.url)),
         $lib: fileURLToPath(new URL('./src/lib', import.meta.url))
       }
