@@ -26,6 +26,13 @@ test('fingerprint includes native/frontend/probe inputs and ignores Cargo output
   assert.equal(sourceFingerprint(root), before);
   writeFileSync(join(root, 'src/runtime.ts'), 'after');
   assert.notEqual(sourceFingerprint(root), before);
+  const runtimeChanged = sourceFingerprint(root);
+  mkdirSync(join(root, 'pages'));
+  writeFileSync(join(root, 'pages/index.html'), '<div id="app"></div>');
+  assert.notEqual(sourceFingerprint(root), runtimeChanged);
+  const pageAdded = sourceFingerprint(root);
+  writeFileSync(join(root, 'pages/index.html'), '<div id="app">changed</div>');
+  assert.notEqual(sourceFingerprint(root), pageAdded);
 });
 
 test('status refuses session paths outside the owned sessions directory', (t) => {

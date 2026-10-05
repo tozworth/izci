@@ -66,6 +66,8 @@ Vite will print the local address, which you can then open in "any browser" (see
 >
 > Locally running izci instances will automatically pick up the updated service worker (and refresh the shell) after an `npm run build && npm run preview`. You can also force an update (Help > Force update).
 
+HTML entry pages live in `pages/`; Vite serves and emits them at their existing root URLs (such as `/options.html`). Application code remains in `src/` and static assets in `public/`.
+
 Multiplayer uses a self-hosted izci-server for signaling. Official builds have no server configured; hosts configure their server under Hosting and guests join with an izci-server invitation. Firebase Hosting serves the PWA; Firebase Auth and Realtime Database signaling are retired.
 
 ### Windows executable

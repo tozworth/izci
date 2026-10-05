@@ -49,13 +49,9 @@ export function sourceFingerprint(root) {
       else if (entry.isFile()) { hash.update(next); hash.update(readFileSync(join(root, next))); }
     }
   }
-  for (const directory of ['src', 'src-tauri', 'public', 'scripts']) visit(directory);
+  for (const directory of ['src', 'src-tauri', 'public', 'scripts', 'pages']) visit(directory);
   for (const file of ['package.json', 'package-lock.json', 'vite.config.ts', 'tsconfig.json', 'svelte.config.js']) {
     if (existsSync(join(root, file))) { hash.update(file); hash.update(readFileSync(join(root, file))); }
-  }
-  // HTML entrypoints affect embedded assets too.
-  for (const name of readdirSync(root).filter((name) => name.endsWith('.html')).sort()) {
-    hash.update(name); hash.update(readFileSync(join(root, name)));
   }
   return hash.digest('hex');
 }
