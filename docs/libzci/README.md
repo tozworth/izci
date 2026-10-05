@@ -1,98 +1,116 @@
 # libzci implementation plan
 
-Build an embeddable, native izci engine and mature it through independent test
-consumers. Native consumers must not require a JavaScript runtime, browser, or
-webview. An offline PWA remains a first-class target through a WebAssembly build
-and browser capability adapters.
+Build a reusable izci engine in Rust, with compiled media libraries where useful.
+Native consumers must work without a JavaScript runtime, browser, or webview.
+The browser build uses WebAssembly and browser adapters and remains an offline PWA.
 
-The development sequence is:
+Development proceeds through working consumers:
 
 ```text
 zci-play
     -> crude native UI + crude PWA
-    -> mature, independently usable libzci
+    -> independently useful core with library, user state, Raf, and video
     -> replace izci-server's player/catalog/rendering engine
-    -> existing Svelte shells consume libzci piecemeal
+    -> existing Svelte shells consume the mature core piecemeal
 ```
 
-The crudes are where the engine grows. Reproducing useful existing izci behavior
-in them exposes missing APIs, ownership mistakes, and runtime problems. Early
-integration into the existing Svelte application is not a completion criterion.
+The crudes drive core development by reproducing useful izci functionality through
+its public API. Existing Svelte integration starts after this work has made the
+core good enough; it does not dictate the early implementation order.
 
-## Read in this order
+## Where to start
 
-1. [Ownership boundaries](boundaries.md): settled scope, platform mechanisms,
-   presentation state, and the clean break from pre-libzci state.
-2. [Runtime contracts](contracts.md): identities, commands/events, providers,
-   preparation, real-time processing, SQLite, and external frame ownership.
-3. [Initial scaffolding](scaffolding.md): repository shape and the proofs needed
-   before committing to the native/WASM integration strategy.
-4. [CLI and crudes](crudes.md): public-API discipline, progressive controls, and
-   browser lifecycle/installation responsibilities.
-5. [Phases and subphases](phases.md): dependency sequence, exit gates, server
-   adoption, and the intentionally outlined Svelte migration endgame.
-6. [Verification and maturity](validation.md): evidence required to finish slices
-   and declare the engine ready for adoption.
-7. [Codebase discovery reference](reference.md): useful existing behavior,
-   provenance, test inputs, and primary platform documentation.
+**Read [Initial scaffolding](scaffolding.md) first.** It describes what exists in
+this checkout, the proposed packages, and how native and browser builds fit
+together. Then read [Ownership boundaries](boundaries.md) before creating code.
 
-These documents describe the intended new runtime. The current application is
-the behavior reference and remains operational while the new consumers develop.
-Its current Howler, worklet, video-element, IndexedDB, and localStorage paths do
-not become compatibility requirements for libzci.
+**Execute [phases.md](phases.md) from Phase 0.** Phase 0 creates the initial
+workspace and records build inputs. It requires no running libzci, database, or
+profile. Phase 1 implements source access and reference Opus decoding; Phase 2
+makes `zci-play` audible. The PWA begins as a small browser consumer during those
+steps and grows beside the native crude in Phase 3.
 
-## Fixed decisions
+Each subphase names:
 
-- Codec implementations are modular providers registered at startup. Open
-  independent instances as tracks/jobs need them; consider preload and gapless.
-  Runtime loading of arbitrary plugins and uninterrupted decoder replacement
-  are not initial requirements.
-- Opus is required from the first useful player. Use a proven reference
-  implementation, not an unfinished decoder that blocks the user's library.
-- SQLite owns durable domain state on native and browser targets. Browser file
-  handles remain in a small platform-owned IndexedDB capability registry.
-- Artwork and images are fundamental player features. Tag editing, Troubadour,
-  conversion, and other workbench ownership remain undecided and much later.
-- Raf keeps its effect roles and meaningful controls. Improve implementations
-  freely; exact old audio output, algorithms, defaults, and serialization are
-  not compatibility requirements.
-- Browser video uses browser codecs and rendering surfaces coordinated by
-  libzci. Do not bundle software video codecs in the PWA. Native builds may
+- Current repository files to inspect for behavior or reusable source.
+- New modules to create and operations to implement.
+- What the CLI or crude must do through that API.
+- Checks that distinguish a completed implementation from a stub.
+
+A completion check is simply a condition to verify before moving on. For example,
+Phase 2 is complete when the CLI actually plays the declared formats to EOF,
+seeks correctly, and shuts down cleanly; successful compilation alone is
+insufficient. Implementation and verification have separate statuses if builds
+or device access are unavailable.
+
+**Current status:** only these planning documents exist. There is no `libzci/`
+workspace, engine binary, browser engine build, or libzci profile. All roadmap
+steps are unstarted. Paths beneath `libzci/` in this plan are files to create,
+not commands or APIs already available in the checkout.
+
+## Supporting documents
+
+| Document | Use it for |
+| --- | --- |
+| [Scaffolding](scaffolding.md) | Checkout baseline, package/module placement, initial dependency and browser wiring choices |
+| [Boundaries](boundaries.md) | Deciding whether behavior belongs in core, adapter, or presentation |
+| [Phases](phases.md) | The implementation task sequence and concrete completion checks |
+| [Contracts](contracts.md) | API invariants to preserve as each task adds operations |
+| [Crudes](crudes.md) | Which controls exercise which core operations; browser installation and lifecycle checks |
+| [Validation](validation.md) | Fixtures, signal properties, resource measurements, and readiness for adoption |
+| [Codebase reference](reference.md) | Links to current implementations, existing tests, provenance, and upstream documentation |
+
+Read contract sections when their subphase needs them. Do not implement every
+future type or interface before the first decoder works. The proposed names in
+the plan establish responsibilities; adjust a signature when exercised code
+requires it, and update its callers and documentation together.
+
+## Decisions already made
+
+- Providers are registered at startup and open independent instances per
+  track/job. There is no initial runtime plugin loader or mid-track replacement.
+  Preload/gapless must support simultaneous current, prepared, and outgoing decoders.
+- Working Opus is mandatory from the first useful player. Start with reference
+  libopus/libopusfile rather than gambling the library on an unfinished decoder.
+- SQLite holds durable domain state on native and browser targets. Browser FSA
+  handles use a small separate IndexedDB capability registry; SQL holds IDs.
+- Artwork and images are fundamental. Tag writing, Troubadour, conversion, and
+  other workbenches are deferred and need separate ownership decisions.
+- Raf retains useful effect roles and controls. Exact old sound, algorithms,
+  defaults, or serialized settings are not compatibility requirements.
+- Browser video uses browser codecs and rendering surfaces coordinated by core
+  transport/timing. No software video codecs in PWA assets. Native builds may
   register an optional FFmpeg provider.
-- No pre-libzci state import, migration, legacy readers, preset conversion, or
-  cross-generation backup/restore path. New consumers use distinct profiles.
-- Desktop/mobile/Oda shells, themes, visualizers, and backdrop presentation stay
-  outside the engine.
+- No pre-libzci import, migration, legacy readers, preset conversion, or
+  cross-generation backup/restore path. New state is created when storage lands.
+- Desktop/mobile/Oda shells, themes, visualizers, and backdrop presentation
+  remain outside libzci.
 
-## How to execute the plan
+## Execution rules
 
-Use phase gates and recorded evidence, not elapsed time. Implement small
-vertical slices through the public interface; avoid building a speculative API
-for all future consumers. Complete each slice's core behavior, adapters, crude
-controls, and appropriate verification together.
+Follow [AGENTS.md](../../AGENTS.md). Writing this plan authorizes no builds,
+fixture generation requiring additional toolchains, development servers, or
+browser inspection. When executing it, obtain the explicit build/runtime
+authorization required by that guide unless an authorized debugging session
+already covers the checks. Record a pending check plainly instead of claiming
+a pass or dropping the requirement.
 
-Follow [AGENTS.md](../../AGENTS.md). This planning task does not authorize builds,
-fixture generation that requires additional toolchains, development servers, or
-browser inspection. Obtain explicit build/runtime authorization when executing
-the relevant proofs unless a user-requested debugging session already covers
-them. Keep coherent implementation milestones in separate commits and preserve
-unrelated changes and existing app data/grants.
+Start an implementation log in Phase 0 as specified in the roadmap. Commit
+coherent implemented subphases and their meaningful checks. Keep generated
+outputs in the new workspace or ignored `.local/libzci/` locations. Preserve
+unrelated changes, the existing app's state, and its filesystem grants.
 
-The repository's current backend and storage rules continue to govern the old
-runtime. The user-approved libzci architecture deliberately replaces those
-boundaries for the new isolated runtime. When implementation establishes a
-durable new ownership boundary, update the operating guide concisely; do not
-copy this plan into it.
+Current backend/storage instructions continue to apply to the old runtime.
+The new isolated runtime follows the user-approved libzci boundaries instead.
+Do not edit existing frontend/server runtime owners until the adoption phases.
+Update AGENTS.md concisely when implemented ownership actually changes.
 
-## Decisions to record during implementation
+The scaffold specifies defaults so an agent can start. Only the native/WASM
+linking, synchronous codec I/O, SQLite bridge, and audio-buffer transport need
+early experiments. Those experiments have named inputs and checks in Phase 1;
+record a replacement choice with its evidence if a default fails. PWA support
+and native independence from JavaScript remain requirements.
 
-Rust is the starting implementation choice, with existing C/C++ media libraries
-where appropriate. Record the native/WASM toolchain, SQLite/VFS integration,
-worker ownership, and output-buffer transport after the scaffolding proofs.
-Changing those technical choices requires evidence and an update here; it does
-not permit dropping PWA support or reintroducing a JS runtime into native
-consumers.
-
-Later phases intentionally leave integration detail open. Once the engine passes
-the maturity gate, write focused adoption designs for the server and existing
-shells using the actual public API rather than predicting it now.
+Server and Svelte adoption are deliberately outlined at the end of the roadmap.
+Their detailed implementation plans should use the working core API, written
+after the crudes have established it.
