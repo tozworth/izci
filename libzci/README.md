@@ -10,7 +10,8 @@ depends on it.
 - `crates/libzci`: the central engine crate (Phase 1.1: runtime
   sources, provider/session lifecycle, PCM transport).
 - `crates/libzci-native`: native file sources and session-serialized
-  runtime assembly (Phase 1.1).
+  runtime assembly (Phase 1.1); CPAL device output and the
+  decode/process/resample/feed pipeline (Phase 2.1).
 - `crates/libzci-codecs`: reference Opus provider over statically
   linked libopus 1.5.2 plus the shared Ogg packet reader (Phase 1.2);
   libopenmpt 0.8.4 and instance-safe Hively providers (Phase 1.4).

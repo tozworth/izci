@@ -18,19 +18,16 @@ use libzci::{
 /// Native runtime: registry + sources + serialized sessions.
 #[derive(Default)]
 pub struct NativeRuntime {
-    registry: Mutex<ProviderRegistry>,
-    sources: Mutex<HashMap<SourceId, Arc<dyn RuntimeSource>>>,
-    sessions: Mutex<HashMap<SessionId, Mutex<Session>>>,
+    pub(crate) registry: Mutex<ProviderRegistry>,
+    pub(crate) sources: Mutex<HashMap<SourceId, Arc<dyn RuntimeSource>>>,
+    pub(crate) sessions: Mutex<HashMap<SessionId, Mutex<Session>>>,
+    pub(crate) outputs: Mutex<crate::playback::OutputMap>,
 }
 
 impl NativeRuntime {
     /// Create an empty runtime (no providers registered).
     pub fn new() -> Arc<Self> {
-        Arc::new(Self {
-            registry: Mutex::new(ProviderRegistry::new()),
-            sources: Mutex::new(HashMap::new()),
-            sessions: Mutex::new(HashMap::new()),
-        })
+        Arc::new(Self::default())
     }
 
     /// Register one provider factory.
