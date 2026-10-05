@@ -1,0 +1,22 @@
+{
+  "name": "crude-pwa",
+  "version": "0.1.0",
+  "private": true,
+  "description": "libzci crude browser consumer: engine worker plus decode worker proof page (no SW/install yet).",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build:wasm": "./scripts/build-wasm.sh"
+  },
+  "devDependencies": {
+    "@types/dom-webcodecs": "0.1.13",
+    "typescript": "5.6.3",
+    "vite": "5.4.11",
+    "vitest": "2.1.8"
+  }
+}

@@ -22,7 +22,9 @@ pub mod audio;
 pub mod command;
 pub mod error;
 pub mod event;
+pub mod format;
 pub mod ids;
+pub mod ogg_reader;
 pub mod provider;
 pub mod session;
 pub mod source;
@@ -31,7 +33,9 @@ pub use audio::pcm::{ChannelLayout, PcmChunk, PcmLayout};
 pub use command::{Command, CommandAccept};
 pub use error::{LibzciError, Result};
 pub use event::{Event, EventQueue, Snapshot};
+pub use format::{OpusStreamParams, OpusTags, is_opus_extension_hint, parse_opus_head_packet, parse_opus_tags_packet, sniff_opus_head_page};
 pub use ids::{Generation, RequestId, Revision, SessionId, SourceId};
+pub use ogg_reader::{GRANULE_NONE, MAX_SINGLE_READ, IndexFacts, PageEntry, PageScanner, ogg_crc, split_packets_with_carry, validate_ogg_index};
 pub use provider::{
     AppliedAdjustments, DecoderInstance, PROBE_BYTES, ProbeInput, ProbeScore, ProviderFactory,
     ProviderId, ProviderInfo, ProviderMetadata, ProviderRegistry, decode_chunk,

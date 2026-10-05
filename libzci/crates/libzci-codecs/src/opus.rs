@@ -30,6 +30,11 @@ use libzci::{
     AppliedAdjustments, CancelFlag, DecoderInstance, LibzciError, ProbeInput, ProbeScore,
     ProviderFactory, ProviderId, ProviderInfo, ProviderMetadata, Result, RuntimeSource,
     audio::pcm::{ChannelLayout, PcmLayout},
+    format::{parse_opus_tags_packet, sniff_opus_head_page},
+    ogg_reader::{
+        GRANULE_NONE, MAX_SINGLE_READ, PageEntry, PageScanner, ogg_crc, split_packets_with_carry,
+        validate_ogg_index,
+    },
 };
 
 use crate::opus_ffi;
@@ -39,9 +44,6 @@ pub const OPUS_VERSION: &str = "libopus-1.5.2/p1";
 
 /// Maximum Opus frame block per decode call: 120 ms at 48 kHz.
 pub const MAX_DECODE_FRAMES: usize = 5760;
-
-/// Largest single source read the provider ever issues (max Ogg page).
-pub const MAX_SINGLE_READ: usize = 65536 + 512;
 
 /// Observable resource limits.
 #[derive(Clone, Copy, Debug)]
@@ -102,7 +104,7 @@ impl ProviderFactory for OpusFactory {
     }
 
     fn probe(&self, input: &ProbeInput<'_>) -> ProbeScore {
-        if sniff_opus_head(input.header).is_some() {
+        if sniff_opus_head_page(input.header).is_some() {
             ProbeScore::Magic
         } else {
             ProbeScore::No
@@ -115,161 +117,6 @@ impl ProviderFactory for OpusFactory {
         cancel: &CancelFlag,
     ) -> Result<Box<dyn DecoderInstance>> {
         OpusInstance::open(source, self.limits, cancel).map(|i| Box::new(i) as _)
-    }
-}
-
-/// Locate an OpusHead packet at the start of the first Ogg page.
-/// Returns `(channels, preskip, gain_q8, family)` on success.
-fn sniff_opus_head(header: &[u8]) -> Option<(u8, u16, i16, u8)> {
-    // Minimal Ogg page: 27-byte fixed header + segment table.
-    if header.len() < 28 || &header[0..4] != b"OggS" || header[4] != 0 {
-        return None;
-    }
-    let seg_count = header[26] as usize;
-    if header.len() < 27 + seg_count {
-        return None;
-    }
-    let body_start = 27 + seg_count;
-    // First packet ends at the first lacing value < 255.
-    let lacing = &header[27..27 + seg_count];
-    let mut first_len = 0usize;
-    for &seg in lacing {
-        first_len += seg as usize;
-        if seg < 255 {
-            break;
-        }
-    }
-    if first_len < 19 || header.len() < body_start + 19 {
-        return None;
-    }
-    let packet = &header[body_start..];
-    if &packet[0..8] != b"OpusHead" || packet[8] != 1 {
-        return None;
-    }
-    Some((packet[9], u16::from_le_bytes([packet[10], packet[11]]), i16::from_le_bytes([packet[16], packet[17]]), packet[18]))
-}
-
-// ---------------------------------------------------------------------------
-// Ogg page index
-// ---------------------------------------------------------------------------
-
-/// Granule value meaning "no packet ends on this page".
-pub const GRANULE_NONE: u64 = u64::MAX;
-
-#[derive(Clone, Copy, Debug)]
-struct PageEntry {
-    offset: u64,
-    granule: u64,
-    serial: u32,
-    seq: u32,
-    header_type: u8,
-    header_len: u64,
-    body_len: u64,
-}
-
-fn ogg_crc_table() -> &'static [u32; 256] {
-    static TABLE: std::sync::OnceLock<[u32; 256]> = std::sync::OnceLock::new();
-    TABLE.get_or_init(|| {
-        let mut table = [0u32; 256];
-        for i in 0..256 {
-            let mut r = (i as u32) << 24;
-            for _ in 0..8 {
-                r = if r & 0x8000_0000 != 0 {
-                    (r << 1) ^ 0x04C1_1DB7
-                } else {
-                    r << 1
-                };
-            }
-            table[i] = r;
-        }
-        table
-    })
-}
-
-fn ogg_crc(header_without_checksum: &[u8], body: &[u8], checksum_offset: usize) -> u32 {
-    let table = ogg_crc_table();
-    let mut crc = 0u32;
-    for (i, &b) in header_without_checksum.iter().enumerate() {
-        let byte = if (checksum_offset..checksum_offset + 4).contains(&i) {
-            0
-        } else {
-            b
-        };
-        crc = table[((crc >> 24) ^ byte as u32) as usize & 0xFF] ^ (crc << 8);
-    }
-    for &b in body {
-        crc = table[((crc >> 24) ^ b as u32) as usize & 0xFF] ^ (crc << 8);
-    }
-    crc
-}
-
-struct PageScanner<'a> {
-    source: &'a Arc<dyn RuntimeSource>,
-    cancel: &'a CancelFlag,
-    max_single_read: usize,
-}
-
-impl<'a> PageScanner<'a> {
-    fn read_at(&self, offset: u64, len: usize) -> Result<Vec<u8>> {
-        if len > self.max_single_read {
-            return Err(LibzciError::ResourceExhausted {
-                detail: format!("page read {len} exceeds bound {}", self.max_single_read),
-            });
-        }
-        let mut buf = vec![0u8; len];
-        let mut filled = 0;
-        while filled < len {
-            let n = self.source.read_at(offset + filled as u64, &mut buf[filled..], self.cancel)?;
-            if n == 0 {
-                break;
-            }
-            filled += n;
-        }
-        buf.truncate(filled);
-        Ok(buf)
-    }
-
-    fn read_page_entry(&self, offset: u64) -> Result<Option<PageEntry>> {
-        let fixed = self.read_at(offset, 27)?;
-        if fixed.is_empty() {
-            return Ok(None); // clean EOF at a page boundary
-        }
-        if fixed.len() < 27 {
-            return Err(LibzciError::Corrupt {
-                detail: format!("truncated ogg page header at {offset}"),
-            });
-        }
-        if &fixed[0..4] != b"OggS" {
-            return Err(LibzciError::Corrupt {
-                detail: format!("not an Ogg page at {offset}"),
-            });
-        }
-        if fixed[4] != 0 {
-            return Err(LibzciError::Corrupt {
-                detail: "unsupported Ogg stream version".into(),
-            });
-        }
-        let header_type = fixed[5];
-        let granule = u64::from_le_bytes(fixed[6..14].try_into().unwrap());
-        let serial = u32::from_le_bytes(fixed[14..18].try_into().unwrap());
-        let seq = u32::from_le_bytes(fixed[18..22].try_into().unwrap());
-        let seg_count = fixed[26] as usize;
-        let lacing = self.read_at(offset + 27, seg_count)?;
-        if lacing.len() < seg_count {
-            return Err(LibzciError::Corrupt {
-                detail: "truncated Ogg lacing table".into(),
-            });
-        }
-        let body_len: u64 = lacing.iter().map(|&s| s as u64).sum();
-        Ok(Some(PageEntry {
-            offset,
-            granule,
-            serial,
-            seq,
-            header_type,
-            header_len: (27 + seg_count) as u64,
-            body_len,
-        }))
     }
 }
 
@@ -286,79 +133,16 @@ struct OpusHeaders {
     comment_count: usize,
 }
 
+/// Mandatory header output gain, opusfile-style, zero additional offset.
 fn parse_opus_head(packet: &[u8]) -> Result<(u8, u64, f32)> {
-    if packet.len() < 19 || &packet[0..8] != b"OpusHead" {
-        return Err(LibzciError::Corrupt {
-            detail: "first Ogg packet is not OpusHead".into(),
-        });
-    }
-    if packet[8] != 1 {
-        return Err(LibzciError::Unsupported {
-            detail: format!("OpusHead version {} (expected 1)", packet[8]),
-        });
-    }
-    let channels = packet[9];
-    if channels == 0 || channels > 2 {
-        return Err(LibzciError::Unsupported {
-            detail: format!("opus channel count {channels} (multichannel is a named gap)"),
-        });
-    }
-    let preskip = u16::from_le_bytes([packet[10], packet[11]]) as u64;
-    let gain_q8 = i16::from_le_bytes([packet[16], packet[17]]) as f64;
-    // Mandatory header output gain, opusfile-style, zero additional offset.
-    let gain_linear = 10f64.powf(gain_q8 / 256.0 / 20.0) as f32;
-    if !gain_linear.is_finite() || gain_linear < 0.0 {
-        return Err(LibzciError::Corrupt {
-            detail: "non-finite OpusHead output gain".into(),
-        });
-    }
-    let family = packet[18];
-    if family != 0 {
-        return Err(LibzciError::Unsupported {
-            detail: format!("opus mapping family {family} (named gap)"),
-        });
-    }
-    Ok((channels, preskip, gain_linear))
+    let params = libzci::format::parse_opus_head_packet(packet)?;
+    Ok((params.channels, params.preskip, params.gain_linear()?))
 }
 
+/// Tags are diagnostics-only here (core policy: never applied).
 fn parse_opus_tags(packet: &[u8]) -> Result<(String, usize)> {
-    if packet.len() < 8 || &packet[0..8] != b"OpusTags" {
-        return Err(LibzciError::Corrupt {
-            detail: "second Ogg packet is not OpusTags".into(),
-        });
-    }
-    let mut pos = 8usize;
-    let read_u32 = |pos: &mut usize| -> Result<u32> {
-        if packet.len() < *pos + 4 {
-            return Err(LibzciError::Corrupt {
-                detail: "truncated OpusTags".into(),
-            });
-        }
-        let v = u32::from_le_bytes(packet[*pos..*pos + 4].try_into().unwrap());
-        *pos += 4;
-        Ok(v)
-    };
-    let vendor_len = read_u32(&mut pos)? as usize;
-    if packet.len() < pos + vendor_len {
-        return Err(LibzciError::Corrupt {
-            detail: "truncated OpusTags vendor".into(),
-        });
-    }
-    let vendor = String::from_utf8_lossy(&packet[pos..pos + vendor_len]).into_owned();
-    pos += vendor_len;
-    let count = read_u32(&mut pos)? as usize;
-    // Skip comment bodies; tags are diagnostics-only here. ReplayGain
-    // and R128 tags are deliberately NOT applied (core policy, later).
-    for _ in 0..count {
-        let len = read_u32(&mut pos)? as usize;
-        if packet.len() < pos + len {
-            return Err(LibzciError::Corrupt {
-                detail: "truncated OpusTags comment".into(),
-            });
-        }
-        pos += len;
-    }
-    Ok((vendor, count))
+    let tags = parse_opus_tags_packet(packet)?;
+    Ok((tags.vendor, tags.comment_count))
 }
 
 // ---------------------------------------------------------------------------
@@ -421,11 +205,7 @@ impl OpusInstance {
                 });
             }
         }
-        let scanner = PageScanner {
-            source: &source,
-            cancel,
-            max_single_read: MAX_SINGLE_READ,
-        };
+        let scanner = PageScanner::new(&source, cancel);
         // Index page headers only (bounded reads, no whole-file copy).
         let mut pages = Vec::new();
         let mut offset = 0u64;
@@ -449,31 +229,8 @@ impl OpusInstance {
                 detail: "empty source".into(),
             });
         }
-        // Serial consistency; a second BOS means a chained link, which
-        // is an explicit named gap (later coverage), not silent audio.
-        let serial = pages[0].serial;
-        if pages[0].header_type & 0x02 == 0 {
-            return Err(LibzciError::Corrupt {
-                detail: "first Ogg page is not BOS".into(),
-            });
-        }
-        for page in &pages {
-            if page.serial != serial {
-                return Err(LibzciError::Corrupt {
-                    detail: "Ogg serial changed mid-stream".into(),
-                });
-            }
-            if page.seq as usize != pages.iter().position(|p| p.offset == page.offset).unwrap() {
-                return Err(LibzciError::Corrupt {
-                    detail: "Ogg page sequence gap".into(),
-                });
-            }
-            if page.header_type & 0x02 != 0 && page.offset != 0 {
-                return Err(LibzciError::Unsupported {
-                    detail: "chained Ogg (named gap; later coverage)".into(),
-                });
-            }
-        }
+        // Serial/sequence/chained validation is the shared core rule.
+        let _facts = validate_ogg_index(&pages)?;
         // Walk page bodies from the start, counting exactly two header
         // packets, and record where audio begins. Headers may share a
         // page with audio or occupy pages alone; counting packets (not
@@ -627,11 +384,7 @@ impl OpusInstance {
                 continue;
             }
             let page = self.pages[next];
-            let scanner = PageScanner {
-                source: &self.source,
-                cancel,
-                max_single_read: MAX_SINGLE_READ,
-            };
+            let scanner = PageScanner::new(&self.source, cancel);
             let body = scanner.read_at(page.offset + page.header_len, page.body_len as usize)?;
             if body.len() as u64 != page.body_len {
                 return Err(LibzciError::Corrupt {
@@ -978,51 +731,6 @@ impl DecoderInstance for OpusInstance {
             declared_channels: self.headers.channels as u16,
         }
     }
-}
-
-/// Split one page body into packets, threading `carry` for packets
-/// continued across page boundaries. `header_type & 0x01` marks a page
-/// whose first packet continues the previous page; a pending carry
-/// without that flag is corrupt framing (truncated packet).
-fn split_packets_with_carry(
-    body: &[u8],
-    lacing: &[u8],
-    carry: &mut Vec<u8>,
-    header_type: u8,
-) -> Result<Vec<Vec<u8>>> {
-    let mut packets = Vec::new();
-    let mut pos = 0usize;
-    let mut current: Vec<u8> = if header_type & 0x01 != 0 {
-        std::mem::take(carry)
-    } else {
-        if !carry.is_empty() {
-            // Previous page ended mid-packet but the next page does not
-            // continue it: corrupt framing.
-            return Err(LibzciError::Corrupt {
-                detail: "ogg continued packet missing its tail page".into(),
-            });
-        }
-        Vec::new()
-    };
-    let mut in_continued = header_type & 0x01 != 0;
-    for &seg in lacing {
-        let end = (pos + seg as usize).min(body.len());
-        current.extend_from_slice(&body[pos..end]);
-        pos = end;
-        if seg < 255 {
-            // Packets of length 0 are legal (continued flag aside).
-            packets.push(std::mem::take(&mut current));
-            in_continued = false;
-        } else {
-            in_continued = true;
-        }
-    }
-    if in_continued {
-        *carry = current;
-    } else if !current.is_empty() {
-        packets.push(current);
-    }
-    Ok(packets)
 }
 
 #[cfg(test)]
