@@ -14,6 +14,12 @@ depends on it.
 - `crates/libzci-codecs`: reference Opus provider over statically
   linked libopus 1.5.2 plus the shared Ogg packet reader (Phase 1.2).
   Module providers land here in Phase 1.4.
+- `crates/libzci-web`: browser adapter core — WASM engine facade
+  (`engine.rs`: selection, sessions, generations over a feed-driven
+  host decoder), shared Ogg demux (`demux.rs`), and wasm-bindgen
+  bindings (Phase 1.3).
+- `consumers/crude-pwa/`: independent proof page on port 5197 with
+  its own Vite config, engine worker, and decode worker (Phase 1.3).
 
 ## Planned additions (created by their phases, not scaffolded empty)
 

@@ -279,8 +279,72 @@ Evidence (all native, profile `none`):
   audible output (Phase 2). No database, profile, or JS/WASM runtime
   involved natively.
 
-Next work item: Phase 1.3 — the same Opus operation in the browser
-worker plus the first `consumers/crude-pwa/` page/config.
+Next work item: Phase 1.4 — instance-safe libopenmpt and Hively
+providers (`openmpt.rs`, `hively.rs`, the new C context wrapper in
+`libzci-codecs/c/`, reproducible source recipes).
+
+### 1.3 Implement the same Opus operation in the browser worker — implemented, verification pending
+
+Groundwork (shared with native, no duplication):
+
+- `libzci/src/ogg_reader.rs`: page entries, CRC, continued-packet
+  splits, bounded `PageScanner`, and `validate_ogg_index` (BOS/serial/
+  sequence/chained rules) — one implementation for `libzci-codecs`
+  and the browser (native provider refactored onto it; all tests stay
+  green).
+- `libzci/src/format.rs`: centralized Opus identification
+  (`sniff_opus_head_page`, `parse_opus_head_packet` with the
+  mono/stereo family-0 policy, `parse_opus_tags_packet`,
+  `OPUS_EXTENSIONS` hints). Both factories probe through it.
+
+Created:
+
+- `libzci/crates/libzci-web/` (`engine.rs`, `demux.rs`,
+  `bindings.rs`): the engine owns provider selection (real sniff via
+  the same registry/probe types), per-session core `Session`
+  transport, and generation fencing over a feed-driven
+  `HostDecoder`. The decode worker owns File bytes and platform
+  decode; PCM crosses tagged with generations and stale results are
+  refused (never queued). Seek plans (`plan_opus_seek`, mirroring the
+  native seek math) are pure engine decisions; the worker executes
+  `{start_page, skip_packets, skip_samples}` with no granule math of
+  its own. Commit cross-checks the worker's header parse against
+  core's (mismatch is `DecoderFailure`). Granule-absent serializes as
+  `-1` across JSON (raw `u64::MAX` would lose precision); WASM `u64`
+  ids cross as BigInt with range-checked conversion at the boundary.
+- `libzci/consumers/crude-pwa/` (own `package.json` + lockfile,
+  Vite config on port 5197, `index.html`, `src/main.ts`,
+  `src/protocol.ts`, `src/generation.ts`, `src/opus-packet.ts`,
+  engine/decode workers, vitest suites, `scripts/build-wasm.sh`,
+  README): file-open, decode, seek, cancel/dispose, and diagnostics
+  through `BrowserHost`-equivalent worker messages — no demo
+  decoder, no SQL, no transport policy in `main.ts`. Decode proves
+  via PCM stats (frames/peak/RMS/read bounds), not audio output
+  (output arrives in 2.4). Opus TOC durations verified against the
+  reference `opus_packet_get_samples_per_frame` source.
+- `libzci/Cargo.toml`: added `crates/libzci-web` (`wasm-bindgen`
+  0.2.129, `js-sys`, `serde`/`serde_json` locked). `.gitignore`:
+  `libzci/consumers/crude-pwa/src/generated/`.
+
+Evidence (profile `none` throughout):
+
+- `cargo test -p libzci-web` → 8 passed: stale ingest refused after
+  seek, noncontiguous ingest is `DecoderFailure`, stale EOF ignored,
+  dispose drops the session, seek plans match native math on
+  `tone.opus` pages (312 preskip, 12000 total, EOF plan), commit
+  round-trip with header-mismatch refusal, demux header/split.
+- `cargo check -p libzci-web --target wasm32-unknown-unknown` → clean
+  (0 errors); release WASM built (`libzci_web_bg.wasm` 257 KiB) with
+  the pinned `wasm-bindgen-cli` 0.2.129 via `scripts/build-wasm.sh`.
+- Crude PWA: `npm test` → 8 passed (generation fencing, TOC/head
+  math); `npm run typecheck` → clean; `npm run build` → production
+  bundle in its own `dist/` (engine/decode workers + WASM asset).
+- Pending (explicit): real-browser File decode/seek vs native
+  timing/channel metadata, bounded reads on the 30 s synth in a
+  worker, worker error/cancel/reopen, and the Opus `AudioDecoder`
+  description shape — all require browser-inspection authorization
+  per the repo operating guide, so no browser was launched. The page
+  remains an ordinary proof page (no manifest/SW/install until 3.4).
 
 ## Phase 1: sources, provider instances, and cross-target decode
 

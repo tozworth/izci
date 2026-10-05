@@ -1,0 +1,20 @@
+[package]
+name = "libzci-web"
+version = "0.1.0"
+edition = "2021"
+description = "libzci browser adapter core: WASM engine facade and shared Ogg demux for workers (no DOM access here)."
+license = "MIT"
+
+[lib]
+name = "libzci_web"
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[dependencies]
+libzci = { path = "../libzci" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+
+[dev-dependencies]

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>libzci crude PWA (proof page)</title>
+    <style>
+      body { font: 13px/1.45 system-ui, sans-serif; margin: 16px; max-width: 960px; }
+      fieldset { margin: 12px 0; }
+      table { border-collapse: collapse; }
+      td, th { border: 1px solid #999; padding: 2px 8px; text-align: left; }
+      #diagnostics { white-space: pre-wrap; font-family: monospace; }
+      button { margin-right: 6px; }
+    </style>
+  </head>
+  <body>
+    <h1>libzci crude proof page</h1>
+    <p>
+      Engine worker (WASM core: selection, sessions, generations) plus
+      decode worker (File bytes, Ogg demux, WebCodecs Opus). No SQL, no
+      transport policy, no service worker in this phase.
+    </p>
+    <fieldset>
+      <legend>Source</legend>
+      <input id="file" type="file" accept=".opus,.ogg,.oga" />
+      <button id="open">Open</button>
+      <button id="dispose">Dispose</button>
+    </fieldset>
+    <fieldset>
+      <legend>Transport (engine commands)</legend>
+      <button id="play">Play</button>
+      <button id="pause">Pause</button>
+      <button id="stop">Stop</button>
+      <label>Seek (frame): <input id="seek-frame" type="number" value="0" min="0" /></label>
+      <button id="seek">Seek</button>
+    </fieldset>
+    <fieldset>
+      <legend>Snapshot</legend>
+      <table id="snapshot"></table>
+    </fieldset>
+    <fieldset>
+      <legend>Decode proof (worker PCM stats, not audio output)</legend>
+      <table id="decode"></table>
+    </fieldset>
+    <fieldset>
+      <legend>Diagnostics</legend>
+      <div id="diagnostics">waiting…</div>
+    </fieldset>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
