@@ -18,6 +18,25 @@ fn desktop_window_ready(window: tauri::WebviewWindow) -> Result<(), String> {
 
 #[cfg(target_os = "linux")]
 #[tauri::command]
+fn smoke_windows(app: tauri::AppHandle) -> serde_json::Value {
+    use tauri::Manager;
+    serde_json::Value::Array(
+        app.webview_windows()
+            .values()
+            .map(|window| {
+                serde_json::json!({
+                    "label": window.label(), "url": window.url().ok().map(|url| url.to_string()),
+                    "visible": window.is_visible().unwrap_or(false),
+                    "width": window.inner_size().ok().map(|size| size.width),
+                    "height": window.inner_size().ok().map(|size| size.height)
+                })
+            })
+            .collect(),
+    )
+}
+
+#[cfg(target_os = "linux")]
+#[tauri::command]
 fn smoke_report(app: tauri::AppHandle, result: serde_json::Value) {
     println!("{result}");
     app.exit(if result["ok"] == true { 0 } else { 1 });
@@ -27,6 +46,7 @@ fn smoke_report(app: tauri::AppHandle, result: serde_json::Value) {
 fn main() {
     use gtk::prelude::*;
     use std::{cell::Cell, rc::Rc, time::Duration};
+    use webkit2gtk::{SettingsExt, WebViewExt};
 
     let paths: Vec<String> = std::env::args().skip(1).collect();
     assert!(!paths.is_empty(), "Usage: linux_smoke <audio paths...>");
@@ -38,6 +58,7 @@ fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             desktop_window_ready,
+            smoke_windows,
             smoke_report,
             linux::files::materialize_desktop_files,
             native_filesystem::pick_desktop_paths,
@@ -52,9 +73,16 @@ fn main() {
                 .iter()
                 .find(|config| config.label == "main")
                 .unwrap();
-            windows::builder(app.handle(), config)?
+            let main = windows::builder(app.handle(), config)?
                 .initialization_script(script.clone())
                 .build()?;
+            // The harness dispatches DOM clicks without a trusted user gesture.
+            // Keep popup blocking unchanged in the ordinary player.
+            main.with_webview(|webview| {
+                if let Some(settings) = WebViewExt::settings(&webview.inner()) {
+                    settings.set_javascript_can_open_windows_automatically(true);
+                }
+            })?;
             let selection = Rc::new(Cell::new(0));
             // Native chooser fallback windows on the isolated Xvfb display.
             // Supply files to the same OS dialog opened by File > Open files.
