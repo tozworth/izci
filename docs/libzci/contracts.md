@@ -3,8 +3,11 @@
 [Plan entry point](README.md) · [Ownership boundaries](boundaries.md) ·
 [Initial scaffolding](scaffolding.md)
 
-These are invariants for early implementation, not a frozen list of function
-names. Add concrete API types only when a vertical slice exercises them.
+These are invariants for implementation, not a requirement to create every type
+in Phase 1. The [roadmap](phases.md) says when each part is introduced: runtime
+sources/sessions/providers in Phase 1, audio output in Phase 2, queue/storage in
+Phase 3, catalog/assets in Phase 4, Raf/preparation in Phase 5, and video in
+Phase 6. Add concrete API types when their operations are implemented.
 
 ## 1. Identity and sources
 
@@ -35,6 +38,14 @@ file call may secretly block the browser main thread. Native source access must
 not copy whole ordinary audio/video files merely to start streaming them.
 Module providers may require a complete bounded source buffer; declare that
 requirement and maximum size instead of implying all providers stream packets.
+
+A runtime source handle and a durable source reference are different objects.
+The first decoder can open a native file or browser File with no profile. When
+storage lands, persist a stable reference/locator and reopen a runtime source
+from it. Persist neither an open pointer nor the claim that a plain browser File
+selection can be recovered after reload. Synchronous C codec callbacks may use
+a bounded worker-local reader; general browser capability/materialization and
+ranged source requests remain asynchronous, without blocking the window thread.
 
 Separate grant-required, unavailable/deleted, corrupt, unsupported, and cancelled
 results. Startup scans do not prompt. Explicit commands can return a
@@ -182,7 +193,8 @@ SQLite and IndexedDB cannot share one transaction. Preserve grants through
 normal development restarts. SAF grants stay with Android, not a fake registry
 of browser handles.
 
-Use new profile names and an explicit current schema version. Unsupported schema
+Profiles begin when storage is implemented in Phase 3, not during workspace
+setup. Use new profile names and an explicit current schema version. Unsupported schema
 versions fail clearly or require an explicitly selected fresh profile; never
 wipe user state on initialization failure. Implement no pre-libzci readers or
 migration helpers. A disposable test profile is not the ordinary player's data.
