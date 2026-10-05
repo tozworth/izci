@@ -4,10 +4,15 @@ import { spawnSync } from 'node:child_process';
 import { ensureDesktopPacker, packDesktopExecutable } from './desktop/pack-executable.mjs';
 import { verifyStandaloneExecutable } from './desktop/verify-executable.mjs';
 import { publishDesktopBuild } from './desktop/publish-build.mjs';
+import { buildLinuxDesktop } from './desktop/build-linux.mjs';
 
-if (process.platform !== 'win32') throw new Error('The desktop MVP is Windows-only.');
 const root = resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
+if (process.platform === 'linux') {
+  buildLinuxDesktop(root, args);
+  process.exit(0);
+}
+if (process.platform !== 'win32') throw new Error('Desktop builds support Windows and Linux.');
 if (args.some((arg) => !['--no-compress', '--with-signaling'].includes(arg))) throw new Error('Usage: npm run desktop:build -- [--no-compress] [--with-signaling]');
 const signaling = args.includes('--with-signaling');
 const packer = args.includes('--no-compress') ? null : await ensureDesktopPacker(root);

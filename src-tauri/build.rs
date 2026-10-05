@@ -1,4 +1,12 @@
 fn main() {
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
+        assert!(
+            !cfg!(feature = "builtin-signaling"),
+            "Built-in signaling is Windows-only"
+        );
+        tauri_build::build();
+        return;
+    }
     #[cfg(feature = "builtin-signaling")]
     build_signaling();
     println!("cargo:rerun-if-changed=icons/file-types/manifest.json");

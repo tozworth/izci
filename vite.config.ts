@@ -9,10 +9,11 @@ import { milkDropPresetsPlugin } from './scripts/vite/milkdrop-presets';
 export default defineConfig(({ mode }) => {
   const platform = mode === 'desktop' ? 'desktop' : mode === 'android' ? 'android' : 'pwa';
   const desktop = platform === 'desktop';
+  const linux = desktop && (process.env.IZCI_DESKTOP_OS ?? process.platform) === 'linux';
   const android = platform === 'android';
   const platformEntries = {
     pwa: './src/platform/pwa/platform.ts',
-    desktop: './src/desktop/platform.ts',
+    desktop: linux ? './src/desktop/linux/platform.ts' : './src/desktop/platform.ts',
     android: './src/android/platform.ts'
   };
   return {
@@ -34,7 +35,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: {
           main: fileURLToPath(new URL('./index.html', import.meta.url)),
-          ...(desktop ? {
+          ...(desktop && !linux ? {
             miniPlayer: fileURLToPath(new URL('./mini-player.html', import.meta.url)),
             trayMenu: fileURLToPath(new URL('./tray-menu.html', import.meta.url)),
             trayBubble: fileURLToPath(new URL('./tray-bubble.html', import.meta.url))

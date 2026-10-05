@@ -1,4 +1,46 @@
-# Windows desktop MVP
+# Tauri desktop
+
+`npm run desktop:build` selects the host platform. Windows uses WebView2;
+Linux uses WebKitGTK. Neither target requires Go in its ordinary build.
+
+## Linux MVP
+
+Install Rust with [rustup](https://rustup.rs/) and install the
+[Tauri Linux prerequisites](https://tauri.app/start/prerequisites/).
+For Mint 22 / Ubuntu 24.04:
+
+```sh
+sudo apt install build-essential pkg-config libwebkit2gtk-4.1-dev libssl-dev \
+  libayatana-appindicator3-dev librsvg2-dev patchelf \
+  gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
+  gstreamer1.0-plugins-ugly gstreamer1.0-libav
+npm ci
+npm run desktop:build
+.local/desktop-linux/izci
+```
+
+The build produces a native ELF executable with embedded frontend assets.
+It requires the host's GTK3, WebKitGTK 4.1, and GStreamer libraries/codecs;
+this MVP does not package an AppImage, deb, or rpm. Rebuilding replaces the
+output atomically and leaves any running player alone.
+
+The main shell, window controls, File > Open files / Open folder, managed
+folder reads, native path persistence, and subsequent playback use the shared
+player. WebKit file chooser requests materialize disk-backed Files, so large
+media files do not cross IPC or get copied into JavaScript buffers to import.
+Linux native paths retain case sensitivity. Queue/library records and folder
+references keep their existing separate IndexedDB boundaries. Writable tool
+targets, tray integration, boot launch, associations, miniplayer, built-in
+signaling, and the Windows headless harness are outside the Linux MVP.
+Browser audio/video codec availability depends on installed GStreamer plugins;
+tracker and Hively decoding still use their existing WASM/worklet pipelines.
+
+Native validation: `cargo test --bin izci` from `src-tauri/`. The existing
+WebView2 examples remain Windows-only. Frontend validation uses `npm run check`
+and `npm test -- src/desktop`. `desktop:frontend` selects Linux on Linux;
+`IZCI_DESKTOP_OS=win32` selects Windows assets when explicitly needed.
+
+## Windows desktop MVP
 
 Build with `npm run desktop:build`. The runnable output is
 `.local/desktop/izci.exe`; this is the only app file needed for distribution.
