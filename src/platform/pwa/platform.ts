@@ -8,7 +8,7 @@ export const platformId = 'pwa' as const;
 export const platformCapabilities: PlatformCapabilities = {
   serviceWorkerUpdates: true, appInstallation: true, windowControlsOverlay: true,
   directPopupNavigation: false, warmOptionsWindow: false,
-  unrestrictedSignalingHttp: false
+  unrestrictedSignalingHttp: false, mediaElementWebAudio: true
 };
 
 export { pwaUpdateStatus, pwaUpdateCheckState, forceServiceWorkerUpdateCheck, checkServiceWorkerUpdate, applyAvailableServiceWorkerUpdate, registerAppServiceWorker } from './updates';

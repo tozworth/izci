@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AudioBusService } from './audio-bus';
+const capabilities = vi.hoisted(() => ({ mediaElementWebAudio: true }));
+vi.mock('$platform', () => ({ platformCapabilities: capabilities }));
 
 class FakeAudioNode {
   readonly connections: FakeAudioNode[] = [];
@@ -192,6 +194,18 @@ describe('AudioBusService', () => {
 
     expect(bus.connectHtmlMediaElement({} as HTMLMediaElement)).toBeNull();
     expect(FakeAudioContext.instances).toHaveLength(0);
+  });
+
+  it('uses native media output on a WebView that cannot route media while preserving module routing', () => {
+    capabilities.mediaElementWebAudio = false;
+    try {
+      expect(bus.connectHtmlMediaElement({} as HTMLMediaElement)).toBeNull();
+      expect(FakeAudioContext.instances).toHaveLength(0);
+      const context = bus.context as unknown as FakeAudioContext;
+      const source = new FakeAudioNode(context);
+      expect(bus.connectAudioNode(source as unknown as AudioNode)).toBe(source);
+      expect(source.connections).toHaveLength(1);
+    } finally { capabilities.mediaElementWebAudio = true; }
   });
 
   it('resumes the shared context for either playback backend', async () => {

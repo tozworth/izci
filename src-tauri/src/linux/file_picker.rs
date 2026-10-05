@@ -28,6 +28,9 @@ pub async fn pick_paths(
         );
         dialog.set_select_multiple(!folder);
         dialog.set_modal(true);
+        // NativeDialog does not retain itself while visible. Keep its Rust
+        // owner alive until the response, then break this signal's self-reference.
+        let keepalive = std::cell::RefCell::new(Some(dialog.clone()));
         dialog.connect_response(move |dialog, response| {
             let result = if response == gtk::ResponseType::Accept {
                 dialog
@@ -41,6 +44,7 @@ pub async fn pick_paths(
             };
             let _ = sender.try_send(result);
             dialog.destroy();
+            keepalive.borrow_mut().take();
         });
         dialog.show();
     })

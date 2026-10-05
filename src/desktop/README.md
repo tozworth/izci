@@ -34,11 +34,24 @@ targets, tray integration, boot launch, associations, miniplayer, built-in
 signaling, and the Windows headless harness are outside the Linux MVP.
 Browser audio/video codec availability depends on installed GStreamer plugins;
 tracker and Hively decoding still use their existing WASM/worklet pipelines.
+On the tested WebKitGTK runtime, routing an HTML media element through Web Audio
+stalls its playback clock. Linux therefore uses Howler's HTML5 native-output
+fallback for regular audio and native output for video. Volume, mute, seeking,
+and stream ReplayGain remain available; Raf, program capture, and analyser-based
+visualization are unavailable for these media on Linux. Modules still use the
+shared Web Audio graph, including Raf and visualization.
 
 Native validation: `cargo test --bin izci` from `src-tauri/`. The existing
 WebView2 examples remain Windows-only. Frontend validation uses `npm run check`
 and `npm test -- src/desktop`. `desktop:frontend` selects Linux on Linux;
 `IZCI_DESKTOP_OS=win32` selects Windows assets when explicitly needed.
+After `desktop:frontend`, run `cargo run --example linux_smoke --features
+tauri/custom-protocol -- /absolute/test.wav /absolute/test.mp3 /absolute/test.mod`
+from `src-tauri/` for the isolated native picker/playback check. It uses its own
+app identifier and automatically selects the supplied fixtures in GTK's native
+dialogs. Run it under `xvfb-run -a` for a hidden display. It also opens the first
+fixture's folder and cancels another file picker. Use a small fixture folder;
+the folder check scans and imports its media into the disposable profile only.
 
 ## Windows desktop MVP
 

@@ -31,6 +31,19 @@ describe('native file references', () => {
     expect(serializeItem(item)).toBeNull();
     expect(restoreStoredItem(item)).toBeNull();
   });
+  it('round-trips Linux references and rematerializes a restored stream', async () => {
+    const linuxTrack = { ...item, name: 'şarkı.wav', extension: 'wav', kind: 'stream' as const,
+      path: '/home/toz/Music/şarkı.wav', nativeFile: { uri: 'file:///home/toz/Music/%C5%9Fark%C4%B1.wav' } };
+    const restored = restoreStoredItem(serializeItem(linuxTrack));
+    expect(restored).toMatchObject(linuxTrack);
+    const file = new File(['stream'], linuxTrack.name);
+    platform.materializeFile.mockResolvedValue(file);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:linux-stream');
+    expect(await materializeTrackItem(restored!)).toMatchObject({
+      file, path: linuxTrack.path, nativeFile: linuxTrack.nativeFile, objectUrl: 'blob:linux-stream'
+    });
+    expect(platform.materializeFile).toHaveBeenCalledWith(linuxTrack.nativeFile);
+  });
   it('restores Hively and OpenMPT files without object URLs', async () => {
     const objectUrl = vi.spyOn(URL, 'createObjectURL');
     for (const extension of ['hvl', 'xm']) {
