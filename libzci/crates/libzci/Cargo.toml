@@ -1,0 +1,10 @@
+[package]
+name = "libzci"
+version = "0.1.0"
+edition = "2021"
+description = "Reusable izci engine core: sessions, providers, and processing behind the core/adapter/consumer boundary."
+license = "MIT"
+
+[lib]
+name = "libzci"
+path = "src/lib.rs"
