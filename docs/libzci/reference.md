@@ -3,9 +3,18 @@
 [Plan entry point](README.md) · [Boundaries](boundaries.md) ·
 [Scaffolding](scaffolding.md) · [Phases](phases.md)
 
-Read-only discovery for this plan was performed on 2026-10-05. These are behavior
-and provenance references, not instructions to copy the current runtime into
+Read-only discovery and implementation-plan grounding were performed on
+2026-10-05. These are behavior and provenance references, not instructions to
+copy the current runtime into
 libzci. Follow code and current operating rules if archived plans disagree.
+
+## Checkout baseline
+
+There is no root Cargo workspace, libzci source tree, native Opus provider, or
+browser SQLite/OPFS integration. The Rust project is the Tauri shell; server
+SQLite belongs to its Go module. Root npm/Vite scripts only build the existing
+application. The proposed packages and recipes in [scaffolding](scaffolding.md)
+must be created before their run commands exist.
 
 ## 1. Playback, providers, and browser integration
 
@@ -15,7 +24,7 @@ libzci. Follow code and current operating rules if archived plans disagree.
 | [howler-player.ts](../../src/lib/services/howler-player.ts), [video-player.ts](../../src/lib/services/video-player.ts) | Current HTML5-audio and literal video-element implementation; not reusable native engines |
 | [openmpt](../../src/lib/services/openmpt/), [module-player.ts](../../src/lib/services/module-player.ts) | Inspection/worklet separation, ABI, source loading, module settings/pattern capabilities |
 | [libopenmpt provenance](../../src/lib/vendor/libopenmpt/README.md) | Pinned WASM/generated-loader origin; native source/toolchain still needs establishing |
-| [Hively recipe](../../scripts/vendor/ahx/README.md), [C wrapper](../../scripts/vendor/ahx/ahx-wrapper.c) | Pinned upstream source, interpolation/pattern APIs, mutable-global native isolation hazard |
+| [Hively recipe](../../scripts/vendor/ahx/README.md), [C wrapper](../../scripts/vendor/ahx/ahx-wrapper.c) | Pinned upstream source, interpolation/pattern APIs, mutable-global isolation hazard; synchronous load-time duration and replay-seek loops need bounded stepping |
 | [third-party notices](../THIRD-PARTY-NOTICES.md) | Browser/server Hively artifacts differ; server source revision is unverified |
 | [media-session.ts](../../src/lib/services/media-session.ts) | Transport handlers and hidden eight-second low-amplitude WAV anchor, separate from real audio |
 | [VideoStage](../../src/lib/components/workspace/VideoStage.svelte), [ImageStage](../../src/lib/components/workspace/ImageStage.svelte) | Current element mounting; future surface consumers must preserve single ownership |
@@ -58,7 +67,7 @@ Translate their intended outcomes; do not reproduce old storage object shapes.
 | [server libopenmpt](../../izci-server/internal/media/openmpt.go), [Hively](../../izci-server/internal/media/hively.go) | Native library loading versus wazero-isolated replay; not a full local device player |
 | [server sessions](../../izci-server/internal/host/session.go), [delivery boundary](../../izci-server/internal/host/delivery.go) | Shared/Freeplay timelines and remote preparation distinct from decode/render jobs |
 | [server SQLite](../../izci-server/internal/persistence/store.go) | Catalog/queue/identity storage precedent; current schema is not the new core schema |
-| [fixture corpus](../../fixtures/README.md), [app protocol fixtures](../../tests/multiplayer-protocol/README.md) | Deterministic provenance and shared behavior transcripts; candid format gaps |
+| [fixture corpus](../../fixtures/README.md), [manifest](../../fixtures/manifest.json), [app protocol fixtures](../../tests/multiplayer-protocol/README.md) | Generator/pins and expected outcomes; media outputs are ignored, not checked in; candid format gaps |
 
 Pitch and upward compression have custom worklets; other effects rely heavily
 on browser filters, compressors, gains/delays, convolution, and waveshaping.
@@ -69,6 +78,16 @@ The server currently decodes ordinary audio/video via FFmpeg, modules via native
 libopenmpt, Hively via embedded WASM, then encodes buffered Opus/WebM. Its host
 clock coordinates delivery rather than driving a local audio device. Those are
 useful later integration seams, not a reason to turn the Go host into libzci.
+
+Initial generated inputs are `audio-opus` and `module-mod`, under
+`.local/verification-fixtures/v1/` after authorized generation with the exact
+FFmpeg/FFprobe pin. The OpenMPT [test helper](../../src/lib/services/openmpt/test-fixtures.ts)
+also constructs one/two-subsong MOD inputs. Browser
+[Hively tests](../../src/lib/services/ahx-worklet.test.ts) construct blank AHX/HVL
+for actual replay lifecycle/EOF/seek. Those are useful starting vectors, but
+audible instrument/mute/interpolation and concurrent native contexts need further
+fixtures and checks. Server Hively tests prove repeated lifecycle/garbage
+rejection only.
 
 ## 4. Primary platform references
 
