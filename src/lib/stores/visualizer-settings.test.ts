@@ -4,6 +4,14 @@ import { DEFAULT_VISUALIZER_SETTINGS, normalizeVisualizerSettings, visualizerSet
 afterEach(() => visualizerSettings.reset());
 
 describe('visualizer settings', () => {
+  it('defaults to pre-Raf and preserves only explicit boolean tap preferences', () => {
+    expect(normalizeVisualizerSettings({}).postRaf).toBe(false);
+    expect(normalizeVisualizerSettings({ postRaf: 'true' }).postRaf).toBe(false);
+    const settings = visualizerSettings.update({ postRaf: true });
+    expect(normalizeVisualizerSettings(JSON.parse(JSON.stringify(settings))).postRaf).toBe(true);
+    expect(visualizerSettings.reset().postRaf).toBe(false);
+  });
+
   it('keeps MilkDrop selection and configuration through serialization', () => {
     const settings = visualizerSettings.update({
       style: 'milkdrop', milkDropPreset: '  My preset  ', milkDropCyclePresets: false,

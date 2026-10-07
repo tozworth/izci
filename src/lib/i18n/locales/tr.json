@@ -1556,6 +1556,10 @@
         "title": "Renk kaynağı",
         "hint": "Varsa mevcut albüm resmi paletini kullanır; yoksa etkin temaya döner."
       },
+      "postRaf": {
+        "title": "Raf sonrası sesi kullan",
+        "hint": "Tüm görselleştiricilerin Raf efektlerinden sonraki sese tepki vermesini sağlar. Kapalıyken Raf öncesinden, ReplayGain sonrasından örnek alır. Oynatıcı ses düzeyi ve sessize alma iki kaynağı da etkilemez."
+      },
       "height": {
         "title": "Yükseklik",
         "hint": "Çözümleyicinin oynatıcı artalanında ne kadar yükselebileceğini belirler."

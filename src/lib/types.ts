@@ -478,6 +478,7 @@ export interface PlaybackSettings {
 export interface VisualizerSettings {
   style: VisualizerStyle;
   colorSource: VisualizerColorSource;
+  postRaf: boolean;
   height: number;
   transparency: number;
   frameRateLimit: number;

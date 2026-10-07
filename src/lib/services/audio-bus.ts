@@ -1,4 +1,5 @@
 import { visualizerService } from '$lib/services/visualizer';
+import { visualizerSettings } from '$lib/stores/visualizer-settings';
 import { RafEngine } from '$lib/services/raf-engine';
 import { setAudioParam } from '$lib/services/raf-effects/shared';
 import { logDebug, logInfo, logWarning } from '$lib/services/logging';
@@ -19,6 +20,8 @@ export class AudioBusService {
   #output: GainNode | null = null;
   #rafEngine: RafEngine | null = null;
   #analyser: AnalyserNode | null = null;
+  #analyserInput: AudioNode | null = null;
+  #unsubscribeVisualizerSettings: (() => void) | null = null;
   #sourceRoutes = new Map<AudioBusSource, AudioBusSourceRoute>();
   #mediaSources = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
   #outputGain = 1;
@@ -165,6 +168,8 @@ export class AudioBusService {
 
   destroy(): void {
     logInfo('playback', 'Audio graph destroyed');
+    this.#unsubscribeVisualizerSettings?.();
+    this.#unsubscribeVisualizerSettings = null;
     for (const source of this.#sourceRoutes.keys()) this.disconnect(source);
     visualizerService.clear();
 
@@ -186,6 +191,7 @@ export class AudioBusService {
     this.#output = null;
     this.#rafEngine = null;
     this.#analyser = null;
+    this.#analyserInput = null;
     this.#mediaSources = new WeakMap();
     this.#sourceRoutes.clear();
 
@@ -208,6 +214,15 @@ export class AudioBusService {
     localGain.connect(this.#input);
     transitionGain.connect(this.#program);
     this.#sourceRoutes.set(source, { transitionGain, localGain });
+  }
+
+  #setVisualizerTap(postRaf: boolean): void {
+    const input = postRaf ? this.#rafEngine?.output : this.#input;
+    if (!input || !this.#analyser || input === this.#analyserInput) return;
+
+    this.#analyserInput?.disconnect(this.#analyser);
+    input.connect(this.#analyser);
+    this.#analyserInput = input;
   }
 
   #ensureGraph(): void {
@@ -241,8 +256,7 @@ export class AudioBusService {
     program.gain.value = 1;
     output.gain.value = this.#outputGain;
     input.connect(rafEngine.input);
-    rafEngine.output.connect(analyser);
-    analyser.connect(output);
+    rafEngine.output.connect(output);
     output.connect(context.destination);
 
     this.#context = context;
@@ -251,6 +265,10 @@ export class AudioBusService {
     this.#output = output;
     this.#rafEngine = rafEngine;
     this.#analyser = analyser;
+    // A side branch keeps tap changes independent of the audible processing chain.
+    this.#unsubscribeVisualizerSettings = visualizerSettings.subscribe(({ postRaf }) => {
+      this.#setVisualizerTap(postRaf);
+    });
     visualizerService.setAnalyser(analyser);
     logInfo('playback', 'Audio graph created', { state: context.state, sampleRate: context.sampleRate });
   }
