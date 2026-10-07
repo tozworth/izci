@@ -1,5 +1,5 @@
 import type { VisualizerColorSource, VisualizerSettings, VisualizerStyle } from '$lib/types';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
 const VISUALIZER_SETTINGS_STORAGE_KEY = 'izci.visualizer-settings';
 const VISUALIZER_SETTINGS_CHANNEL = 'izci.visualizer-settings';
@@ -23,6 +23,7 @@ export const VISUALIZER_COLOR_SOURCE_OPTIONS: Array<{ value: VisualizerColorSour
 export const DEFAULT_VISUALIZER_SETTINGS: VisualizerSettings = {
   style: 'wave',
   colorSource: 'theme',
+  postRaf: false,
   height: 0.78,
   transparency: 0.42,
   frameRateLimit: 60,
@@ -66,6 +67,7 @@ export function normalizeVisualizerSettings(value: unknown): VisualizerSettings 
   return {
     style: normalizeStyle(source.style),
     colorSource: normalizeColorSource(source.colorSource),
+    postRaf: normalizeBoolean(source.postRaf, DEFAULT_VISUALIZER_SETTINGS.postRaf),
     height: normalizeNumber(source.height, DEFAULT_VISUALIZER_SETTINGS.height, 0.22, 1),
     transparency: normalizeNumber(source.transparency, DEFAULT_VISUALIZER_SETTINGS.transparency, 0, 0.85),
     frameRateLimit: Math.round(

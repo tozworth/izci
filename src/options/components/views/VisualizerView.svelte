@@ -6,6 +6,7 @@
   } from '$lib/stores/visualizer-settings';
   import type { VisualizerSettings } from '$lib/types';
   import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
+  import SettingsField from '$lib/components/options/SettingsField.svelte';
   import MilkDropSettings from '../MilkDropSettings.svelte';
 
   type SelectSetting = 'style' | 'colorSource';
@@ -185,6 +186,16 @@
           <p class="field-hint">{descriptorHint(setting)}</p>
         </label>
       {/each}
+
+      <SettingsField
+        title={$t('options.visualizer.postRaf.title', { default: 'Use post-Raf audio' })}
+        hint={$t('options.visualizer.postRaf.hint', { default: 'Makes every visualizer react to audio after Raf effects. Off samples before Raf, after ReplayGain. Player volume and mute do not affect either source.' })}
+        checkbox
+        advanced
+      >
+        <input type="checkbox" checked={$visualizerSettings.postRaf}
+          on:change={(event) => visualizerSettings.update({ postRaf: event.currentTarget.checked })} />
+      </SettingsField>
 
       {#each visibleRangeSettings as setting (setting.key)}
         <label class="field" class:advanced-tweak={setting.advanced === true}>

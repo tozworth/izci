@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AudioBusService } from './audio-bus';
+import { visualizerSettings } from '$lib/stores/visualizer-settings';
 const capabilities = vi.hoisted(() => ({ mediaElementWebAudio: true }));
 vi.mock('$platform', () => ({ platformCapabilities: capabilities }));
 
@@ -17,6 +18,12 @@ class FakeAudioNode {
 
   disconnect(destination?: FakeAudioNode): void {
     this.disconnections.push(destination);
+    if (destination) {
+      const index = this.connections.indexOf(destination);
+      if (index !== -1) this.connections.splice(index, 1);
+    } else {
+      this.connections.length = 0;
+    }
   }
 }
 
@@ -112,6 +119,7 @@ describe('AudioBusService', () => {
     FakeAudioContext.constructorOptions = [];
     vi.stubGlobal('window', {
       AudioContext: FakeAudioContext,
+      localStorage: { setItem: vi.fn() },
       setTimeout: globalThis.setTimeout,
       clearTimeout: globalThis.clearTimeout
     });
@@ -121,19 +129,59 @@ describe('AudioBusService', () => {
   afterEach(() => {
     bus.destroy();
     vi.unstubAllGlobals();
+    visualizerSettings.reset();
   });
 
-  it('creates one pass-through graph ending at the browser destination', () => {
+  it('taps pre-Raf by default without routing the analyser into audible output', () => {
     const context = bus.context as unknown as FakeAudioContext;
     const [input, output, program] = context.gains;
     const [analyser] = context.analysers;
 
-    expect(input.connections).toHaveLength(1);
-    expect(context.gains.some((gain) => gain.connections.includes(analyser))).toBe(true);
-    expect(analyser.connections).toEqual([output]);
+    const rafInput = context.gains[3];
+    const rafOutput = context.gains[4];
+    expect(input.connections).toEqual([rafInput, analyser]);
+    expect(rafOutput.connections).toEqual([output]);
+    expect(analyser.connections).toEqual([]);
     expect(output.connections).toEqual([context.destination]);
     expect(program.connections).toEqual([]);
     expect(FakeAudioContext.constructorOptions).toEqual([{ latencyHint: 'playback' }]);
+  });
+
+  it('switches the live tap in both directions without touching playback connections', () => {
+    const context = bus.context as unknown as FakeAudioContext;
+    const [input, output, , rafInput, rafOutput] = context.gains;
+    const [analyser] = context.analysers;
+
+    visualizerSettings.update({ postRaf: true });
+    expect(input.connections).toEqual([rafInput]);
+    expect(input.disconnections).toEqual([analyser]);
+    expect(rafOutput.connections).toEqual([output, analyser]);
+
+    visualizerSettings.update({ height: 0.5 });
+    expect(rafOutput.connections).toEqual([output, analyser]);
+    expect(rafOutput.disconnections).toEqual([]);
+
+    visualizerSettings.update({ postRaf: false });
+    expect(input.connections).toEqual([rafInput, analyser]);
+    expect(rafOutput.connections).toEqual([output]);
+    expect(rafOutput.disconnections).toEqual([analyser]);
+    expect(analyser.connections).toEqual([]);
+    expect(FakeAudioContext.instances).toHaveLength(1);
+  });
+
+  it('uses the saved tap when creating and recreating the graph', () => {
+    visualizerSettings.update({ postRaf: true });
+    const first = bus.context as unknown as FakeAudioContext;
+    expect(first.gains[0].connections).not.toContain(first.analysers[0]);
+    expect(first.gains[4].connections).toContain(first.analysers[0]);
+
+    bus.destroy();
+    visualizerSettings.update({ postRaf: false });
+    expect(first.gains[0].connections).toEqual([]);
+    expect(first.gains[4].connections).toEqual([]);
+    const second = bus.context as unknown as FakeAudioContext;
+    expect(second.gains[0].connections).toContain(second.analysers[0]);
+    expect(second.gains[4].connections).toEqual([second.gains[1]]);
   });
 
   it('keeps the shared input at unity and applies player volume after the analyser', () => {
@@ -236,7 +284,8 @@ describe('AudioBusService', () => {
 
     expect(transition.connections).toEqual([localGain, program]);
     expect(localGain.connections).toEqual([input]);
-    expect(input.connections).toHaveLength(1);
+    expect(input.connections).toHaveLength(2);
     expect(input.connections[0]).not.toBe(context.analysers[0]);
+    expect(input.connections[1]).toBe(context.analysers[0]);
   });
 });

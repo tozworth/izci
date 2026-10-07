@@ -65,11 +65,11 @@
 - `media-session.ts` owns Chromium media metadata/actions and the silent module transport anchor.
 - `audio-bus.ts` owns the shared Web Audio routing. The intended graph is:
   `Howler/libopenmpt/video source -> transition envelope -> raw program tap` and
-  `transition envelope -> ReplayGain -> Raf -> analyser -> master volume -> destination`.
+  `transition envelope -> ReplayGain -> Raf -> master volume -> destination`.
 - Player volume/mute belongs after Raf. Stream ReplayGain is a deliberate pre-Raf adjustment. Howler backend volume is only a fallback when media-element Web Audio routing is unavailable.
 - `raf-engine.ts` and `raf-effects/` own DSP. Raf settings are normalized, synchronized, and applied independently of the Options window lifecycle. Parameter updates should be differential and smoothed from a finite anchored value. Video bypasses Auto Amp but otherwise uses the shared chain.
 - `raf-auto-amp-meter.ts` transports live Auto Amp telemetry between windows; it is presentation state and must not be persisted.
-- The visualizer consumes the shared post-Raf analyser and remains independent of artwork backdrop selection.
+- The visualizer consumes a shared analyser branch before Raf (after ReplayGain) by default, optionally after Raf; both taps precede master volume/mute and remain independent of artwork backdrop selection.
 
 ## Files, metadata, and library
 

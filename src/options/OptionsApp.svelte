@@ -189,6 +189,7 @@
         break;
       case 'visualizer':
         advancedTweaksModified =
+          $visualizerSettings.postRaf !== DEFAULT_VISUALIZER_SETTINGS.postRaf ||
           $visualizerSettings.frameRateLimit !== DEFAULT_VISUALIZER_SETTINGS.frameRateLimit ||
           $visualizerSettings.normalizationStrength !== DEFAULT_VISUALIZER_SETTINGS.normalizationStrength ||
           $visualizerSettings.triangleCount !== DEFAULT_VISUALIZER_SETTINGS.triangleCount ||

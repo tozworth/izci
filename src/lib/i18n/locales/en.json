@@ -1548,6 +1548,10 @@
         "title": "Color source",
         "hint": "Uses the current artwork palette when available, otherwise falls back to the active theme."
       },
+      "postRaf": {
+        "title": "Use post-Raf audio",
+        "hint": "Makes every visualizer react to audio after Raf effects. Off samples before Raf, after ReplayGain. Player volume and mute do not affect either source."
+      },
       "height": {
         "title": "Height",
         "hint": "Sets how far the analyzer can rise through the player background."
