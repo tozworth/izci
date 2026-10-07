@@ -2,7 +2,8 @@ import type {
   PlaybackRestoreMode,
   PlaybackSettings,
   PlaybackTransitionMode,
-  ReplayGainMode
+  ReplayGainMode,
+  WorkspaceTabFocusMode
 } from '$lib/types';
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
@@ -33,6 +34,15 @@ export const PLAYBACK_TRANSITION_MODE_OPTIONS: Array<{
   { value: 'crossfade', label: 'Crossfade' }
 ];
 
+export const QUEUE_TRACK_CHANGE_FOCUS_OPTIONS: Array<{
+  value: WorkspaceTabFocusMode;
+  label: string;
+}> = [
+  { value: 'off', label: 'Off' },
+  { value: 'focus-only', label: 'Focus only' },
+  { value: 'open-and-focus', label: 'Open and focus' }
+];
+
 export const REMEMBER_PROGRESS_DURATION_MINUTES = [null, 0, 5, 15, 30, 60, 120, 300, 600] as const;
 export const DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX = 4;
 export const REPLAY_GAIN_PREAMP_MIN_DB = -12;
@@ -52,6 +62,7 @@ export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   playbackRate: 1,
   trueSpeed: false,
   restartCurrentTrackOnPrevious: true,
+  focusQueueOnTrackChange: 'open-and-focus',
   patternAwareSeek: false,
   transitionMode: 'none',
   gaplessPlayback: true,
@@ -71,6 +82,12 @@ export function normalizePlaybackTransitionMode(value: unknown): PlaybackTransit
   return value === 'none' || value === 'fadeout' || value === 'crossfade'
     ? value
     : DEFAULT_PLAYBACK_SETTINGS.transitionMode;
+}
+
+export function normalizeQueueTrackChangeFocusMode(value: unknown): WorkspaceTabFocusMode {
+  return value === 'off' || value === 'focus-only' || value === 'open-and-focus'
+    ? value
+    : DEFAULT_PLAYBACK_SETTINGS.focusQueueOnTrackChange;
 }
 
 export function normalizeFadeDurationSeconds(value: unknown): number {
@@ -149,6 +166,7 @@ export function normalizePlaybackSettings(value: unknown): PlaybackSettings {
   return {
     playbackRate: normalizePlaybackRate(source.playbackRate),
     trueSpeed: normalizeBoolean(source.trueSpeed, DEFAULT_PLAYBACK_SETTINGS.trueSpeed),
+    focusQueueOnTrackChange: normalizeQueueTrackChangeFocusMode(source.focusQueueOnTrackChange),
     patternAwareSeek: normalizeBoolean(source.patternAwareSeek, DEFAULT_PLAYBACK_SETTINGS.patternAwareSeek),
     restartCurrentTrackOnPrevious: normalizeBoolean(
       source.restartCurrentTrackOnPrevious,

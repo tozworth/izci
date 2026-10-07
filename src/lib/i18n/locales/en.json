@@ -1452,6 +1452,15 @@
       "navigation": {
         "heading": "Navigation"
       },
+      "focusQueueOnTrackChange": {
+        "title": "Focus Queue on track change",
+        "hint": "Focus only activates Queue when its tab is already open. Open and focus also reopens a closed Queue tab.",
+        "options": {
+          "off": "Off",
+          "focusOnly": "Focus only",
+          "openAndFocus": "Open and focus"
+        }
+      },
       "restartCurrentTrackOnPrevious": {
         "title": "Previous restarts current track",
         "hint": "Restarts the current track when Previous is pressed after 3 seconds; press it again to go to the previous track."

@@ -242,6 +242,12 @@
     <div class="workspace-empty-surface" aria-label={$t('workspace.empty', { default: 'Workspace is empty' })}></div>
   {/if}
 
+  {#if workspacePanels.every((panel) => panel.tabs.length === 0)}
+    <div class="workspace-empty-brand" aria-hidden="true">
+      <span class="workspace-empty-glyph"></span>
+    </div>
+  {/if}
+
   {#if draggedTabId}
     {#each hiddenPanels as panel (panel.id)}
       <div
@@ -258,6 +264,26 @@
 </main>
 
 <style>
+  .workspace-empty-brand {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .workspace-empty-glyph {
+    width: min(10rem, 40%);
+    max-height: 60%;
+    aspect-ratio: 1;
+    background-color: var(--text);
+    opacity: 0.08;
+    -webkit-mask: url('/icons/izci-mark.svg') center / contain no-repeat;
+    mask: url('/icons/izci-mark.svg') center / contain no-repeat;
+  }
+
   .workspace-panel-surface {
     min-width: 0;
     min-height: 0;
