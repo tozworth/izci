@@ -1460,6 +1460,15 @@
       "navigation": {
         "heading": "Gezinme"
       },
+      "focusQueueOnTrackChange": {
+        "title": "Parça değişince Kuyruğa odaklan",
+        "hint": "Yalnızca odaklan, Kuyruk sekmesi zaten açıksa etkinleştirir. Aç ve odaklan, kapalı Kuyruk sekmesini de yeniden açar.",
+        "options": {
+          "off": "Kapalı",
+          "focusOnly": "Yalnızca odaklan",
+          "openAndFocus": "Aç ve odaklan"
+        }
+      },
       "restartCurrentTrackOnPrevious": {
         "title": "Önceki geçerli parçayı baştan başlatır",
         "hint": "3 saniye geçtikten sonra Önceki'ye basıldığında geçerli parçayı baştan başlatır; önceki parçaya gitmek için tekrar basın."

@@ -8,6 +8,7 @@
     PLAYBACK_RATE_STEP,
     PLAYBACK_RESTORE_MODE_OPTIONS,
     PLAYBACK_TRANSITION_MODE_OPTIONS,
+    QUEUE_TRACK_CHANGE_FOCUS_OPTIONS,
     REMEMBER_PROGRESS_DURATION_MINUTES,
     REPLAY_GAIN_MODE_OPTIONS,
     REPLAY_GAIN_PREAMP_MAX_DB,
@@ -26,7 +27,7 @@
     normalizeRememberProgressDurationIndex,
     playbackSettings
   } from '$lib/stores/playback-settings';
-  import type { PlaybackRestoreMode, PlaybackTransitionMode, ReplayGainMode } from '$lib/types';
+  import type { PlaybackRestoreMode, PlaybackTransitionMode, ReplayGainMode, WorkspaceTabFocusMode } from '$lib/types';
 
   function checked(event: Event) { return (event.currentTarget as HTMLInputElement).checked; }
   function handlePlaybackRestoreModeChange(event: CustomEvent<string>) { playbackSettings.update({ restoreMode: event.detail as PlaybackRestoreMode }); }
@@ -46,6 +47,7 @@
   }
   function handleTrueSpeedToggle(event: Event) { playbackSettings.update({ trueSpeed: checked(event) }); }
   function handleRestartCurrentTrackOnPreviousToggle(event: Event) { playbackSettings.update({ restartCurrentTrackOnPrevious: checked(event) }); }
+  function handleQueueTrackChangeFocusChange(event: CustomEvent<string>) { playbackSettings.update({ focusQueueOnTrackChange: event.detail as WorkspaceTabFocusMode }); }
   function handleTransitionModeChange(event: CustomEvent<string>) { playbackSettings.update({ transitionMode: event.detail as PlaybackTransitionMode }); }
   function handleGaplessPlaybackToggle(event: Event) {
     const gaplessPlayback = checked(event);
@@ -78,6 +80,11 @@
     if (value === 'track') return $t('options.playback.replayGain.options.track', { default: 'Track' });
     if (value === 'album') return $t('options.playback.replayGain.options.album', { default: 'Album' });
     return $t('options.playback.replayGain.options.off', { default: 'Off' });
+  }
+  function queueTrackChangeFocusLabel(value: WorkspaceTabFocusMode): string {
+    if (value === 'off') return $t('options.playback.focusQueueOnTrackChange.options.off', { default: 'Off' });
+    if (value === 'focus-only') return $t('options.playback.focusQueueOnTrackChange.options.focusOnly', { default: 'Focus only' });
+    return $t('options.playback.focusQueueOnTrackChange.options.openAndFocus', { default: 'Open and focus' });
   }
   function replayGainPreampLabel(value: number): string {
     return `${value > 0 ? '+' : ''}${value} dB`;
@@ -137,6 +144,17 @@
   <div class="section">
     <h2>{$t('options.playback.navigation.heading', { default: 'Navigation' })}</h2>
     <div class="field-grid">
+      <SettingsField
+        title={$t('options.playback.focusQueueOnTrackChange.title', { default: 'Focus Queue on track change' })}
+        hint={$t('options.playback.focusQueueOnTrackChange.hint', { default: 'Focus only activates Queue when its tab is already open. Open and focus also reopens a closed Queue tab.' })}
+      >
+        <ThemedSelect
+          value={$playbackSettings.focusQueueOnTrackChange}
+          options={QUEUE_TRACK_CHANGE_FOCUS_OPTIONS.map((option) => ({ value: option.value, label: queueTrackChangeFocusLabel(option.value) }))}
+          label={$t('options.playback.focusQueueOnTrackChange.title', { default: 'Focus Queue on track change' })}
+          on:change={handleQueueTrackChangeFocusChange}
+        />
+      </SettingsField>
       <SettingsField
         title={$t('options.playback.patternAwareSeek.title', { default: 'Pattern-aware seek' })}
         hint={$t('options.playback.patternAwareSeek.hint', { default: 'Arrow keys and the seek-bar scrollwheel jump to the start of the previous or next tracker pattern. Other files keep time-based seeking.' })}

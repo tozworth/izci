@@ -136,6 +136,9 @@ pub fn configure(
     }
     TrayIconBuilder::with_id("izci")
         .icon(tray_icon.image())
+        // Explicitly clear the shell hint (NIF_TIP); omitting it lets Windows
+        // show an empty fallback popup over our custom bubbles and menu.
+        .tooltip("")
         .show_menu_on_left_click(false)
         .on_tray_icon_event(|icon, event| {
             let app = icon.app_handle();

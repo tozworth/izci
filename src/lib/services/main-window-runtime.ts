@@ -296,7 +296,9 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
         (item) => item.id === id
       ) ?? null,
     getLibraryItems: () => state.libraryItems,
-    selectTrack: workspaceShell.selectTrack,
+    selectTrack: (collection, id) => workspaceShell.selectTrack(collection, id, {
+      focus: playbackSettings.getSnapshot().focusQueueOnTrackChange
+    }),
     setActiveWorkspaceTab: workspaceShell.setActiveWorkspaceTab,
     cleanupRemovedItems: workspaceCollections.cleanupRemovedItems,
     resolveResumePosition: (track) => playbackProgress.resolveResumePosition(track),

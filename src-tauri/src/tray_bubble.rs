@@ -93,12 +93,10 @@ fn require_bubble(window: &WebviewWindow) -> Result<(), String> {
     }
 }
 
-fn player_is_focused(app: &AppHandle) -> bool {
+fn player_is_visible(app: &AppHandle) -> bool {
     ["main", "mini-player"].iter().any(|label| {
         app.get_webview_window(label).is_some_and(|window| {
-            window.is_focused().unwrap_or(false)
-                && window.is_visible().unwrap_or(false)
-                && !window.is_minimized().unwrap_or(true)
+            window.is_visible().unwrap_or(false) && !window.is_minimized().unwrap_or(true)
         })
     })
 }
@@ -119,10 +117,11 @@ pub fn show_desktop_track_bubble(
     volume: Option<bool>,
 ) -> Result<bool, String> {
     require_bubble(&window)?;
+    let _ = volume;
     if !width.is_finite() || !height.is_finite() {
         return Err("Invalid bubble dimensions".into());
     }
-    if !volume.unwrap_or(false) && player_is_focused(&app) {
+    if player_is_visible(&app) {
         return Ok(false);
     }
     let Some(icon) = app.tray_by_id("izci") else {
@@ -182,7 +181,7 @@ pub fn show_desktop_track_bubble(
             (2.0 * scale).round() as i32,
         ))
         .map_err(|error| error.to_string())?;
-    if !volume.unwrap_or(false) && player_is_focused(&app) {
+    if player_is_visible(&app) {
         return Ok(false);
     }
     crate::window_resources::set_active(&window, true);

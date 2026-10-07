@@ -33,6 +33,7 @@ import type {
   WorkspacePanelTabsSettings,
   WorkspaceResizeHandle,
   WorkspaceTab,
+  WorkspaceTabFocusMode,
   WorkspaceTabPanelMemorySettings
 } from '$lib/types';
 import { WORKSPACE_PANEL_IDS } from '$lib/types';
@@ -621,15 +622,19 @@ export function createWorkspaceShellController({
     selectTrack(
       collection: WorkspaceCollection,
       id: string,
-      options?: { range?: boolean; toggle?: boolean }
+      options?: { range?: boolean; toggle?: boolean; focus?: WorkspaceTabFocusMode }
     ): void {
+      const { focus = 'open-and-focus', ...selectionOptions } = options ?? {};
       clearOtherSelection(collection);
-      updateActiveWorkspaceTab(collection);
+      if (focus === 'open-and-focus'
+        || (focus === 'focus-only' && isWorkspaceTabOpen(savedPanelState, collection))) {
+        updateActiveWorkspaceTab(collection);
+      }
       if (collectionSelection) {
-        collectionSelection.select(collection, id, options);
+        collectionSelection.select(collection, id, selectionOptions);
         return;
       }
-      getCollectionStore(collection).select(id, options);
+      getCollectionStore(collection).select(id, selectionOptions);
     },
     setCollectionSelection(collection: WorkspaceCollection, nextSelection: TrackSelection): void {
       clearOtherSelection(collection);

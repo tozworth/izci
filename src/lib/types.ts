@@ -128,6 +128,7 @@ export type LyricsDisplayStyle = 'plain' | 'timestamped' | 'theater';
 export type LyricsFontSizeSettings = Record<LyricsDisplayStyle, number>;
 export type WorkspaceCollection = 'queue' | 'library';
 export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics' | 'patterns' | 'visualizer' | 'media' | 'chat';
+export type WorkspaceTabFocusMode = 'off' | 'focus-only' | 'open-and-focus';
 export type MediaTabKind = 'video' | 'image';
 export type ContextualWorkspaceTab = Extract<WorkspaceTab, 'lyrics' | 'patterns'>;
 export type ContextualTabAutomation = 'manual' | 'open' | 'open-close';
@@ -460,6 +461,7 @@ export interface PlaybackSettings {
   playbackRate: number;
   trueSpeed: boolean;
   restartCurrentTrackOnPrevious: boolean;
+  focusQueueOnTrackChange: WorkspaceTabFocusMode;
   patternAwareSeek: boolean;
   transitionMode: PlaybackTransitionMode;
   gaplessPlayback: boolean;
