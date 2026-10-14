@@ -1294,11 +1294,11 @@
       },
       "tempoFactor": {
         "title": "Tempo katsayısı",
-        "hint": "Modülün oynatma hızını perdeyi ellemeden değiştirir."
+        "hint": "AHX ve HivelyTracker dahil, modülün oynatma hızını perdeyi ellemeden değiştirir."
       },
       "pitchFactor": {
         "title": "Perde katsayısı",
-        "hint": "Oynatma perdesini modülün özgün akoruna göre ayarlar."
+        "hint": "AHX ve HivelyTracker dahil, oynatma perdesini modülün özgün akoruna göre ayarlar."
       }
     },
     "nowPlaying": {

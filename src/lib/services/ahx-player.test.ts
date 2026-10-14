@@ -117,6 +117,42 @@ describe('Hively player', () => {
     expect(fetchRuntime).toHaveBeenCalledOnce();
   });
 
+  it('loads tempo and pitch and sends live changes without resending unrelated settings', async () => {
+    harness.context = {
+      audioWorklet: { addModule: vi.fn(async () => undefined) },
+      createGain: () => ({ disconnect: vi.fn() })
+    } as unknown as AudioContext;
+    vi.stubGlobal('fetch', vi.fn(async () => response(true, 200)));
+    vi.stubGlobal('window', { setTimeout, clearTimeout, addEventListener: vi.fn() });
+    const messages: unknown[] = [];
+    vi.stubGlobal('AudioWorkletNode', class {
+      port = {
+        onmessage: null as ((event: { data: { type: string } }) => void) | null,
+        postMessage: (message: { type: string }) => {
+          messages.push(message);
+          if (message.type === 'load') queueMicrotask(() => this.port.onmessage?.({ data: { type: 'loaded' } }));
+        }
+      };
+      connect() {}
+    });
+    const { DEFAULT_MODULE_PLAYBACK_SETTINGS } = await import('$lib/stores/module-playback-settings');
+    const settings = { ...DEFAULT_MODULE_PLAYBACK_SETTINGS, tempoFactor: 0.5, pitchFactor: 2 };
+    const player = await createPlayer();
+    await player.applySettings(settings);
+    await player.load(track);
+    expect(messages.at(-1)).toMatchObject({ type: 'load', tempoFactor: 0.5, pitchFactor: 2 });
+
+    player.play();
+    messages.length = 0;
+    await player.applySettings({ ...settings, tempoFactor: 3 });
+    await player.applySettings({ ...settings, tempoFactor: 3, pitchFactor: 0.25 });
+    await player.applySettings({ ...settings, tempoFactor: 3, pitchFactor: 0.25, panStrength: 50 });
+    expect(messages).toEqual([
+      { type: 'playback-factors', tempoFactor: 3, pitchFactor: 2 },
+      { type: 'playback-factors', tempoFactor: 3, pitchFactor: 0.25 }
+    ]);
+  });
+
   it('retries rejected WASM bytes while retaining a successful worklet load', async () => {
     const addModule = vi.fn(async () => undefined);
     harness.context = { audioWorklet: { addModule } } as unknown as AudioContext;

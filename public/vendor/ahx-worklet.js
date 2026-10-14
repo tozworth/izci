@@ -7,6 +7,8 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
     this.exports = null;
     this.playing = false;
     this.repeat = false;
+    this.tempoFactor = 1;
+    this.pitchFactor = 1;
     this.subsong = 0;
     this.format = 'ahx';
     this.frameOffset = 0;
@@ -14,6 +16,7 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
     this.frameIsLast = false;
     this.endedPublished = false;
     this.playedSamples = 0;
+    this.progressSamples = 0;
     this.lastProgressSamples = 0;
     this.lastPatternOrder = -1;
     this.lastPatternRow = -1;
@@ -46,6 +49,11 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
         case 'interpolation':
           this.exports?.ahx_set_interpolation(message.filter);
           break;
+        case 'playback-factors':
+          this.tempoFactor = message.tempoFactor;
+          this.pitchFactor = message.pitchFactor;
+          this.exports?.ahx_set_playback_factors(message.tempoFactor, message.pitchFactor);
+          break;
         case 'channel-mutes': {
           const core = this.exports;
           if (!core) break;
@@ -71,6 +79,9 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
 
   async load(message) {
     this.exports?.ahx_unload();
+    this.exports = null;
+    this.tempoFactor = message.tempoFactor ?? 1;
+    this.pitchFactor = message.pitchFactor ?? 1;
     const imports = {
       env: { emscripten_notify_memory_growth() {} },
       wasi_snapshot_preview1: { fd_write() { return 0; } }
@@ -87,6 +98,7 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
     exports.free(input);
     if (!loaded) throw new Error('HivelyTracker failed to decode this module.');
     exports.ahx_set_interpolation(message.interpolationFilter);
+    exports.ahx_set_playback_factors(this.tempoFactor, this.pitchFactor);
 
     this.exports = exports;
     this.repeat = message.repeat === true;
@@ -199,7 +211,8 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
     this.frameIsLast = false;
     this.endedPublished = false;
     this.playedSamples = (this.exports?.ahx_current_frame() ?? 0) * (sampleRate / FRAMES_PER_SECOND);
-    this.lastProgressSamples = this.playedSamples;
+    this.progressSamples = 0;
+    this.lastProgressSamples = 0;
     this.lastPatternOrder = -1;
     this.lastPatternRow = -1;
   }
@@ -228,8 +241,8 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
   publishProgress(force = false) {
     if (!this.exports) return;
     const interval = sampleRate * PROGRESS_INTERVAL_SAMPLES;
-    if (!force && this.playedSamples - this.lastProgressSamples < interval) return;
-    this.lastProgressSamples = this.playedSamples;
+    if (!force && this.progressSamples - this.lastProgressSamples < interval) return;
+    this.lastProgressSamples = this.progressSamples;
     this.port.postMessage({
       type: 'progress',
       currentTime: this.playedSamples / sampleRate,
@@ -248,6 +261,7 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
         return false;
       }
       this.playedSamples = 0;
+      this.progressSamples = 0;
       this.lastProgressSamples = 0;
     }
 
@@ -290,7 +304,10 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
 
       this.frameOffset += available;
       outputOffset += available;
-      this.playedSamples += available;
+      // Transport and pattern seeks use original song seconds. Each replay
+      // frame advances 20 ms of song time regardless of its rendered length.
+      this.playedSamples += available * (sampleRate / FRAMES_PER_SECOND) / this.frameSamples;
+      this.progressSamples += available;
 
       if (this.frameOffset >= this.frameSamples && this.frameIsLast) {
         this.frameSamples = 0;

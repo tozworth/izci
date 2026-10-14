@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 describe('AHX AudioWorklet', () => {
   function loadProcessor() {
@@ -71,7 +71,9 @@ describe('AHX AudioWorklet', () => {
     expect(frame).toBe(28);
   });
 
-  it.each(['ahx', 'hvl'])('recovers %s playback after natural and seeked endings', async (format) => {
+  it.each([
+    ['ahx', 1], ['hvl', 1], ['ahx', 0.25], ['hvl', 0.25], ['ahx', 4], ['hvl', 4]
+  ] as const)('recovers %s playback at %ix tempo after natural and seeked endings', async (format, tempoFactor) => {
     const Processor = loadProcessor();
     const player = new Processor();
     // One blank row, four channels, no instruments: exercise the real replay core.
@@ -87,6 +89,7 @@ describe('AHX AudioWorklet', () => {
     module.set(new TextEncoder().encode('End\0'), namesOffset);
     await player.handleMessage({
       type: 'load', format, module: module.buffer,
+      tempoFactor, pitchFactor: 2,
       wasm: readFileSync('public/vendor/hively-replay.wasm')
     });
     expect(player.port.messages).not.toContainEqual(expect.objectContaining({ type: 'error' }));
@@ -98,8 +101,11 @@ describe('AHX AudioWorklet', () => {
       (message as { type: string }).type === 'progress').at(-1) as { currentTime: number; duration: number };
 
     await player.handleMessage({ type: 'play' });
-    for (let block = 0; block < 1000 && player.playing; block++) render();
+    let blocks = 0;
+    for (; blocks < 1000 && player.playing; blocks++) render();
     expect(player.playing).toBe(false);
+    expect(blocks).toBe(Math.floor(progress().duration * 48_000 / tempoFactor / 128) + 1);
+    expect(progress().currentTime).toBeCloseTo(progress().duration, 10);
     expect(endedCount()).toBe(1);
     render();
     expect(endedCount()).toBe(1);
@@ -143,6 +149,47 @@ describe('AHX AudioWorklet', () => {
     await player.handleMessage({ type: 'interpolation', filter: 8 });
 
     expect(filters).toEqual([8]);
+  });
+
+  it('forwards live tempo and pitch without flushing buffered audio', async () => {
+    const player = new (loadProcessor())();
+    const setFactors = vi.fn();
+    player.exports = {
+      memory: { buffer: new ArrayBuffer(0) },
+      ahx_set_playback_factors: setFactors
+    };
+    player.playing = true;
+    await player.handleMessage({ type: 'playback-factors', tempoFactor: 0.25, pitchFactor: 4 });
+    expect(setFactors).toHaveBeenCalledWith(0.25, 4);
+    expect(player.playing).toBe(true);
+    expect(player.port.messages).toEqual([]);
+  });
+
+  it.each([240, 3840])('keeps song time and wall-clock progress cadence separate for %i-sample frames', async (frameSamples) => {
+    const player = new (loadProcessor())();
+    let frame = 0;
+    player.exports = {
+      memory: { buffer: new ArrayBuffer(frameSamples * 4) },
+      ahx_decode_frame: () => { frame++; return 1; },
+      ahx_frame_samples: () => frameSamples,
+      ahx_mix_buffer: () => 0,
+      ahx_current_frame: () => frame,
+      ahx_ended: () => 0,
+      ahx_current_order: () => 0,
+      ahx_current_row: () => 0,
+      ahx_duration_frames: () => 1000,
+      ahx_subsong_count: () => 1
+    };
+    await player.handleMessage({ type: 'play' });
+    const render = () => player.process([], [[new Float32Array(128), new Float32Array(128)]]);
+    for (let block = 0; block < 46; block++) render();
+    expect(player.port.messages.filter((message) => (message as { type: string }).type === 'progress')).toHaveLength(0);
+    render();
+    const progress = player.port.messages.filter((message) =>
+      (message as { type: string }).type === 'progress') as { currentTime: number; duration: number }[];
+    expect(progress).toHaveLength(1);
+    expect(progress[0].currentTime).toBeCloseTo(6016 / frameSamples / 50, 10);
+    expect(progress[0].duration).toBe(20);
   });
 
   it('applies channel masks and clears any channels missing from a later mask', async () => {

@@ -1286,11 +1286,11 @@
       },
       "tempoFactor": {
         "title": "Tempo factor",
-        "hint": "Changes module playback speed without changing pitch."
+        "hint": "Changes module playback speed without changing pitch, including AHX and HivelyTracker."
       },
       "pitchFactor": {
         "title": "Pitch factor",
-        "hint": "Adjusts playback pitch relative to the module's original tuning."
+        "hint": "Adjusts playback pitch relative to the module's original tuning, including AHX and HivelyTracker."
       }
     },
     "nowPlaying": {

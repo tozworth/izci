@@ -12,6 +12,8 @@
 #define AHX_WAVE_POSITION_LIMIT (AHX_WAVE_SAMPLES << 16)
 #define AHX_INTERPOLATION_PHASES 256
 #define AHX_INTERPOLATION_COEFFICIENT_SCALE 16384
+#define AHX_MIN_PLAYBACK_FACTOR 0.25
+#define AHX_MAX_PLAYBACK_FACTOR 4.0
 
 extern void hvl_play_irq(struct hvl_tune *tune);
 extern void hvl_mixchunk(struct hvl_tune *tune, uint32_t samples, int8_t *left, int8_t *right, int32_t stride);
@@ -28,6 +30,9 @@ static uint32_t active_subsong = 0;
 static uint32_t display_order = 0;
 static uint32_t display_row = 0;
 static uint32_t interpolation_filter = 1;
+static double tempo_factor = 1.0;
+static double pitch_factor = 1.0;
+static double sample_remainder = 0.0;
 static uint8_t channel_muted[MAX_CHANNELS];
 static int32_t interpolation_4tap[AHX_INTERPOLATION_PHASES][4];
 static int32_t interpolation_8tap[AHX_INTERPOLATION_PHASES][8];
@@ -198,16 +203,41 @@ static void mix_interpolated_chunk(
   }
 }
 
+static uint32_t pitched_delta(uint32_t delta) {
+  // Both mixers wrap once per sample and require a nonzero step.
+  uint32_t scaled = (uint32_t)((double)delta * pitch_factor);
+  scaled %= AHX_WAVE_POSITION_LIMIT;
+  return scaled ? scaled : 1;
+}
+
 static void decode_audio_frame(struct hvl_tune *active_tune) {
-  uint32_t samples = active_tune->ht_Frequency /
-    AHX_FRAMES_PER_SECOND /
-    active_tune->ht_SpeedMultiplier;
   uint32_t loops = active_tune->ht_SpeedMultiplier;
+  const double samples_per_tick = (double)active_tune->ht_Frequency /
+    AHX_FRAMES_PER_SECOND / loops / tempo_factor;
   int8_t *left = mix_buffer;
   int8_t *right = &mix_buffer[2];
+  mix_frame_samples = 0;
 
   do {
+    uint32_t samples;
+    uint32_t channel;
+    uint32_t deltas[MAX_CHANNELS];
+    uint32_t ring_deltas[MAX_CHANNELS];
+    sample_remainder += samples_per_tick;
+    samples = (uint32_t)sample_remainder;
+    sample_remainder -= samples;
     hvl_play_irq(active_tune);
+    // Scale only the mixer steps; preserve the replayer's base tuning so
+    // unchanged notes cannot compound the factor on subsequent ticks.
+    for (channel = 0; channel < active_tune->ht_Channels; channel++) {
+      struct hvl_voice *voice = &active_tune->ht_Voices[channel];
+      deltas[channel] = voice->vc_Delta;
+      ring_deltas[channel] = voice->vc_RingDelta;
+      if (pitch_factor != 1.0) {
+        voice->vc_Delta = pitched_delta(deltas[channel]);
+        voice->vc_RingDelta = pitched_delta(ring_deltas[channel]);
+      }
+    }
     if (interpolation_filter == 1) {
       int32_t volumes[MAX_CHANNELS];
       uint32_t channel;
@@ -222,6 +252,11 @@ static void decode_audio_frame(struct hvl_tune *active_tune) {
     } else {
       mix_interpolated_chunk(active_tune, samples, left, right, 4);
     }
+    for (channel = 0; channel < active_tune->ht_Channels; channel++) {
+      active_tune->ht_Voices[channel].vc_Delta = deltas[channel];
+      active_tune->ht_Voices[channel].vc_RingDelta = ring_deltas[channel];
+    }
+    mix_frame_samples += samples;
     left += samples * 4;
     right += samples * 4;
     loops--;
@@ -245,6 +280,8 @@ static void release_tune(void) {
   active_subsong = 0;
   display_order = 0;
   display_row = 0;
+  tempo_factor = pitch_factor = 1.0;
+  sample_remainder = 0.0;
   memset(channel_muted, 0, sizeof(channel_muted));
 }
 
@@ -284,7 +321,10 @@ int ahx_load(const uint8_t *data, uint32_t length, uint32_t frequency, uint32_t 
   file_length = length;
   mix_frequency = frequency;
   mix_frame_samples = frequency / AHX_FRAMES_PER_SECOND;
-  mix_buffer = malloc(mix_frame_samples * 4);
+  // Reserve the slowest supported frame once, outside realtime rendering.
+  mix_buffer = malloc((uint32_t)ceil(
+    (double)frequency / AHX_FRAMES_PER_SECOND / AHX_MIN_PLAYBACK_FACTOR
+  ) * 4);
   if (!mix_buffer) {
     release_tune();
     return 0;
@@ -311,6 +351,7 @@ int ahx_select_subsong(uint32_t subsong) {
   if (!tune || !hvl_InitSubsong(tune, subsong)) return 0;
   active_subsong = subsong;
   current_frame = 0;
+  sample_remainder = 0.0;
   duration_frames = measure_duration(subsong);
   hvl_InitSubsong(tune, subsong);
   display_order = tune->ht_PosNr;
@@ -331,6 +372,18 @@ void ahx_set_interpolation(uint32_t taps) {
   interpolation_filter = taps == 2 || taps == 4 || taps == 8 ? taps : 1;
 }
 
+static double normalized_playback_factor(double factor) {
+  if (!isfinite(factor)) return 1.0;
+  if (factor < AHX_MIN_PLAYBACK_FACTOR) return AHX_MIN_PLAYBACK_FACTOR;
+  if (factor > AHX_MAX_PLAYBACK_FACTOR) return AHX_MAX_PLAYBACK_FACTOR;
+  return factor;
+}
+
+void ahx_set_playback_factors(double tempo, double pitch) {
+  tempo_factor = normalized_playback_factor(tempo);
+  pitch_factor = normalized_playback_factor(pitch);
+}
+
 void ahx_set_channel_mute(uint32_t channel, uint32_t muted) {
   if (!tune || channel >= tune->ht_Channels || channel >= MAX_CHANNELS) return;
   channel_muted[channel] = muted != 0;
@@ -341,8 +394,9 @@ void ahx_seek_frame(uint32_t target_frame) {
   if (duration_frames && target_frame > duration_frames) target_frame = duration_frames;
   hvl_InitSubsong(tune, active_subsong);
   current_frame = 0;
+  sample_remainder = 0.0;
   while (current_frame < target_frame && !tune->ht_SongEndReached) {
-    hvl_DecodeFrame(tune, mix_buffer, &mix_buffer[2], 4);
+    decode_audio_frame(tune);
     current_frame++;
   }
   display_order = tune->ht_PosNr;

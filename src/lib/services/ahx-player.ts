@@ -187,6 +187,8 @@ export class HivelyPlayerService {
             // The existing stereo-separation setting is intentionally MOD-only.
             stereo: 2,
             interpolationFilter: this.#settings.interpolationFilter,
+            tempoFactor: this.#settings.tempoFactor,
+            pitchFactor: this.#settings.pitchFactor,
             repeat: this.#settings.repeatCount === -1,
             subsong: this.#subsong
           },
@@ -276,6 +278,13 @@ export class HivelyPlayerService {
     }
     if (previous.interpolationFilter !== settings.interpolationFilter) {
       this.#node.port.postMessage({ type: 'interpolation', filter: settings.interpolationFilter });
+    }
+    if (previous.tempoFactor !== settings.tempoFactor || previous.pitchFactor !== settings.pitchFactor) {
+      this.#node.port.postMessage({
+        type: 'playback-factors',
+        tempoFactor: settings.tempoFactor,
+        pitchFactor: settings.pitchFactor
+      });
     }
   }
 

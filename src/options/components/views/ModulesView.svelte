@@ -101,7 +101,7 @@
           />
       </SettingsField>
 
-      <SettingsField title={$t('options.modules.tempoFactor.title', { default: 'Tempo factor' })} hint={$t('options.modules.tempoFactor.hint', { default: 'Changes module playback speed without changing pitch.' })}>
+      <SettingsField title={$t('options.modules.tempoFactor.title', { default: 'Tempo factor' })} hint={$t('options.modules.tempoFactor.hint', { default: 'Changes module playback speed without changing pitch, including AHX and HivelyTracker.' })}>
           <input
             type="range"
             min="25"
@@ -113,7 +113,7 @@
           <span class="field-output">{formatFactor($modulePlaybackSettings.tempoFactor)}</span>
       </SettingsField>
 
-      <SettingsField title={$t('options.modules.pitchFactor.title', { default: 'Pitch factor' })} hint={$t('options.modules.pitchFactor.hint', { default: "Adjusts playback pitch relative to the module's original tuning." })}>
+      <SettingsField title={$t('options.modules.pitchFactor.title', { default: 'Pitch factor' })} hint={$t('options.modules.pitchFactor.hint', { default: "Adjusts playback pitch relative to the module's original tuning, including AHX and HivelyTracker." })}>
           <input
             type="range"
             min="25"
