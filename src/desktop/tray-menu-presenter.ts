@@ -14,9 +14,14 @@ export function presentTrayMenu(node: HTMLElement) {
     const maxHeight = Math.min(988, screen.availHeight - 12);
     node.style.setProperty('--tray-menu-max-height', `${maxHeight}px`);
     node.style.setProperty('--tray-menu-max-width', `${Math.min(788, screen.availWidth - 12)}px`);
-    const width = node.offsetWidth + 12;
-    // Measure the full contents even while CSS fits the previous native size.
-    const height = Math.min(node.scrollHeight + node.offsetHeight - node.clientHeight, maxHeight) + 12;
+    // Measure the natural border box, independent of the previous viewport.
+    // scrollHeight/clientHeight round away fractional overflow at display scales
+    // such as 150%, leaving a scrollbar even when their integer values match.
+    node.style.setProperty('max-height', 'none', 'important');
+    const bounds = node.getBoundingClientRect();
+    node.style.removeProperty('max-height');
+    const width = Math.ceil(bounds.width) + 12;
+    const height = Math.ceil(Math.min(bounds.height, maxHeight)) + 12;
     const size = `${width}:${height}`;
     if (size === lastSize) return;
     lastSize = size;

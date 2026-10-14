@@ -30,8 +30,9 @@ describe('tray popup presentation', () => {
 
   function menu() {
     return {
-      offsetWidth: 180, offsetHeight: 200, clientHeight: 198, scrollHeight: 198,
-      style: { setProperty: vi.fn() }, focus: vi.fn()
+      width: 180, height: 200,
+      getBoundingClientRect() { return { width: this.width, height: this.height }; },
+      style: { setProperty: vi.fn(), removeProperty: vi.fn() }, focus: vi.fn()
     };
   }
 
@@ -51,18 +52,29 @@ describe('tray popup presentation', () => {
     dispose = presentTrayMenu(node as unknown as HTMLElement).destroy;
     await flushUpdates();
     expect(native.invoke).toHaveBeenLastCalledWith('show_desktop_tray_menu', { width: 192, height: 212 });
-    node.scrollHeight = 1200;
+    node.height = 1200;
     contentChanged();
     await flushUpdates();
     expect(native.invoke).toHaveBeenLastCalledWith('show_desktop_tray_menu', { width: 192, height: 1000 });
     contentChanged();
     await flushUpdates();
     expect(native.invoke).toHaveBeenCalledTimes(2);
-    node.scrollHeight = 198;
+    node.height = 200;
     contentChanged();
     await flushUpdates();
     expect(native.invoke).toHaveBeenLastCalledWith('show_desktop_tray_menu', { width: 192, height: 212 });
     expect(node.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('rounds fractional menu bounds up instead of clipping them at high DPI', async () => {
+    const node = menu();
+    node.width = 180.25;
+    node.height = 232.6875;
+    dispose = presentTrayMenu(node as unknown as HTMLElement).destroy;
+    await flushUpdates();
+    expect(native.invoke).toHaveBeenLastCalledWith('show_desktop_tray_menu', { width: 193, height: 245 });
+    expect(node.style.setProperty).toHaveBeenCalledWith('max-height', 'none', 'important');
+    expect(node.style.removeProperty).toHaveBeenCalledWith('max-height');
   });
 
   it('does not reopen a dismissed popup when fonts finish loading', async () => {

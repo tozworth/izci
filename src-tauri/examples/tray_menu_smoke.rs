@@ -47,9 +47,13 @@ fn smoke_snapshot(
     let success = presentations > 0
         && snapshot["menu"] == true
         && snapshot["errors"] == serde_json::json!([])
+        && snapshot["layout"]
+            .as_array()
+            .is_some_and(|menus| menus.iter().all(|menu| menu["scrollTopMax"] == 0.0))
         && match phase {
             "open" | "reopen" => snapshot["raf"] == true,
             "raf" => snapshot["back"] == true && snapshot["bypass"] == true,
+            "raf-deleted" => snapshot["back"] == true && snapshot["presets"] == 5,
             _ => false,
         };
     println!("Tray {phase}: native presentations={presentations}, {snapshot}");
@@ -57,7 +61,7 @@ fn smoke_snapshot(
         eprintln!("Tray smoke failed while {phase}");
         window.app_handle().exit(1);
     } else if phase == "reopen" {
-        println!("Verified: hidden tray opens, shares Raf controls, and reopens after dismissal.");
+        println!("Verified: hidden tray opens, fits Raf presets without scrolling before/after deletion, and reopens after dismissal.");
         window.app_handle().exit(0);
     }
 }
@@ -68,8 +72,23 @@ fn snapshot(window: &WebviewWindow, phase: &str) {
             phase: {phase:?}, menu: !!document.querySelector('.tray-menu'),
             raf: !!document.querySelector('[data-tray-raf]'),
             back: !!document.querySelector('.tray-back'),
+            presets: document.querySelectorAll('.menu-surface-nested button').length - 2,
             bypass: [...document.querySelectorAll('button')].some(button => button.textContent.includes('Bypass Raf')),
             visibility: document.visibilityState, frames: window.__smokeFrames,
+            viewport: {{width: innerWidth, height: innerHeight, dpr: devicePixelRatio}},
+            layout: [...document.querySelectorAll('.menu-surface')].map(menu => {{
+                const scrollTop = menu.scrollTop;
+                menu.scrollTop = 1000000;
+                const scrollTopMax = menu.scrollTop;
+                menu.scrollTop = scrollTop;
+                return ({{
+                class: menu.className, height: menu.getBoundingClientRect().height,
+                width: menu.getBoundingClientRect().width,
+                clientHeight: menu.clientHeight, scrollHeight: menu.scrollHeight,
+                clientWidth: menu.clientWidth, scrollWidth: menu.scrollWidth,
+                maxHeight: getComputedStyle(menu).maxHeight,
+                overflow: getComputedStyle(menu).overflowY, scrollTopMax
+            }}); }}),
             errors: window.__smokeErrors
         }} }})"#
     );
@@ -89,6 +108,17 @@ fn desktop_tray_menu_ready(window: WebviewWindow) {
         let _ = window.eval("document.querySelector('[data-tray-raf]')?.click()");
         pause();
         snapshot(&window, "raf");
+        pause();
+        let _ = window.eval(
+            r#"(() => {
+            const state = JSON.parse(localStorage.getItem('izci.raf-presets'));
+            state.presets.pop();
+            localStorage.setItem('izci.raf-presets', JSON.stringify(state));
+            window.dispatchEvent(new StorageEvent('storage', {key: 'izci.raf-presets'}));
+        })()"#,
+        );
+        pause();
+        snapshot(&window, "raf-deleted");
         pause();
         window_resources::set_active(&window, false);
         let _ = window.emit("izci:desktop-tray-dismiss", ());
@@ -127,6 +157,10 @@ fn main() {
                 .initialization_script(r#"
                     localStorage.setItem('izci.locale', JSON.stringify('en'));
                     localStorage.setItem('izci.raf-settings', JSON.stringify({enabled: true, effects: []}));
+                    localStorage.setItem('izci.raf-presets', JSON.stringify({presets:
+                        Array.from({length: 6}, (_, index) => ({id: `preset-${index}`, name: `Preset ${index}`, settings: {effects: []}})),
+                        selectedPresetId: 'preset-0'
+                    }));
                     window.__smokeFrames = 0;
                     window.__smokeErrors = [];
                     const frame = window.requestAnimationFrame.bind(window);
