@@ -1,6 +1,6 @@
 import { version as appVersion } from '../../../package.json';
 import { platformCapabilities } from '$platform';
-import { isRafPresetDirty } from '$lib/stores/raf-presets';
+import { buildRafMenuItems } from '$lib/services/raf-menu';
 import {
   getPlaybackBookmarks,
   type PlaybackBookmark
@@ -335,39 +335,6 @@ function buildPlaybackSpeedMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
       checked: deps.playbackSettings.playbackRate === rate,
       separatorBefore: index === 0
     }))
-  ] satisfies MenuActionItem[];
-}
-
-function buildRafMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
-  return [
-    {
-      id: 'toggleRaf',
-      label: deps.rafSettings.enabled
-        ? deps.translate('main.player.bypassRaf', { default: 'Bypass Raf' })
-        : deps.translate('main.menu.enableRaf', { default: 'Enable Raf' }),
-      icon: 'power_settings_new'
-    },
-    {
-      id: 'openRaf',
-      label: deps.translate('main.player.openRaf', { default: 'Open Raf' }),
-      icon: 'tune'
-    },
-    ...(deps.rafPresets.presets.length > 0
-      ? deps.rafPresets.presets.map((preset, index) => ({
-          id: `applyRafPreset:${preset.id}`,
-          label: `${preset.name}${preset.id === deps.rafPresets.selectedPresetId && isRafPresetDirty(deps.rafPresets, deps.rafSettings) ? ' *' : ''}`,
-          icon: preset.icon ?? 'tune',
-          iconColor: getLoadoutColorValue(preset.color),
-          checked: preset.id === deps.rafPresets.selectedPresetId,
-          separatorBefore: index === 0
-        }) satisfies MenuActionItem)
-      : [{
-          id: 'rafNoPresets',
-          label: deps.translate('main.player.noRafPresets', { default: 'No Raf presets' }),
-          icon: 'tune',
-          disabled: true,
-          separatorBefore: true
-        } satisfies MenuActionItem])
   ] satisfies MenuActionItem[];
 }
 

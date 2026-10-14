@@ -184,7 +184,7 @@ taskbar entry without hiding the window during manual launches. Launch on boot
 defaults off and registers the current portable executable for the Windows user
 at sign-in. Boot launches with Tray only or Both create the tray icon while leaving the
 main window hidden from creation; they never restore, show, or focus it. Manual
-launches and explicit tray Open/double-click still bring the player forward.
+launches and double-clicking the tray icon still bring the player forward.
 Right-click opens the actual shared MenuSurface in a transparent,
 frameless popup; transport uses the main runtime's effective playback commands.
 Scrolling over the tray icon changes the local player's volume by 5% per wheel
@@ -287,6 +287,11 @@ npm run test -- src/desktop src/lib/stores/queue-materialization.test.ts src/lib
 
 `desktop:verify` checks the actual output bundles and PWA precache for native
 code/assets, and checks that the desktop build contains no service worker.
+After `desktop:frontend`, `cargo run --release --example tray_menu_smoke --features
+tauri/custom-protocol` verifies the packaged tray page opens with its WebView2
+controller hidden, exposes Raf controls, and opens again after dismissal. It uses
+a disposable profile and never creates a tray icon or a player window.
+
 Native source formatting and the native origin test use `cargo fmt` and
 `cargo test --release` from `src-tauri/` (add the relevant Windows target if needed).
 Add `--features builtin-signaling` to test the embedded server's native lifecycle;

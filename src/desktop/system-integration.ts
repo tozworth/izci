@@ -7,6 +7,7 @@ import { readDesktopFiles } from './files';
 import { createTrackBubblePublisher } from './track-bubble-publisher';
 import { parseTrayAction, trayState, TRAY_ACTION_EVENT, TRAY_REQUEST_EVENT, TRAY_STATE_EVENT, TRAY_VOLUME_STEP_EVENT, TRAY_VOLUME_STEP, type TrayState } from './tray-protocol';
 import { BUBBLE_VOLUME_EVENT, type VolumeBubble } from './tray-bubble-protocol';
+import { isRafMenuAction, runRafMenuAction } from '$lib/services/raf-menu';
 
 function reportError(error: unknown): void { console.error('Desktop integration failed.', error); }
 export function openDesktopDefaultApps(): void { void invoke('open_desktop_default_apps').catch(reportError); }
@@ -86,9 +87,13 @@ export function createPlatformIntegration(options: PlatformIntegrationOptions): 
       if (disposed) return;
       const action = parseTrayAction(payload);
       if (!action) return;
-      if (action === 'open' || action === 'enterOda') {
+      if (isRafMenuAction(action)) {
+        runRafMenuAction(action, () => options.handlers.openOptions('raf'));
+        return;
+      }
+      if (action === 'enterOda') {
         void invoke('restore_main_window')
-          .then(() => { if (!disposed && action === 'enterOda') options.handlers.enterOda(); })
+          .then(() => { if (!disposed) options.handlers.enterOda(); })
           .catch(reportError);
       }
       else options.handlers[action]();

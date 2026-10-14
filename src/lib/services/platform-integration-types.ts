@@ -1,5 +1,6 @@
 import type { Readable } from 'svelte/store';
 import type { PlaybackSnapshot, TrackItem } from '$lib/types';
+import type { OptionsViewName } from '../../options/views';
 
 export interface PlatformIntegrationOptions {
   snapshot: Readable<PlaybackSnapshot>;
@@ -9,7 +10,7 @@ export interface PlatformIntegrationOptions {
   handlers: {
     stepVolume: (delta: number) => number;
     togglePlayback: () => void; previousTrack: () => void; nextTrack: () => void;
-    openOptions: () => void; enterOda: () => void; miniPlayer: () => void; exit: () => void;
+    openOptions: (view?: OptionsViewName) => void; enterOda: () => void; miniPlayer: () => void; exit: () => void;
   };
   importFiles: (files: File[]) => Promise<void>;
 }

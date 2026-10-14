@@ -17,6 +17,8 @@ vi.mock('./files', () => ({ readDesktopFiles: vi.fn() }));
 import { createPlatformIntegration } from './system-integration';
 import { desktopSettings } from './settings';
 import { readDesktopFiles } from './files';
+import { rafSettings } from '$lib/stores/raf-settings';
+import { rafPresets } from '$lib/stores/raf-presets';
 
 describe('desktop tray window activation', () => {
   let dispose: (() => void) | undefined;
@@ -36,6 +38,8 @@ describe('desktop tray window activation', () => {
     dispose?.();
     dispose = undefined;
     desktopSettings.reset();
+    rafSettings.reset();
+    rafPresets.reset();
     vi.useRealTimers();
   });
 
@@ -135,7 +139,7 @@ describe('desktop tray window activation', () => {
     expect(native.invoke.mock.calls).toEqual([['configure_desktop_file_launch', { focus: true }]]);
   });
 
-  it.each(['open', 'enterOda'])('%s uses the native switch back to the main window', async (action) => {
+  it('restores the main window before entering Oda', async () => {
     const handlers = {
       stepVolume: vi.fn(() => 1),
       togglePlayback: vi.fn(), previousTrack: vi.fn(), nextTrack: vi.fn(),
@@ -155,15 +159,50 @@ describe('desktop tray window activation', () => {
     native.invoke.mockImplementation(async (command) => {
       if (command === 'restore_main_window') await new Promise<void>((resolve) => { finishRestore = resolve; });
     });
-    native.callbacks.get(TRAY_ACTION_EVENT)!({ payload: action });
+    native.callbacks.get(TRAY_ACTION_EVENT)!({ payload: 'enterOda' });
     expect(native.invoke).toHaveBeenCalledWith('restore_main_window');
     expect(handlers.enterOda).not.toHaveBeenCalled();
 
     finishRestore();
     await vi.advanceTimersByTimeAsync(0);
     expect(native.invoke.mock.calls.map(([command]) => command)).toEqual(['restore_main_window']);
-    expect(handlers.enterOda).toHaveBeenCalledTimes(action === 'enterOda' ? 1 : 0);
+    expect(handlers.enterOda).toHaveBeenCalledTimes(1);
     expect(handlers.miniPlayer).not.toHaveBeenCalled();
+  });
+
+  it('runs Raf controls on the player without restoring the main window', async () => {
+    rafSettings.setEnabled(true);
+    const preset = rafPresets.create('Tray rack')!;
+    rafSettings.setEnabled(false);
+    rafPresets.setSelectedPresetId(null);
+    const openOptions = vi.fn();
+    dispose = createPlatformIntegration({
+      track: writable(null),
+      snapshot: writable<PlaybackSnapshot>({ state: 'paused', currentTime: 0, duration: 0, volume: 1, muted: false, backend: null }),
+      canControl: () => false,
+      handlers: {
+        stepVolume: vi.fn(() => 1), togglePlayback: vi.fn(), previousTrack: vi.fn(), nextTrack: vi.fn(),
+        openOptions, enterOda: vi.fn(), miniPlayer: vi.fn(), exit: vi.fn()
+      },
+      importFiles: vi.fn(async () => undefined)
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    native.invoke.mockClear();
+    const action = native.callbacks.get(TRAY_ACTION_EVENT)!;
+    action({ payload: 'toggleRaf' });
+    expect(rafSettings.getSnapshot().enabled).toBe(true);
+    action({ payload: `applyRafPreset:${preset.id}` });
+    expect(rafPresets.getSnapshot().selectedPresetId).toBe(preset.id);
+    expect(rafSettings.getSnapshot().effects).toEqual(preset.settings.effects);
+    expect(rafSettings.getSnapshot().enabled).toBe(true);
+    action({ payload: 'openRaf' });
+    expect(openOptions).toHaveBeenCalledWith('raf');
+    action({ payload: 'toggleRaf' });
+    expect(rafSettings.getSnapshot().enabled).toBe(false);
+    expect(native.invoke).not.toHaveBeenCalled();
+    dispose(); dispose = undefined;
+    action({ payload: 'toggleRaf' });
+    expect(rafSettings.getSnapshot().enabled).toBe(false);
   });
 
   it('changes local volume and announces it with track bubbles disabled, without activating a window', async () => {

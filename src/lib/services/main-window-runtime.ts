@@ -765,7 +765,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
       togglePlayback: () => transport.togglePlayback(),
       previousTrack: () => transport.stepTrack(-1),
       nextTrack: () => transport.stepTrack(1),
-      openOptions: () => deps.openOptions(),
+      openOptions: (view) => deps.openOptions(view),
       enterOda: () => deps.enterOda(),
       miniPlayer: () => miniPlayer.toggle(),
       exit: () => windowManager.exit()

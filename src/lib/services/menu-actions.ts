@@ -2,8 +2,7 @@ import type { TrackItem } from '$lib/types';
 import { applyManualLoadoutSettings } from '$lib/services/loadouts';
 import { loadouts } from '$lib/stores/loadouts';
 import { normalizePlaybackRate, playbackSettings } from '$lib/stores/playback-settings';
-import { rafPresets } from '$lib/stores/raf-presets';
-import { rafSettings } from '$lib/stores/raf-settings';
+import { isRafMenuAction, runRafMenuAction } from '$lib/services/raf-menu';
 import {
   addPlaybackBookmark,
   deletePlaybackBookmark,
@@ -152,16 +151,8 @@ export function createMenuActions(deps: MenuActionsDeps) {
       });
       return;
     }
-    if (action === 'toggleRaf') {
-      rafSettings.setEnabled(!rafSettings.getSnapshot().enabled);
-      return;
-    }
-    if (action === 'openRaf') {
-      deps.dispatch('openOptions', { view: 'raf' });
-      return;
-    }
-    if (action.startsWith('applyRafPreset:')) {
-      rafPresets.apply(action.slice('applyRafPreset:'.length));
+    if (isRafMenuAction(action)) {
+      runRafMenuAction(action, () => deps.dispatch('openOptions', { view: 'raf' }));
       return;
     }
     if (action === 'bookmark:add') {
