@@ -83,5 +83,6 @@
   "jpeg": "image",
   "png": "image",
   "webp": "image",
-  "avif": "image"
+  "avif": "image",
+  "jxl": "image"
 }

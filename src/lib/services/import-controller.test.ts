@@ -42,7 +42,8 @@ describe('import controller', () => {
       'video/mp4': ['.mp4', '.m4v'],
       'video/x-matroska': ['.mkv'],
       'image/jpeg': ['.jpg', '.jpeg'],
-      'image/avif': ['.avif']
+      'image/avif': ['.avif'],
+      'image/jxl': ['.jxl']
     });
   });
 

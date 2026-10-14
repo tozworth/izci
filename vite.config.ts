@@ -144,7 +144,8 @@ export default defineConfig(({ mode }) => {
                 'image/jpeg': ['.jpg', '.jpeg'],
                 'image/png': ['.png'],
                 'image/webp': ['.webp'],
-                'image/avif': ['.avif']
+                'image/avif': ['.avif'],
+                'image/jxl': ['.jxl']
               }
             }
           ]

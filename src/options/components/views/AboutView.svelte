@@ -141,6 +141,7 @@
   }
 
   .about-content {
+    pointer-events: none;
     position: relative;
     display: grid;
     place-items: center;
@@ -150,6 +151,7 @@
   }
 
   .about-identity {
+    pointer-events: auto;
     max-width: 100%;
     text-align: center;
   }
@@ -187,6 +189,7 @@
   }
 
   .about-details {
+    pointer-events: none;
     position: relative;
     flex: 0 0 auto;
     display: grid;
@@ -217,6 +220,7 @@
   }
 
   .about-links {
+    pointer-events: auto;
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
@@ -247,6 +251,7 @@
   }
 
   .about-update-status {
+    pointer-events: auto;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -314,6 +319,7 @@
   }
 
   .about-credits {
+    pointer-events: auto;
     width: 100%;
     margin: 0;
     color: #9aaec7;

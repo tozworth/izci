@@ -194,6 +194,7 @@ mod tests {
             ("hvl", "module"),
             ("mkv", "video"),
             ("avif", "image"),
+            ("jxl", "image"),
         ] {
             assert_eq!(formats.get(extension).map(String::as_str), Some(kind));
         }

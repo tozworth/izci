@@ -3,7 +3,7 @@ import type { NativeFileReference } from '$lib/services/platform-files-types';
 
 export const STREAM_EXTENSIONS = ['mp3', 'wav', 'flac', 'ogg', 'opus'] as const;
 export const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'mov', 'webm', 'mkv'] as const;
-export const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'avif'] as const;
+export const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'jxl'] as const;
 export const HIVELY_MODULE_EXTENSIONS = ['ahx', 'hvl'] as const;
 export const MODULE_EXTENSIONS = [
   ...HIVELY_MODULE_EXTENSIONS,

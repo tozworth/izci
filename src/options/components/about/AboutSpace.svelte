@@ -1,9 +1,16 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import { planetTiles, stars } from './space-geometry';
+
+  let bubblesRevealed = false;
+
+  function revealBubbles() {
+    bubblesRevealed = true;
+  }
 </script>
 
-<div class="about-space" aria-hidden="true">
-  <svg class="starfield" viewBox="0 0 1200 800" preserveAspectRatio="none">
+<div class="about-space" class:bubbles-revealed={bubblesRevealed}>
+  <svg class="starfield" viewBox="0 0 1200 800" preserveAspectRatio="none" aria-hidden="true">
     <g fill="#c3e3ff">
       {#each stars as star}
         <circle cx={star.x} cy={star.y} r={star.radius} opacity={star.opacity} />
@@ -29,15 +36,29 @@
         <stop offset="1" stop-color="#79bbff" stop-opacity="0" />
       </radialGradient>
     </defs>
-    <circle cx="330" cy="330" r="302" fill="url(#about-planet-atmosphere)" />
-    <g transform="rotate(-23 330 330)" stroke-width="0.4" stroke-linejoin="round">
-      {#each planetTiles as tile}
-        <path d={tile.path} fill={tile.light ? '#cbd7e9' : '#a53e58'} stroke={tile.light ? '#cbd7e9' : '#a53e58'} />
-      {/each}
-    </g>
-    <circle cx="330" cy="330" r="284" fill="url(#about-planet-shade)" stroke="#8dcaff" stroke-opacity="0.35" />
+    <g
+      class="amiga-ball"
+      role="button"
+      tabindex="0"
+      aria-label={$t('options.about.amigaBall', { default: 'Amiga ball' })}
+      on:click={revealBubbles}
+      on:keydown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          revealBubbles();
+        }
+      }}
+    >
+      <circle cx="330" cy="330" r="302" fill="url(#about-planet-atmosphere)" />
+      <g transform="rotate(-23 330 330)" stroke-width="0.4" stroke-linejoin="round">
+        {#each planetTiles as tile}
+          <path d={tile.path} fill={tile.light ? '#cbd7e9' : '#a53e58'} stroke={tile.light ? '#cbd7e9' : '#a53e58'} />
+        {/each}
+      </g>
+      <circle cx="330" cy="330" r="284" fill="url(#about-planet-shade)" stroke="#8dcaff" stroke-opacity="0.35" />
+      </g>
 
-    <g class="space-bubble">
+    <g class="space-bubble" aria-hidden="true">
       <path d="M355 17h57q5 0 5 5v23q0 5-5 5h-26l-15 20 4-20h-20q-5 0-5-5V22q0-5 5-5Z" />
       <text x="383" y="39" text-anchor="middle">M.K.</text>
       <path d="M515 62h59q5 0 5 5v23q0 5-5 5h-37l-39 37 26-37h-9q-5 0-5-5V67q0-5 5-5Z" />
@@ -45,7 +66,7 @@
     </g>
   </svg>
 
-  <svg class="satellite" viewBox="0 0 160 138">
+  <svg class="satellite" viewBox="0 0 160 138" aria-hidden="true">
     <g transform="rotate(-24 80 92)" stroke="#91badc" stroke-width="1.2" stroke-linejoin="round">
       <path d="M28 81h31v25H28zM102 81h31v25h-31z" fill="#123253" />
       <path d="M38 81v25m11-25v25m63-25v25m11-25v25M28 93h31m43 0h31" opacity="0.6" />
@@ -99,6 +120,31 @@
     top: 11%;
     right: 3%;
     opacity: 0.9;
+  }
+
+  .amiga-ball {
+    pointer-events: visiblePainted;
+    cursor: default;
+  }
+
+  .amiga-ball:focus-visible {
+    outline: 1px solid #a8d6ff;
+    outline-offset: 4px;
+  }
+
+  .space-bubble {
+    opacity: 0;
+    transition: opacity 600ms ease;
+  }
+
+  .bubbles-revealed .space-bubble {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .space-bubble {
+      transition: none;
+    }
   }
 
   .space-bubble path {

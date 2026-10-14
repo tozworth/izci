@@ -44,16 +44,18 @@ describe('file helpers', () => {
   it('detects visual media filenames for theater pre-arming', () => {
     expect(isVisualMediaFileName('Clip.MP4')).toBe(true);
     expect(isVisualMediaFileName('Photo.jpeg')).toBe(true);
+    expect(isVisualMediaFileName('Photo.JXL')).toBe(true);
     expect(isVisualMediaFileName('Song.flac')).toBe(false);
     expect(isVisualMediaFileName('Suite.xm')).toBe(false);
     expect(isVisualMediaFileName('README')).toBe(false);
   });
 
-  it('keeps image files available without eagerly allocating viewer URLs', () => {
-    const [item] = buildTrackItems([new File(['image'], 'Photo.JPEG', { type: 'image/jpeg' })]);
+  it.each(['JPEG', 'JXL'])('keeps %s images available without eagerly allocating viewer URLs', (extension) => {
+    const name = `Photo.${extension}`;
+    const [item] = buildTrackItems([new File(['image'], name)]);
 
-    expect(item).toMatchObject({ name: 'Photo.JPEG', extension: 'jpeg', kind: 'image' });
-    expect(item.file?.name).toBe('Photo.JPEG');
+    expect(item).toMatchObject({ name, extension: extension.toLowerCase(), kind: 'image' });
+    expect(item.file?.name).toBe(name);
     expect(item.objectUrl).toBeUndefined();
   });
 

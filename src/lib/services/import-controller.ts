@@ -51,7 +51,8 @@ export function createOpenFilePickerOptions(description = 'Supported media files
         'image/jpeg': ['.jpg', '.jpeg'],
         'image/png': ['.png'],
         'image/webp': ['.webp'],
-        'image/avif': ['.avif']
+        'image/avif': ['.avif'],
+        'image/jxl': ['.jxl']
       }
     }
   ]
