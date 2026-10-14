@@ -54,14 +54,17 @@ fn smoke_snapshot(
             "open" | "reopen" => snapshot["raf"] == true,
             "raf" => snapshot["back"] == true && snapshot["bypass"] == true,
             "raf-deleted" => snapshot["back"] == true && snapshot["presets"] == 5,
+            "raf-bypassed" => snapshot["back"] == true && snapshot["enable"] == true,
+            "raf-disabled" => snapshot["raf"] == false && snapshot["back"] == false,
+            "raf-restored" => snapshot["raf"] == true,
             _ => false,
         };
     println!("Tray {phase}: native presentations={presentations}, {snapshot}");
     if !success {
         eprintln!("Tray smoke failed while {phase}");
         window.app_handle().exit(1);
-    } else if phase == "reopen" {
-        println!("Verified: hidden tray opens, fits Raf presets without scrolling before/after deletion, and reopens after dismissal.");
+    } else if phase == "raf-restored" {
+        println!("Verified: hidden tray opens, fits presets before/after deletion, survives bypass, and follows the global Raf switch.");
         window.app_handle().exit(0);
     }
 }
@@ -74,6 +77,7 @@ fn snapshot(window: &WebviewWindow, phase: &str) {
             back: !!document.querySelector('.tray-back'),
             presets: document.querySelectorAll('.menu-surface-nested button').length - 2,
             bypass: [...document.querySelectorAll('button')].some(button => button.textContent.includes('Bypass Raf')),
+            enable: [...document.querySelectorAll('button')].some(button => button.textContent.includes('Enable Raf')),
             visibility: document.visibilityState, frames: window.__smokeFrames,
             viewport: {{width: innerWidth, height: innerHeight, dpr: devicePixelRatio}},
             layout: [...document.querySelectorAll('.menu-surface')].map(menu => {{
@@ -120,12 +124,41 @@ fn desktop_tray_menu_ready(window: WebviewWindow) {
         pause();
         snapshot(&window, "raf-deleted");
         pause();
+        let _ = window.eval(
+            r#"(() => {
+            const state = JSON.parse(localStorage.getItem('izci.raf-settings'));
+            state.enabled = false;
+            localStorage.setItem('izci.raf-settings', JSON.stringify(state));
+            window.dispatchEvent(new StorageEvent('storage', {key: 'izci.raf-settings'}));
+        })()"#,
+        );
+        pause();
+        snapshot(&window, "raf-bypassed");
+        pause();
         window_resources::set_active(&window, false);
         let _ = window.emit("izci:desktop-tray-dismiss", ());
         pause();
         let _ = window.emit("izci:desktop-tray-open", ());
         pause();
         snapshot(&window, "reopen");
+        pause();
+        let _ = window.eval(
+            r#"(() => {
+            localStorage.setItem('izci.playback-settings', JSON.stringify({enableRaf: false}));
+            window.dispatchEvent(new StorageEvent('storage', {key: 'izci.playback-settings'}));
+        })()"#,
+        );
+        pause();
+        snapshot(&window, "raf-disabled");
+        pause();
+        let _ = window.eval(
+            r#"(() => {
+            localStorage.setItem('izci.playback-settings', JSON.stringify({enableRaf: true}));
+            window.dispatchEvent(new StorageEvent('storage', {key: 'izci.playback-settings'}));
+        })()"#,
+        );
+        pause();
+        snapshot(&window, "raf-restored");
     });
 }
 
@@ -134,7 +167,7 @@ fn main() {
     context.config_mut().identifier = format!("app.izci.traysmoke{}", std::process::id());
     let profile = std::env::temp_dir().join(format!("izci-tray-smoke-{}", std::process::id()));
     std::thread::spawn(|| {
-        std::thread::sleep(std::time::Duration::from_secs(15));
+        std::thread::sleep(std::time::Duration::from_secs(20));
         eprintln!("Tray smoke timed out; packaged page or IPC did not become ready.");
         std::process::exit(2);
     });
@@ -157,6 +190,7 @@ fn main() {
                 .initialization_script(r#"
                     localStorage.setItem('izci.locale', JSON.stringify('en'));
                     localStorage.setItem('izci.raf-settings', JSON.stringify({enabled: true, effects: []}));
+                    localStorage.setItem('izci.playback-settings', JSON.stringify({enableRaf: true}));
                     localStorage.setItem('izci.raf-presets', JSON.stringify({presets:
                         Array.from({length: 6}, (_, index) => ({id: `preset-${index}`, name: `Preset ${index}`, settings: {effects: []}})),
                         selectedPresetId: 'preset-0'

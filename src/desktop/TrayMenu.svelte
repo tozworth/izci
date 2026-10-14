@@ -7,6 +7,7 @@
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { rafSettings } from '$lib/stores/raf-settings';
   import { rafPresets } from '$lib/stores/raf-presets';
+  import { playbackSettings } from '$lib/stores/playback-settings';
   import { buildRafMenuItems } from '$lib/services/raf-menu';
   import { presentTrayMenu } from './tray-menu-presenter';
   import { TRAY_ACTION_EVENT, TRAY_OPEN_EVENT, TRAY_REQUEST_EVENT, TRAY_STATE_EVENT, trayItems, type TrayState } from './tray-protocol';
@@ -27,9 +28,9 @@
     'main.menu.miniPlayer': $t('main.menu.miniPlayer'),
     'desktop.tray.exit': $t('desktop.tray.exit')
   };
-  $: rafItems = $rafSettings.enabled
+  $: rafItems = $playbackSettings.enableRaf
     ? buildRafMenuItems({ translate: $t, rafSettings: $rafSettings, rafPresets: $rafPresets }) : [];
-  $: if (!$rafSettings.enabled) rafOpen = false;
+  $: if (!$playbackSettings.enableRaf) rafOpen = false;
   $: items = trayItems(state, (key) => labels[key], rafItems);
   $: transport = items.slice(0, 3);
   $: commands = items.slice(3);
