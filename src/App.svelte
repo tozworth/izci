@@ -92,7 +92,7 @@
   import { createOdaTranslate, type OdaTranslate } from './oda/oda-translate';
   import type { OdaCommands } from './oda/oda-commands';
   import { odaSettings } from '$lib/stores/oda-settings';
-  import { windowFullscreen } from '$lib/services/window-fullscreen';
+  import { platformFullscreen } from '$platform';
   import { appLocale } from '$lib/i18n';
   import { multiplayerDisplayNow } from '$lib/services/multiplayer-display-clock';
   import {
@@ -309,11 +309,7 @@
 
   let odaSessionSnapshot: OdaSessionSnapshot;
   const odaSession = createOdaSession({
-    fullscreen: {
-      isFullscreen: () => typeof document !== 'undefined' && Boolean(document.fullscreenElement),
-      enter: () => windowFullscreen.enter(),
-      exit: () => windowFullscreen.exit()
-    },
+    fullscreen: platformFullscreen,
     onChange: (snapshot) => {
       odaSessionSnapshot = snapshot;
     }

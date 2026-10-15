@@ -28,5 +28,5 @@ export { localFonts } from './local-fonts';
 
 export { consumeFileLaunchMarker, setLaunchedHandlesPreviewListener, subscribeToLaunchedFiles,
   pwaUpdateStatus, pwaUpdateCheckState, forceServiceWorkerUpdateCheck, checkServiceWorkerUpdate, applyAvailableServiceWorkerUpdate, registerAppServiceWorker,
-  createAppInstallService, appInstallService, windowControlsOverlayState } from '../platform/web-shell';
+  createAppInstallService, appInstallService, windowControlsOverlayState, platformFullscreen } from '../platform/web-shell';
 export { packagedInvitationOrigin as getPublicInvitationOrigin } from '../platform/public-origin';

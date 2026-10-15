@@ -1,4 +1,5 @@
 export { invitationOrigin as getPublicInvitationOrigin } from './public-origin';
+import { windowFullscreen } from '$lib/services/window-fullscreen';
 import { writable, readable } from 'svelte/store';
 import type { AppInstallState, AppInstallEnvironment } from './app-install-types';
 import type { PwaUpdateCheckState } from './update-types';
@@ -9,6 +10,8 @@ import type { PlatformIntegrationOptions } from '$lib/services/platform-integrat
 import type { BuiltinSignalingOptions, BuiltinSignalingReady, SignalingSocket } from '$lib/services/platform-signaling-types';
 import { readBrowserWindowGeometry, applyBrowserWindowBounds } from '$lib/services/window-geometry';
 import type { WindowBounds, WindowGeometry } from '$lib/services/window-geometry';
+
+export const platformFullscreen: import('$lib/services/oda-session').OdaFullscreenAdapter = windowFullscreen;
 
 export async function readWindowGeometry(): Promise<WindowGeometry | null> { return readBrowserWindowGeometry(); }
 export async function applyWindowBounds(bounds: WindowBounds): Promise<void> { applyBrowserWindowBounds(bounds); }

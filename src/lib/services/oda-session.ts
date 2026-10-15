@@ -45,7 +45,7 @@ export interface OdaSessionSnapshot {
 }
 
 export interface OdaFullscreenAdapter {
-  isFullscreen(): boolean;
+  isFullscreen(): boolean | Promise<boolean>;
   enter(): Promise<boolean>;
   exit(): Promise<boolean>;
 }
@@ -72,18 +72,18 @@ function sameRoute(first: OdaRoute, second: OdaRoute): boolean {
 
 /**
  * Session-only Oda mode. Owns whether Oda is active, whether Oda initiated
- * the current DOM fullscreen session, and the route/focus stack. The active
+ * the current fullscreen session, and the route/focus stack. The active
  * bit is deliberately in memory and is never restored across reloads.
  */
 export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptions) {
   let active = false;
   let ownsFullscreen = false;
   /**
-   * Whether DOM fullscreen was already active when Oda was entered. Exiting
+   * Whether fullscreen was already active when Oda was entered. Exiting
    * Oda restores the pre-entry state: a pre-existing session is left alone,
    * anything else is exited so the desktop shell returns windowed.
    */
-  let fullscreenAtEntry = false;
+  let fullscreenAtEntry: boolean | Promise<boolean> = false;
   let pendingFullscreenGesture = false;
   /** Invalidated by exit so a still-pending enter cannot claim a dead session. */
   let entryGeneration = 0;
@@ -114,9 +114,15 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
 
   async function enter(options: { fullscreen: boolean; retryFullscreenOnGesture?: boolean }): Promise<void> {
     if (active) return;
+    const generation = ++entryGeneration;
     active = true;
     ownsFullscreen = false;
-    fullscreenAtEntry = fullscreen.isFullscreen();
+    try {
+      const state = fullscreen.isFullscreen();
+      fullscreenAtEntry = typeof state === 'boolean' ? state : state.catch(() => false);
+    } catch {
+      fullscreenAtEntry = false;
+    }
     pendingFullscreenGesture = false;
     history = [{ route: ODA_HOME_ROUTE, restoreFocusId: null }];
     focusId = null;
@@ -124,12 +130,16 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
     focusRequestToken += 1;
     notify();
 
-    if (!options.fullscreen || fullscreenAtEntry) {
+    // Keep browser entry synchronous through requestFullscreen so WebKit's
+    // user gesture survives; native window state is read asynchronously.
+    const preexisting = typeof fullscreenAtEntry === 'boolean' ? fullscreenAtEntry : await fullscreenAtEntry;
+    if (!active || generation !== entryGeneration) return;
+
+    if (!options.fullscreen || preexisting) {
       // Already fullscreen before Oda: record nothing so exiting Oda leaves it.
       return;
     }
 
-    const generation = ++entryGeneration;
     let acquired = false;
     try {
       acquired = await fullscreen.enter();
@@ -162,11 +172,14 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
   async function completeFullscreenOnGesture(): Promise<boolean> {
     if (!active || !pendingFullscreenGesture) return false;
     pendingFullscreenGesture = false;
-    if (ownsFullscreen || fullscreen.isFullscreen()) return false;
+    if (ownsFullscreen) return false;
 
     const generation = ++entryGeneration;
     let acquired = false;
     try {
+      const state = fullscreen.isFullscreen();
+      const preexisting = typeof state === 'boolean' ? state : await state;
+      if (!active || generation !== entryGeneration || preexisting) return false;
       acquired = await fullscreen.enter();
     } catch {
       acquired = false;
@@ -191,6 +204,7 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
     entryGeneration += 1;
     active = false;
     const preexisting = fullscreenAtEntry;
+    const owned = ownsFullscreen;
     ownsFullscreen = false;
     fullscreenAtEntry = false;
     pendingFullscreenGesture = false;
@@ -200,12 +214,12 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
     focusRequestToken += 1;
     notify();
 
-    if (preexisting) return;
     // Ownership alone is not reliable: a browser shortcut or a competing
     // controller can drop it mid-session while fullscreen stays active.
     // Restore the pre-entry windowed state whenever fullscreen is live.
-    if (!fullscreen.isFullscreen()) return;
     try {
+      if (typeof preexisting === 'boolean' ? preexisting : await preexisting) return;
+      if (!owned && !await fullscreen.isFullscreen()) return;
       await fullscreen.exit();
     } catch {
       // A failed exit leaves the browser in control of its fullscreen state.
@@ -290,9 +304,16 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
    * in-window but drops fullscreen ownership so exiting Oda does not call into
    * the fullscreen API.
    */
-  function handleFullscreenChange(): void {
+  async function handleFullscreenChange(): Promise<void> {
     if (!ownsFullscreen) return;
-    if (fullscreen.isFullscreen()) return;
+    const generation = entryGeneration;
+    try {
+      const state = fullscreen.isFullscreen();
+      const live = typeof state === 'boolean' ? state : await state;
+      if (live || generation !== entryGeneration) return;
+    } catch {
+      return;
+    }
     ownsFullscreen = false;
     notify();
   }

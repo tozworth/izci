@@ -1,5 +1,6 @@
 pub(crate) mod file_picker;
 pub(crate) mod files;
+pub(crate) mod fullscreen;
 pub(crate) mod tray;
 mod tray_menu;
 pub(crate) mod window_state;
@@ -34,6 +35,8 @@ pub fn run() {
         .on_menu_event(|app, event| tray::action(app, event.id.as_ref()))
         .invoke_handler(tauri::generate_handler![
             desktop_window_ready,
+            fullscreen::read_desktop_fullscreen,
+            fullscreen::set_desktop_fullscreen,
             exit_desktop,
             tray::configure_linux_tray,
             tray::restore_main_window,

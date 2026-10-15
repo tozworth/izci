@@ -41,6 +41,9 @@ and the advanced **Close to tray** setting use the shared synchronized desktop
 settings store. Close to tray keeps the main playback owner alive; Exit quits.
 Removing the tray restores a hidden player before removing its icon. Launching
 another instance restores the existing player rather than creating a second one.
+Oda uses native fullscreen on Linux, including tray entry without a browser
+gesture. Exiting Oda restores the windowed state or preserves fullscreen that
+was already active before entry.
 
 The desktop panel must support AppIndicator/StatusNotifier items; GNOME Shell
 may need an AppIndicator extension. Linux tray mouse events, tooltip bubbles,
@@ -73,6 +76,10 @@ while hidden, invokes the production native menu callback for Show izci
 and Options, checks close-to-tray, and verifies playback continues
 while hidden. A real desktop panel is still needed to check icon placement and
 physical menu activation on the target desktop environment.
+After `desktop:frontend`, `cargo run --example linux_oda_smoke --features
+tauri/custom-protocol` checks hidden-window tray entry without a DOM gesture,
+window-size restoration, and preservation of pre-existing fullscreen in an
+isolated profile. A window manager must be running, including under Xvfb.
 
 ## Windows desktop MVP
 

@@ -13,6 +13,7 @@ if (typeof document !== 'undefined') {
 }
 
 export const windowFullscreen = {
+  isFullscreen: hasFullscreenDocument,
   isControllerFullscreenActive(): boolean {
     return controllerFullscreenActive && hasFullscreenDocument();
   },

@@ -85,6 +85,59 @@ describe('createOdaSession', () => {
     expect(session.getSnapshot().active).toBe(false);
   });
 
+  it.each([false, true])('reads native fullscreen asynchronously and restores entry state %s', async (initial) => {
+    const adapter = createFullscreenAdapter(initial);
+    const session = createOdaSession({
+      fullscreen: { ...adapter, isFullscreen: async () => adapter.fullscreen }
+    });
+    await session.enter({ fullscreen: true, retryFullscreenOnGesture: true });
+    expect(session.getSnapshot()).toMatchObject({
+      active: true, ownsFullscreen: !initial, pendingFullscreenGesture: false
+    });
+    await session.exit();
+    expect(adapter.fullscreen).toBe(initial);
+    expect(adapter.enterCalls).toBe(initial ? 0 : 1);
+    expect(adapter.exitCalls).toBe(initial ? 0 : 1);
+  });
+
+  it.each([false, true])('cancels entry while native state %s is still being read', async (initial) => {
+    const fullscreen = createFullscreenAdapter(initial);
+    let resolveState!: (value: boolean) => void;
+    const pendingState = new Promise<boolean>((resolve) => { resolveState = resolve; });
+    const session = createOdaSession({ fullscreen: {
+      ...fullscreen,
+      isFullscreen: () => pendingState
+    } });
+    const entering = session.enter({ fullscreen: true });
+    const exiting = session.exit();
+    resolveState(initial);
+    await Promise.all([entering, exiting]);
+    expect(session.getSnapshot()).toMatchObject({ active: false, ownsFullscreen: false });
+    expect(fullscreen.enterCalls).toBe(0);
+    expect(fullscreen.exitCalls).toBe(0);
+    expect(fullscreen.fullscreen).toBe(initial);
+  });
+
+  it('requests browser fullscreen synchronously while the entry gesture is active', async () => {
+    const fullscreen = createFullscreenAdapter(false);
+    const session = createOdaSession({ fullscreen });
+    const entering = session.enter({ fullscreen: true });
+    expect(fullscreen.enter).toHaveBeenCalledOnce();
+    await entering;
+  });
+
+  it('exits an owned native request before the window manager applies fullscreen', async () => {
+    const fullscreen: OdaFullscreenAdapter = {
+      isFullscreen: async () => false,
+      enter: vi.fn(async () => true),
+      exit: vi.fn(async () => true)
+    };
+    const session = createOdaSession({ fullscreen });
+    await session.enter({ fullscreen: true });
+    await session.exit();
+    expect(fullscreen.exit).toHaveBeenCalledOnce();
+  });
+
   it('exits fullscreen on exit only when Oda owns it', async () => {
     const fullscreen = createFullscreenAdapter(false);
     const session = createOdaSession({ fullscreen });
