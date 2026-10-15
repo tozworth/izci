@@ -48,12 +48,7 @@ pub(crate) fn action(app: &AppHandle, id: &str) {
     }
     let result = match id {
         "showMain" => restore_main(app),
-        "hideMain" => app
-            .get_webview_window("main")
-            .ok_or("Player is unavailable".into())
-            .and_then(|window| window.hide().map_err(|error| error.to_string())),
-        // The playback owner handles shutdown and transport, including remote
-        // Multiplayer state. Never create or control another player here.
+        // The playback owner handles settings, presentation changes and shutdown.
         _ => app
             .emit_to("main", "izci:desktop-tray-action", id)
             .map_err(|error| error.to_string()),

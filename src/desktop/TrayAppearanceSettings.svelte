@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
+  import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
   import { desktopSettings, type DesktopShowIn, type DesktopTrayIcon } from './settings';
 
   export let launchOnBootSupported = true;
@@ -8,13 +9,14 @@
   export let showInHint = '';
 </script>
 
-<SettingsField title={$t('desktop.appearance.showIn.title')} hint={showInHint || $t('desktop.appearance.showIn.hint')}>
-  <select value={$desktopSettings.showIn}
-    on:change={(event) => desktopSettings.update({ showIn: event.currentTarget.value as DesktopShowIn })}>
-    <option value="taskbar">{$t('desktop.appearance.showIn.taskbar')}</option>
-    <option value="tray">{$t('desktop.appearance.showIn.tray')}</option>
-    <option value="both">{$t('desktop.appearance.showIn.both')}</option>
-  </select>
+<SettingsField title={$t('desktop.appearance.showIn.title')} hint={showInHint || $t('desktop.appearance.showIn.hint')} useLabel={false}>
+  <ThemedSelect value={$desktopSettings.showIn} label={$t('desktop.appearance.showIn.title')}
+    options={[
+      { value: 'taskbar', label: $t('desktop.appearance.showIn.taskbar') },
+      { value: 'tray', label: $t('desktop.appearance.showIn.tray') },
+      { value: 'both', label: $t('desktop.appearance.showIn.both') }
+    ]}
+    on:change={(event) => desktopSettings.update({ showIn: event.detail as DesktopShowIn })} />
 </SettingsField>
 
 {#if launchOnBootSupported}
@@ -30,12 +32,14 @@
     on:change={(event) => desktopSettings.update({ closeToTray: event.currentTarget.checked })} />
 </SettingsField>
 
-<SettingsField title={$t('desktop.appearance.trayIcon.title')} hint={$t('desktop.appearance.trayIcon.hint')}>
-  <select value={$desktopSettings.trayIcon} disabled={$desktopSettings.showIn === 'taskbar'}
-    on:change={(event) => desktopSettings.update({ trayIcon: event.currentTarget.value as DesktopTrayIcon })}>
-    <option value="light">{$t('desktop.appearance.trayIcon.light')}</option>
-    <option value="dark">{$t('desktop.appearance.trayIcon.dark')}</option>
-  </select>
+<SettingsField title={$t('desktop.appearance.trayIcon.title')} hint={$t('desktop.appearance.trayIcon.hint')} useLabel={false}>
+  <ThemedSelect value={$desktopSettings.trayIcon} label={$t('desktop.appearance.trayIcon.title')}
+    disabled={$desktopSettings.showIn === 'taskbar'}
+    options={[
+      { value: 'light', label: $t('desktop.appearance.trayIcon.light') },
+      { value: 'dark', label: $t('desktop.appearance.trayIcon.dark') }
+    ]}
+    on:change={(event) => desktopSettings.update({ trayIcon: event.detail as DesktopTrayIcon })} />
 </SettingsField>
 
 {#if trackInfoBubbleSupported}
@@ -46,6 +50,5 @@
 {/if}
 
 <style>
-  select:disabled { opacity: 0.5; }
   :global(.close-to-tray-disabled) { opacity: 0.5; }
 </style>

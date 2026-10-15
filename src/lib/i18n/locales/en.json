@@ -1815,7 +1815,6 @@
     },
     "tray": {
       "show": "Show izci",
-      "hide": "Hide izci",
       "menu": "izci tray menu",
       "volume": "Volume {percent}%",
       "pause": "Pause",

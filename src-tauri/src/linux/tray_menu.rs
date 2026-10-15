@@ -85,14 +85,14 @@ mod tests {
     #[test]
     fn menu_contract_preserves_checks_and_rejects_disabled_actions() {
         let items: Vec<Item> = serde_json::from_value(serde_json::json!([
-            {"id":"togglePlayback", "label":"Play", "disabled":true},
+            {"id":"openOptions", "label":"Play", "disabled":true},
             {"id":"raf", "label":"Raf", "separatorBefore":true, "children":[
                 {"id":"applyRafPreset:one", "label":"One", "checked":true}
             ]},
             {"id":"exit", "label":"Exit"}
         ]))
         .unwrap();
-        assert!(!enabled_action(&items, "togglePlayback"));
+        assert!(!enabled_action(&items, "openOptions"));
         assert!(enabled_action(&items, "applyRafPreset:one"));
         assert!(enabled_action(&items, "exit"));
         assert!(!enabled_action(&items, "raf"));

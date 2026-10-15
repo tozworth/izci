@@ -1823,7 +1823,6 @@
     },
     "tray": {
       "show": "izci’yi göster",
-      "hide": "izci’yi gizle",
       "menu": "izci sistem tepsisi menüsü",
       "volume": "Ses düzeyi %{percent}",
       "pause": "Duraklat",

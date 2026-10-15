@@ -74,20 +74,33 @@ window.addEventListener('load', async () => {
     // create and update its indicator rather than the Options window doing it.
     await openOptions();
     const trayOptions = await wait(() => smokePopups.at(-1)?.document.querySelector('.options-page-host') && smokePopups.at(-1), 'tray Options');
-    const showIn = await wait(() => Array.from(trayOptions.document.querySelectorAll('select'))
-      .find(select => Array.from(select.options).some(option => option.value === 'taskbar')), 'Show in setting');
-    const setShowIn = value => { showIn.value = value; showIn.dispatchEvent(new Event('change', { bubbles: true })); };
-    setShowIn('both');
+    const showIn = await wait(() => trayOptions.document.querySelector('[role="combobox"][aria-label="Show in"]'), 'Show in setting');
+    const setShowIn = async value => {
+      showIn.click();
+      const label = { taskbar: 'Taskbar only', tray: 'Tray only', both: 'Both' }[value];
+      const option = await wait(() => Array.from(trayOptions.document.querySelectorAll('[role="option"]'))
+        .find(option => option.querySelector('span:last-child')?.textContent === label), 'Show in option');
+      option.click();
+    };
+    await setShowIn('both');
     await wait(async () => (await invoke('smoke_tray')).available, 'native tray creation from Options');
-    await invoke('smoke_tray', { action: 'hideMain' });
-    await wait(async () => !(await invoke('smoke_windows')).find(window => window.label === 'main').visible, 'tray Hide');
+    trayOptions.document.querySelector('[aria-label^="Show advanced tweaks"]')?.click();
+    const initialCloseField = await wait(() => Array.from(trayOptions.document.querySelectorAll('.field'))
+      .find(field => field.querySelector('.field-title')?.textContent === 'Close to tray'), 'initial Close to tray setting');
+    const initialCloseCheckbox = initialCloseField.querySelector('input[type="checkbox"]');
+    initialCloseCheckbox.checked = true;
+    initialCloseCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+    await wait(async () => (await invoke('smoke_tray')).closeToTray, 'initial close policy sync');
+    document.querySelector('.close-control').click();
+    await wait(async () => !(await invoke('smoke_windows')).find(window => window.label === 'main').visible, 'close to tray');
     // Disabling the tray from a surviving Options window must restore access.
-    setShowIn('taskbar');
+    await setShowIn('taskbar');
     await wait(async () => !(await invoke('smoke_tray')).available
       && (await invoke('smoke_windows')).find(window => window.label === 'main').visible, 'safe tray removal');
-    setShowIn('tray');
+    await setShowIn('tray');
     await wait(async () => (await invoke('smoke_tray')).available, 'tray recreation');
-    await invoke('smoke_tray', { action: 'hideMain' });
+    document.querySelector('.close-control').click();
+    await wait(async () => !(await invoke('smoke_windows')).find(window => window.label === 'main').visible, 'hidden after tray recreation');
     await invoke('smoke_tray', { action: 'showMain' });
     await wait(async () => (await invoke('smoke_windows')).find(window => window.label === 'main').visible, 'tray Show');
     trayOptions.document.querySelector('.close-control').click();
@@ -127,14 +140,8 @@ window.addEventListener('load', async () => {
       const start = Number(seek.value);
       await wait(() => Number(seek.value) > start + 0.5, `advancing playback ${name}`);
       results.push({ name, position: Number(seek.value), duration: Number(seek.max) });
-      // Exercise native callback -> Tauri event -> existing transport handler.
-      await invoke('smoke_tray', { action: 'hideMain' });
-      await invoke('smoke_tray', { action: 'togglePlayback' });
-      await wait(() => document.querySelector('button[aria-label="Resume playback"]')
-        || document.querySelector('button[aria-label="Start playback"]')
-        || !document.querySelector('button[aria-label="Pause playback"]'), 'tray Pause');
-      await invoke('smoke_tray', { action: 'togglePlayback' });
-      await wait(() => document.querySelector('button[aria-label="Pause playback"]'), 'tray Play');
+      document.querySelector('.close-control').click();
+      await wait(async () => !(await invoke('smoke_windows')).find(window => window.label === 'main').visible, 'hidden playback window');
       const hiddenStart = Number(seek.value);
       await wait(() => Number(seek.value) > hiddenStart + 0.5, `hidden playback ${name}`);
       await invoke('smoke_tray', { action: 'showMain' });

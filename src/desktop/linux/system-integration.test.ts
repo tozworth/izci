@@ -25,8 +25,8 @@ describe('Linux native tray integration', () => {
     stepVolume: vi.fn(() => 1), togglePlayback: vi.fn(), previousTrack: vi.fn(), nextTrack: vi.fn(),
     openOptions: vi.fn(), enterOda: vi.fn(), miniPlayer: vi.fn(), exit: vi.fn()
   };
-  const start = (canControl = true) => {
-    dispose = createPlatformIntegration({ snapshot, track: writable(null), canControl: () => canControl, handlers, importFiles: vi.fn() });
+  const start = () => {
+    dispose = createPlatformIntegration({ snapshot, track: writable(null), canControl: () => true, handlers, importFiles: vi.fn() });
   };
   const flush = () => vi.advanceTimersByTimeAsync(0);
   const payload = () => native.invoke.mock.calls.filter(([command]) => command === 'configure_linux_tray').at(-1)?.[1] as {
@@ -58,23 +58,22 @@ describe('Linux native tray integration', () => {
     expect(native.invoke).toHaveBeenCalledOnce();
     expect(payload()).toMatchObject({ showIn: 'both', trayIcon: 'dark', closeToTray: true });
     expect(payload().items.map(({ id }) => id)).toEqual([
-      'showMain', 'hideMain', 'previousTrack', 'togglePlayback', 'nextTrack', 'raf', 'openOptions', 'enterOda', 'exit'
+      'showMain', 'raf', 'openOptions', 'enterOda', 'exit'
     ]);
-    expect(payload().items.find(({ id }) => id === 'togglePlayback')).toMatchObject({ label: 'Play', disabled: false });
     native.invoke.mockClear();
     desktopSettings.update({ launchOnBoot: true, fileAssociations: false, trackInfoBubble: false });
     await flush();
     expect(native.invoke).not.toHaveBeenCalled();
   });
 
-  it('updates transport, localization, presets and live visibility without updates for playback ticks', async () => {
+  it('updates localization, presets and live visibility independently of playback', async () => {
     desktopSettings.update({ showIn: 'tray' });
     start(); await flush(); native.invoke.mockClear();
     snapshot.update((value) => ({ ...value, currentTime: 1 }));
     await flush(); expect(native.invoke).not.toHaveBeenCalled();
     snapshot.update((value) => ({ ...value, state: 'playing' }));
     await flush();
-    expect(payload().items.find(({ id }) => id === 'togglePlayback')?.label).toBe('Pause');
+    expect(native.invoke).not.toHaveBeenCalled();
     const preset = rafPresets.create('Quiet & clear')!;
     rafPresets.apply(preset.id, true);
     await locale.set('tr'); await flush();
@@ -86,28 +85,21 @@ describe('Linux native tray integration', () => {
     expect(payload()).toMatchObject({ showIn: 'both', closeToTray: true, trayIcon: 'dark' });
   });
 
-  it('disables transport for an empty player but retains remote/loaded backend controls', async () => {
-    desktopSettings.update({ showIn: 'both' });
-    snapshot.update((value) => ({ ...value, backend: null }));
-    start(false); await flush();
-    expect(payload().items.filter(({ id }) => ['previousTrack', 'togglePlayback', 'nextTrack'].includes(id)))
-      .toEqual(expect.arrayContaining([expect.objectContaining({ disabled: true })]));
-    snapshot.update((value) => ({ ...value, backend: 'stream' }));
-    await flush();
-    expect(payload().items.find(({ id }) => id === 'togglePlayback')?.disabled).toBe(false);
-  });
-
-  it('dispatches transport, Options, Exit and Raf through the playback owner and restores before Oda', async () => {
+  it('dispatches Options, Exit and Raf through the playback owner and restores before Oda', async () => {
     desktopSettings.update({ showIn: 'both' });
     start(); await flush();
     const action = (payload: unknown) => native.action!({ payload });
-    action('togglePlayback'); action('previousTrack'); action('nextTrack'); action('openOptions'); action('exit');
-    for (const name of ['togglePlayback', 'previousTrack', 'nextTrack', 'openOptions', 'exit'] as const) {
+    action('openOptions'); action('exit');
+    for (const name of ['openOptions', 'exit'] as const) {
       expect(handlers[name]).toHaveBeenCalledOnce();
     }
     action('toggleRaf'); expect(rafSettings.getSnapshot().enabled).toBe(true);
     action('openRaf'); expect(handlers.openOptions).toHaveBeenLastCalledWith('raf');
-    action('miniPlayer'); action('showMain'); action(null); action('unknown');
+    action('miniPlayer'); action('showMain'); action('hideMain'); action(null); action('unknown');
+    action('togglePlayback'); action('previousTrack'); action('nextTrack');
+    expect(handlers.togglePlayback).not.toHaveBeenCalled();
+    expect(handlers.previousTrack).not.toHaveBeenCalled();
+    expect(handlers.nextTrack).not.toHaveBeenCalled();
     expect(handlers.miniPlayer).not.toHaveBeenCalled();
     action('enterOda');
     expect(handlers.enterOda).not.toHaveBeenCalled();
@@ -115,7 +107,7 @@ describe('Linux native tray integration', () => {
     expect(native.invoke).toHaveBeenCalledWith('restore_main_window');
     expect(handlers.enterOda).toHaveBeenCalledOnce();
     desktopSettings.update({ showIn: 'taskbar' });
-    action('togglePlayback'); expect(handlers.togglePlayback).toHaveBeenCalledOnce();
+    action('openOptions'); expect(handlers.openOptions).toHaveBeenCalledTimes(2);
     dispose!(); dispose = undefined;
     action('exit'); expect(handlers.exit).toHaveBeenCalledOnce();
     expect(native.release).toHaveBeenCalledOnce();
@@ -146,7 +138,7 @@ describe('Linux native tray integration', () => {
       native.invoke.mockRejectedValueOnce(new Error('Indicator unavailable'));
       start(); await flush();
       expect(log).toHaveBeenCalledOnce();
-      snapshot.update((value) => ({ ...value, currentTime: 1 }));
+      desktopSettings.update({ trayIcon: 'dark' });
       await flush();
       expect(native.invoke).toHaveBeenCalledTimes(2);
       expect(payload().showIn).toBe('both');
