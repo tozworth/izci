@@ -195,6 +195,11 @@ describe('desktop tray window activation', () => {
     expect(rafPresets.getSnapshot().selectedPresetId).toBe(preset.id);
     expect(rafSettings.getSnapshot().effects).toEqual(preset.settings.effects);
     expect(rafSettings.getSnapshot().enabled).toBe(true);
+    action({ payload: `applyRafPreset:${preset.id}` });
+    expect(rafSettings.getSnapshot().enabled).toBe(false);
+    expect(rafPresets.getSnapshot().selectedPresetId).toBe(preset.id);
+    action({ payload: `applyRafPreset:${preset.id}` });
+    expect(rafSettings.getSnapshot().enabled).toBe(true);
     action({ payload: 'openRaf' });
     expect(openOptions).toHaveBeenCalledWith('raf');
     action({ payload: 'toggleRaf' });

@@ -30,7 +30,7 @@ export function buildRafMenuItems(deps: RafMenuDeps): MenuActionItem[] {
           label: `${preset.name}${preset.id === deps.rafPresets.selectedPresetId && isRafPresetDirty(deps.rafPresets, deps.rafSettings) ? ' *' : ''}`,
           icon: preset.icon ?? 'tune',
           iconColor: getLoadoutColorValue(preset.color),
-          checked: preset.id === deps.rafPresets.selectedPresetId,
+          checked: deps.rafSettings.enabled && preset.id === deps.rafPresets.selectedPresetId,
           separatorBefore: index === 0
         }) satisfies MenuActionItem)
       : [{
@@ -52,5 +52,12 @@ export function isRafMenuAction(action: string): action is RafMenuAction {
 export function runRafMenuAction(action: RafMenuAction, openRaf: () => void): void {
   if (action === 'toggleRaf') rafSettings.setEnabled(!rafSettings.getSnapshot().enabled);
   else if (action === 'openRaf') openRaf();
-  else rafPresets.apply(action.slice('applyRafPreset:'.length));
+  else {
+    const id = action.slice('applyRafPreset:'.length);
+    if (rafSettings.getSnapshot().enabled && rafPresets.getSnapshot().selectedPresetId === id) {
+      rafSettings.setEnabled(false);
+    } else {
+      rafPresets.apply(id, true);
+    }
+  }
 }

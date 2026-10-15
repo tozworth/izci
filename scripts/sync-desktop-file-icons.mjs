@@ -17,7 +17,9 @@ outputs.set('icon.png', render(512));
 outputs.set('icon.ico', encodeIcon(iconSizes.map((size) => ({ size, png: render(size) }))));
 // Rasterize the same transparent mark used by the menu bar. Native tray code
 // applies the user's light/dark color to this alpha mask without image decoders.
-const mark = readFileSync(resolve(directory, '../../public/icons/izci-mark.svg'), 'utf8');
+// Tighten the tray-only viewport so the mark fills the small shell icon slot.
+const mark = readFileSync(resolve(directory, '../../public/icons/izci-mark.svg'), 'utf8')
+  .replace('viewBox="0 0 512 512"', 'viewBox="64 64 384 384"');
 const pixels = new Resvg(mark, {
   fitTo: { mode: 'width', value: 32 }, font: { loadSystemFonts: false },
 }).render().pixels;

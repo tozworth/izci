@@ -278,9 +278,13 @@ export function buildLibraryContextActions(
 }
 
 export function buildLibraryGroupContextActions(actions: MenuActionItem[]): MenuActionItem[] {
+  const shuffleAfterActionId = actions.some((action) => action.id === 'replace-queue')
+    ? 'replace-queue'
+    : 'add-to-queue';
+
   return actions
     .filter((action) => action.id !== 'go-to-library')
-    .flatMap((action) => action.id === 'replace-queue'
+    .flatMap((action) => action.id === shuffleAfterActionId
       ? [
           action,
           {
