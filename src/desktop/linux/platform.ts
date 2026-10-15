@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { initializeDesktopZoom } from '../zoom';
 export * from '../../platform/web-shell';
 export { filesystem } from './filesystem';
 export { default as PlatformWindowControls } from '../DesktopWindowControls.svelte';
@@ -18,6 +19,7 @@ export const platformCapabilities: import('../../platform/capabilities').Platfor
 };
 
 export async function initializePlatformWindow(): Promise<void> {
+  await initializeDesktopZoom();
   await invoke('desktop_window_ready');
   window.opener?.postMessage({ type: 'izci:popup-ready' }, window.location.origin);
 }

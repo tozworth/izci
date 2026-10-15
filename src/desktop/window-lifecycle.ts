@@ -1,8 +1,10 @@
 import { invoke } from '@tauri-apps/api/core';
 import { tick } from 'svelte';
+import { initializeDesktopZoom } from './zoom';
 import { desktopSettings } from './settings';
 
 export async function initializeDesktopWindow(): Promise<void> {
+  await initializeDesktopZoom();
   await tick();
   // Flush mounted content before exposing the native surface. Hidden WebView2
   // windows can throttle animation frames, so a timer must also release it.

@@ -4,6 +4,7 @@
   "description": "Local desktop views exchange transient player state and control their native windows.",
   "windows": ["main", "mini-player", "popup-*", "tray-menu", "tray-bubble"],
   "permissions": [
+    "core:webview:allow-set-webview-zoom",
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "core:event:allow-emit-to",

@@ -1779,6 +1779,11 @@
   },
   "desktop": {
     "appearance": {
+      "zoom": {
+        "title": "Yakınlaştırma",
+        "hint": "Ana oynatıcı, Seçenekler ve araç pencerelerinde arayüzü ölçeklendirir.",
+        "reset": "Yakınlaştırmayı sıfırla"
+      },
       "launchOnBoot": {
         "title": "Bilgisayar açıldığında başlat",
         "hint": "Windows'ta oturum açtığınızda izci'yi başlatır. Gösterileceği yer Yalnızca sistem tepsisi veya Her ikisi olarak seçildiğinde pencere açmadan sessizce sistem tepsisinde başlar."

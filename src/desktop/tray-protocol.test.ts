@@ -6,10 +6,10 @@ import { normalizeRafSettings } from '$lib/stores/raf-settings';
 
 describe('desktop tray', () => {
   it('defaults to taskbar only and normalizes desktop preferences independently of loadouts', () => {
-    expect(normalizeDesktopSettings(null)).toEqual({ showIn: 'taskbar', trayIcon: 'light', launchOnBoot: false, closeToTray: false, trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
-    expect(normalizeDesktopSettings({ showIn: 'invalid' })).toEqual({ showIn: 'taskbar', trayIcon: 'light', launchOnBoot: false, closeToTray: false, trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
-    expect(normalizeDesktopSettings({ showIn: 'both', trackInfoBubble: false, fileAssociations: false, focusOnFileLaunch: true })).toEqual({ showIn: 'both', trayIcon: 'light', launchOnBoot: false, closeToTray: false, trackInfoBubble: false, fileAssociations: false, focusOnFileLaunch: true });
-    expect(normalizeDesktopSettings({ showIn: 'tray' })).toEqual({ showIn: 'tray', trayIcon: 'light', launchOnBoot: false, closeToTray: false, trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
+    expect(normalizeDesktopSettings(null)).toEqual({ zoomPercent: 100, showIn: 'taskbar', trayIcon: 'light', launchOnBoot: false, closeToTray: false, trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
+    expect(normalizeDesktopSettings({ showIn: 'invalid' })).toEqual({ zoomPercent: 100, showIn: 'taskbar', trayIcon: 'light', launchOnBoot: false, closeToTray: false, trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
+    expect(normalizeDesktopSettings({ showIn: 'both', trackInfoBubble: false, fileAssociations: false, focusOnFileLaunch: true })).toEqual({ zoomPercent: 100, showIn: 'both', trayIcon: 'light', launchOnBoot: false, closeToTray: false, trackInfoBubble: false, fileAssociations: false, focusOnFileLaunch: true });
+    expect(normalizeDesktopSettings({ showIn: 'tray' })).toEqual({ zoomPercent: 100, showIn: 'tray', trayIcon: 'light', launchOnBoot: false, closeToTray: false, trackInfoBubble: true, fileAssociations: true, focusOnFileLaunch: true });
     expect(normalizeDesktopSettings({ closeToTray: true }).closeToTray).toBe(true);
     expect(normalizeDesktopSettings({ closeToTray: 'true' }).closeToTray).toBe(false);
     expect(normalizeDesktopSettings({ launchOnBoot: true }).launchOnBoot).toBe(true);

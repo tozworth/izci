@@ -1771,6 +1771,11 @@
   },
   "desktop": {
     "appearance": {
+      "zoom": {
+        "title": "Zoom",
+        "hint": "Scales the main player, Options, and tool windows.",
+        "reset": "Reset zoom"
+      },
       "launchOnBoot": {
         "title": "Launch on boot",
         "hint": "Start izci when you sign in to Windows. With Show in set to Tray only or Both, starts silently in the tray without opening a window."
