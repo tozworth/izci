@@ -1,24 +1,12 @@
-<table>
-<tr>
-<td><img height="75" src="https://raw.githubusercontent.com/tozworth/izci/refs/heads/main/docs/screenshots/carousel1.png" /></td>
-<td><img height="75" src="https://raw.githubusercontent.com/tozworth/izci/refs/heads/main/docs/screenshots/carousel2.png" /></td>
-<td><img height="75" src="https://raw.githubusercontent.com/tozworth/izci/refs/heads/main/docs/screenshots/carousel3.png" /></td>
-<td><img height="75" src="https://raw.githubusercontent.com/tozworth/izci/refs/heads/main/docs/screenshots/carousel4.png" /></td>
-</tr>
-</table>
-
 ## <img height="30" src="https://raw.githubusercontent.com/tozworth/izci/refs/heads/main/public/icons/izci-icon.svg"> izci
 
 A local music player [PWA](https://en.wikipedia.org/wiki/Progressive_web_app). It plays regular audio files and tracker modules. Compact interface, low CPU usage, several UI modes to adapt to any window size, and a lot of oddly specific settings (logarithmic volume slider anyone?)
 
 izci is mostly a personal hobby project. It has already reached "daily driver" status, but is still missing many, many features that will be added once I realize they're missing.
 
-<img height="100" alt="image" src="https://raw.githubusercontent.com/tozworth/izci/refs/heads/main/docs/screenshots/small1.png" />
-
-
 ## Features
 
-- Plays common audio formats (`mp3`, `wav`, `flac`, `ogg`, `opus`) and tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3` and more via included libopenmpt WASM; `ahx` and `hvl` via the included HivelyTracker replayer)
+- Plays common audio formats (`mp3`, `wav`, `flac`, `ogg`, `opus`) and tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3` and more via libopenmpt; `ahx` and `hvl` via HivelyTracker)
 - Persistent, auto-updating library with playcounts and favorites
 - OS-level file associations
 - Reads embedded metadata, artwork, time-synced lyrics, ReplayGain for audio tracks; plus instrument names and patterns for modules
@@ -68,17 +56,11 @@ Vite will print the local address, which you can then open in "any browser" (see
 
 HTML entry pages live in `pages/`; Vite serves and emits them at their existing root URLs (such as `/options.html`). Application code remains in `src/` and static assets in `public/`.
 
-Multiplayer uses a self-hosted izci-server for signaling. Official builds have no server configured; hosts configure their server under Hosting and guests join with an izci-server invitation. Firebase Hosting serves the PWA; Firebase Auth and Realtime Database signaling are retired. Use `npm run hosting:preview` or `npm run hosting:deploy` with the root `firebase.json` for Firebase Hosting. Sites packaging uses `deployment/sites-worker.js` through `npm run sites:build`.
+The optional "Multiplayer" mode uses a self-hosted server for signaling. Configure your server under Hosting and guests can join with an izci-server invitation.
 
-### Windows executable
+### Tauri build
 
-`npm run desktop:build` builds a single `.local/desktop/izci.exe` with all frontend assets and playback runtimes embedded. It needs Windows and an installed WebView2 Runtime; no application DLLs or adjacent asset files are required. Building requires the Rust MSVC toolchain and Microsoft C++ Build Tools.
-
-Release builds optimize native code for size, omit unused Tauri commands, Brotli-compress embedded assets, and pack the executable with [UPX](https://upx.github.io/) using LZMA. The pinned, checksum-verified UPX build tool downloads on the first build and is cached under `.local/desktop-toolchain/` for subsequent offline builds. It is not needed to run izci. Packing adds a small decompression step at launch. `npm run desktop:build -- --no-compress` produces an unpacked executable for diagnostics. Rust panics abort the release process rather than unwinding.
-
-The build checks for external DLL imports before packing and checks the packed executable's integrity. If the current executable is running, the new build is saved to `.local/desktop-next/izci.exe`.
-
-Desktop and PWA media playback use disk-backed file URLs without copying entire streams or videos into memory. Metadata, embedded FLAC/Opus artwork, and Vorbis lyrics use bounded file-range reads; artwork pictures are limited to 16 MiB and lyrics comments to 1 MiB. Android alone retains small-file snapshots for faster provider reads, with metadata snapshots bounded to 16 MiB per file and 32 MiB across active jobs. Hidden desktop utility WebViews stop rendering and request WebView2's lower memory target, then restore normal rendering when opened. Hardware acceleration remains enabled, and the playback owner's WebView stays active.
+While izci remains a PWA (and most dev work is focused on not breaking the PWA), there's an optional Windows-only Tauri build that adds small niceties such as a better miniplayer, system tray icons/bubbles and custom icons for file associations. Build with `npm run desktop:build`.
 
 ## Built with
 
