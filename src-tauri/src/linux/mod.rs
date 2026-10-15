@@ -1,5 +1,6 @@
 pub(crate) mod file_picker;
 pub(crate) mod files;
+mod fonts;
 pub(crate) mod fullscreen;
 pub(crate) mod tray;
 mod tray_menu;
@@ -41,6 +42,7 @@ pub fn run() {
             tray::configure_linux_tray,
             tray::restore_main_window,
             files::materialize_desktop_files,
+            fonts::local_font_families,
             crate::native_filesystem::pick_desktop_paths,
             crate::native_filesystem::read_desktop_folder,
             crate::native_filesystem::query_desktop_folder_permission

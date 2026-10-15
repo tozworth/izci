@@ -57,8 +57,7 @@ export function createOdaFocusController({
   let handlers: OdaFocusHandlers | null = null;
   let holdTimer: number | null = null;
   let holdFired = false;
-  // An Escape/Back keydown is awaiting its keyup. Tracked so a browser
-  // fullscreen exit (which swallows the keyup) can complete the tap.
+  // An Escape/Back keydown is awaiting its keyup.
   let backPressed = false;
 
   const repeater = createOdaKeyRepeater({
@@ -177,24 +176,6 @@ export function createOdaFocusController({
       repeater.end();
       clearHold();
       backPressed = false;
-    },
-    /**
-     * Complete a pending Back tap when the browser exits DOM fullscreen on
-     * our behalf. Escape is reserved to leave fullscreen (unless locked), so
-     * its keyup may never reach us; without this an Escape from Oda would
-     * just unfullscreen the window instead of navigating back. Exits with no
-     * pending press (e.g. F11) are ignored, as is the swallowed press's late
-     * keyup if it ever arrives.
-     */
-    handleBrowserFullscreenExit(): void {
-      if (!backPressed) return;
-      backPressed = false;
-      clearHold();
-      if (holdFired) {
-        holdFired = false;
-        return;
-      }
-      handlers?.onBack();
     }
   };
 }

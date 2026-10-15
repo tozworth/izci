@@ -54,6 +54,7 @@ interface WorkspaceShellInputs {
   queueItems: TrackItem[];
   libraryItems: TrackItem[];
   favoriteItems: TrackItem[];
+  collectionsReady: boolean;
   queueSelectionIds: string[];
   librarySelectionIds: string[];
   librarySelectionAnchorId: string | null;
@@ -356,6 +357,7 @@ function createLibraryPanelProps(
 ): WorkspacePanelProps {
   return {
     items: [],
+    collectionsReady: false,
     selectedIds: [],
     selectionAnchorId: null,
     playingId: null,
@@ -566,6 +568,7 @@ export function createWorkspaceShellController({
       },
       libraryPanelProps: {
         items: lastInputs.libraryItems,
+        collectionsReady: lastInputs.collectionsReady,
         selectedIds: lastInputs.librarySelectionIds,
         keyboardActive: savedPanelState.activeCollection === 'library',
         selectionAnchorId: lastInputs.librarySelectionAnchorId,

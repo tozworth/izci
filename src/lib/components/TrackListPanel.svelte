@@ -92,6 +92,7 @@
   } from '$lib/components/track-list-panel/library-views';
 
   export let items: TrackItem[] = [];
+  export let collectionsReady = false;
   export let selectedIds: string[] = [];
   export let selectionAnchorId: string | null = null;
   export let playingId: string | null = null;
@@ -844,19 +845,19 @@
           on:itemContextMenu={(event) => void handleItemContextMenu(event.detail.event, event.detail.id)}
           on:rowHeight={(event) => trackRowHeight = event.detail}
         />
-      {:else if displaySourceItems.length > 0 && normalizedSearchQuery}
+      {:else if collectionsReady && displaySourceItems.length > 0 && normalizedSearchQuery}
         <div class="empty-state track-list-filter-empty">
           <p>{$t('library.noResults', { default: 'No library results match "{query}".', values: { query: searchQuery.trim() } })}</p>
         </div>
-      {:else if favoritesViewActive && favoriteItems.length === 0}
+      {:else if collectionsReady && favoritesViewActive && favoriteItems.length === 0}
         <div class="empty-state track-list-filter-empty favorites-empty-note">
           <p>{$t('library.favoritesEmpty', { default: 'Favorite tracks and subsongs will appear here.' })}</p>
         </div>
-      {:else if ratingsViewActive && displaySourceItems.length === 0}
+      {:else if collectionsReady && ratingsViewActive && displaySourceItems.length === 0}
         <div class="empty-state track-list-filter-empty favorites-empty-note">
           <p>{$t('library.ratingsEmpty', { default: 'Rated tracks will appear here.' })}</p>
         </div>
-      {:else if libraryMode && items.length === 0}
+      {:else if collectionsReady && libraryMode && items.length === 0}
         <div class="empty-state track-list-filter-empty">
           <p>{mobilePresentation
             ? $t('mobile.library.empty', { default: 'Your library is empty. Add files to begin.' })

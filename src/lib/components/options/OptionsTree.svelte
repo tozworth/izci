@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { expandedOptionsCategories, toggleOptionsCategory } from '$lib/stores/options-tree-state';
   import type { SharedOptionsViewDefinition } from './OptionsView.svelte';
 
   export let groups: SharedOptionsViewDefinition[][];
@@ -7,9 +8,9 @@
   export let categoriesLabel: string;
 
   const dispatch = createEventDispatcher<{ select: { view: string } }>();
-  let expandedCategories = new Set<string>();
   let focusedViewId: string | null = null;
 
+  $: expandedCategories = new Set($expandedOptionsCategories);
   $: availableViews = groups.flat().filter((view) => !view.hidden);
   $: categoryIds = new Set(availableViews.flatMap((view) => view.parentId ? [view.parentId] : []));
   $: visibleGroups = groups.map((group) => group.filter((view) =>
@@ -23,15 +24,12 @@
     ?? visibleViews[0]?.id;
 
   function toggleCategory(id: string): void {
-    const next = new Set(expandedCategories);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    expandedCategories = next;
+    toggleOptionsCategory(id);
   }
 
   function handleRowClick(event: MouseEvent, view: SharedOptionsViewDefinition): void {
     (event.currentTarget as HTMLButtonElement).focus();
-    if (categoryIds.has(view.id)) {
+    if (categoryIds.has(view.id) && (activeView === view.id || !expandedCategories.has(view.id))) {
       toggleCategory(view.id);
     }
     dispatch('select', { view: view.id });

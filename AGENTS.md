@@ -120,7 +120,7 @@
 
 ## Oda (couch mode)
 
-- Oda is a session-only, ten-foot presentation mode for the main window. It is entered from the main menu, exits only via `Options > Exit Oda`, and is never restored after a reload; mobile mode cannot enter it.
+- Oda is a session-only, ten-foot presentation mode for the main window. It is entered from the main menu, exits via `Options > Exit Oda` or when the browser leaves fullscreen, and is never restored after a reload; mobile mode cannot enter it.
 - It is a shell over the same runtime, not a second player: it consumes the effective queue/library/playback/artwork state and commands passed from `App.svelte`, so an active Multiplayer client gets host state without Oda-specific protocol or session logic.
 - The active bit, fullscreen ownership, and route/history/focus stack live in `src/lib/services/oda-session.ts`; persistent preferences live in synchronized `src/lib/stores/oda-settings.ts`. Never persist the session, route, or focus.
 - Keep `src/oda/` as its own presentation boundary (`OdaShell.svelte` plus views), analogous to `src/mobile/`. `App.svelte` structurally selects one shell; do not merely hide desktop chrome with CSS or grow `App.svelte` with Oda view logic.

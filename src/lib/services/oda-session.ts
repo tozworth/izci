@@ -299,13 +299,9 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
     notify();
   }
 
-  /**
-   * Called from `fullscreenchange`. A browser-initiated exit leaves Oda active
-   * in-window but drops fullscreen ownership so exiting Oda does not call into
-   * the fullscreen API.
-   */
+  /** End Oda when the browser leaves fullscreen, regardless of who entered it. */
   async function handleFullscreenChange(): Promise<void> {
-    if (!ownsFullscreen) return;
+    if (!active) return;
     const generation = entryGeneration;
     try {
       const state = fullscreen.isFullscreen();
@@ -315,7 +311,7 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
       return;
     }
     ownsFullscreen = false;
-    notify();
+    await exit();
   }
 
   return {

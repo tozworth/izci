@@ -331,7 +331,7 @@
                 ? $t('options.appearance.font.permissionDenied', { default: 'Local font permission was not granted.' })
                 : $t('options.appearance.font.loadFailed', { default: 'Local fonts could not be loaded.' })}
           {:else if PlatformAppearanceSettings}
-            {$t('options.appearance.font.desktopHint', { default: 'Applies the system interface font or any installed Windows font across the app.' })}
+            {$t('options.appearance.font.desktopHint', { default: 'Applies the system interface font or any installed font across the app.' })}
           {:else if localFontAccessSupported}
             {$t('options.appearance.font.hint', { default: 'Applies the system interface font or a permitted local font across the app.' })}
           {:else}

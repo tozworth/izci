@@ -26,7 +26,7 @@ describe('Queue focus on track change', () => {
       collectionSelection: { clear: vi.fn(), select, set: vi.fn(), selectAll: vi.fn() }
     });
     shell.sync({
-      innerWidth: 1600, queueItems: [], libraryItems: [], favoriteItems: [],
+      innerWidth: 1600, queueItems: [], libraryItems: [], favoriteItems: [], collectionsReady: true,
       queueSelectionIds: [], librarySelectionIds: [], librarySelectionAnchorId: null,
       favoriteSelectionIds: [], favoriteSelectionAnchorId: null, favoritePlayingId: null,
       playingTrackId: null, shuffleEnabled: false, repeatMode: 'off', keepEmptyWorkspacePanelsOpen: false
@@ -71,7 +71,7 @@ describe('Visualizer docking', () => {
   it('opens, moves, closes, and reopens in the remembered panel without changing the collection', () => {
     const shell = createWorkspaceShellController({ getQueueContextActions: () => [], getLibraryContextActions: () => [] });
     shell.sync({
-      innerWidth: 1600, queueItems: [], libraryItems: [], favoriteItems: [],
+      innerWidth: 1600, queueItems: [], libraryItems: [], favoriteItems: [], collectionsReady: true,
       queueSelectionIds: [], librarySelectionIds: [], librarySelectionAnchorId: null,
       favoriteSelectionIds: [], favoriteSelectionAnchorId: null, favoritePlayingId: null,
       playingTrackId: null, shuffleEnabled: false, repeatMode: 'off', keepEmptyWorkspacePanelsOpen: false

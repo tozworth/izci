@@ -28,6 +28,7 @@ export const WORKSPACE_DOCK_SCOPE = 'main-workspace';
 
 export interface WorkspacePanelProps {
   items: TrackItem[];
+  collectionsReady?: boolean;
   selectedIds: string[];
   selectionAnchorId?: string | null;
   playingId: string | null;

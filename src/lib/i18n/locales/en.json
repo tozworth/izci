@@ -736,7 +736,7 @@
         "title": "Font",
         "loading": "Loading local fonts…",
         "useLocal": "Use local fonts…",
-        "desktopHint": "Applies the system interface font or any installed Windows font across the app.",
+        "desktopHint": "Applies the system interface font or any installed font across the app.",
         "noFonts": "No local fonts were returned.",
         "permissionDenied": "Local font permission was not granted.",
         "loadFailed": "Local fonts could not be loaded.",
@@ -1726,7 +1726,7 @@
       },
       "fullscreen": {
         "title": "Enter browser fullscreen",
-        "hint": "Requests fullscreen when Oda is entered. Oda stays usable when the request is denied, unavailable, or exited with the browser shortcut; a deep-link entry asks again on the first keypress."
+        "hint": "Requests fullscreen when Oda is entered. Oda stays usable if the request is denied or unavailable; a deep-link entry asks again on the first pointer input. Leaving fullscreen also exits Oda."
       },
       "wrapNavigation": {
         "title": "Wrap navigation",

@@ -744,7 +744,7 @@
         "title": "Yazı tipi",
         "loading": "Yerel yazı tipleri yükleniyor…",
         "useLocal": "Yerel yazı tiplerini kullan…",
-        "desktopHint": "Sistem arayüz yazı tipini veya yüklü Windows yazı tiplerinden birini uygulama genelinde kullanır.",
+        "desktopHint": "Sistem arayüz yazı tipini veya yüklü yazı tiplerinden birini uygulama genelinde kullanır.",
         "noFonts": "Yerel yazı tipi bulunamadı.",
         "permissionDenied": "Yerel yazı tipi izni verilmedi.",
         "loadFailed": "Yerel yazı tipleri yüklenemedi.",
@@ -1734,7 +1734,7 @@
       },
       "fullscreen": {
         "title": "Tarayıcı tam ekranına gir",
-        "hint": "Oda'ya girildiğinde tam ekran ister. İstek reddedilse, kullanılamasa veya tarayıcı kısayoluyla çıkılsa bile Oda kullanılabilir kalır; derin bağlantıyla girişte tam ekran ilk tuş basımında yeniden istenir."
+        "hint": "Oda'ya girildiğinde tam ekran ister. İstek reddedilse veya kullanılamasa bile Oda kullanılabilir kalır; derin bağlantıyla girişte tam ekran ilk tıklama veya dokunmada yeniden istenir. Tam ekrandan çıkıldığında Oda da kapanır."
       },
       "wrapNavigation": {
         "title": "Gezinmeyi döndür",

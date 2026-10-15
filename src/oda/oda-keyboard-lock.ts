@@ -8,8 +8,8 @@
  * the page so Oda's normal Back handling owns it.
  *
  * Everything here degrades safely: non-Chromium browsers, denied requests
- * and missing fullscreen all fall back to the browser default, in which case
- * the focus controller completes the pending Back tap on `fullscreenchange`.
+ * and missing fullscreen all fall back to the browser default. Leaving
+ * fullscreen also ends the Oda session.
  */
 
 interface OdaKeyboardApi {
@@ -33,7 +33,7 @@ export function lockOdaEscapeKey(): void {
     if (result && typeof result.catch === 'function') {
       result.catch(() => {
         // Rejected (permissions, non-Chromium): Escape keeps its browser
-        // default and Back still completes on fullscreen exit.
+        // default, so leaving fullscreen also exits Oda.
       });
     }
   } catch {

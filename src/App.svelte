@@ -311,6 +311,12 @@
   const odaSession = createOdaSession({
     fullscreen: platformFullscreen,
     onChange: (snapshot) => {
+      if (odaSessionSnapshot?.active && !snapshot.active) {
+        odaScreensaverActive = false;
+        unlockOdaEscapeKey();
+        odaFocus.endRepeat();
+        odaFocus.setModel(null);
+      }
       odaSessionSnapshot = snapshot;
     }
   });
@@ -725,6 +731,7 @@
     queueItems,
     libraryItems,
     favoriteItems,
+    collectionsReady,
     queueSelectionIds,
     librarySelectionIds,
     librarySelectionAnchorId,
@@ -941,13 +948,7 @@
     zoomStep: (factor: number) => videoActions.zoomStep(factor),
     resetZoom: () => videoActions.resetZoom(),
     rotateImage: () => videoActions.rotateImage(),
-    exitOda: () => {
-      odaScreensaverActive = false;
-      unlockOdaEscapeKey();
-      odaFocus.endRepeat();
-      odaFocus.setModel(null);
-      void odaSession.exit();
-    }
+    exitOda: () => void odaSession.exit()
   } satisfies OdaCommands;
 
   $: if (playbackStatus.state !== previousPlaybackState) {
@@ -964,11 +965,7 @@
 
   onMount(() => {
     const handleFullscreenChange = () => {
-      // Fallback when Escape was not locked (non-Chromium, denied lock): the
-      // browser exits fullscreen and may swallow the keyup, so complete the
-      // pending Back tap here instead of stranding the route.
-      odaFocus.handleBrowserFullscreenExit();
-      odaSession.handleFullscreenChange();
+      void odaSession.handleFullscreenChange();
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);

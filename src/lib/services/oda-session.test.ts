@@ -204,19 +204,68 @@ describe('createOdaSession', () => {
     expect(session.getSnapshot().active).toBe(true);
   });
 
-  it('drops fullscreen ownership after a browser-initiated exit but stays active', async () => {
+  it.each([false, true])('ends Oda after a browser-initiated exit (fullscreen at entry: %s)', async (initial) => {
+    const fullscreen = createFullscreenAdapter(initial);
+    const session = createOdaSession({ fullscreen });
+    await session.enter({ fullscreen: true });
+    session.push({ name: 'queue' });
+    session.setFocus('track-one');
+
+    fullscreen.fullscreen = false;
+    await session.handleFullscreenChange();
+
+    expect(session.getSnapshot()).toMatchObject({
+      active: false,
+      ownsFullscreen: false,
+      route: ODA_HOME_ROUTE,
+      focusId: null,
+      restoreFocusId: null,
+      pendingFullscreenGesture: false
+    });
+    expect(session.canGoBack()).toBe(false);
+
+    expect(fullscreen.exitCalls).toBe(0);
+  });
+
+  it('stays active when a fullscreen change keeps the browser fullscreen', async () => {
     const fullscreen = createFullscreenAdapter(false);
     const session = createOdaSession({ fullscreen });
     await session.enter({ fullscreen: true });
-    expect(session.getSnapshot().ownsFullscreen).toBe(true);
+    await session.handleFullscreenChange();
+
+    expect(session.getSnapshot()).toMatchObject({ active: true, ownsFullscreen: true });
+    expect(fullscreen.exitCalls).toBe(0);
+  });
+
+  it('ends Oda when fullscreen entered after a windowed entry is exited', async () => {
+    const fullscreen = createFullscreenAdapter(false);
+    const session = createOdaSession({ fullscreen });
+    await session.enter({ fullscreen: false });
+    fullscreen.fullscreen = true;
+    await session.handleFullscreenChange();
+    expect(session.isActive()).toBe(true);
 
     fullscreen.fullscreen = false;
-    session.handleFullscreenChange();
+    await session.handleFullscreenChange();
+    expect(session.isActive()).toBe(false);
+    expect(fullscreen.exitCalls).toBe(0);
+  });
 
-    expect(session.getSnapshot()).toMatchObject({ active: true, ownsFullscreen: false });
+  it('ignores an asynchronous fullscreen exit read from an earlier session', async () => {
+    const fullscreen = createFullscreenAdapter(false);
+    const session = createOdaSession({ fullscreen });
+    await session.enter({ fullscreen: true });
+    let resolveState!: (value: boolean) => void;
+    vi.spyOn(fullscreen, 'isFullscreen').mockImplementationOnce(() =>
+      new Promise<boolean>((resolve) => { resolveState = resolve; }));
+    const changing = session.handleFullscreenChange();
 
     await session.exit();
-    expect(fullscreen.exitCalls).toBe(0);
+    await session.enter({ fullscreen: true });
+    resolveState(false);
+    await changing;
+
+    expect(session.getSnapshot()).toMatchObject({ active: true, ownsFullscreen: true });
   });
 
   it('arms a gesture retry when a fullscreen request is refused', async () => {
