@@ -411,7 +411,32 @@
       "back": "Oynatıcıya dön",
       "title": "Ayarlar",
       "categories": "Kategori seç",
-      "resetPage": "Sayfayı sıfırla"
+      "resetPage": "Sayfayı sıfırla",
+      "backToCategories": "Kategorilere dön",
+      "descriptions": {
+        "appearance": "izci tam sana göre olsun.",
+        "backdrops": "Müziğine bir arka plan seç.",
+        "now-playing": "Çalan parça sahnenin merkezinde olsun.",
+        "visualizer": "Müziğin biraz da resim çizsin.",
+        "patterns": "Seslerin ardındaki notaları izle.",
+        "lyrics": "Her söz tam zamanında.",
+        "playback": "Müziğin nasıl devam edeceğini seç.",
+        "video": "Görüntü tam istediğin gibi olsun.",
+        "raf": "Sesine biraz cila at.",
+        "modules": "Eski usul biçimler, senin kuralların.",
+        "oda": "Koltuktan dinlemeye hazırlan.",
+        "tracks": "Koleksiyonun düzenli kalsın.",
+        "folders": "izci müziğin nerede olduğunu bilsin.",
+        "metadata": "Adlar, etiketler ve dinleme sayıları.",
+        "loadouts": "Her ruh hâline bir ayar seti kaydet.",
+        "backups": "Ayarlarının bir yedeği bulunsun.",
+        "multiplayer": "İyi müzik paylaşınca güzel.",
+        "hosting": "Dinleyicilerine yer aç.",
+        "cache": "Paylaşılan parçalar elinin altında olsun.",
+        "experimental": "Henüz şekillenen şeyleri dene.",
+        "about": "Müziğin arkasındaki oynatıcıyı tanı.",
+        "licenses": "Emeği geçenlere bir selam."
+      }
     },
     "navigation": {
       "swipeRegion": "Görünümler arasında kaydır",

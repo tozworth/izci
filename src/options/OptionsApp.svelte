@@ -45,6 +45,7 @@
   if (activeView === 'raf' && !playbackSettings.getSnapshot().enableRaf) {
     activeView = 'playback';
   }
+  let mobileCategoryPageOpen = initialView !== undefined || (!embedded && new URLSearchParams(window.location.search).has('view'));
   let showAdvancedTweaks = initialOptionsWindowState.showAdvancedTweaks;
   let advancedTweaksModified = false;
 
@@ -99,6 +100,7 @@
       view = 'playback';
     }
     activeView = view;
+    if (mobileMode) mobileCategoryPageOpen = true;
     rememberOptionsActiveView(view);
 
     if (!embedded) {
@@ -231,6 +233,7 @@
 
 {#if mobileMode}
 <MobileOptionsView
+  bind:categoryPageOpen={mobileCategoryPageOpen}
   windowTitle={$t('options.windowTitle', { default: 'izci Options' })}
   groups={sharedViewGroups}
   {auxiliaryViews}

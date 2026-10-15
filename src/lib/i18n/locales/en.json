@@ -403,7 +403,32 @@
       "back": "Back to player",
       "title": "Options",
       "categories": "Choose category",
-      "resetPage": "Reset page"
+      "resetPage": "Reset page",
+      "backToCategories": "Back to categories",
+      "descriptions": {
+        "appearance": "Make izci feel like home.",
+        "backdrops": "Set the scene behind your music.",
+        "now-playing": "Give the current track center stage.",
+        "visualizer": "Let your music draw a little.",
+        "patterns": "Watch the notes behind the noise.",
+        "lyrics": "Every word, right on cue.",
+        "playback": "Decide how the music keeps going.",
+        "video": "Get the picture just right.",
+        "raf": "A little polish for your sound.",
+        "modules": "Old-school formats, your rules.",
+        "oda": "Set up for listening from the couch.",
+        "tracks": "Keep your collection in order.",
+        "folders": "Tell izci where the music lives.",
+        "metadata": "Names, tags, and listening milestones.",
+        "loadouts": "Save a setup for every mood.",
+        "backups": "Keep a spare copy of your setup.",
+        "multiplayer": "Good music deserves company.",
+        "hosting": "Make room for your listeners.",
+        "cache": "Keep shared tracks close at hand.",
+        "experimental": "Try something still taking shape.",
+        "about": "Meet the player behind the music.",
+        "licenses": "A little credit where it is due."
+      }
     },
     "navigation": {
       "swipeRegion": "Swipe between views",

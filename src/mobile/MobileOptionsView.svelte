@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, tick } from 'svelte';
   import { t } from 'svelte-i18n';
+  import MobileOptionsCategories from './MobileOptionsCategories.svelte';
   import type { SharedOptionsViewDefinition } from '$lib/components/options/OptionsView.svelte';
 
   export let windowTitle: string;
@@ -17,6 +18,7 @@
   export let resetPageLabel = 'Reset current page to defaults';
   export let contentClass = '';
   export let embedded = false;
+  export let categoryPageOpen = false;
 
   const dispatch = createEventDispatcher<{
     select: { view: string };
@@ -25,7 +27,9 @@
     back: void;
   }>();
 
-  let categoriesOpen = false;
+  let categoriesElement: HTMLElement;
+  let titleElement: HTMLHeadingElement;
+  let lastSelectedView: string | null = null;
   let fieldHintsExpanded = false;
 
   $: allViews = [...groups.flat(), ...auxiliaryViews];
@@ -49,12 +53,23 @@
     ? $t('mobile.options.collapseHints', { default: 'Collapse hints' })
     : $t('mobile.options.expandHints', { default: 'Expand hints' });
 
-  function select(view: string): void {
+  async function select(view: string): Promise<void> {
+    lastSelectedView = view;
     dispatch('select', { view });
-    categoriesOpen = false;
+    categoryPageOpen = true;
+    await tick();
+    titleElement.focus();
   }
 
-  function goBack(): void {
+  async function goBack(): Promise<void> {
+    if (categoryPageOpen) {
+      categoryPageOpen = false;
+      await tick();
+      const selectedButton = Array.from(categoriesElement.querySelectorAll<HTMLButtonElement>('button'))
+        .find((button) => button.dataset.view === (lastSelectedView ?? activeView));
+      selectedButton?.focus({ preventScroll: true });
+      return;
+    }
     if (embedded) {
       dispatch('back');
       return;
@@ -73,10 +88,10 @@
   }
 
   function handleKeydown(event: KeyboardEvent): void {
-    if (!categoriesOpen || event.key !== 'Escape') return;
+    if (event.defaultPrevented || event.key !== 'Escape') return;
     event.preventDefault();
     event.stopPropagation();
-    categoriesOpen = false;
+    void goBack();
   }
 </script>
 
@@ -85,60 +100,44 @@
 
 <div
   class="mobile-options-shell"
+  class:category-page-open={categoryPageOpen}
   class:hints-expanded={fieldHintsExpanded}
   class:advanced-tweaks-visible={showAdvancedTweaks}
 >
   <header class="mobile-options-header">
-    <button type="button" aria-label={$t('mobile.options.back', { default: 'Back to player' })} on:click={goBack}>
+    <button type="button" aria-label={categoryPageOpen
+      ? $t('mobile.options.backToCategories', { default: 'Back to categories' })
+      : $t('mobile.options.back', { default: 'Back to player' })} on:click={goBack}>
       <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
     </button>
-    <button class="mobile-options-title" type="button" aria-haspopup="dialog" aria-expanded={categoriesOpen} on:click={() => (categoriesOpen = true)}>
-      <span>{activeDefinition?.label ?? windowTitle}</span>
-      <small>{activeParent?.label ?? $t('mobile.options.title', { default: 'Options' })}</small>
-      <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
-    </button>
-    <button type="button" aria-label={$t('mobile.options.categories', { default: 'Choose category' })} on:click={() => (categoriesOpen = true)}>
-      <span class="material-symbols-outlined" aria-hidden="true">apps</span>
-    </button>
+    <h1 class="mobile-options-title" tabindex="-1" bind:this={titleElement}>
+      <span>{categoryPageOpen ? activeDefinition?.label ?? windowTitle : $t('mobile.options.title', { default: 'Options' })}</span>
+      {#if categoryPageOpen}
+        <small>{activeParent?.label ?? $t('mobile.options.title', { default: 'Options' })}</small>
+      {/if}
+    </h1>
   </header>
 
-  <div class="mobile-options-tools" aria-label={$t('options.tools.label', { default: 'Page tools' })}>
-    <button class:active={showAdvancedTweaks || advancedTweaksModified} type="button" aria-label={advancedLabel} disabled={!canToggleAdvanced} on:click={toggleAdvanced}>
-      <span class="material-symbols-outlined" aria-hidden="true">tune</span>
-      <span>{mobileTweaksLabel}</span>
-    </button>
-    <button type="button" aria-label={hintLabel} disabled={!canToggleHints} on:click={() => (fieldHintsExpanded = !fieldHintsExpanded)}>
-      <span class="material-symbols-outlined" aria-hidden="true">{fieldHintsExpanded ? 'unfold_less' : 'unfold_more'}</span>
-      <span>{mobileHintsLabel}</span>
-    </button>
-    <button type="button" aria-label={resetPageLabel} disabled={!canReset} on:click={() => dispatch('reset', { view: activeView })}>
-      <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
-      <span>{$t('mobile.options.resetPage', { default: 'Reset page' })}</span>
-    </button>
-  </div>
+  <nav class="mobile-options-categories" hidden={categoryPageOpen} bind:this={categoriesElement} aria-label={$t('mobile.options.categories', { default: 'Choose category' })}>
+    <MobileOptionsCategories {groups} {auxiliaryViews} on:select={(event) => select(event.detail.view)} />
+  </nav>
 
-  <main class="mobile-options-content {contentClass}"><slot></slot></main>
-</div>
-
-{#if categoriesOpen}
-  <button class="mobile-options-sheet-scrim" type="button" aria-label={$t('mobile.menu.close', { default: 'Close menu' })} on:click={() => (categoriesOpen = false)}></button>
-  <div class="mobile-options-sheet" role="dialog" aria-modal="true" aria-label={$t('mobile.options.categories', { default: 'Choose category' })}>
-    <div class="mobile-options-sheet-handle" aria-hidden="true"></div>
-    <header>
-      <h2>{$t('mobile.options.title', { default: 'Options' })}</h2>
-      <button type="button" aria-label={$t('mobile.menu.close', { default: 'Close menu' })} on:click={() => (categoriesOpen = false)}>
-        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+  {#if categoryPageOpen}
+    <div class="mobile-options-tools" aria-label={$t('options.tools.label', { default: 'Page tools' })}>
+      <button class:active={showAdvancedTweaks || advancedTweaksModified} type="button" aria-label={advancedLabel} disabled={!canToggleAdvanced} on:click={toggleAdvanced}>
+        <span class="material-symbols-outlined" aria-hidden="true">tune</span>
+        <span>{mobileTweaksLabel}</span>
       </button>
-    </header>
-    <div class="mobile-options-category-grid">
-      {#each groups.flat() as view}
-        {#if !view.hidden}
-          <button class:active={activeView === view.id} class:child={view.parentId != null} type="button" on:click={() => select(view.id)}>
-            <span class="material-symbols-outlined" aria-hidden="true">{view.icon}</span>
-            <span>{view.label}</span>
-          </button>
-        {/if}
-      {/each}
+      <button type="button" aria-label={hintLabel} disabled={!canToggleHints} on:click={() => (fieldHintsExpanded = !fieldHintsExpanded)}>
+        <span class="material-symbols-outlined" aria-hidden="true">{fieldHintsExpanded ? 'unfold_less' : 'unfold_more'}</span>
+        <span>{mobileHintsLabel}</span>
+      </button>
+      <button type="button" aria-label={resetPageLabel} disabled={!canReset} on:click={() => dispatch('reset', { view: activeView })}>
+        <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
+        <span>{$t('mobile.options.resetPage', { default: 'Reset page' })}</span>
+      </button>
     </div>
-  </div>
-{/if}
+
+    <main class="mobile-options-content {contentClass}"><slot></slot></main>
+  {/if}
+</div>
