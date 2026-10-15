@@ -2,6 +2,7 @@ pub(crate) mod file_picker;
 pub(crate) mod files;
 pub(crate) mod tray;
 mod tray_menu;
+mod window_state;
 
 use tauri::{Manager, WebviewWindow, WindowEvent};
 
@@ -26,6 +27,7 @@ pub fn run() {
             let _ = tray::restore_main(app);
         }))
         .manage(std::sync::Mutex::new(tray::TrayState::default()))
+        .manage(window_state::WindowState::default())
         // Tauri's menu callbacks are global and outlive removed icons. Register
         // once so disabling/re-enabling the tray cannot duplicate transport.
         .on_menu_event(|app, event| tray::action(app, event.id.as_ref()))
@@ -47,7 +49,8 @@ pub fn run() {
                 .iter()
                 .find(|config| config.label == "main")
                 .expect("Main window configuration");
-            crate::windows::builder(app.handle(), config)?.build()?;
+            let window = crate::windows::builder(app.handle(), config)?.build()?;
+            window_state::attach(&window)?;
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -56,6 +59,7 @@ pub fn run() {
             }
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
+                window_state::save(window.app_handle());
                 if tray::close_to_tray(window.app_handle()) {
                     // If hiding fails, leave the player accessible.
                     if let Err(error) = window.hide() {
@@ -66,6 +70,11 @@ pub fn run() {
                 }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("Could not start izci");
+        .build(tauri::generate_context!())
+        .expect("Could not start izci")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
+                window_state::save(app);
+            }
+        });
 }
