@@ -36,6 +36,7 @@ mod signaling_transport;
 mod tray;
 #[cfg(target_os = "windows")]
 mod tray_bubble;
+mod tray_icon;
 #[cfg(target_os = "windows")]
 mod tray_scroll;
 #[cfg(target_os = "windows")]

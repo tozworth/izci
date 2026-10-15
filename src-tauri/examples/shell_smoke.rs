@@ -3,6 +3,9 @@
 #[allow(dead_code)]
 #[path = "../src/fonts.rs"]
 mod fonts;
+#[cfg(target_os = "windows")]
+#[path = "../src/tray_icon.rs"]
+mod tray_icon;
 #[cfg(feature = "builtin-signaling")]
 mod signaling {
     pub fn stop(_: &tauri::AppHandle, _: Option<&str>) {}

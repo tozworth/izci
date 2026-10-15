@@ -7,6 +7,9 @@ mod linux;
 #[path = "../src/native_filesystem.rs"]
 mod native_filesystem;
 #[cfg(target_os = "linux")]
+#[path = "../src/tray_icon.rs"]
+mod tray_icon;
+#[cfg(target_os = "linux")]
 #[path = "../src/linux/windows.rs"]
 mod windows;
 
