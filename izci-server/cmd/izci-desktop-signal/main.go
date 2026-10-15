@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/dunsparce9/izci/izci-server/internal/desktopserver"
+	"github.com/tozworth/izci/izci-server/internal/desktopserver"
 	"os"
 )
 

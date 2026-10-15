@@ -12,7 +12,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/dunsparce9/izci/izci-server/internal/persistence"
+	"github.com/tozworth/izci/izci-server/internal/persistence"
 )
 
 type chatTrack struct {

@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/config"
-	"github.com/dunsparce9/izci/izci-server/internal/signaling"
+	"github.com/tozworth/izci/izci-server/internal/config"
+	"github.com/tozworth/izci/izci-server/internal/signaling"
 )
 
 type Options struct {

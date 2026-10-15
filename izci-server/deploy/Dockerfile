@@ -12,7 +12,7 @@ RUN go mod download
 COPY . ./
 ARG VERSION
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
-  -ldflags "-s -w -X github.com/dunsparce9/izci/izci-server/internal/version.Version=${VERSION}" \
+  -ldflags "-s -w -X github.com/tozworth/izci/izci-server/internal/version.Version=${VERSION}" \
   -o /out/izci-server ./cmd/izci-server
 
 FROM debian:bookworm-slim

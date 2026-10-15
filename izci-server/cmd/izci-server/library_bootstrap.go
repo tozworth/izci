@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/config"
-	"github.com/dunsparce9/izci/izci-server/internal/host"
-	"github.com/dunsparce9/izci/izci-server/internal/library"
-	"github.com/dunsparce9/izci/izci-server/internal/media"
-	"github.com/dunsparce9/izci/izci-server/internal/persistence"
-	"github.com/dunsparce9/izci/izci-server/internal/version"
+	"github.com/tozworth/izci/izci-server/internal/config"
+	"github.com/tozworth/izci/izci-server/internal/host"
+	"github.com/tozworth/izci/izci-server/internal/library"
+	"github.com/tozworth/izci/izci-server/internal/media"
+	"github.com/tozworth/izci/izci-server/internal/persistence"
+	"github.com/tozworth/izci/izci-server/internal/version"
 )
 
 // buildDedicatedHost probes system dependencies, opens durable state,

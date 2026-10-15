@@ -15,7 +15,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/dunsparce9/izci/izci-server/internal/config"
+	"github.com/tozworth/izci/izci-server/internal/config"
 )
 
 // harness runs the real router on an ephemeral listener with a manual clock.

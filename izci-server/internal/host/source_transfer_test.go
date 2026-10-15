@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/library"
-	"github.com/dunsparce9/izci/izci-server/internal/media"
-	"github.com/dunsparce9/izci/izci-server/internal/persistence"
+	"github.com/tozworth/izci/izci-server/internal/library"
+	"github.com/tozworth/izci/izci-server/internal/media"
+	"github.com/tozworth/izci/izci-server/internal/persistence"
 )
 
 func testHostWithLibrary(t *testing.T, files map[string]string) (*Host, map[string]string) {

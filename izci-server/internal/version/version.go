@@ -2,7 +2,7 @@
 //
 // The default is "dev"; release builds override it with:
 //
-//	go build -ldflags "-X github.com/dunsparce9/izci/izci-server/internal/version.Version=<tag>"
+//	go build -ldflags "-X github.com/tozworth/izci/izci-server/internal/version.Version=<tag>"
 package version
 
 // Version is the server release version, or "dev" for local builds.

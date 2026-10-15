@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	appProtocol "github.com/dunsparce9/izci/izci-server/internal/protocol"
+	appProtocol "github.com/tozworth/izci/izci-server/internal/protocol"
 )
 
 // TestSchedulerStartupWindow proves a fresh peer gets the seek target and

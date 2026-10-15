@@ -55,7 +55,7 @@ import {
 } from './multiplayer-server-http';
 import { errorMessage } from './multiplayer-utils';
 
-export const SERVER_SETUP_GUIDE_URL = 'https://github.com/dunsparce9/izci/blob/main/izci-server/README.md';
+export const SERVER_SETUP_GUIDE_URL = 'https://github.com/tozworth/izci/blob/main/izci-server/README.md';
 export const SERVER_PROVIDER_NOTICE_VERSION = 1;
 
 export interface ServerLoginState {

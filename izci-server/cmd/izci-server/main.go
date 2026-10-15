@@ -31,10 +31,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/config"
-	"github.com/dunsparce9/izci/izci-server/internal/host"
-	"github.com/dunsparce9/izci/izci-server/internal/signaling"
-	"github.com/dunsparce9/izci/izci-server/internal/version"
+	"github.com/tozworth/izci/izci-server/internal/config"
+	"github.com/tozworth/izci/izci-server/internal/host"
+	"github.com/tozworth/izci/izci-server/internal/signaling"
+	"github.com/tozworth/izci/izci-server/internal/version"
 )
 
 func main() {

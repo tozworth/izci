@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/library"
+	"github.com/tozworth/izci/izci-server/internal/library"
 )
 
 func scannedFor(vpath, abs, name, ext, kind string, size int64, mtime int64, key string) library.ScannedFile {

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/media"
+	"github.com/tozworth/izci/izci-server/internal/media"
 )
 
 // Peer is one connected client: registry state plus channels. Media bytes

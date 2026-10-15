@@ -21,7 +21,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/dunsparce9/izci/izci-server/internal/library"
+	"github.com/tozworth/izci/izci-server/internal/library"
 )
 
 const (

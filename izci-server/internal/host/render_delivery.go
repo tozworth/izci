@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/media"
-	appProtocol "github.com/dunsparce9/izci/izci-server/internal/protocol"
+	"github.com/tozworth/izci/izci-server/internal/media"
+	appProtocol "github.com/tozworth/izci/izci-server/internal/protocol"
 )
 
 // Buffered-Opus delivery over izci-render, mirroring the browser host

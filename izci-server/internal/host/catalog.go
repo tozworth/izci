@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dunsparce9/izci/izci-server/internal/library"
+	"github.com/tozworth/izci/izci-server/internal/library"
 )
 
 // Catalog is the host's in-memory view of the persistent library: queue,

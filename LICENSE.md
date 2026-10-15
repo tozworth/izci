@@ -256,4 +256,4 @@ the native libraries embedded in WASM and SDK packages. Package metadata alone
 does not identify all embedded licenses. Preserve upstream copyright and NOTICE
 text, and retain all notices applicable to compiled or generated code.
 Current sources, including izci's modifications, are available at:
-https://github.com/dunsparce9/izci
+https://github.com/tozworth/izci

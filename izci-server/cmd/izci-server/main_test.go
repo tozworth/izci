@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/config"
+	"github.com/tozworth/izci/izci-server/internal/config"
 )
 
 // syncBuffer is a goroutine-safe log sink for asserting on startup lines.

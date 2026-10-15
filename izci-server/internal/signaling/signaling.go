@@ -26,9 +26,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/config"
-	appProtocol "github.com/dunsparce9/izci/izci-server/internal/protocol"
-	"github.com/dunsparce9/izci/izci-server/internal/version"
+	"github.com/tozworth/izci/izci-server/internal/config"
+	appProtocol "github.com/tozworth/izci/izci-server/internal/protocol"
+	"github.com/tozworth/izci/izci-server/internal/version"
 )
 
 const (

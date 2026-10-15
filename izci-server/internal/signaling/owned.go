@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/config"
+	"github.com/tozworth/izci/izci-server/internal/config"
 )
 
 // NewOwned provisions exactly one private owner via the parent process pipe.

@@ -1,4 +1,4 @@
-module github.com/dunsparce9/izci/izci-server
+module github.com/tozworth/izci/izci-server
 
 go 1.27.1
 

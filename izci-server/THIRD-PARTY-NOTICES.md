@@ -340,7 +340,7 @@ The server embeds an AHX/HVL WASM replayer, executed through wazero. This binary
 
 License: BSD-3-Clause
 
-Source: https://github.com/pete-gordon/hivelytracker ; https://github.com/dunsparce9/izci
+Source: https://github.com/pete-gordon/hivelytracker ; https://github.com/tozworth/izci
 
 Embedded from internal/media/hively-replay.wasm, with the BSD notice preserved in internal/media/hively-license.txt. HivelyVersion in internal/media/deps.go identifies this server renderer as 0.1.0; this is an izci render/cache identifier, not an upstream release version. The server source describes it as the browser replay core, but the current server and browser binaries differ and an independently recorded upstream source revision for the server binary was not found.
 

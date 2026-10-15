@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/dunsparce9/izci/izci-server/internal/library"
+	"github.com/tozworth/izci/izci-server/internal/library"
 )
 
 func TestSharedQueueCommandsKeepCatalogAndNavigationTogether(t *testing.T) {

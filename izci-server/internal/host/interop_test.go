@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/config"
-	"github.com/dunsparce9/izci/izci-server/internal/media"
-	appProtocol "github.com/dunsparce9/izci/izci-server/internal/protocol"
-	"github.com/dunsparce9/izci/izci-server/internal/signaling"
 	"github.com/pion/webrtc/v3"
+	"github.com/tozworth/izci/izci-server/internal/config"
+	"github.com/tozworth/izci/izci-server/internal/media"
+	appProtocol "github.com/tozworth/izci/izci-server/internal/protocol"
+	"github.com/tozworth/izci/izci-server/internal/signaling"
 )
 
 // TestPionThreeChannelsHello proves the host answers a client offer and

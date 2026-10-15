@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/library"
-	"github.com/dunsparce9/izci/izci-server/internal/media"
+	"github.com/tozworth/izci/izci-server/internal/library"
+	"github.com/tozworth/izci/izci-server/internal/media"
 )
 
 // cancelPeerTransfer aborts any in-flight source transfer for a peer by

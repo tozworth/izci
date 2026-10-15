@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/library"
+	"github.com/tozworth/izci/izci-server/internal/library"
 )
 
 func identityHello(name, identity string, freeplay bool) string {

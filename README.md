@@ -1,19 +1,19 @@
 <table>
 <tr>
-<td><img height="75" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/docs/screenshots/carousel1.png" /></td>
-<td><img height="75" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/docs/screenshots/carousel2.png" /></td>
-<td><img height="75" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/docs/screenshots/carousel3.png" /></td>
-<td><img height="75" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/docs/screenshots/carousel4.png" /></td>
+<td><img height="75" src="https://raw.githubusercontent.com/tozworth/izci/refs/heads/main/docs/screenshots/carousel1.png" /></td>
+<td><img height="75" src="https://raw.githubusercontent.com/tozworth/izci/refs/heads/main/docs/screenshots/carousel2.png" /></td>
+<td><img height="75" src="https://raw.githubusercontent.com/tozworth/izci/refs/heads/main/docs/screenshots/carousel3.png" /></td>
+<td><img height="75" src="https://raw.githubusercontent.com/tozworth/izci/refs/heads/main/docs/screenshots/carousel4.png" /></td>
 </tr>
 </table>
 
-## <img height="30" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/public/icons/izci-icon.svg"> izci
+## <img height="30" src="https://raw.githubusercontent.com/tozworth/izci/refs/heads/main/public/icons/izci-icon.svg"> izci
 
 A local music player [PWA](https://en.wikipedia.org/wiki/Progressive_web_app). It plays regular audio files and tracker modules. Compact interface, low CPU usage, several UI modes to adapt to any window size, and a lot of oddly specific settings (logarithmic volume slider anyone?)
 
 izci is mostly a personal hobby project. It has already reached "daily driver" status, but is still missing many, many features that will be added once I realize they're missing.
 
-<img height="100" alt="image" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/docs/screenshots/small1.png" />
+<img height="100" alt="image" src="https://raw.githubusercontent.com/tozworth/izci/refs/heads/main/docs/screenshots/small1.png" />
 
 
 ## Features

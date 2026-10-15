@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/library"
+	"github.com/tozworth/izci/izci-server/internal/library"
 )
 
 const maxTrackInfoProbeBytes = 128 * 1024

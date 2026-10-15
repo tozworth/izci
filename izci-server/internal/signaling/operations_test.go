@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dunsparce9/izci/izci-server/internal/config"
+	"github.com/tozworth/izci/izci-server/internal/config"
 )
 
 func TestReadinessAndMetricsDoNotExposeSecrets(t *testing.T) {

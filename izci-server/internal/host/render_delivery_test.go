@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dunsparce9/izci/izci-server/internal/library"
-	"github.com/dunsparce9/izci/izci-server/internal/media"
-	"github.com/dunsparce9/izci/izci-server/internal/persistence"
-	appProtocol "github.com/dunsparce9/izci/izci-server/internal/protocol"
+	"github.com/tozworth/izci/izci-server/internal/library"
+	"github.com/tozworth/izci/izci-server/internal/media"
+	"github.com/tozworth/izci/izci-server/internal/persistence"
+	appProtocol "github.com/tozworth/izci/izci-server/internal/protocol"
 )
 
 // Render delivery tests: manifest flow, need/epoch planning, readiness
