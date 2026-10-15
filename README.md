@@ -31,6 +31,7 @@ izci is mostly a personal hobby project. It has already reached "daily driver" s
 ## Install
 
 Go to [izci.ağla.net](https://izci.ağla.net) and hit the "Install app" button in the browser's address bar, *or* use izci's own "Install" entry under the "glyph menu". Both trigger the same PWA install prompt on Chromium browsers.
+
 <img width="347" height="367" alt="'Install izci...' highlighted in izci's top-bar 'glyph menu'" src="https://github.com/user-attachments/assets/68bc0c0f-f051-4b3d-a7a2-3bdb60e92797" />
 
 ## Build / develop
