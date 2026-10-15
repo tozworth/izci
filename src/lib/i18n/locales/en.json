@@ -1249,6 +1249,20 @@
       }
     },
     "modules": {
+      "ramping": {
+        "title": "Ramping",
+        "hint": "Smooths abrupt note, volume, and panning transitions. Longer ramps soften attacks; timing varies by decoder.",
+        "options": {
+          "off": "Off",
+          "short": "Short",
+          "normal": "Normal",
+          "long": "Long"
+        }
+      },
+      "hivelyRampingMs": {
+        "title": "Hively ramp duration (ms)",
+        "hint": "AHX/HVL duration at Normal ramping, independent of tempo. Short halves it; Long doubles it."
+      },
       "interpolation": {
         "options": {
           "oneTap": "1-tap (minimal)",

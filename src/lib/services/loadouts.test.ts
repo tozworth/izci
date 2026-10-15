@@ -175,12 +175,12 @@ describe('automatic loadout runtime', () => {
 
   it('captures media and module controls as one playback category', () => {
     playbackSettings.update({ playbackRate: 1.25, trueSpeed: true, replayGainMode: 'album' });
-    modulePlaybackSettings.update({ panStrength: 140, tempoFactor: 1.5 });
+    modulePlaybackSettings.update({ panStrength: 140, tempoFactor: 1.5, ramping: 'long', hivelyRampingMs: 8 });
 
     expect(captureLoadoutSettings(['playback'])?.playback).toEqual(
       playback(
         { playbackRate: 1.25, trueSpeed: true, replayGainMode: 'album' },
-        { panStrength: 140, tempoFactor: 1.5 }
+        { panStrength: 140, tempoFactor: 1.5, ramping: 'long', hivelyRampingMs: 8 }
       )
     );
   });

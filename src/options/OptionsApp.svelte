@@ -12,6 +12,7 @@
   } from '$lib/services/options-window-state';
   import { appearanceSettings, DEFAULT_APPEARANCE_SETTINGS } from '$lib/stores/appearance-settings';
   import { DEFAULT_METADATA_SETTINGS, metadataSettings } from '$lib/stores/metadata-settings';
+  import { DEFAULT_MODULE_PLAYBACK_SETTINGS, modulePlaybackSettings } from '$lib/stores/module-playback-settings';
   import { DEFAULT_MULTIPLAYER_SETTINGS, multiplayerSettings } from '$lib/stores/multiplayer-settings';
   import { DEFAULT_PLAYBACK_SETTINGS, playbackSettings } from '$lib/stores/playback-settings';
   import { DEFAULT_PATTERN_VIEWER_SETTINGS, patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
@@ -178,6 +179,10 @@
           $playbackSettings.gaplessPlayback !== DEFAULT_PLAYBACK_SETTINGS.gaplessPlayback ||
           $playbackSettings.fadeDurationSeconds !== DEFAULT_PLAYBACK_SETTINGS.fadeDurationSeconds ||
           $playbackSettings.manualTrackChangeFadePercent !== DEFAULT_PLAYBACK_SETTINGS.manualTrackChangeFadePercent;
+        break;
+      case 'modules':
+        advancedTweaksModified =
+          $modulePlaybackSettings.hivelyRampingMs !== DEFAULT_MODULE_PLAYBACK_SETTINGS.hivelyRampingMs;
         break;
       case 'oda':
         advancedTweaksModified =

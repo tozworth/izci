@@ -1257,6 +1257,20 @@
       }
     },
     "modules": {
+      "ramping": {
+        "title": "Geçiş yumuşatma",
+        "hint": "Ani nota, ses düzeyi ve pan değişimlerini yumuşatır. Uzun geçişler atakları yumuşatır; süreler kod çözücüye göre değişir.",
+        "options": {
+          "off": "Kapalı",
+          "short": "Kısa",
+          "normal": "Normal",
+          "long": "Uzun"
+        }
+      },
+      "hivelyRampingMs": {
+        "title": "Hively yumuşatma süresi (ms)",
+        "hint": "Normal ayarında AHX/HVL geçiş süresi; tempodan bağımsızdır. Kısa yarısını, Uzun iki katını kullanır."
+      },
       "interpolation": {
         "options": {
           "oneTap": "1-tap (en az)",

@@ -2,12 +2,25 @@
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
   import ThemedSelect from '$lib/components/options/ThemedSelect.svelte';
-  import { DEFAULT_MODULE_PLAYBACK_SETTINGS, MODULE_INTERPOLATION_OPTIONS, modulePlaybackSettings } from '$lib/stores/module-playback-settings';
+  import { DEFAULT_MODULE_PLAYBACK_SETTINGS, MODULE_INTERPOLATION_OPTIONS, MODULE_RAMPING_OPTIONS, modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 
   let pendingStereoSeparation: number | null = null;
   let pendingPanStrength: number | null = null;
   function formatFactor(value: number) { return `${Math.round(value * 100)}% (${value.toFixed(2)}x)`; }
   function handleRepeatCountChange(event: CustomEvent<string>) { modulePlaybackSettings.update({ repeatCount: Number(event.detail) }); }
+  function handleRampingChange(event: CustomEvent<string>) {
+    const ramping = MODULE_RAMPING_OPTIONS.find((value) => value === event.detail);
+    if (ramping) modulePlaybackSettings.update({ ramping });
+  }
+  function handleRampingDurationChange(event: Event) {
+    modulePlaybackSettings.update({ hivelyRampingMs: (event.currentTarget as HTMLInputElement).valueAsNumber });
+  }
+  function rampingLabel(value: string): string {
+    if (value === 'off') return $t('options.modules.ramping.options.off', { default: 'Off' });
+    if (value === 'short') return $t('options.modules.ramping.options.short', { default: 'Short' });
+    if (value === 'long') return $t('options.modules.ramping.options.long', { default: 'Long' });
+    return $t('options.modules.ramping.options.normal', { default: 'Normal' });
+  }
   function handleInterpolationChange(event: CustomEvent<string>) {
     const value = Number(event.detail);
     modulePlaybackSettings.update({ interpolationFilter: value === 1 || value === 2 || value === 4 || value === 8 ? value : DEFAULT_MODULE_PLAYBACK_SETTINGS.interpolationFilter });
@@ -82,6 +95,20 @@
             label={$t('options.modules.interpolation.title', { default: 'Interpolation' })}
             on:change={handleInterpolationChange}
           />
+      </SettingsField>
+
+      <SettingsField title={$t('options.modules.ramping.title', { default: 'Ramping' })} hint={$t('options.modules.ramping.hint', { default: 'Smooths abrupt note, volume, and panning transitions. Longer ramps soften attacks; timing varies by decoder.' })}>
+        <ThemedSelect
+          value={$modulePlaybackSettings.ramping}
+          options={MODULE_RAMPING_OPTIONS.map((value) => ({ value, label: rampingLabel(value) }))}
+          label={$t('options.modules.ramping.title', { default: 'Ramping' })}
+          on:change={handleRampingChange}
+        />
+      </SettingsField>
+
+      <SettingsField title={$t('options.modules.hivelyRampingMs.title', { default: 'Hively ramp duration (ms)' })} hint={$t('options.modules.hivelyRampingMs.hint', { default: 'AHX/HVL duration at Normal ramping, independent of tempo. Short halves it; Long doubles it.' })} advanced>
+        <input type="range" min="1" max="20" step="0.1" value={$modulePlaybackSettings.hivelyRampingMs} disabled={$modulePlaybackSettings.ramping === 'off'} on:input={handleRampingDurationChange} />
+        <span class="field-output">{$modulePlaybackSettings.hivelyRampingMs.toFixed(1)} ms</span>
       </SettingsField>
     </div>
   </div>

@@ -88,6 +88,8 @@
     if (key === 'replayGainMode') return translatedOption('options.playback.replayGain.title', 'ReplayGain');
     if (key === 'rafEnabled') return $t('options.loadouts.tooltip.rafEnabled', { default: 'Raf' });
     if (key === 'interpolationFilter') return translatedOption('options.modules.interpolation.title', 'Interpolation');
+    if (key === 'ramping') return translatedOption('options.modules.ramping.title', 'Ramping');
+    if (key === 'hivelyRampingMs') return translatedOption('options.modules.hivelyRampingMs.title', 'Hively ramp duration (ms)');
     if (key === 'stereoSeparation') return translatedOption('options.modules.stereoSeparation.title', 'Stereo separation (MOD)');
     if (key === 'panStrength') return translatedOption('options.modules.panStrength.title', 'Pan strength');
     if (key === 'repeatCount') return translatedOption('options.modules.looping.title', 'Looping');
@@ -141,6 +143,8 @@
       return translatedOption('options.playback.replayGain.options.track', 'Track');
     }
     if (key === 'interpolationFilter') return `${value}-tap`;
+    if (key === 'ramping') return translatedOption(`options.modules.ramping.options.${value}`, String(value));
+    if (key === 'hivelyRampingMs') return `${value} ms`;
     if (key === 'stereoSeparation' || key === 'panStrength') return `${value}%`;
     if (key === 'repeatCount') {
       if (value === -1) return translatedOption('options.modules.looping.forever', 'Loop forever');

@@ -12,6 +12,8 @@ export type LoadoutSettingDifferenceKey =
   | 'rafPresetName'
   | 'rafEnabled'
   | 'interpolationFilter'
+  | 'ramping'
+  | 'hivelyRampingMs'
   | 'stereoSeparation'
   | 'panStrength'
   | 'repeatCount'
@@ -68,6 +70,8 @@ export function getLoadoutSettingDifferences(
     addDifference(differences, 'trueSpeed', settings.playback.trueSpeed, DEFAULT_PLAYBACK_SETTINGS.trueSpeed);
     addDifference(differences, 'replayGainMode', settings.playback.replayGainMode, DEFAULT_PLAYBACK_SETTINGS.replayGainMode);
     addDifference(differences, 'interpolationFilter', settings.playback.modules.interpolationFilter, DEFAULT_MODULE_PLAYBACK_SETTINGS.interpolationFilter);
+    addDifference(differences, 'ramping', settings.playback.modules.ramping, DEFAULT_MODULE_PLAYBACK_SETTINGS.ramping);
+    addDifference(differences, 'hivelyRampingMs', settings.playback.modules.hivelyRampingMs, DEFAULT_MODULE_PLAYBACK_SETTINGS.hivelyRampingMs);
     addDifference(differences, 'stereoSeparation', settings.playback.modules.stereoSeparation, DEFAULT_MODULE_PLAYBACK_SETTINGS.stereoSeparation);
     addDifference(differences, 'panStrength', settings.playback.modules.panStrength, DEFAULT_MODULE_PLAYBACK_SETTINGS.panStrength);
     addDifference(differences, 'repeatCount', settings.playback.modules.repeatCount, DEFAULT_MODULE_PLAYBACK_SETTINGS.repeatCount);
