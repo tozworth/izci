@@ -30,8 +30,24 @@ player. WebKit file chooser requests materialize disk-backed Files, so large
 media files do not cross IPC or get copied into JavaScript buffers to import.
 Linux native paths retain case sensitivity. Queue/library records and folder
 references keep their existing separate IndexedDB boundaries. Writable tool
-targets, tray integration, boot launch, associations, miniplayer, built-in
+targets, boot launch, associations, miniplayer, built-in
 signaling, and the Windows headless harness are outside the Linux MVP.
+
+Appearance's **Show in** setting offers Taskbar only (default), Tray only,
+and Both. Linux uses an AppIndicator with a native menu: Show/Hide izci,
+Previous/Play/Pause/Next, Raf and its presets, Options, Oda, and Exit.
+Labels, transport availability, and Raf checks update live, including changes
+made in Options and effective Multiplayer playback. Light/dark tray glyphs
+and the advanced **Close to tray** setting use the shared synchronized desktop
+settings store. Close to tray keeps the main playback owner alive; Exit quits.
+Removing the tray restores a hidden player before removing its icon. Launching
+another instance restores the existing player rather than creating a second one.
+
+The desktop panel must support AppIndicator/StatusNotifier items; GNOME Shell
+may need an AppIndicator extension. Linux tray mouse events, tooltip bubbles,
+and scroll-volume hooks are unavailable through the
+[Tauri tray API](https://v2.tauri.app/learn/system-tray/), so use the native menu
+to show the player. Tray-only taskbar suppression depends on the compositor.
 Browser audio/video codec availability depends on installed GStreamer plugins;
 tracker and Hively decoding still use their existing WASM/worklet pipelines.
 On the tested WebKitGTK runtime, routing an HTML media element through Web Audio
@@ -53,6 +69,11 @@ dialogs. Run it under `xvfb-run -a` for a hidden display. It also checks Options
 opening, reuse, native close/reopen, and settings sync, opens the first fixture's
 folder, and cancels another file picker. Use a small fixture folder;
 the folder check scans and imports its media into the disposable profile only.
+It also enables/removes/recreates the tray through Options, checks safe removal
+while hidden, invokes the production native menu callback for show/hide,
+Options and transport, checks close-to-tray, and verifies playback continues
+while hidden. A real desktop panel is still needed to check icon placement and
+physical menu activation on the target desktop environment.
 
 ## Windows desktop MVP
 

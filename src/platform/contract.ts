@@ -13,5 +13,6 @@ type ImplementsPlatform<T extends Platform> = T;
 export type PlatformImplementations = [
   ImplementsPlatform<typeof import('./pwa/platform')>,
   ImplementsPlatform<typeof import('../desktop/platform')>,
+  ImplementsPlatform<typeof import('../desktop/linux/platform')>,
   ImplementsPlatform<typeof import('../android/platform')>
 ];

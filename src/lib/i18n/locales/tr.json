@@ -1792,6 +1792,7 @@
         "hint": "Oynatma her başladığında, baştan başladığında veya devam ettiğinde başlığı ve sanatçıyı sistem tepsisi simgesinin yanında beş saniye gösterir. Sistem tepsisi simgesi gerektirir."
       },
       "showIn": {
+        "linuxHint": "izci’nin nerede görüneceğini seçin. AppIndicator destekleyen bir masaüstü paneli gerektirir. Gizli pencereyi geri getirmek için tepsi menüsünü kullanın.",
         "title": "Gösterileceği yer",
         "hint": "izci'nin nerede görüneceğini seçin. Sistem tepsisi simgesi oynatma ve pencere denetimleri sunar. Ses düzeyini her kademe için %5 değiştirmek üzere simgenin üzerinde fare tekerleğini çevirin.",
         "taskbar": "Yalnızca görev çubuğu",
@@ -1821,6 +1822,8 @@
       }
     },
     "tray": {
+      "show": "izci’yi göster",
+      "hide": "izci’yi gizle",
       "menu": "izci sistem tepsisi menüsü",
       "volume": "Ses düzeyi %{percent}",
       "pause": "Duraklat",

@@ -4,6 +4,9 @@ export { filesystem } from './filesystem';
 export { default as PlatformWindowControls } from '../DesktopWindowControls.svelte';
 export { desktopTitlebar as platformTitlebar } from '../window-titlebar';
 export { packagedInvitationOrigin as getPublicInvitationOrigin } from '../../platform/public-origin';
+export { default as PlatformAppearanceSettings } from './AppearanceSettings.svelte';
+export { resetDesktopAppearance as resetPlatformAppearance } from '../settings';
+export { createPlatformIntegration } from './system-integration';
 
 export const platformId = 'desktop' as const;
 // WebKit popup creation needs a real destination. Browser-style blank priming

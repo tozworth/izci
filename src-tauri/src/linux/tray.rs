@@ -38,7 +38,7 @@ pub fn close_to_tray(app: &AppHandle) -> bool {
             .is_ok_and(|state| state.close_to_tray)
 }
 
-fn action(app: &AppHandle, id: &str) {
+pub(crate) fn action(app: &AppHandle, id: &str) {
     let enabled = app
         .state::<Mutex<TrayState>>()
         .lock()
@@ -115,7 +115,6 @@ fn configure(
         TrayIconBuilder::with_id(TRAY_ID)
             .icon(tray_icon.image())
             .menu(&menu)
-            .on_menu_event(|app, event| action(app, event.id.as_ref()))
             .build(app)?;
     }
     state.menu = Some(menu);

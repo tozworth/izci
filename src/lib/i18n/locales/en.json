@@ -1784,6 +1784,7 @@
         "hint": "Show the title and artist beside the tray icon for five seconds whenever playback starts, restarts or resumes. Requires a tray icon."
       },
       "showIn": {
+        "linuxHint": "Choose where izci appears. Requires a desktop panel with AppIndicator support. Use the tray menu to restore a hidden window.",
         "title": "Show in",
         "hint": "Choose where izci appears. The tray icon provides playback and window controls. Scroll over it to adjust volume by 5% per notch.",
         "taskbar": "Taskbar only",
@@ -1813,6 +1814,8 @@
       }
     },
     "tray": {
+      "show": "Show izci",
+      "hide": "Hide izci",
       "menu": "izci tray menu",
       "volume": "Volume {percent}%",
       "pause": "Pause",

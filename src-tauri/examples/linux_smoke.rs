@@ -46,9 +46,24 @@ fn smoke_report(app: tauri::AppHandle, result: serde_json::Value) {
 }
 
 #[cfg(target_os = "linux")]
+#[tauri::command]
+fn smoke_tray(app: tauri::AppHandle, action: Option<String>) -> serde_json::Value {
+    if let Some(action) = action {
+        // Use the actual native menu callback, including its enabled-item guard
+        // and targeted event dispatch to the mounted playback owner.
+        linux::tray::action(&app, &action);
+    }
+    serde_json::json!({
+        "available": app.tray_by_id("izci").is_some(),
+        "closeToTray": linux::tray::close_to_tray(&app)
+    })
+}
+
+#[cfg(target_os = "linux")]
 fn main() {
     use gtk::prelude::*;
     use std::{cell::Cell, rc::Rc, time::Duration};
+    use tauri::Manager;
     use webkit2gtk::{SettingsExt, WebViewExt};
 
     let paths: Vec<String> = std::env::args().skip(1).collect();
@@ -59,10 +74,15 @@ fn main() {
     // Separate native storage namespace; the harness cannot open ordinary data.
     context.config_mut().identifier = format!("app.izci.linux-smoke.{}", std::process::id());
     tauri::Builder::default()
+        .manage(std::sync::Mutex::new(linux::tray::TrayState::default()))
+        .on_menu_event(|app, event| linux::tray::action(app, event.id.as_ref()))
         .invoke_handler(tauri::generate_handler![
             desktop_window_ready,
             smoke_windows,
             smoke_report,
+            smoke_tray,
+            linux::tray::configure_linux_tray,
+            linux::tray::restore_main_window,
             linux::files::materialize_desktop_files,
             native_filesystem::pick_desktop_paths,
             native_filesystem::read_desktop_folder,
@@ -125,6 +145,16 @@ fn main() {
                 app.exit(1);
             });
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    if linux::tray::close_to_tray(window.app_handle()) {
+                        api.prevent_close();
+                        window.hide().unwrap();
+                    }
+                }
+            }
         })
         .run(context)
         .expect("Linux smoke runtime");

@@ -70,6 +70,43 @@ window.addEventListener('load', async () => {
     const reopenedOptions = smokePopups.at(-1);
     reopenedOptions.document.querySelector('.close-control').click();
     await wait(() => reopenedOptions.closed, 'reopened Options close');
+    // Edit the real synchronized settings in Options; the playback owner must
+    // create and update its indicator rather than the Options window doing it.
+    await openOptions();
+    const trayOptions = await wait(() => smokePopups.at(-1)?.document.querySelector('.options-page-host') && smokePopups.at(-1), 'tray Options');
+    const showIn = await wait(() => Array.from(trayOptions.document.querySelectorAll('select'))
+      .find(select => Array.from(select.options).some(option => option.value === 'taskbar')), 'Show in setting');
+    const setShowIn = value => { showIn.value = value; showIn.dispatchEvent(new Event('change', { bubbles: true })); };
+    setShowIn('both');
+    await wait(async () => (await invoke('smoke_tray')).available, 'native tray creation from Options');
+    await invoke('smoke_tray', { action: 'hideMain' });
+    await wait(async () => !(await invoke('smoke_windows')).find(window => window.label === 'main').visible, 'tray Hide');
+    // Disabling the tray from a surviving Options window must restore access.
+    setShowIn('taskbar');
+    await wait(async () => !(await invoke('smoke_tray')).available
+      && (await invoke('smoke_windows')).find(window => window.label === 'main').visible, 'safe tray removal');
+    setShowIn('tray');
+    await wait(async () => (await invoke('smoke_tray')).available, 'tray recreation');
+    await invoke('smoke_tray', { action: 'hideMain' });
+    await invoke('smoke_tray', { action: 'showMain' });
+    await wait(async () => (await invoke('smoke_windows')).find(window => window.label === 'main').visible, 'tray Show');
+    trayOptions.document.querySelector('.close-control').click();
+    await wait(() => trayOptions.closed, 'tray Options close');
+    await invoke('smoke_tray', { action: 'openOptions' });
+    const closeOptions = await wait(() => smokePopups.at(-1)?.document.querySelector('.options-page-host') && smokePopups.at(-1), 'Options from tray');
+    closeOptions.document.querySelector('[aria-label^="Show advanced tweaks"]')?.click();
+    const closeField = await wait(() => Array.from(closeOptions.document.querySelectorAll('.field'))
+      .find(field => field.querySelector('.field-title')?.textContent === 'Close to tray'), 'Close to tray setting');
+    const closeCheckbox = closeField.querySelector('input[type="checkbox"]');
+    closeCheckbox.checked = true;
+    closeCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+    await wait(async () => (await invoke('smoke_tray')).closeToTray, 'close policy sync');
+    document.querySelector('.close-control').click();
+    await wait(async () => !(await invoke('smoke_windows')).find(window => window.label === 'main').visible, 'close keeps player alive in tray');
+    await invoke('smoke_tray', { action: 'showMain' });
+    await wait(async () => (await invoke('smoke_windows')).find(window => window.label === 'main').visible, 'restore after close');
+    closeOptions.document.querySelector('.close-control').click();
+    await wait(() => closeOptions.closed, 'close-policy Options close');
     // Let the native close/focus events settle before opening the next menu.
     await new Promise(resolve => setTimeout(resolve, 200));
     document.querySelector('button[aria-label="Mute"]')?.click();
@@ -90,6 +127,17 @@ window.addEventListener('load', async () => {
       const start = Number(seek.value);
       await wait(() => Number(seek.value) > start + 0.5, `advancing playback ${name}`);
       results.push({ name, position: Number(seek.value), duration: Number(seek.max) });
+      // Exercise native callback -> Tauri event -> existing transport handler.
+      await invoke('smoke_tray', { action: 'hideMain' });
+      await invoke('smoke_tray', { action: 'togglePlayback' });
+      await wait(() => document.querySelector('button[aria-label="Resume playback"]')
+        || document.querySelector('button[aria-label="Start playback"]')
+        || !document.querySelector('button[aria-label="Pause playback"]'), 'tray Pause');
+      await invoke('smoke_tray', { action: 'togglePlayback' });
+      await wait(() => document.querySelector('button[aria-label="Pause playback"]'), 'tray Play');
+      const hiddenStart = Number(seek.value);
+      await wait(() => Number(seek.value) > hiddenStart + 0.5, `hidden playback ${name}`);
+      await invoke('smoke_tray', { action: 'showMain' });
       document.querySelector('button[aria-label="Pause playback"]').click();
     }
     document.querySelector('button[aria-label="File"]').click();
@@ -107,7 +155,7 @@ window.addEventListener('load', async () => {
       throw new Error('Cancellation changed the queue or produced an error');
     }
     await invoke('smoke_report', { result: { ok: true, shell: true, nativePicker: true,
-      folderPicker: true, cancellation: true, options: true, settingsSync: true, playback: results, errors } });
+      folderPicker: true, cancellation: true, options: true, settingsSync: true, tray: true, playback: results, errors } });
   } catch (error) {
     const media = Array.from(smokeMedia).map(element => ({
       time: element.currentTime, paused: element.paused, readyState: element.readyState,

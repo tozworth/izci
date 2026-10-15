@@ -26,6 +26,9 @@ pub fn run() {
             let _ = tray::restore_main(app);
         }))
         .manage(std::sync::Mutex::new(tray::TrayState::default()))
+        // Tauri's menu callbacks are global and outlive removed icons. Register
+        // once so disabling/re-enabling the tray cannot duplicate transport.
+        .on_menu_event(|app, event| tray::action(app, event.id.as_ref()))
         .invoke_handler(tauri::generate_handler![
             desktop_window_ready,
             exit_desktop,

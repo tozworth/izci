@@ -98,7 +98,7 @@
 
 ## Tauri desktop
 
-- `src/desktop/` and `src-tauri/` own Tauri integration and the native shell. `npm run desktop:build` builds for the host OS: Windows or Linux. Linux MVP ownership stays in `src/desktop/linux/` and `src-tauri/src/linux/`; Windows tray, autostart, associations, signaling, and headless tooling remain Windows-only.
+- `src/desktop/` and `src-tauri/` own Tauri integration and the native shell. `npm run desktop:build` builds for the host OS: Windows or Linux. Linux shell and native indicator menus stay in `src/desktop/linux/` and `src-tauri/src/linux/`; custom tray popups, autostart, associations, signaling, and headless tooling remain Windows-only.
 - Native shell features stay behind `$platform`; native code/assets must stay out of PWA bundles and precache (`npm run desktop:verify`).
 - Built-in signaling is opt-in via `npm run desktop:build:signaling` / Cargo's `builtin-signaling` feature; ordinary desktop/PWA builds skip izci-server and do not require Go. The lazy, signaling-only Go child uses a private parent pipe and Windows job for bootstrap/shutdown; public host login is disabled.
 - Desktop imports and managed folders use native path references and disk-backed browser Files (WebView2 on Windows, WebKitGTK on Linux); file-association launches are Windows-only. Transient tool editing targets are separate from real File System Access handles. Never synthesize FSA handles, and preserve the PWA's FSA path. Linux filesystem identities are case-sensitive.
