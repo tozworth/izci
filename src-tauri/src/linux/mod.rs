@@ -2,13 +2,14 @@ pub(crate) mod file_picker;
 pub(crate) mod files;
 pub(crate) mod tray;
 mod tray_menu;
-mod window_state;
+pub(crate) mod window_state;
 
 use tauri::{Manager, WebviewWindow, WindowEvent};
 
 #[tauri::command]
-fn desktop_window_ready(window: WebviewWindow) -> Result<(), String> {
+pub(crate) fn desktop_window_ready(window: WebviewWindow) -> Result<(), String> {
     crate::native_filesystem::require_app_window(&window)?;
+    window_state::attach(&window).map_err(|error| error.to_string())?;
     window.show().map_err(|error| error.to_string())
 }
 
@@ -49,17 +50,21 @@ pub fn run() {
                 .iter()
                 .find(|config| config.label == "main")
                 .expect("Main window configuration");
-            let window = crate::windows::builder(app.handle(), config)?.build()?;
-            window_state::attach(&window)?;
+            crate::windows::builder(app.handle(), config)?.build()?;
             Ok(())
         })
         .on_window_event(|window, event| {
+            if matches!(event, WindowEvent::Destroyed) {
+                window_state::forget(window.app_handle(), window.label());
+            }
+            if let WindowEvent::CloseRequested { .. } = event {
+                window_state::save(window.app_handle());
+            }
             if window.label() != "main" {
                 return;
             }
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
-                window_state::save(window.app_handle());
                 if tray::close_to_tray(window.app_handle()) {
                     // If hiding fails, leave the player accessible.
                     if let Err(error) = window.hide() {

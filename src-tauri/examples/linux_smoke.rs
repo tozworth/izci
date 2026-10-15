@@ -15,12 +15,6 @@ mod windows;
 
 #[cfg(target_os = "linux")]
 #[tauri::command]
-fn desktop_window_ready(window: tauri::WebviewWindow) -> Result<(), String> {
-    window.show().map_err(|error| error.to_string())
-}
-
-#[cfg(target_os = "linux")]
-#[tauri::command]
 fn smoke_windows(app: tauri::AppHandle) -> serde_json::Value {
     use tauri::Manager;
     serde_json::Value::Array(
@@ -31,11 +25,45 @@ fn smoke_windows(app: tauri::AppHandle) -> serde_json::Value {
                     "label": window.label(), "url": window.url().ok().map(|url| url.to_string()),
                     "visible": window.is_visible().unwrap_or(false),
                     "width": window.inner_size().ok().map(|size| size.width),
-                    "height": window.inner_size().ok().map(|size| size.height)
+                    "height": window.inner_size().ok().map(|size| size.height),
+                    "x": window.outer_position().ok().map(|position| position.x),
+                    "y": window.outer_position().ok().map(|position| position.y)
                 })
             })
             .collect(),
     )
+}
+
+#[cfg(target_os = "linux")]
+#[tauri::command]
+fn smoke_options_placement(app: tauri::AppHandle, check_saved: bool) -> Result<(), String> {
+    use tauri::Manager;
+    if check_saved {
+        let path = app
+            .path()
+            .app_config_dir()
+            .map_err(|error| error.to_string())?
+            .join("options-window-state.json");
+        let saved: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(path).map_err(|error| error.to_string())?)
+                .map_err(|error| error.to_string())?;
+        if saved["x"] != 120 || saved["y"] != 140 || saved["width"] != 900 || saved["height"] != 640
+        {
+            return Err(format!("Incorrect saved Options placement: {saved}"));
+        }
+        return Ok(());
+    }
+    let options = app
+        .webview_windows()
+        .into_values()
+        .find(|window| window.url().is_ok_and(|url| url.path() == "/options.html"))
+        .ok_or("Options not found")?;
+    options
+        .set_position(tauri::PhysicalPosition::new(120, 140))
+        .map_err(|error| error.to_string())?;
+    options
+        .set_size(tauri::PhysicalSize::new(900, 640))
+        .map_err(|error| error.to_string())
 }
 
 #[cfg(target_os = "linux")]
@@ -66,19 +94,33 @@ fn main() {
     use tauri::Manager;
     use webkit2gtk::{SettingsExt, WebViewExt};
 
-    let paths: Vec<String> = std::env::args().skip(1).collect();
-    assert!(!paths.is_empty(), "Usage: linux_smoke <audio paths...>");
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let placement_only = args.iter().any(|arg| arg == "--options-placement");
+    let paths: Vec<String> = args
+        .into_iter()
+        .filter(|arg| arg != "--options-placement")
+        .collect();
+    assert!(
+        placement_only || !paths.is_empty(),
+        "Usage: linux_smoke [--options-placement] <audio paths...>"
+    );
     let script = include_str!("support/linux-smoke.js")
-        .replace("__SMOKE_PATHS__", &serde_json::to_string(&paths).unwrap());
+        .replace("__SMOKE_PATHS__", &serde_json::to_string(&paths).unwrap())
+        .replace(
+            "__SMOKE_PLACEMENT_ONLY__",
+            if placement_only { "true" } else { "false" },
+        );
     let mut context = tauri::generate_context!();
     // Separate native storage namespace; the harness cannot open ordinary data.
     context.config_mut().identifier = format!("app.izci.linux-smoke.{}", std::process::id());
     tauri::Builder::default()
         .manage(std::sync::Mutex::new(linux::tray::TrayState::default()))
+        .manage(linux::window_state::WindowState::default())
         .on_menu_event(|app, event| linux::tray::action(app, event.id.as_ref()))
         .invoke_handler(tauri::generate_handler![
-            desktop_window_ready,
+            linux::desktop_window_ready,
             smoke_windows,
+            smoke_options_placement,
             smoke_report,
             smoke_tray,
             linux::tray::configure_linux_tray,
@@ -89,6 +131,14 @@ fn main() {
             native_filesystem::query_desktop_folder_permission
         ])
         .setup(move |app| {
+            // Seed an earlier session's Options placement to exercise the disk
+            // restore path before any in-memory placement exists.
+            let config_dir = app.path().app_config_dir()?;
+            std::fs::create_dir_all(&config_dir)?;
+            std::fs::write(
+                config_dir.join("options-window-state.json"),
+                r#"{"x":80,"y":100,"width":820,"height":620,"maximized":false}"#,
+            )?;
             let config = app
                 .config()
                 .app
@@ -147,6 +197,12 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
+                linux::window_state::save(window.app_handle());
+            }
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                linux::window_state::forget(window.app_handle(), window.label());
+            }
             if window.label() == "main" {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     if linux::tray::close_to_tray(window.app_handle()) {

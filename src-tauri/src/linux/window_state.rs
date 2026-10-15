@@ -1,6 +1,10 @@
 use gtk::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{path::PathBuf, sync::Mutex};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    sync::Mutex,
+};
 use tauri::{AppHandle, Manager, WebviewWindow};
 
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
@@ -13,10 +17,32 @@ struct Placement {
 }
 
 #[derive(Default)]
-pub struct WindowState(Mutex<Option<Placement>>);
+pub struct WindowState(Mutex<Placements>);
 
-fn path(app: &AppHandle) -> Option<PathBuf> {
-    Some(app.path().app_config_dir().ok()?.join("window-state.json"))
+#[derive(Default)]
+struct Placements {
+    saved: HashMap<&'static str, Placement>,
+    attached: HashSet<String>,
+}
+
+fn key(label: &str, path: &str) -> Option<&'static str> {
+    if label == "main" {
+        return Some("main");
+    }
+    match path {
+        "/options.html" => Some("options"),
+        "/troubadour-options.html" => Some("troubadour-options"),
+        _ => None,
+    }
+}
+
+fn path(app: &AppHandle, key: &str) -> Option<PathBuf> {
+    let filename = if key == "main" {
+        "window-state.json".into()
+    } else {
+        format!("{key}-window-state.json")
+    };
+    Some(app.path().app_config_dir().ok()?.join(filename))
 }
 
 fn decode(value: &str) -> Option<Placement> {
@@ -89,12 +115,28 @@ fn fit(mut placement: Placement, areas: &[[i32; 4]], primary: usize) -> Placemen
 }
 
 pub fn attach(window: &WebviewWindow) -> tauri::Result<()> {
+    let Some(key) = window
+        .url()
+        .ok()
+        .and_then(|url| key(window.label(), url.path()))
+    else {
+        return Ok(());
+    };
     let gtk = window.gtk_window()?;
     let app = window.app_handle();
-    if let Some(saved) = path(app)
-        .and_then(|path| std::fs::read_to_string(path).ok())
-        .and_then(|value| decode(&value))
-    {
+    let cached = {
+        let managed = app.state::<WindowState>();
+        let mut state = managed.0.lock().unwrap();
+        if !state.attached.insert(window.label().into()) {
+            return Ok(());
+        }
+        state.saved.get(key).copied()
+    };
+    if let Some(saved) = cached.or_else(|| {
+        path(app, key)
+            .and_then(|path| std::fs::read_to_string(path).ok())
+            .and_then(|value| decode(&value))
+    }) {
         let display = gtk::prelude::WidgetExt::display(&gtk);
         let mut primary = 0;
         let areas: Vec<_> = (0..display.n_monitors())
@@ -112,10 +154,25 @@ pub fn attach(window: &WebviewWindow) -> tauri::Result<()> {
         gtk.set_default_size(saved.width, saved.height);
         gtk.resize(saved.width, saved.height);
         gtk.move_(saved.x, saved.y);
+        // Related WebKit popups can apply their initial (0, 0) position while
+        // mapping. Reapply after the first map, once that placement is finished.
+        let mapped = std::cell::Cell::new(false);
+        gtk.connect_map_event(move |window, _| {
+            if !mapped.replace(true) {
+                let window = window.clone();
+                gtk::glib::idle_add_local_once(move || window.move_(saved.x, saved.y));
+            }
+            gtk::glib::Propagation::Proceed
+        });
         if saved.maximized {
             gtk.maximize();
         }
-        *app.state::<WindowState>().0.lock().unwrap() = Some(saved);
+        app.state::<WindowState>()
+            .0
+            .lock()
+            .unwrap()
+            .saved
+            .insert(key, saved);
     }
     let app = app.clone();
     gtk.connect_configure_event(move |window, _| {
@@ -126,8 +183,11 @@ pub fn attach(window: &WebviewWindow) -> tauri::Result<()> {
         // Oda/video fullscreen. Restoring must not reopen a theater-sized app.
         let (x, y) = window.position();
         let (width, height) = window.size();
+        let managed = app.state::<WindowState>();
+        let mut state = managed.0.lock().unwrap();
+        let mut saved = state.saved.get(key).copied();
         capture(
-            &mut app.state::<WindowState>().0.lock().unwrap(),
+            &mut saved,
             Placement {
                 x,
                 y,
@@ -138,23 +198,43 @@ pub fn attach(window: &WebviewWindow) -> tauri::Result<()> {
             surface.state(),
             gtk::prelude::WidgetExt::is_visible(window),
         );
+        if let Some(saved) = saved {
+            state.saved.insert(key, saved);
+        }
         false
     });
     let app = window.app_handle().clone();
     gtk.connect_window_state_event(move |_, event| {
-        capture_mode(
-            &mut app.state::<WindowState>().0.lock().unwrap(),
-            event.new_window_state(),
-        );
+        let managed = app.state::<WindowState>();
+        let mut state = managed.0.lock().unwrap();
+        let mut saved = state.saved.get(key).copied();
+        capture_mode(&mut saved, event.new_window_state());
+        if let Some(saved) = saved {
+            state.saved.insert(key, saved);
+        }
         gtk::glib::Propagation::Proceed
     });
     Ok(())
 }
 
 pub fn save(app: &AppHandle) {
-    let saved = *app.state::<WindowState>().0.lock().unwrap();
-    let Some(saved) = saved else { return };
-    let Some(path) = path(app) else { return };
+    let saved = app.state::<WindowState>().0.lock().unwrap().saved.clone();
+    for (key, saved) in saved {
+        save_placement(app, key, saved);
+    }
+}
+
+pub fn forget(app: &AppHandle, label: &str) {
+    app.state::<WindowState>()
+        .0
+        .lock()
+        .unwrap()
+        .attached
+        .remove(label);
+}
+
+fn save_placement(app: &AppHandle, key: &str, saved: Placement) {
+    let Some(path) = path(app, key) else { return };
     let result = (|| -> Result<(), Box<dyn std::error::Error>> {
         std::fs::create_dir_all(path.parent().unwrap())?;
         let temporary = path.with_extension("json.tmp");
@@ -170,6 +250,18 @@ pub fn save(app: &AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn options_use_their_destination_instead_of_recycled_popup_numbers() {
+        assert_eq!(key("main", "/index.html"), Some("main"));
+        assert_eq!(key("popup-1", "/options.html"), Some("options"));
+        assert_eq!(key("popup-8", "/options.html"), Some("options"));
+        assert_eq!(
+            key("popup-1", "/troubadour-options.html"),
+            Some("troubadour-options")
+        );
+        assert_eq!(key("popup-1", "/logs.html"), None);
+    }
 
     #[test]
     fn fullscreen_minimized_and_hidden_windows_keep_the_last_ordinary_placement() {

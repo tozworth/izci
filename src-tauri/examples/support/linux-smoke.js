@@ -41,7 +41,7 @@ window.addEventListener('load', async () => {
   try {
     await wait(() => document.querySelector('.app-shell'), 'main shell');
     const openOptions = async () => {
-      document.querySelector('.app-menu-trigger').click();
+      (await wait(() => document.querySelector('.app-menu-trigger'), 'main menu')).click();
       const action = await wait(() => Array.from(document.querySelectorAll('[role="menuitem"]'))
         .find(button => button.textContent.includes('Options')), 'Options action');
       action.click();
@@ -50,6 +50,10 @@ window.addEventListener('load', async () => {
     const options = await wait(() => smokePopups.at(-1), 'Options window reference');
     await wait(() => options.document.querySelector('.options-page-host'), 'Options content');
     await wait(async () => (await invoke('smoke_windows')).find(window => window.url?.includes('/options.html') && window.visible), 'visible native Options');
+    await wait(async () => {
+      const geometry = (await invoke('smoke_windows')).find(window => window.url?.includes('/options.html') && window.visible);
+      return geometry?.width === 820 && geometry.height === 620 && geometry.x === 80 && geometry.y === 100;
+    }, 'Options placement loaded from an earlier session on disk');
     if (options.opener !== window) throw new Error('Options lost its opener');
     if (options.__TAURI_INTERNALS__.metadata.currentWindow.label === 'main') {
       throw new Error('Options inherited the main native window identity');
@@ -63,17 +67,31 @@ window.addEventListener('load', async () => {
       && options.document.documentElement.dataset.colorScheme === 'dark', 'settings sync to player');
     await openOptions();
     if (smokePopups.length !== 1) throw new Error('Options did not reuse the existing window');
+    const checkOptionsPlacement = async label => wait(async () => {
+      const geometry = (await invoke('smoke_windows')).find(window => window.url?.includes('/options.html') && window.visible);
+      return geometry?.width === 900 && geometry.height === 640 && geometry.x === 120 && geometry.y === 140;
+    }, label);
+    await invoke('smoke_options_placement', { checkSaved: false });
+    await checkOptionsPlacement('resized and moved Options');
     options.document.querySelector('.close-control').click();
     await wait(() => options.closed, 'Options close');
     await openOptions();
     await wait(() => smokePopups.at(-1)?.document.querySelector('.options-page-host'), 'reopened Options content');
     const reopenedOptions = smokePopups.at(-1);
+    await checkOptionsPlacement('Options placement after close and reopen');
     reopenedOptions.document.querySelector('.close-control').click();
     await wait(() => reopenedOptions.closed, 'reopened Options close');
+    await invoke('smoke_options_placement', { checkSaved: true });
     // Edit the real synchronized settings in Options; the playback owner must
     // create and update its indicator rather than the Options window doing it.
     await openOptions();
     const trayOptions = await wait(() => smokePopups.at(-1)?.document.querySelector('.options-page-host') && smokePopups.at(-1), 'tray Options');
+    await checkOptionsPlacement('Options placement restored with a new popup label');
+    if (__SMOKE_PLACEMENT_ONLY__) {
+      await invoke('smoke_report', { result: { ok: true, optionsPlacement: true, diskRestore: true, closeAndReopen: true } });
+      return;
+    }
+
     const showIn = await wait(() => trayOptions.document.querySelector('[role="combobox"][aria-label="Show in"]'), 'Show in setting');
     const setShowIn = async value => {
       showIn.click();
