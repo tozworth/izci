@@ -69,9 +69,9 @@ describe('module backend lifecycle', () => {
     service.seek(10);
     service.setChannelMutes([false, true, false, true]);
     service.pause();
-    await service.applySettings({ ...DEFAULT_MODULE_PLAYBACK_SETTINGS, interpolationFilter: 4, stereoSeparation: 150 });
+    await service.applySettings({ ...DEFAULT_MODULE_PLAYBACK_SETTINGS, interpolationFilter: 4, stereoSeparation: 150, ramping: 'long' });
     expect(harness.players).toHaveLength(1);
-    expect(player.configure).toHaveBeenLastCalledWith(expect.objectContaining({ interpolationFilter: 4, stereoSeparation: 150 }));
+    expect(player.configure).toHaveBeenLastCalledWith(expect.objectContaining({ interpolationFilter: 4, stereoSeparation: 150, rampingStrength: 10 }));
     expect(player.setChannelMutes).toHaveBeenLastCalledWith([false, true, false, true]);
     expect(player.seek).toHaveBeenCalledExactlyOnceWith(10);
     expect(player.pause).toHaveBeenCalledOnce();

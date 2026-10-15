@@ -15,3 +15,12 @@ survive seeks and subsong changes. Transport, duration, and pattern boundaries
 remain in original song seconds. Frame buffers reserve the slowest supported
 tempo at load time; rendering carries fractional samples between ticks.
 
+`ahx_set_ramping(milliseconds)` enables per-voice gain/pan ramps and short
+decaying corrections for waveform discontinuities. The wrapper samples the old
+wave before the replay IRQ can replace its buffer in place. Ramps use output
+samples rather than replay ticks, so tempo changes do not alter their duration;
+unfinished ramps carry across ticks. Load, seek, and subsong changes reset the
+transient state; seeking replays it deterministically. Zero disables ramping
+and preserves the original mixer at 1-tap. The runtime applies the Modules
+settings on load and while playing; the bare core starts with ramping off.
+

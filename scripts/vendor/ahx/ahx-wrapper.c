@@ -97,6 +97,8 @@ static int32_t interpolated_sample(const int8_t *source, uint32_t position) {
   const int32_t index = (int32_t)(position >> 16);
   const uint32_t phase = (position >> 8) & 0xff;
 
+  if (interpolation_filter == 1) return source[index] * 256;
+
   if (interpolation_filter == 2) {
     const int32_t current = source[index];
     const int32_t next = source[wrap_sample_index(index + 1)];
@@ -123,6 +125,8 @@ static int32_t interpolated_sample(const int8_t *source, uint32_t position) {
     return value / (AHX_INTERPOLATION_COEFFICIENT_SCALE >> 8);
   }
 }
+
+#include "ahx-ramping.h"
 
 static void mix_interpolated_chunk(
   struct hvl_tune *active_tune,
@@ -175,12 +179,21 @@ static void mix_interpolated_chunk(
         }
         modulator = interpolated_sample(ring_source[channel], ring_position[channel]);
         voice_sample = (voice_sample * modulator) >> 15;
+        if (interpolation_filter == 1) voice_sample = (voice_sample >> 8) * 256;
         ring_position[channel] += ring_delta[channel];
       }
 
-      voice_sample *= volume[channel];
-      left += (voice_sample * pan_left[channel]) >> 7;
-      right += (voice_sample * pan_right[channel]) >> 7;
+      if (ramping_ms > 0.0) {
+        struct ahx_voice_ramp *ramp = &voice_ramps[channel];
+        const double smoothed = voice_sample + ramp->offset;
+        left += (int64_t)floor(smoothed * ramp->left);
+        right += (int64_t)floor(smoothed * ramp->right);
+        advance_voice_ramp(ramp);
+      } else {
+        voice_sample *= volume[channel];
+        left += (voice_sample * pan_left[channel]) >> 7;
+        right += (voice_sample * pan_right[channel]) >> 7;
+      }
       position[channel] += delta[channel];
     }
 
@@ -226,7 +239,9 @@ static void decode_audio_frame(struct hvl_tune *active_tune) {
     sample_remainder += samples_per_tick;
     samples = (uint32_t)sample_remainder;
     sample_remainder -= samples;
+    prepare_voice_ramps(active_tune);
     hvl_play_irq(active_tune);
+    begin_voice_ramps(active_tune);
     // Scale only the mixer steps; preserve the replayer's base tuning so
     // unchanged notes cannot compound the factor on subsequent ticks.
     for (channel = 0; channel < active_tune->ht_Channels; channel++) {
@@ -238,7 +253,7 @@ static void decode_audio_frame(struct hvl_tune *active_tune) {
         voice->vc_RingDelta = pitched_delta(ring_deltas[channel]);
       }
     }
-    if (interpolation_filter == 1) {
+    if (interpolation_filter == 1 && ramping_ms == 0.0) {
       int32_t volumes[MAX_CHANNELS];
       uint32_t channel;
       for (channel = 0; channel < active_tune->ht_Channels; channel++) {
@@ -283,6 +298,8 @@ static void release_tune(void) {
   tempo_factor = pitch_factor = 1.0;
   sample_remainder = 0.0;
   memset(channel_muted, 0, sizeof(channel_muted));
+  reset_voice_ramps();
+  ramping_ms = 0.0;
 }
 
 static uint32_t measure_duration(uint32_t subsong) {
@@ -354,6 +371,7 @@ int ahx_select_subsong(uint32_t subsong) {
   sample_remainder = 0.0;
   duration_frames = measure_duration(subsong);
   hvl_InitSubsong(tune, subsong);
+  reset_voice_ramps();
   display_order = tune->ht_PosNr;
   display_row = tune->ht_NoteNr;
   return 1;
@@ -393,6 +411,7 @@ void ahx_seek_frame(uint32_t target_frame) {
   if (!tune) return;
   if (duration_frames && target_frame > duration_frames) target_frame = duration_frames;
   hvl_InitSubsong(tune, active_subsong);
+  reset_voice_ramps();
   current_frame = 0;
   sample_remainder = 0.0;
   while (current_frame < target_frame && !tune->ht_SongEndReached) {

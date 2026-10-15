@@ -5,7 +5,7 @@ import {
   type HivelyPatternData
 } from '$lib/services/hively-patterns';
 import { mediaSessionService } from '$lib/services/media-session';
-import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
+import { getHivelyRampingMs, modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import type {
   ModulePatternSnapshot,
@@ -187,6 +187,7 @@ export class HivelyPlayerService {
             // The existing stereo-separation setting is intentionally MOD-only.
             stereo: 2,
             interpolationFilter: this.#settings.interpolationFilter,
+            rampingMs: getHivelyRampingMs(this.#settings),
             tempoFactor: this.#settings.tempoFactor,
             pitchFactor: this.#settings.pitchFactor,
             repeat: this.#settings.repeatCount === -1,
@@ -278,6 +279,9 @@ export class HivelyPlayerService {
     }
     if (previous.interpolationFilter !== settings.interpolationFilter) {
       this.#node.port.postMessage({ type: 'interpolation', filter: settings.interpolationFilter });
+    }
+    if (getHivelyRampingMs(previous) !== getHivelyRampingMs(settings)) {
+      this.#node.port.postMessage({ type: 'ramping', milliseconds: getHivelyRampingMs(settings) });
     }
     if (previous.tempoFactor !== settings.tempoFactor || previous.pitchFactor !== settings.pitchFactor) {
       this.#node.port.postMessage({

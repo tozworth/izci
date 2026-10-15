@@ -1,4 +1,4 @@
-import type { ModuleInterpolationFilter, ModulePlaybackSettings } from '$lib/types';
+import type { ModuleInterpolationFilter, ModulePlaybackSettings, ModuleRamping } from '$lib/types';
 import { createSettingsStore } from './persistent-store';
 
 const MODULE_PLAYBACK_SETTINGS_STORAGE_KEY = 'izci.module-playback-settings.v1';
@@ -9,9 +9,24 @@ export const DEFAULT_MODULE_PLAYBACK_SETTINGS: ModulePlaybackSettings = {
   stereoSeparation: 50,
   panStrength: 100,
   interpolationFilter: 1,
+  ramping: 'normal',
+  hivelyRampingMs: 5,
   tempoFactor: 1,
   pitchFactor: 1
 };
+
+export const MODULE_RAMPING_OPTIONS: ModuleRamping[] = ['off', 'short', 'normal', 'long'];
+
+export function getHivelyRampingMs(settings: ModulePlaybackSettings): number {
+  const factor = { off: 0, short: 0.5, normal: 1, long: 2 }[settings.ramping];
+  return settings.hivelyRampingMs * factor;
+}
+
+export function getOpenMptRampingStrength(ramping: ModuleRamping): number {
+  // Explicit strengths keep Short < Normal < Long; libopenmpt's automatic
+  // default is much shorter and is not a suitable middle preset.
+  return { off: 0, short: 2, normal: 5, long: 10 }[ramping];
+}
 
 export const MODULE_INTERPOLATION_OPTIONS: Array<{
   value: ModuleInterpolationFilter;
@@ -71,6 +86,11 @@ export function normalizeModulePlaybackSettings(value: unknown): ModulePlaybackS
       )
     ),
     interpolationFilter: toInterpolationFilter(source.interpolationFilter),
+    ramping: MODULE_RAMPING_OPTIONS.includes(source.ramping as ModuleRamping)
+      ? source.ramping! : DEFAULT_MODULE_PLAYBACK_SETTINGS.ramping,
+    hivelyRampingMs: Math.round(clamp(
+      toNumber(source.hivelyRampingMs, DEFAULT_MODULE_PLAYBACK_SETTINGS.hivelyRampingMs), 1, 20
+    ) * 10) / 10,
     tempoFactor: clamp(toNumber(source.tempoFactor, DEFAULT_MODULE_PLAYBACK_SETTINGS.tempoFactor), 0.25, 4),
     pitchFactor: clamp(toNumber(source.pitchFactor, DEFAULT_MODULE_PLAYBACK_SETTINGS.pitchFactor), 0.25, 4)
   };

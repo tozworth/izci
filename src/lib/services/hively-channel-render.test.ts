@@ -10,6 +10,7 @@ interface HivelyCore {
   ahx_load(pointer: number, length: number, rate: number, stereo: number): number;
   ahx_unload(): void;
   ahx_set_interpolation(taps: number): void;
+  ahx_set_ramping(milliseconds: number): void;
   ahx_set_channel_mute(channel: number, muted: number): void;
   ahx_set_playback_factors(tempo: number, pitch: number): void;
   ahx_decode_frame(): number;
@@ -58,6 +59,24 @@ function toneModule(format: 'ahx' | 'hvl'): Uint8Array {
   return bytes;
 }
 
+function waveSwitchModule(format: 'ahx' | 'hvl'): Uint8Array {
+  const hvl = format === 'hvl';
+  const original = toneModule(format);
+  const instrumentLength = 22 + (hvl ? 5 : 4);
+  const namesOffset = new DataView(original.buffer).getUint16(4);
+  const instrumentOffset = namesOffset - instrumentLength;
+  const bytes = new Uint8Array(original.length + instrumentLength);
+  bytes.set(original.subarray(0, namesOffset));
+  bytes.set(original.subarray(instrumentOffset, namesOffset), namesOffset);
+  bytes.set(original.subarray(namesOffset), namesOffset + instrumentLength);
+  new DataView(bytes.buffer).setUint16(4, namesOffset + instrumentLength);
+  bytes[12] = 2;
+  // Instrument 2 uses sawtooth instead of triangle, at the same gain and pitch.
+  bytes.set(hvl ? [0, 2, 1, 0, 0] : [1, 1, 0, 0], namesOffset + 22);
+  bytes.set(hvl ? [25, 2, 0, 0, 0] : [25 << 2, 0x20, 0], (hvl ? 16 : 14) + 8 + (hvl ? 5 : 3));
+  return bytes;
+}
+
 async function createCore(): Promise<HivelyCore> {
   const { instance } = await WebAssembly.instantiate(readFileSync('public/vendor/hively-replay.wasm'), {
     env: { emscripten_notify_memory_growth() {} },
@@ -87,6 +106,118 @@ function render(core: HivelyCore, frames = 3): number[] {
 }
 
 describe.each(['ahx', 'hvl'] as const)('%s channel rendering', (format) => {
+  if (format === 'hvl') it.each([1, 2, 4, 8])('preserves settled %i-tap ring modulation while ramping', async (taps) => {
+    const core = await createCore();
+    const bytes = toneModule(format);
+    const namesOffset = new DataView(bytes.buffer).getUint16(4);
+    // Ring-modulate the carrier with a triangle at a different relative pitch.
+    bytes[namesOffset - 5] = 7;
+    bytes[namesOffset - 2] = 0x91;
+    try {
+      load(core, bytes);
+      core.ahx_set_interpolation(taps);
+      const original = render(core, 6);
+      core.ahx_seek_frame(0);
+      core.ahx_set_ramping(5);
+      const smooth = render(core, 6);
+      expect(smooth.some((sample) => sample !== 0)).toBe(true);
+      // The original 1-tap mixer rounds panning before mix gain; the custom
+      // mixer keeps that intermediate precision. Allow one PCM quantization step.
+      expect(Math.max(...smooth.slice(960 * 2).map((sample, index) => Math.abs(sample - original[960 * 2 + index]))))
+        .toBeLessThanOrEqual(1);
+    } finally { core.ahx_unload(); }
+  });
+
+  it.each([1, 2, 4, 8])('de-clicks in-place waveform replacement with %i taps', async (taps) => {
+    const core = await createCore();
+    try {
+      load(core, waveSwitchModule(format));
+      core.ahx_set_interpolation(taps);
+      const abrupt = render(core, 6);
+      core.ahx_seek_frame(0);
+      core.ahx_set_ramping(5);
+      const smooth = render(core, 6);
+      const boundary = 3 * 960 * 2;
+      const jump = Math.abs(abrupt[boundary] - abrupt[boundary - 2]);
+      expect(jump).toBeGreaterThan(100);
+      expect(Math.abs(smooth[boundary] - smooth[boundary - 2])).toBeLessThan(jump / 4);
+      expect(smooth.slice(boundary + 240 * 2)).toEqual(abrupt.slice(boundary + 240 * 2));
+      // Seeking into a finished ramp must reproduce uninterrupted output.
+      core.ahx_seek_frame(4);
+      expect(render(core, 2)).toEqual(smooth.slice(4 * 960 * 2));
+    } finally { core.ahx_unload(); }
+  });
+
+  it.each([1, 2, 4, 8])('smooths %i-tap pan jumps at the requested output-sample duration', async (taps) => {
+    const core = await createCore();
+    const bytes = toneModule(format);
+    const row1 = (format === 'hvl' ? 16 : 14) + 8 + (format === 'hvl' ? 5 : 3);
+    bytes.set(format === 'hvl' ? [0, 0, 0x70, 0x7f, 0] : [0, 7, 0x7f], row1);
+    try {
+      load(core, bytes, 44_100);
+      core.ahx_set_interpolation(taps);
+      const abrupt = render(core, 6);
+      core.ahx_seek_frame(0);
+      core.ahx_set_ramping(10);
+      const smooth = render(core, 6);
+      const boundary = 3 * 882 * 2;
+      const jump = Math.abs(abrupt[boundary] - abrupt[boundary - 2]);
+      expect(jump).toBeGreaterThan(100);
+      expect(Math.abs(smooth[boundary] - smooth[boundary - 2])).toBeLessThan(jump / 4);
+      expect(smooth.slice(boundary + 441 * 2)).toEqual(abrupt.slice(boundary + 441 * 2));
+    } finally { core.ahx_unload(); }
+  });
+
+  it.each([1, 2, 4, 8])('ramps abrupt volume cuts with %i taps without changing the settled waveform', async (taps) => {
+    const core = await createCore();
+    const bytes = toneModule(format);
+    const row1 = (format === 'hvl' ? 16 : 14) + 8 + (format === 'hvl' ? 5 : 3);
+    bytes.set(format === 'hvl' ? [0, 0, 0xc0, 0, 0] : [0, 0x0c, 0], row1);
+    try {
+      load(core, bytes);
+      core.ahx_set_interpolation(taps);
+      const abrupt = render(core, 6);
+      core.ahx_seek_frame(0);
+      core.ahx_set_ramping(5);
+      const smooth = render(core, 6);
+      const boundary = 3 * 960 * 2; // F03: three 20 ms ticks before row 1.
+      expect(Math.abs(abrupt[boundary] - abrupt[boundary - 2])).toBeGreaterThan(100);
+      expect(Math.abs(smooth[boundary] - smooth[boundary - 2]))
+        .toBeLessThan(Math.abs(abrupt[boundary] - abrupt[boundary - 2]) / 4);
+      expect(smooth.slice(boundary + 240 * 2).every((sample) => sample === 0)).toBe(true);
+      expect(smooth.slice(960 * 2, boundary)).toEqual(abrupt.slice(960 * 2, boundary));
+      core.ahx_seek_frame(0);
+      expect(render(core, 6)).toEqual(smooth);
+      expect(core.ahx_select_subsong(0)).toBe(1);
+      expect(render(core, 6)).toEqual(smooth);
+      core.ahx_set_ramping(0);
+      core.ahx_seek_frame(0);
+      expect(render(core, 6)).toEqual(abrupt);
+    } finally { core.ahx_unload(); }
+  });
+
+  it.each([1, 2, 4, 8].flatMap((taps) => [0.25, 1.37, 4].map((tempo) => [taps, tempo])))('keeps %i-tap mute ramps finite across rapid ticks at %fx tempo', async (taps, tempo) => {
+    const core = await createCore();
+    const bytes = toneModule(format);
+    bytes[6] |= 0x60; // 200 Hz replay ticks, shorter than the 40 ms ramp.
+    bytes[(format === 'hvl' ? 16 : 14) + 8 + (format === 'hvl' ? 3 : 2)] = 32;
+    try {
+      load(core, bytes);
+      core.ahx_set_interpolation(taps);
+      core.ahx_set_playback_factors(tempo, 1);
+      core.ahx_set_ramping(40);
+      render(core, 10);
+      core.ahx_set_channel_mute(0, 1);
+      const muted = render(core, 10);
+      expect(muted.slice(0, 1920 * 2).some((sample) => sample !== 0)).toBe(true);
+      expect(muted.slice(1920 * 2).every((sample) => sample === 0)).toBe(true);
+      core.ahx_set_channel_mute(0, 0);
+      const unmuted = render(core, 10);
+      expect(unmuted.some((sample) => sample !== 0)).toBe(true);
+      expect(unmuted.every((sample) => Number.isFinite(sample) && Math.abs(sample) < 32767)).toBe(true);
+    } finally { core.ahx_unload(); }
+  });
+
   function risingCrossings(samples: number[]): number {
     let count = 0;
     for (let index = 2; index < samples.length; index += 2) {

@@ -357,11 +357,15 @@ export interface TrackMetadata {
   replayGain?: ReplayGainMetadata;
 }
 
+export type ModuleRamping = 'off' | 'short' | 'normal' | 'long';
+
 export interface ModulePlaybackSettings {
   repeatCount: number;
   stereoSeparation: number;
   panStrength: number;
   interpolationFilter: ModuleInterpolationFilter;
+  ramping: ModuleRamping;
+  hivelyRampingMs: number;
   tempoFactor: number;
   pitchFactor: number;
 }

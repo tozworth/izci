@@ -16,6 +16,24 @@ function energy(module: OpenMptModule): number {
 }
 
 describe('direct libopenmpt WASM bindings', () => {
+  it('applies ramping strength live and leaves unchanged parameters alone', () => {
+    const setRender = vi.spyOn(core, '_openmpt_module_set_render_param');
+    const module = new OpenMptModule(core, toneModule());
+    try {
+      module.configure(DEFAULT_OPENMPT_SETTINGS);
+      expect(setRender).toHaveBeenCalledWith(expect.any(Number), 4, 5);
+      setRender.mockClear();
+      module.configure(DEFAULT_OPENMPT_SETTINGS);
+      expect(setRender).not.toHaveBeenCalled();
+      module.configure({ ...DEFAULT_OPENMPT_SETTINGS, rampingStrength: 0 });
+      expect(setRender).toHaveBeenCalledExactlyOnceWith(expect.any(Number), 4, 0);
+      expect(energy(module)).toBeGreaterThan(0.1);
+      setRender.mockClear();
+      module.configure({ ...DEFAULT_OPENMPT_SETTINGS, rampingStrength: 10 });
+      expect(setRender).toHaveBeenCalledExactlyOnceWith(expect.any(Number), 4, 10);
+    } finally { module.dispose(); setRender.mockRestore(); }
+  });
+
   it('extracts pattern starts from tempo changes and excludes other subsongs', () => {
     const bytes = new Uint8Array(toneModule(true));
     // Remove the disconnected-order jumps; halve the second pattern's tempo.

@@ -49,6 +49,9 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
         case 'interpolation':
           this.exports?.ahx_set_interpolation(message.filter);
           break;
+        case 'ramping':
+          this.exports?.ahx_set_ramping(message.milliseconds);
+          break;
         case 'playback-factors':
           this.tempoFactor = message.tempoFactor;
           this.pitchFactor = message.pitchFactor;
@@ -98,6 +101,7 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
     exports.free(input);
     if (!loaded) throw new Error('HivelyTracker failed to decode this module.');
     exports.ahx_set_interpolation(message.interpolationFilter);
+    exports.ahx_set_ramping(message.rampingMs ?? 5);
     exports.ahx_set_playback_factors(this.tempoFactor, this.pitchFactor);
 
     this.exports = exports;

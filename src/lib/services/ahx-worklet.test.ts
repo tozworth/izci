@@ -151,6 +151,20 @@ describe('AHX AudioWorklet', () => {
     expect(filters).toEqual([8]);
   });
 
+  it('forwards ramp duration changes without interrupting transport', async () => {
+    const player = new (loadProcessor())();
+    const setRamping = vi.fn();
+    player.exports = {
+      memory: { buffer: new ArrayBuffer(0) }, ahx_set_ramping: setRamping
+    };
+    player.playing = true;
+    await player.handleMessage({ type: 'ramping', milliseconds: 10 });
+    await player.handleMessage({ type: 'ramping', milliseconds: 0 });
+    expect(setRamping.mock.calls).toEqual([[10], [0]]);
+    expect(player.playing).toBe(true);
+    expect(player.port.messages).toEqual([]);
+  });
+
   it('forwards live tempo and pitch without flushing buffered audio', async () => {
     const player = new (loadProcessor())();
     const setFactors = vi.fn();

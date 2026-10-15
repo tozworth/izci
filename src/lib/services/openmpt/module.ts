@@ -62,6 +62,7 @@ export class OpenMptModule {
     if (previous.repeatCount !== settings.repeatCount) core._openmpt_module_set_repeat_count(this.#module, settings.repeatCount);
     if (previous.stereoSeparation !== settings.stereoSeparation) core._openmpt_module_set_render_param(this.#module, 2, settings.stereoSeparation);
     if (previous.interpolationFilter !== settings.interpolationFilter) core._openmpt_module_set_render_param(this.#module, 3, settings.interpolationFilter);
+    if (previous.rampingStrength !== settings.rampingStrength) core._openmpt_module_set_render_param(this.#module, 4, settings.rampingStrength);
     for (const [field, key] of [['tempoFactor', 'play.tempo_factor'], ['pitchFactor', 'play.pitch_factor']] as const) {
       if (previous[field] !== settings[field]) {
         this.#withString(key, (pointer) => core._openmpt_module_ctl_set_floatingpoint(this.#module, pointer, settings[field]));

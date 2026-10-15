@@ -91,6 +91,10 @@ describe('Hively player', () => {
       if (snapshot.state) states.push(snapshot.state);
     }, vi.fn(), vi.fn(), onEnded);
     await player.load(track);
+    expect(messages).toContainEqual(expect.objectContaining({ type: 'load', rampingMs: 5 }));
+    const { DEFAULT_MODULE_PLAYBACK_SETTINGS } = await import('$lib/stores/module-playback-settings');
+    await player.applySettings({ ...DEFAULT_MODULE_PLAYBACK_SETTINGS, ramping: 'long', hivelyRampingMs: 8 });
+    expect(messages.at(-1)).toEqual({ type: 'ramping', milliseconds: 16 });
     player.play();
     receive({ type: 'ended' });
 

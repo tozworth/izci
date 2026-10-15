@@ -4,7 +4,7 @@ import { mediaSessionService } from '$lib/services/media-session';
 import { moduleDecoder } from './openmpt/decoder';
 import { OpenMptPlayer } from './openmpt/player';
 import type { OpenMptInspection, OpenMptProgress, OpenMptSettings } from './openmpt/protocol';
-import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
+import { getOpenMptRampingStrength, modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import type { ModulePatternSnapshot, ModulePatternSong, ModulePlaybackSettings, PlaybackSnapshot, TrackItem, TrackMetadata } from '$lib/types';
 
 /** App-facing backend; the controller owns its worklet and the decoder owns patterns. */
@@ -168,6 +168,7 @@ export class ModulePlayerService {
   #config(): OpenMptSettings {
     const { repeatCount, interpolationFilter, tempoFactor, pitchFactor } = this.#settings;
     return { repeatCount, interpolationFilter, tempoFactor, pitchFactor,
+      rampingStrength: getOpenMptRampingStrength(this.#settings.ramping),
       stereoSeparation: this.#extension === 'mod' ? this.#settings.stereoSeparation : this.#settings.panStrength };
   }
 

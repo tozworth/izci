@@ -4,12 +4,13 @@ export interface OpenMptSettings {
   repeatCount: number;
   stereoSeparation: number;
   interpolationFilter: number;
+  rampingStrength: number;
   tempoFactor: number;
   pitchFactor: number;
 }
 
 export const DEFAULT_OPENMPT_SETTINGS: OpenMptSettings = {
-  repeatCount: 0, stereoSeparation: 100, interpolationFilter: 4, tempoFactor: 1, pitchFactor: 1
+  repeatCount: 0, stereoSeparation: 100, interpolationFilter: 4, rampingStrength: 5, tempoFactor: 1, pitchFactor: 1
 };
 
 export interface OpenMptProgress {
