@@ -1,5 +1,7 @@
 ## izci contributing guidelines
 
+<img width="982" height="733" alt="Bowl of vegetable beef barley soup to signify izci's codebase" src="https://github.com/user-attachments/assets/c429f352-0b18-4ce6-a2ce-f289a5dd5483" />
+
 Nobody will ever read this document.
 
 AI/LLM-generated issues and PRs are fine.
