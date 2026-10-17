@@ -1,4 +1,6 @@
-# izci license
+## izci license
+
+MIT License
 
 Copyright (c) 2026 Yiğit Aydın
 
