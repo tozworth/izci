@@ -1,57 +1,91 @@
-//! Device-free pipeline checks: the shared decode/process path
-//! without opening any audio device.
-
+//! Device-free public render API checks. Test-owned Vec sinks are deliberate.
+use libzci::{provider::FakeFactory, *};
+use libzci_native::{render::*, NativeRuntime};
 use std::sync::Arc;
-
-use libzci::{CancelFlag, MemSource, PcmLayout, provider::FakeFactory};
-use libzci_native::NativeRuntime;
-
-fn runtime_with_fake(total: u64) -> (Arc<NativeRuntime>, libzci::SessionId) {
-    let runtime = NativeRuntime::new();
-    runtime
-        .register_provider(Arc::new(FakeFactory::new(total, PcmLayout::mono48k())))
+fn render(total: u64, rate: u32, mode: ProcessingMode) -> (Vec<f32>, RenderProgress) {
+    let rt = NativeRuntime::new();
+    rt.register_provider(Arc::new(FakeFactory::new(total, PcmLayout::mono48k())))
         .unwrap();
-    let session = runtime.create_session();
-    let source = runtime.insert_source(Arc::new(MemSource::new(b"FAKEx".to_vec())));
-    runtime.load(session, source, None, &CancelFlag::default()).unwrap();
-    (runtime, session)
-}
-
-#[test]
-fn render_counts_match_provider_total() {
-    let (runtime, session) = runtime_with_fake(48_000);
-    let cancel = CancelFlag::default();
-    // Mono 48k fake through the stereo/48k pipeline: exact frames.
-    let (samples, rate) = runtime.render_to_vec(session, 48_000, 1.0, 1 << 24, &cancel).unwrap();
-    assert_eq!(rate, 48_000);
-    assert_eq!(samples.len(), 48_000 * 2);
-    assert!(samples.iter().all(|s| s.is_finite()));
-    assert!(samples.iter().any(|&s| s != 0.0));
-    // Explicit mono-to-stereo mapping: channel pairs identical.
-    for pair in samples.chunks_exact(2) {
-        assert_eq!(pair[0], pair[1]);
+    let source = rt.insert_source(Arc::new(MemSource::new(b"FAKE".to_vec())));
+    let mut job = rt
+        .start_render(
+            source,
+            None,
+            RenderOptions {
+                output_rate: rate,
+                processing: mode,
+                ..Default::default()
+            },
+            &CancelFlag::default(),
+        )
+        .unwrap();
+    let mut out = Vec::new();
+    loop {
+        match job.next().unwrap() {
+            RenderStep::Data { samples, .. } => out.extend(samples),
+            RenderStep::Pending => (),
+            RenderStep::Complete(r) => {
+                assert_eq!(r.output_frames as usize, out.len() / 2);
+                return (out, job.progress());
+            }
+        }
     }
 }
-
 #[test]
-fn silence_at_zero_volume_and_mute() {
-    // Volume is settled before rendering, so zero means all zeros.
-    for volume in [0.0f32] {
-        let (runtime, session) = runtime_with_fake(8_000);
-        let cancel = CancelFlag::default();
-        let (samples, _) = runtime.render_to_vec(session, 48_000, volume, 1 << 24, &cancel).unwrap();
-        assert!(samples.iter().all(|&s| s == 0.0), "volume {volume} renders silence");
+fn render_counts_mapping_conversion_and_fixed_memory() {
+    for rate in [48_000, 44_100, 96_000] {
+        let (short, a) = render(10_003, rate, ProcessingMode::Raw);
+        let (long, b) = render(100_003, rate, ProcessingMode::Raw);
+        assert_eq!(
+            short.len() / 2,
+            (10_003u64 * rate as u64).div_ceil(48_000) as usize
+        );
+        assert_eq!(
+            long.len() / 2,
+            (100_003u64 * rate as u64).div_ceil(48_000) as usize
+        );
+        assert_eq!(a.retained_bytes, b.retained_bytes);
+        assert!(long.iter().all(|s| s.is_finite()));
+        assert!(long.chunks_exact(2).all(|p| p[0] == p[1]));
     }
 }
-
 #[test]
-fn changed_rate_converts_frame_counts() {
-    let (runtime, session) = runtime_with_fake(48_000);
+fn explicit_raw_master_and_mute() {
+    let (raw, _) = render(8000, 48_000, ProcessingMode::Raw);
+    let (half, _) = render(
+        8000,
+        48_000,
+        ProcessingMode::Master {
+            volume: 0.5,
+            mute: false,
+        },
+    );
+    assert_eq!(half, raw.iter().map(|v| v * 0.5).collect::<Vec<_>>());
+    let (mute, _) = render(
+        8000,
+        48_000,
+        ProcessingMode::Master {
+            volume: 0.5,
+            mute: true,
+        },
+    );
+    assert!(mute.iter().all(|v| *v == 0.0));
+}
+#[test]
+fn cancellation_is_connected_to_streaming_job_and_releases_runtime() {
+    let rt = NativeRuntime::new();
+    let weak = Arc::downgrade(&rt);
+    rt.register_provider(Arc::new(FakeFactory::new(u64::MAX, PcmLayout::mono48k())))
+        .unwrap();
+    let source = rt.insert_source(Arc::new(MemSource::new(b"FAKE".to_vec())));
     let cancel = CancelFlag::default();
-    let (samples, rate) = runtime.render_to_vec(session, 44_100, 1.0, 1 << 26, &cancel).unwrap();
-    assert_eq!(rate, 44_100);
-    let frames = samples.len() / 2;
-    // 48000 -> 44100 with block rounding and delay tolerance.
-    assert!((43_800..=44_400).contains(&frames), "converted frames {frames}");
-    assert!(samples.iter().all(|s| s.is_finite()));
+    let mut job = rt
+        .start_render(source, None, RenderOptions::default(), &cancel)
+        .unwrap();
+    assert!(matches!(job.next().unwrap(), RenderStep::Data { .. }));
+    cancel.cancel();
+    assert!(matches!(job.next(), Err(LibzciError::Cancelled)));
+    drop(rt);
+    drop(job);
+    assert!(weak.upgrade().is_none());
 }

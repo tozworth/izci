@@ -1,176 +1,131 @@
-//! Native playback pipeline: decode, process, resample, feed.
-//!
-//! One worker thread per output pulls the core session through the
-//! public decode path and prepares bounded stereo PCM at the device rate.
-//! The callback consumes fixed-pool blocks and applies the shared master stage.
-//!
-//! Generation discipline: the worker watches the session generation.
-//! Any change (seek/stop/load) requests a consumer-owned generation switch
-//! and drops stale preparation. The worker never changes consumer cursors.
-//! Pause holds decode and pauses the device stream; buffered audio
-//! resumes seamlessly because nothing changed underneath it.
-
+//! Native output is a mechanism driven by the session's requested transport.
+use crate::{
+    audio::{open_output, DeviceOutput, OutputSpec, OutputStats},
+    pcm_transport::{OutputMonitor, PcmProducer},
+    runtime::NativeRuntime,
+    session_jobs::{SessionEntry, DECODE_SAMPLES},
+};
+use libzci::*;
+use std::collections::HashMap;
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
-    Arc, Mutex,
+    Arc,
 };
+use std::time::Duration;
 
-use libzci::{
-    AudioProcessor, CancelFlag, ChannelLayout, Generation, LibzciError, OutputPreparation,
-    PcmLayout, RateConverter, RequestedState, Result, RunningState, SessionId,
-};
-
-use crate::audio::{open_output, DeviceOutput, OutputSpec};
-use crate::pcm_transport::{OutputMonitor, PcmProducer};
-use crate::runtime::NativeRuntime;
-
-/// Opaque output handle.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct OutputId(pub u64);
-
 static NEXT_OUTPUT: AtomicU64 = AtomicU64::new(1);
-
-/// Volume/mute control shared with the pipeline thread.
-struct OutputControls {
-    transport: Arc<OutputMonitor>,
-    paused: AtomicBool,
-    stop: AtomicBool,
-}
-
-/// Point-in-time output observation (requested vs running distinct).
 #[derive(Clone, Debug)]
 pub struct OutputObservation {
-    /// Session feeding this output.
     pub session: SessionId,
-    /// What was last requested.
     pub requested: RequestedState,
-    /// What the device reports.
     pub running: RunningState,
-    /// Device rate in Hz.
     pub rate_hz: u32,
-    /// Device frames consumed (audible clock).
     pub consumed_frames: u64,
-    /// Provider-timeline frames decoded into the pipeline.
     pub decoded_position: u64,
-    /// Estimated latency in device frames.
     pub latency_frames: u64,
-    /// Ring-empty pops (silence rendered).
     pub hungry_pops: u64,
-    /// Ring fill in device frames.
     pub ring_fill_frames: u64,
-    /// `true` after source EOF and all converter tails reached the output pool.
     pub drained: bool,
-    /// `true` after final current-generation media crossed a callback boundary.
-    /// Device latency/audible-position integration remains separate.
     pub finished: bool,
-    /// Device label for diagnostics.
     pub device_label: String,
 }
-
 pub(crate) struct OutputEntry {
     session: SessionId,
-    device: Arc<Mutex<Option<DeviceOutput>>>,
-    controls: Arc<OutputControls>,
+    device: DeviceOutput,
+    stop: CancelFlag,
     drained: Arc<AtomicBool>,
     finished: Arc<AtomicBool>,
-    decoded_position: Arc<AtomicU64>,
+    position: Arc<AtomicU64>,
     thread: Option<std::thread::JoinHandle<()>>,
 }
-
-/// Session-chunk decode plus generation access for the pipeline.
-/// Implemented here to keep device threading out of `runtime.rs`.
-impl NativeRuntime {
-    /// Current generation of a session (fence watch).
-    pub(crate) fn session_generation(&self, session: SessionId) -> Generation {
-        self.sessions
-            .lock()
-            .unwrap()
-            .get(&session)
-            .map(|cell| cell.lock().unwrap().generation())
-            .unwrap_or(Generation::INITIAL)
-    }
-
-    /// Decode one chunk from a session through the public runtime path.
-    /// Returns generation, full layout/rate, source origin, frames, EOF together.
-    pub(crate) fn decode_session_chunk(
-        &self,
-        session: SessionId,
-        buf: &mut [f32],
-        cancel: &CancelFlag,
-    ) -> Result<(Generation, PcmLayout, u64, usize, bool)> {
-        let sessions = self.sessions.lock().unwrap();
-        let cell = sessions
-            .get(&session)
-            .ok_or_else(|| LibzciError::InvalidArgument {
-                detail: "unknown session".into(),
-            })?;
-        let mut sess = cell.lock().unwrap();
-        let (generation, chunk) = sess.decode_for_generation(buf.len(), cancel)?;
-        let layout = chunk.layout;
-        let n = chunk.frames.len().min(buf.len());
-        buf[..n].copy_from_slice(&chunk.frames[..n]);
-        let eof = chunk.frame_count() == 0;
-        let channels = layout.layout.channels() as usize;
-        Ok((
-            generation,
-            layout,
-            chunk.start_frame,
-            n / channels.max(1),
-            eof,
-        ))
+pub(crate) type OutputMap = HashMap<OutputId, OutputEntry>;
+impl Drop for OutputEntry {
+    fn drop(&mut self) {
+        self.stop.cancel();
+        self.device.transport.stop();
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
     }
 }
-
-/// Decode chunk size in samples (stereo interleaved).
-const DECODE_SAMPLES: usize = 4096;
-
 impl NativeRuntime {
-    /// Start audible output for a loaded session. Returns the output id.
-    /// The session should be `Playing` (requested); the observation
-    /// reports whether the device is actually running.
-    pub fn start_output(
-        self: &Arc<Self>,
-        session: SessionId,
-        spec: &OutputSpec,
-        volume: f32,
-    ) -> Result<OutputId> {
-        let mut device = open_output(spec, 2.0)?;
-        let rate_hz = device.rate_hz();
-        let producer = device.producer.take().expect("unique output producer");
-        let transport = Arc::clone(&device.transport);
-        transport.set_volume(volume);
-        let device = Arc::new(Mutex::new(Some(device)));
-        let controls = Arc::new(OutputControls {
-            transport,
-            paused: AtomicBool::new(false),
-            stop: AtomicBool::new(false),
-        });
+    /// Attach a device. All transport and master controls use submit().
+    pub fn start_output(&self, session: SessionId, spec: &OutputSpec) -> Result<OutputId> {
+        let entry = self.entry(session)?;
+        {
+            let mut c = entry.control.lock().unwrap();
+            if c.output_reserved {
+                return Err(LibzciError::InvalidArgument {
+                    detail: "session already has an output".into(),
+                });
+            }
+            // Reserve the single output before opening a device outside this lock.
+            c.output_reserved = true;
+        }
+        let mut device = match open_output(spec, 0.25) {
+            Ok(device) => device,
+            Err(e) => {
+                let mut c = entry.control.lock().unwrap();
+                c.output = None;
+                c.output_reserved = false;
+                let tag = c.owner.tag();
+                c.owner.failed(tag, e.clone());
+                return Err(e);
+            }
+        };
+        let producer = device.producer.take().unwrap();
+        let transport = device.transport.clone();
+        {
+            let mut c = entry.control.lock().unwrap();
+            if c.closed {
+                return Err(LibzciError::Cancelled);
+            }
+            let s = c.owner.snapshot();
+            transport.request_generation(s.generation);
+            transport.set_held(true);
+            transport.set_volume(s.volume);
+            transport.set_mute(s.mute);
+            c.output = Some(transport.clone());
+            c.owner.output_state(RunningState::Running);
+        }
+        let stop = CancelFlag::default();
+        let token = stop.clone();
         let drained = Arc::new(AtomicBool::new(false));
+        let thread_drained = drained.clone();
         let finished = Arc::new(AtomicBool::new(false));
-        let decoded_position = Arc::new(AtomicU64::new(0));
-        let runtime = Arc::clone(self);
-        let thread_controls = Arc::clone(&controls);
-        let thread_device = Arc::clone(&device);
-        let thread_drained = Arc::clone(&drained);
-        let thread_finished = Arc::clone(&finished);
-        let thread_position = Arc::clone(&decoded_position);
+        let thread_finished = finished.clone();
+        let position = Arc::new(AtomicU64::new(0));
+        let thread_position = position.clone();
+        let stats = device.stats.clone();
+        let rate = device.rate_hz();
         let thread = std::thread::Builder::new()
-            .name(format!("libzci-output-{session:?}"))
+            .name(format!("libzci-output-{}", session.0))
             .spawn(move || {
-                let _keep_device = thread_device;
-                pipeline_main(
-                    &runtime,
-                    session,
-                    rate_hz,
+                let result = pipeline_main(
+                    &entry,
+                    rate,
                     producer,
-                    &thread_controls,
+                    &transport,
+                    &token,
                     &thread_drained,
                     &thread_finished,
                     &thread_position,
+                    Some(&stats),
                 );
+                if let Err(error) = result {
+                    if !token.is_cancelled() {
+                        let mut c = entry.control.lock().unwrap();
+                        let tag = c.owner.tag();
+                        c.owner.failed(tag, error);
+                        c.owner.output_state(RunningState::Failed);
+                        transport.set_held(true);
+                    }
+                }
             })
             .map_err(|e| LibzciError::DeviceUnavailable {
-                detail: format!("cannot spawn output thread: {e}"),
+                detail: format!("output worker: {e}"),
             })?;
         let id = OutputId(NEXT_OUTPUT.fetch_add(1, Ordering::Relaxed));
         self.outputs.lock().unwrap().insert(
@@ -178,484 +133,352 @@ impl NativeRuntime {
             OutputEntry {
                 session,
                 device,
-                controls,
+                stop,
                 drained,
                 finished,
-                decoded_position,
+                position,
                 thread: Some(thread),
             },
         );
         Ok(id)
     }
-
-    /// Observe one output (requested vs running, clock, underruns).
     pub fn output_state(&self, id: OutputId) -> Option<OutputObservation> {
         let outputs = self.outputs.lock().unwrap();
-        let entry = outputs.get(&id)?;
-        let guard = entry.device.lock().unwrap();
-        let device = guard.as_ref()?;
-        let requested = if entry.controls.paused.load(Ordering::Relaxed) {
-            RequestedState::Held
-        } else {
-            RequestedState::Running
-        };
+        let e = outputs.get(&id)?;
+        let s = self.entry(e.session).ok()?.snapshot();
         Some(OutputObservation {
-            session: entry.session,
-            requested,
-            running: RunningState::Running,
-            rate_hz: device.rate_hz(),
-            consumed_frames: device.consumed_frames(),
-            decoded_position: entry.decoded_position.load(Ordering::Relaxed),
-            latency_frames: device.latency_frames,
-            hungry_pops: device.hungry_pops(),
-            ring_fill_frames: device.transport.len_frames() as u64,
-            drained: entry.drained.load(Ordering::Relaxed),
-            finished: entry.finished.load(Ordering::Relaxed),
-            device_label: device.device_label.clone(),
+            session: e.session,
+            requested: s.requested,
+            running: s.running,
+            rate_hz: e.device.rate_hz(),
+            consumed_frames: e.device.consumed_frames(),
+            decoded_position: e.position.load(Ordering::Relaxed),
+            latency_frames: e.device.stats.latency_frames.load(Ordering::Relaxed),
+            hungry_pops: e.device.hungry_pops(),
+            ring_fill_frames: e.device.transport.len_frames() as u64,
+            drained: e.drained.load(Ordering::Acquire),
+            finished: e.finished.load(Ordering::Acquire),
+            device_label: e.device.device_label.clone(),
         })
     }
-
-    /// Set master volume (smoothed by the callback, independent of read-ahead).
-    pub fn set_output_volume(&self, id: OutputId, volume: f32) -> Result<()> {
-        let outputs = self.outputs.lock().unwrap();
-        let entry = outputs
-            .get(&id)
-            .ok_or_else(|| LibzciError::InvalidArgument {
-                detail: "unknown output".into(),
-            })?;
-        entry.controls.transport.set_volume(volume);
-        Ok(())
-    }
-
-    /// Set mute on an output (ramps like a gain move).
-    pub fn set_output_mute(&self, id: OutputId, mute: bool) -> Result<()> {
-        let outputs = self.outputs.lock().unwrap();
-        let entry = outputs
-            .get(&id)
-            .ok_or_else(|| LibzciError::InvalidArgument {
-                detail: "unknown output".into(),
-            })?;
-        entry.controls.transport.set_mute(mute);
-        Ok(())
-    }
-
-    /// Pause an output (holds decode, pauses the device stream).
-    pub fn pause_output(&self, id: OutputId) -> Result<()> {
-        let outputs = self.outputs.lock().unwrap();
-        let entry = outputs
-            .get(&id)
-            .ok_or_else(|| LibzciError::InvalidArgument {
-                detail: "unknown output".into(),
-            })?;
-        entry.controls.paused.store(true, Ordering::Relaxed);
-        entry.controls.transport.set_held(true);
-        if let Some(device) = entry.device.lock().unwrap().as_ref() {
-            device.pause_stream()?;
-        }
-        Ok(())
-    }
-
-    /// Resume a paused output.
-    pub fn resume_output(&self, id: OutputId) -> Result<()> {
-        let outputs = self.outputs.lock().unwrap();
-        let entry = outputs
-            .get(&id)
-            .ok_or_else(|| LibzciError::InvalidArgument {
-                detail: "unknown output".into(),
-            })?;
-        if let Some(device) = entry.device.lock().unwrap().as_ref() {
-            device.resume_stream()?;
-        }
-        entry.controls.paused.store(false, Ordering::Relaxed);
-        entry.controls.transport.set_held(false);
-        Ok(())
-    }
-
-    /// Stop an output: signal the thread, join it, release the device.
-    /// Queued stale audio is dropped with the ring (never emitted).
     pub fn stop_output(&self, id: OutputId) -> Result<()> {
-        let thread = {
-            let mut outputs = self.outputs.lock().unwrap();
-            let entry = outputs
-                .remove(&id)
-                .ok_or_else(|| LibzciError::InvalidArgument {
-                    detail: "unknown output".into(),
-                })?;
-            entry.controls.stop.store(true, Ordering::Relaxed);
-            entry.controls.transport.stop();
-            entry.thread
-        };
-        if let Some(thread) = thread {
-            let _ = thread.join();
+        let entry = self.outputs.lock().unwrap().remove(&id).ok_or_else(|| {
+            LibzciError::InvalidArgument {
+                detail: "unknown output".into(),
+            }
+        })?;
+        if let Ok(session) = self.entry(entry.session) {
+            let mut c = session.control.lock().unwrap();
+            c.output = None;
+            c.output_reserved = false;
+            c.owner.output_state(RunningState::Closed);
         }
+        drop(entry);
         Ok(())
     }
-
-    /// Dispose control bypasses PCM capacity. Join outside the output-map lock.
     pub(crate) fn stop_session_outputs(&self, session: SessionId) {
         let ids: Vec<_> = self
             .outputs
             .lock()
             .unwrap()
             .iter()
-            .filter_map(|(id, entry)| (entry.session == session).then_some(*id))
+            .filter_map(|(id, e)| (e.session == session).then_some(*id))
             .collect();
         for id in ids {
             let _ = self.stop_output(id);
         }
     }
-
-    /// Device-free render of a session through the shared pipeline
-    /// (decode → upmix → master → resample) into stereo `f32` frames.
-    /// Powers unit tests and `zci-play --render-pcm`; never opens a
-    /// device. Returns `(samples_interleaved, device_rate_hz)`.
-    pub fn render_to_vec(
-        &self,
-        session: SessionId,
-        to_rate_hz: u32,
-        volume: f32,
-        max_frames: u64,
-        cancel: &CancelFlag,
-    ) -> Result<(Vec<f32>, u32)> {
-        let mut processor = AudioProcessor::new();
-        processor.set_volume(volume);
-        // Settle the ramp before rendering (deterministic tests).
-        {
-            let settle = vec![0.0f32; 512];
-            let mut out = vec![0.0f32; 512];
-            for _ in 0..8 {
-                processor.process_stereo(&settle, &mut out);
-            }
-            processor.set_volume(volume);
-            for _ in 0..8 {
-                processor.process_stereo(&settle, &mut out);
-            }
-        }
-        // Matched rates bypass conversion for bit-exact renders; only a
-        // real device-rate mismatch goes through the resampler.
-        let mut converter: Option<RateConverter> = None;
-        let mut input_rate = None;
-        let mut rendered = Vec::new();
-        let mut decode_buf = vec![0.0f32; DECODE_SAMPLES];
-        // Stereo scratch holds the mono→stereo expansion (2x).
-        let mut stereo = vec![0.0f32; DECODE_SAMPLES * 2];
-        let mut processed = vec![0.0f32; DECODE_SAMPLES * 2];
-        let mut frames_done = 0u64;
-        loop {
-            cancel.check()?;
-            if frames_done >= max_frames {
-                break;
-            }
-            let (_, layout, _, frames, eof) =
-                self.decode_session_chunk(session, &mut decode_buf, cancel)?;
-            if frames == 0 {
-                break;
-            }
-            // Explicit channel mapping to the stereo baseline.
-            if input_rate != Some(layout.sample_rate) {
-                converter = if to_rate_hz == layout.sample_rate {
-                    None
-                } else {
-                    Some(RateConverter::new(layout.sample_rate, to_rate_hz, 2)?)
-                };
-                input_rate = Some(layout.sample_rate);
-            }
-            let stereo_frames: &[f32] = match layout.layout {
-                ChannelLayout::Mono => {
-                    AudioProcessor::upmix_mono(&decode_buf[..frames], &mut stereo[..frames * 2]);
-                    &stereo[..frames * 2]
-                }
-                ChannelLayout::Stereo => &decode_buf[..frames * 2],
-            };
-            processor.process_stereo(stereo_frames, &mut processed[..stereo_frames.len()]);
-            match converter.as_mut() {
-                Some(converter) => {
-                    converter.push(&processed[..stereo_frames.len()])?;
-                    let mut out = vec![0.0f32; 8192];
-                    loop {
-                        let n = converter.pop(&mut out);
-                        if n == 0 {
-                            break;
-                        }
-                        rendered.extend_from_slice(&out[..n]);
-                    }
-                }
-                None => rendered.extend_from_slice(&processed[..stereo_frames.len()]),
-            }
-            frames_done += frames as u64;
-            if eof {
-                break;
-            }
-        }
-        if let Some(converter) = converter.as_mut() {
-            converter.flush()?;
-            let mut out = vec![0.0f32; 8192];
-            loop {
-                let n = converter.pop(&mut out);
-                if n == 0 {
-                    break;
-                }
-                rendered.extend_from_slice(&out[..n]);
-            }
-        }
-        Ok((rendered, to_rate_hz))
-    }
 }
-
-/// Bounded worker. Capacity polling happens only here, never in the callback.
 #[allow(clippy::too_many_arguments)]
-fn pipeline_main(
-    runtime: &NativeRuntime,
-    session: SessionId,
-    rate_hz: u32,
+pub(crate) fn pipeline_main(
+    entry: &Arc<SessionEntry>,
+    rate: u32,
     mut producer: PcmProducer,
-    controls: &Arc<OutputControls>,
-    drained: &Arc<AtomicBool>,
-    finished: &Arc<AtomicBool>,
-    decoded_position: &Arc<AtomicU64>,
-) {
-    let cancel = CancelFlag::default();
-    let mut decode_buf = vec![0.0f32; DECODE_SAMPLES];
+    transport: &Arc<OutputMonitor>,
+    cancel: &CancelFlag,
+    drained: &AtomicBool,
+    finished: &AtomicBool,
+    position: &AtomicU64,
+    stats: Option<&OutputStats>,
+) -> Result<()> {
     let mut preparation: Option<OutputPreparation> = None;
     let mut last_generation = None;
     loop {
-        if controls.stop.load(Ordering::Acquire) {
-            break;
+        cancel.check()?;
+        if stats.is_some_and(|s| s.failed.load(Ordering::Acquire)) || transport.timing_failed() {
+            return Err(LibzciError::DeviceUnavailable {
+                detail: "audio device failed or exceeded the bounded timing budget".into(),
+            });
         }
-        // Control is checked even with no PCM credits, held output, or EOF.
-        let generation = runtime.session_generation(session);
+        let snap = entry.snapshot();
+        if let Some(error) = snap.error {
+            return Err(error);
+        }
+        if entry.control.lock().unwrap().closed {
+            return Ok(());
+        }
+        let generation = snap.generation;
         if last_generation != Some(generation) {
-            controls.transport.request_generation(generation);
             preparation = None;
             last_generation = Some(generation);
             drained.store(false, Ordering::Release);
             finished.store(false, Ordering::Release);
-            decoded_position.store(0, Ordering::Relaxed);
+            position.store(snap.position_frames, Ordering::Relaxed);
         }
-        if controls.paused.load(Ordering::Acquire) {
-            std::thread::sleep(std::time::Duration::from_millis(2));
+        let held = snap.requested == RequestedState::Held
+            || snap.pending_operation
+            || snap.running == RunningState::Suspended;
+
+        if let Some((gen, media)) = transport.media_position() {
+            entry.consumed(gen, media, false);
+        }
+        if held {
+            std::thread::sleep(Duration::from_millis(2));
             continue;
         }
-        if let Some(prepared) = &mut preparation {
-            let progress = prepared.pump(|block, samples| producer.write(block, samples));
-            if prepared.is_drained() {
+        if let Some(p) = &mut preparation {
+            let progress = p.pump(|block, samples| producer.write(block, samples));
+            if p.is_drained() {
                 drained.store(true, Ordering::Release);
-                finished.store(
-                    controls.transport.is_drained()
-                        && controls.transport.acknowledged_generation() == generation,
-                    Ordering::Release,
-                );
+                if let Some((ack, media)) = transport.completed_position() {
+                    if ack == generation {
+                        entry.consumed(generation, media.unwrap_or(snap.position_frames), true);
+                        finished.store(true, Ordering::Release);
+                    }
+                }
             }
-            if !prepared.needs_input() {
+            if !p.needs_input() {
                 if progress == 0 {
-                    std::thread::sleep(std::time::Duration::from_millis(2));
+                    std::thread::sleep(Duration::from_millis(2));
                 }
                 continue;
             }
         }
-        // No decode or further converter input while all pool blocks are owned
-        // downstream. A pending suffix above is retained until recycling.
         if !producer.has_credit() {
-            std::thread::sleep(std::time::Duration::from_millis(2));
+            std::thread::sleep(Duration::from_millis(2));
             continue;
         }
-        let (decoded_generation, layout, start, frames, eof) =
-            match runtime.decode_session_chunk(session, &mut decode_buf, &cancel) {
-                Ok(decoded) => decoded,
-                Err(_) => break,
-            };
-        if decoded_generation != generation || runtime.session_generation(session) != generation {
+        let decoded = entry.decode(cancel)?;
+        if decoded.tag.generation != generation
+            || !entry.control.lock().unwrap().owner.accepts(decoded.tag)
+        {
             continue;
         }
-        let prepared = match preparation.as_mut() {
-            Some(prepared) => prepared,
-            None => {
-                preparation =
-                    match OutputPreparation::new(layout, rate_hz, DECODE_SAMPLES, generation) {
-                        Ok(prepared) => Some(prepared),
-                        Err(_) => break,
-                    };
-                preparation.as_mut().unwrap()
-            }
-        };
-        if frames > 0 {
-            if prepared
-                .accept(
-                    start,
-                    &decode_buf[..frames * layout.layout.channels() as usize],
-                )
-                .is_err()
-            {
-                break;
-            }
-            decoded_position.store(start + frames as u64, Ordering::Relaxed);
+        if preparation.is_none() {
+            preparation = Some(OutputPreparation::new(
+                decoded.layout,
+                rate,
+                DECODE_SAMPLES,
+                generation,
+            )?);
         }
-        if eof && prepared.finish().is_err() {
-            break;
+        let p = preparation.as_mut().unwrap();
+        match decoded.status {
+            DecodeStatus::Data(_) => {
+                p.accept(decoded.start, &decoded.samples)?;
+                position.store(
+                    decoded.start
+                        + (decoded.samples.len() / decoded.layout.layout.channels() as usize)
+                            as u64,
+                    Ordering::Relaxed,
+                );
+            }
+            DecodeStatus::Pending => std::thread::sleep(Duration::from_millis(2)),
+            DecodeStatus::EndOfStream => p.finish()?,
         }
     }
 }
-use std::collections::HashMap;
-
-/// Map from output id to entry (owned by the runtime).
-pub(crate) type OutputMap = HashMap<OutputId, OutputEntry>;
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pcm_transport::{pcm_transport, BLOCK_FRAMES};
-    use libzci::{provider::FakeFactory, MemSource};
-    use std::sync::mpsc;
+    use crate::pcm_transport::pcm_transport;
+    use crate::render::*;
+    use std::sync::atomic::Ordering;
     use std::time::{Duration, Instant};
-
-    fn full_worker() -> (
-        Arc<NativeRuntime>,
-        SessionId,
-        Arc<OutputControls>,
-        mpsc::Receiver<()>,
-        std::thread::JoinHandle<()>,
-    ) {
-        let runtime = NativeRuntime::new();
-        runtime
-            .register_provider(Arc::new(FakeFactory::new(1_000_000, PcmLayout::mono48k())))
-            .unwrap();
-        let session = runtime.create_session();
-        let source = runtime.insert_source(Arc::new(MemSource::new(b"FAKE-long".to_vec())));
-        runtime
-            .load(session, source, None, &CancelFlag::default())
-            .unwrap();
-        let generation = runtime.session_generation(session);
-        let (producer, consumer, transport) = pcm_transport(1, generation);
-        let controls = Arc::new(OutputControls {
-            transport,
-            paused: AtomicBool::new(false),
-            stop: AtomicBool::new(false),
-        });
-        let (done_tx, done_rx) = mpsc::channel();
-        let worker_runtime = runtime.clone();
-        let worker_controls = controls.clone();
-        let position = Arc::new(AtomicU64::new(0));
-        let worker_position = position.clone();
-        let worker = std::thread::spawn(move || {
-            // Retain the consumer without making progress: one full pool slot.
-            let _consumer = consumer;
-            pipeline_main(
-                &worker_runtime,
-                session,
-                48_000,
-                producer,
-                &worker_controls,
-                &Arc::new(AtomicBool::new(false)),
-                &Arc::new(AtomicBool::new(false)),
-                &worker_position,
-            );
-            done_tx.send(()).unwrap();
-        });
-        let deadline = Instant::now() + Duration::from_secs(2);
-        while controls.transport.len_frames() != BLOCK_FRAMES {
-            assert!(Instant::now() < deadline, "worker never filled pool");
+    fn until(mut condition: impl FnMut() -> bool) {
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while !condition() {
+            assert!(Instant::now() < deadline, "transport did not progress");
             std::thread::yield_now();
         }
-        // No file-sized read-ahead: only the one pending decoded block.
-        assert!(position.load(Ordering::Relaxed) <= DECODE_SAMPLES as u64);
-        (runtime, session, controls, done_rx, worker)
     }
-
-    #[test]
-    fn native_worker_stop_bypasses_full_capacity() {
-        let (_, _, controls, done, worker) = full_worker();
-        controls.stop.store(true, Ordering::Release);
-        controls.transport.stop();
-        done.recv_timeout(Duration::from_secs(2))
-            .expect("capacity blocked stop");
-        worker.join().unwrap();
+    fn command(rt: &NativeRuntime, c: Command) {
+        rt.submit(&c, &CancelFlag::default()).unwrap();
     }
-
     #[test]
-    fn session_dispose_stops_full_output_without_device() {
-        let (runtime, session, controls, done, worker) = full_worker();
-        let id = OutputId(NEXT_OUTPUT.fetch_add(1, Ordering::Relaxed));
-        runtime.outputs.lock().unwrap().insert(
-            id,
-            OutputEntry {
+    fn api_alone_pauses_seeks_stops_and_disposes_a_full_output() {
+        let rt = NativeRuntime::new();
+        rt.register_provider(Arc::new(provider::FakeFactory::new(
+            100_003,
+            PcmLayout::mono48k(),
+        )))
+        .unwrap();
+        let session = rt.create_session();
+        let source = rt.insert_source(Arc::new(MemSource::new(b"FAKE".to_vec())));
+        rt.load(session, source, None, &CancelFlag::default())
+            .unwrap();
+        let entry = rt.entry(session).unwrap();
+        let weak_entry = Arc::downgrade(&entry);
+        let (producer, mut consumer, monitor) = pcm_transport(2, entry.snapshot().generation);
+        {
+            let mut c = entry.control.lock().unwrap();
+            c.output = Some(monitor.clone());
+            c.refresh_output();
+        }
+        let cancel = CancelFlag::default();
+        let token = cancel.clone();
+        let worker_entry = entry.clone();
+        let output = monitor.clone();
+        let worker = std::thread::spawn(move || {
+            pipeline_main(
+                &worker_entry,
+                48_000,
+                producer,
+                &output,
+                &token,
+                &AtomicBool::new(false),
+                &AtomicBool::new(false),
+                &AtomicU64::new(0),
+                None,
+            )
+        });
+        command(
+            &rt,
+            Command::Play {
                 session,
-                device: Arc::new(Mutex::new(None)),
-                controls,
-                drained: Arc::new(AtomicBool::new(false)),
-                finished: Arc::new(AtomicBool::new(false)),
-                decoded_position: Arc::new(AtomicU64::new(0)),
-                thread: Some(worker),
+                request_id: RequestId::fresh(),
             },
         );
-        runtime.dispose_session(session);
-        done.recv_timeout(Duration::from_secs(2))
-            .expect("capacity blocked dispose");
-        assert!(runtime.outputs.lock().unwrap().is_empty());
+        until(|| monitor.len_frames() == 512);
+        assert_eq!(rt.snapshot(session).unwrap().position_frames, 0); // read-ahead is not audible.
+        command(
+            &rt,
+            Command::Pause {
+                session,
+                request_id: RequestId::fresh(),
+            },
+        );
+        let mut out = [0.0; 32];
+        assert_eq!(consumer.render(&mut out), 0);
+        assert_eq!(rt.snapshot(session).unwrap().position_frames, 0);
+        command(
+            &rt,
+            Command::Play {
+                session,
+                request_id: RequestId::fresh(),
+            },
+        );
+        assert_eq!(consumer.render(&mut out), 16);
+        until(|| rt.snapshot(session).unwrap().position_frames == 16);
+        // Seek after decode but before consumption. Every old queued block is stale.
+        command(
+            &rt,
+            Command::Seek {
+                session,
+                request_id: RequestId::fresh(),
+                time: MediaTime(1.0),
+            },
+        );
+        consumer.render(&mut out); // acknowledges/discards old output even while seek is pending.
+        rt.wait_ready(session, &CancelFlag::default()).unwrap();
+        until(|| consumer.render(&mut out) > 0);
+        let expected = (48_000f32 / 48_000.0 * 440.0 * 2.0 * std::f32::consts::PI).sin() * 0.5;
+        assert_eq!(out[0], expected);
+        command(
+            &rt,
+            Command::Stop {
+                session,
+                request_id: RequestId::fresh(),
+            },
+        );
+        assert_eq!(consumer.render(&mut out), 0);
+        assert_eq!(rt.snapshot(session).unwrap().position_frames, 0);
+        rt.dispose_session(session);
+        cancel.cancel();
+        let _ = worker.join().unwrap();
+        drop(entry);
+        until(|| weak_entry.upgrade().is_none());
     }
-
     #[test]
-    fn native_worker_matches_unrestricted_render_through_tiny_pool() {
+    fn production_worker_preserves_long_output_and_tails_through_tiny_pool() {
         for rate in [48_000, 44_100, 96_000] {
-            let runtime = NativeRuntime::new();
-            runtime
-                .register_provider(Arc::new(FakeFactory::new(20_003, PcmLayout::mono48k())))
+            let rt = NativeRuntime::new();
+            rt.register_provider(Arc::new(provider::FakeFactory::new(
+                50_003,
+                PcmLayout::mono48k(),
+            )))
+            .unwrap();
+            let source = rt.insert_source(Arc::new(MemSource::new(b"FAKE".to_vec())));
+            let mut reference = rt
+                .start_render(
+                    source,
+                    None,
+                    RenderOptions {
+                        output_rate: rate,
+                        ..Default::default()
+                    },
+                    &CancelFlag::default(),
+                )
                 .unwrap();
-            let source = runtime.insert_source(Arc::new(MemSource::new(b"FAKE-output".to_vec())));
-            let cancel = CancelFlag::default();
-            let session = runtime.create_session();
-            let reference_session = runtime.create_session();
-            runtime.load(session, source, None, &cancel).unwrap();
-            runtime
-                .load(reference_session, source, None, &cancel)
+            let mut expected = Vec::new();
+            loop {
+                match reference.next().unwrap() {
+                    RenderStep::Data { samples, .. } => expected.extend(samples),
+                    RenderStep::Pending => (),
+                    RenderStep::Complete(_) => break,
+                }
+            }
+            let session = rt.create_session();
+            rt.load(session, source, None, &CancelFlag::default())
                 .unwrap();
-            let (reference, _) = runtime
-                .render_to_vec(reference_session, rate, 1.0, u64::MAX, &cancel)
-                .unwrap();
-            let (producer, mut consumer, transport) =
-                pcm_transport(2, runtime.session_generation(session));
-            let controls = Arc::new(OutputControls {
-                transport,
-                paused: AtomicBool::new(false),
-                stop: AtomicBool::new(false),
-            });
-            let drained = Arc::new(AtomicBool::new(false));
+            let entry = rt.entry(session).unwrap();
+            let (producer, mut consumer, monitor) = pcm_transport(2, entry.snapshot().generation);
+            {
+                let mut c = entry.control.lock().unwrap();
+                c.output = Some(monitor.clone());
+                c.refresh_output();
+            }
+            let token = CancelFlag::default();
+            let cancel = token.clone();
+            let e = entry.clone();
+            let m = monitor.clone();
             let finished = Arc::new(AtomicBool::new(false));
-            let worker_runtime = runtime.clone();
-            let worker_controls = controls.clone();
-            let worker_drained = drained.clone();
-            let worker_finished = finished.clone();
+            let f = finished.clone();
             let worker = std::thread::spawn(move || {
                 pipeline_main(
-                    &worker_runtime,
-                    session,
+                    &e,
                     rate,
                     producer,
-                    &worker_controls,
-                    &worker_drained,
-                    &worker_finished,
-                    &Arc::new(AtomicU64::new(0)),
-                );
+                    &m,
+                    &cancel,
+                    &AtomicBool::new(false),
+                    &f,
+                    &AtomicU64::new(0),
+                    None,
+                )
             });
-            let deadline = Instant::now() + Duration::from_secs(5);
-            let mut rendered = Vec::new();
-            let mut scratch = [0.0; 193 * 2];
-            let mut tick = 0;
-            while !finished.load(Ordering::Acquire) && Instant::now() < deadline {
-                let frames = [0, 1, 7, 193, 0, 11][tick % 6];
-                tick += 1;
-                let got = consumer.render(&mut scratch[..frames * 2]);
-                rendered.extend_from_slice(&scratch[..got * 2]);
-                std::thread::yield_now();
-            }
-            controls.stop.store(true, Ordering::Release);
-            controls.transport.stop();
-            worker.join().unwrap();
-            assert!(
-                finished.load(Ordering::Acquire),
-                "worker failed to finish {rate}"
+            command(
+                &rt,
+                Command::Play {
+                    session,
+                    request_id: RequestId::fresh(),
+                },
             );
-            assert!(drained.load(Ordering::Acquire));
-            assert_eq!(rendered, reference, "native worker lost PCM at {rate}");
+            let mut actual = Vec::new();
+            let mut scratch = [0.0; 386];
+            let mut tick = 0;
+            until(|| {
+                let n = [0, 1, 7, 193, 0, 11][tick % 6];
+                tick += 1;
+                let got = consumer.render(&mut scratch[..n * 2]);
+                actual.extend_from_slice(&scratch[..got * 2]);
+                finished.load(Ordering::Acquire)
+            });
+            assert_eq!(actual, expected, "worker lost PCM at {rate}");
+            assert_eq!(entry.snapshot().state, TransportState::Ended);
+            assert_eq!(entry.snapshot().position_frames, 50_003);
+            token.cancel();
+            let _ = worker.join().unwrap();
         }
     }
 }

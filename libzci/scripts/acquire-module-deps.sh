@@ -23,6 +23,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MANIFEST="$REPO_ROOT/libzci/vendor/dependencies.json"
 VENDOR_ROOT="$REPO_ROOT/.local/libzci/vendor"
 CHECK_ONLY="${1:-}"
+need_target="${LIBZCI_TARGET:-$(rustc -vV | sed -n 's/^host: //p')}"
+[[ "$need_target" == *-linux-gnu ]] || { echo "This recipe requires native GNU/Linux. For Windows MSVC use acquire-media-deps.ps1." >&2; exit 1; }
+NATIVE_BUILD="build-$need_target"
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "missing required tool: $1" >&2; exit 1; }; }
 need python3; need curl; need sha256sum; need tar

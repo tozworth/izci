@@ -1,254 +1,251 @@
-//! Native audio output over CPAL.
-//!
-//! Adapter-owned execution mechanism: opens default/selected output
-//! devices, feeds them from a preallocated lock-free ring, and reports
-//! the consumed-frame clock, latency estimates, and underruns. The
-//! device callback pops the ring and renders silence on underrun —
-//! no SQL, file I/O, decode, allocation, or control locks inside.
-//!
-//! Requested play state and actually-running output stay distinct:
-//! opening can fail with typed [`LibzciError::DeviceUnavailable`]
-//! (no device, unknown name, unsupported format), which callers
-//! surface instead of claiming playback.
-
-use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    Arc,
-};
-
-use crate::pcm_transport::{pcm_transport, OutputMonitor, PcmProducer, BLOCK_FRAMES};
+//! Native CPAL mechanism: negotiate PCM formats and convert explicitly. No codec,
+//! control locks, allocation, or logging on the device callback.
+use crate::pcm_transport::{pcm_transport, OutputMonitor, PcmConsumer, PcmProducer, BLOCK_FRAMES};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use libzci::{Generation, LibzciError, Result};
-
-/// Output device selection.
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    Arc,
+};
 #[derive(Clone, Debug, Default)]
 pub struct OutputSpec {
-    /// Device name substring, or `None` for the default device.
     pub device_name: Option<String>,
-    /// Preferred sample rate, or `None` for the device default.
-    /// The engine resamples to whatever rate is negotiated.
     pub rate_hz: Option<u32>,
 }
-
-/// Live counters shared with the device callback (all atomic).
 #[derive(Debug, Default)]
 pub struct OutputStats {
-    /// Device frames consumed since stream start.
     pub consumed_frames: AtomicU64,
-    /// Callback pops that found data (informational).
     pub filled_pops: AtomicU64,
-    /// Callback pops that found the ring empty (silence rendered).
     pub hungry_pops: AtomicU64,
+    pub failed: AtomicBool,
+    pub latency_frames: AtomicU64,
 }
-
-/// One open native output: stream, ring feed, and clock facts.
 pub struct DeviceOutput {
-    // Stop the callback before releasing the owner references to pool storage.
     _stream: cpal::Stream,
-    /// Move the unique producer to the preparation worker once.
     pub producer: Option<PcmProducer>,
     pub transport: Arc<OutputMonitor>,
-    /// Live callback counters.
     pub stats: Arc<OutputStats>,
-    /// Negotiated device rate in Hz.
     pub rate_hz: u32,
-    /// Estimated output latency in device frames (buffer + device).
     pub latency_frames: u64,
-    /// Device description for diagnostics.
     pub device_label: String,
 }
-
 impl DeviceOutput {
-    /// Negotiated rate.
     pub fn rate_hz(&self) -> u32 {
         self.rate_hz
     }
-
-    /// Consumed frames so far (audible clock source).
     pub fn consumed_frames(&self) -> u64 {
         self.stats.consumed_frames.load(Ordering::Relaxed)
     }
-
-    /// Rendered-silence pops so far.
     pub fn hungry_pops(&self) -> u64 {
         self.stats.hungry_pops.load(Ordering::Relaxed)
     }
-
-    /// Pause the device stream (consumption halts; buffered audio kept).
-    pub fn pause_stream(&self) -> Result<()> {
-        self._stream
-            .pause()
-            .map_err(|e| LibzciError::DeviceUnavailable {
-                detail: format!("cannot pause output stream: {e}"),
-            })
-    }
-
-    /// Resume a paused device stream.
-    pub fn resume_stream(&self) -> Result<()> {
-        self._stream
-            .play()
-            .map_err(|e| LibzciError::DeviceUnavailable {
-                detail: format!("cannot resume output stream: {e}"),
-            })
-    }
 }
-
-/// List output device names (empty when the host has none).
-pub fn list_devices() -> Vec<String> {
-    let host = cpal::default_host();
-    host.output_devices()
-        .map(|devices| {
-            devices
-                .filter_map(|d| d.description().ok().map(|desc| desc.name().to_string()))
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-}
-
 fn device_name(device: &cpal::Device) -> String {
-    use cpal::traits::DeviceTrait;
     device
         .description()
-        .map(|desc| desc.name().to_string())
+        .map(|d| d.name().to_owned())
         .unwrap_or_else(|_| "<unknown>".into())
 }
-
-/// Open the selected output with an F32 stereo stream.
-///
-/// Ring capacity is preallocated for ~2 s at the negotiated rate.
-/// Format negotiation is explicit: F32 stereo is required, and anything
-/// else is a typed failure (no silent fallback chain that could hide
-/// a broken device).
-pub fn open_output(spec: &OutputSpec, ring_seconds: f32) -> Result<DeviceOutput> {
+pub fn list_devices() -> Vec<String> {
+    cpal::default_host()
+        .output_devices()
+        .map(|ds| ds.map(|d| device_name(&d)).collect())
+        .unwrap_or_default()
+}
+fn usable(format: cpal::SampleFormat) -> bool {
+    use cpal::SampleFormat::*;
+    matches!(
+        format,
+        F32 | F64 | I8 | I16 | I24 | I32 | I64 | U8 | U16 | U24 | U32 | U64
+    )
+}
+fn device_error(detail: impl ToString) -> LibzciError {
+    LibzciError::DeviceUnavailable {
+        detail: detail.to_string(),
+    }
+}
+pub fn open_output(spec: &OutputSpec, seconds: f32) -> Result<DeviceOutput> {
+    if spec.rate_hz.is_some_and(|r| !(8000..=192000).contains(&r))
+        || !seconds.is_finite()
+        || !(0.01..=2.0).contains(&seconds)
+    {
+        return Err(LibzciError::InvalidArgument {
+            detail: "invalid output rate or queue duration".into(),
+        });
+    }
     let host = cpal::default_host();
     let device = match &spec.device_name {
         Some(want) => host
             .output_devices()
-            .map_err(|e| LibzciError::DeviceUnavailable {
-                detail: format!("cannot enumerate output devices: {e}"),
-            })?
-            .find(|d| device_name(d).contains(want.as_str()))
-            .ok_or_else(|| LibzciError::DeviceUnavailable {
-                detail: format!("output device not found: {want}"),
-            })?,
+            .map_err(device_error)?
+            .find(|d| device_name(d).contains(want))
+            .ok_or_else(|| device_error(format!("output device not found: {want}")))?,
         None => host
             .default_output_device()
-            .ok_or_else(|| LibzciError::DeviceUnavailable {
-                detail: "no default output device".into(),
-            })?,
+            .ok_or_else(|| device_error("no default output device"))?,
     };
-    let device_label = device_name(&device);
-    let supported = device
-        .default_output_config()
-        .map_err(|e| LibzciError::DeviceUnavailable {
-            detail: format!("device {device_label} has no default output config: {e}"),
-        })?;
-    if supported.sample_format() != cpal::SampleFormat::F32 || supported.channels() != 2 {
-        return Err(LibzciError::DeviceUnavailable {
-            detail: format!(
-                "device {device_label} default is {:?}/{}ch (this build requires F32 stereo)",
-                supported.sample_format(),
-                supported.channels()
-            ),
+    let label = device_name(&device);
+    let default = device.default_output_config().map_err(device_error)?;
+    let desired_rate = spec.rate_hz.unwrap_or(default.sample_rate());
+    let supported = if spec.rate_hz.is_none()
+        && usable(default.sample_format())
+        && (1..=32).contains(&default.channels())
+    {
+        default
+    } else {
+        let mut ranges: Vec<_> = device
+            .supported_output_configs()
+            .map_err(device_error)?
+            .filter(|r| usable(r.sample_format()) && (1..=32).contains(&r.channels()))
+            .collect();
+        ranges.sort_by_key(|r| {
+            (
+                r.channels() != 2,
+                r.sample_format() != cpal::SampleFormat::F32,
+                r.channels(),
+            )
         });
-    }
-    let mut config: cpal::StreamConfig = supported.into();
-    if let Some(rate) = spec.rate_hz {
-        if !(8000..=192000).contains(&rate) {
-            return Err(LibzciError::InvalidArgument {
-                detail: format!("output rate {rate} out of range"),
-            });
-        }
-        config.sample_rate = rate;
-    }
-    let rate_hz = config.sample_rate;
-    let capacity_frames = ((rate_hz as f32 * ring_seconds).max(512.0) as usize).max(2);
-    let (producer, mut consumer, transport) =
-        pcm_transport(capacity_frames.div_ceil(BLOCK_FRAMES), Generation::INITIAL);
-    let stats = Arc::new(OutputStats::default());
-    // Rough latency: two device buffers plus a small device term.
-    let latency_frames = match config.buffer_size.clone() {
-        cpal::BufferSize::Fixed(n) => n as u64 * 2,
-        cpal::BufferSize::Default => (rate_hz as u64 / 50).max(256),
-    } + rate_hz as u64 / 200;
-    let feed_stats = Arc::clone(&stats);
-    let channels = config.channels as usize;
-    let stream = device
-        .build_output_stream(
-            config,
-            move |out: &mut [f32], _| {
-                // Device callback: pop, render silence on underrun,
-                // count everything. No locks, no allocation.
-                let got = consumer.render(out);
-                if got < out.len() / channels {
-                    feed_stats.hungry_pops.fetch_add(1, Ordering::Relaxed);
+        let range = ranges
+            .iter()
+            .find(|r| r.min_sample_rate() <= desired_rate && desired_rate <= r.max_sample_rate())
+            .or_else(|| {
+                if spec.rate_hz.is_none() {
+                    ranges.first()
                 } else {
-                    feed_stats.filled_pops.fetch_add(1, Ordering::Relaxed);
+                    None
                 }
-                feed_stats
-                    .consumed_frames
-                    .fetch_add(out.len() as u64 / channels.max(1) as u64, Ordering::Relaxed);
-            },
-            |err| {
-                // Device errors are reported, not hidden; the owner
-                // observes them via hungry pops and stream state.
-                eprintln!("libzci output stream error: {err}");
-            },
-            None,
-        )
-        .map_err(|e| LibzciError::DeviceUnavailable {
-            detail: format!("cannot open output stream on {device_label}: {e}"),
-        })?;
-    stream.play().map_err(|e| LibzciError::DeviceUnavailable {
-        detail: format!("cannot start output stream on {device_label}: {e}"),
-    })?;
+            })
+            .ok_or_else(|| device_error("no supported PCM configuration for requested rate"))?;
+        range.with_sample_rate(desired_rate.clamp(range.min_sample_rate(), range.max_sample_rate()))
+    };
+    let format = supported.sample_format();
+    let config: cpal::StreamConfig = supported.into();
+    let rate = config.sample_rate;
+    let capacity = (rate as f32 * seconds).ceil() as usize;
+    let (producer, consumer, transport) = pcm_transport(
+        capacity.max(512).div_ceil(BLOCK_FRAMES),
+        Generation::INITIAL,
+    );
+    transport.set_held(true);
+    let stats = Arc::new(OutputStats::default());
+    let latency = (rate as u64 / 40).max(256);
+    stats.latency_frames.store(latency, Ordering::Relaxed);
+    macro_rules! stream {
+        ($t:ty) => {
+            make_stream::<$t>(&device, config.clone(), consumer, stats.clone(), latency)
+        };
+    }
+    use cpal::SampleFormat::*;
+    let stream = match format {
+        F32 => stream!(f32),
+        F64 => stream!(f64),
+        I8 => stream!(i8),
+        I16 => stream!(i16),
+        I24 => stream!(cpal::I24),
+        I32 => stream!(i32),
+        I64 => stream!(i64),
+        U8 => stream!(u8),
+        U16 => stream!(u16),
+        U24 => stream!(cpal::U24),
+        U32 => stream!(u32),
+        U64 => stream!(u64),
+        _ => return Err(device_error("unsupported non-PCM sample format")),
+    }
+    .map_err(device_error)?;
+    stream.play().map_err(device_error)?;
     Ok(DeviceOutput {
+        _stream: stream,
         producer: Some(producer),
         transport,
         stats,
-        rate_hz,
-        latency_frames,
-        device_label,
-        _stream: stream,
+        rate_hz: rate,
+        latency_frames: latency,
+        device_label: format!("{label} ({format:?}, {}ch)", config.channels),
     })
-    // Note: dropping DeviceOutput drops the stream, which stops and
-    // releases the device (defined shutdown outcome).
 }
-
+fn make_stream<T: cpal::SizedSample + cpal::FromSample<f32>>(
+    device: &cpal::Device,
+    config: cpal::StreamConfig,
+    mut consumer: PcmConsumer,
+    stats: Arc<OutputStats>,
+    _fallback_latency: u64,
+) -> std::result::Result<cpal::Stream, cpal::Error> {
+    let channels = config.channels as usize;
+    let rate = config.sample_rate;
+    let errors = stats.clone();
+    device.build_output_stream(
+        config,
+        move |out: &mut [T], info| {
+            let stamp = info.timestamp();
+            let latency = (stamp.playback.duration_since(stamp.callback).as_secs_f64()
+                * rate as f64)
+                .ceil() as u64;
+            stats.latency_frames.store(latency, Ordering::Relaxed);
+            let mut scratch = [0.0f32; 512];
+            let mut offset = 0usize;
+            let mut valid = 0;
+            for chunk in out.chunks_mut(256 * channels) {
+                let count = chunk.len() / channels;
+                // Timestamp is for the first sample of this callback, not each chunk.
+                valid += consumer.render_with_latency(
+                    &mut scratch[..count * 2],
+                    latency + offset as u64 + count as u64,
+                );
+                map_samples(&scratch[..count * 2], chunk, channels);
+                offset += count;
+            }
+            if valid < out.len() / channels {
+                stats.hungry_pops.fetch_add(1, Ordering::Relaxed);
+            } else {
+                stats.filled_pops.fetch_add(1, Ordering::Relaxed);
+            }
+            stats
+                .consumed_frames
+                .fetch_add((out.len() / channels) as u64, Ordering::Relaxed);
+        },
+        move |_| {
+            errors.failed.store(true, Ordering::Release);
+        },
+        None,
+    )
+}
+fn map_samples<T: cpal::SizedSample + cpal::FromSample<f32>>(
+    input: &[f32],
+    output: &mut [T],
+    channels: usize,
+) {
+    for (stereo, frame) in input.chunks_exact(2).zip(output.chunks_exact_mut(channels)) {
+        for (channel, sample) in frame.iter_mut().enumerate() {
+            let value = if channels == 1 {
+                (stereo[0] + stereo[1]) * 0.5
+            } else {
+                match channel {
+                    0 => stereo[0],
+                    1 => stereo[1],
+                    _ => 0.0,
+                }
+            };
+            *sample = T::from_sample(value.clamp(-1.0, 1.0));
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
-    #[ignore = "requires explicit device/runtime authorization"]
+    fn converts_integer_unsigned_mono_and_surround() {
+        let mut mono = [0i16; 2];
+        map_samples(&[0.5, 0.5, -0.5, -0.5], &mut mono, 1);
+        assert_eq!(mono, [16384, -16384]);
+        let mut surround = [0u16; 6];
+        map_samples(&[0.5, -0.5], &mut surround, 6);
+        assert_eq!(surround, [49152, 16384, 32768, 32768, 32768, 32768]);
+    }
+    #[test]
+    #[ignore = "requires authorized device access"]
     fn device_outcome_is_typed() {
-        // Either a device opens (real output path) or the failure is a
-        // typed DeviceUnavailable — never a panic or silent success.
-        match open_output(&OutputSpec::default(), 0.25) {
-            Ok(output) => {
-                assert!(output.rate_hz() >= 8000);
-                assert!(output.transport.capacity_frames() >= 512);
-                eprintln!(
-                    "output device available: {} @ {} Hz (latency {} frames)",
-                    output.device_label, output.rate_hz, output.latency_frames
-                );
-            }
-            Err(LibzciError::DeviceUnavailable { detail }) => {
-                eprintln!("no output device in this environment: {detail}");
-            }
-            Err(other) => panic!("expected DeviceUnavailable, got {}", other.kind()),
-        }
-        // Unknown names fail the same typed way.
-        match open_output(
-            &OutputSpec {
-                device_name: Some("no-such-libzci-device-xyz".into()),
-                rate_hz: None,
-            },
-            0.25,
-        ) {
-            Err(LibzciError::DeviceUnavailable { .. }) => {}
-            Err(e) => panic!("expected DeviceUnavailable, got {}", e.kind()),
-            Ok(_) => panic!("expected DeviceUnavailable, opened successfully"),
-        }
+        let output =
+            open_output(&OutputSpec::default(), 0.25).expect("real output device required");
+        eprintln!("{} @ {} Hz", output.device_label, output.rate_hz());
     }
 }

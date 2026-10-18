@@ -31,10 +31,10 @@ pub mod source;
 
 pub use audio::pcm::{ChannelLayout, PcmChunk, PcmLayout};
 pub use audio::{
-    AudioProcessor, OutputBlock, OutputClock, OutputPreparation, RateConverter, RequestedState,
+    AudioProcessor, MediaClock, OutputBlock, OutputPreparation, RateConverter, RequestedState,
     RunningState,
 };
-pub use command::{Command, CommandAccept};
+pub use command::{Command, CommandAccept, LoadOptions, MediaTime, ModuleControl};
 pub use error::{LibzciError, Result};
 pub use event::{Event, EventQueue, Snapshot};
 pub use format::{
@@ -48,8 +48,9 @@ pub use ogg_reader::{
     GRANULE_NONE, MAX_SINGLE_READ,
 };
 pub use provider::{
-    decode_chunk, AppliedAdjustments, DecoderInstance, ProbeInput, ProbeScore, ProviderFactory,
-    ProviderId, ProviderInfo, ProviderMetadata, ProviderRegistry, PROBE_BYTES,
+    decode_chunk, AppliedAdjustments, DecodeStatus, DecoderInstance, ModuleCapabilities,
+    ProbeInput, ProbeScore, ProviderFactory, ProviderId, ProviderInfo, ProviderMetadata,
+    ProviderRegistry, PROBE_BYTES,
 };
-pub use session::{PcmCollector, Session, TransportState};
+pub use session::{JobTag, Session, SessionAction, TransportState};
 pub use source::{CancelFlag, MemSource, RuntimeSource, SourceCaps};

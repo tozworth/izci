@@ -28,74 +28,104 @@ pub enum RunningState {
     Failed,
 }
 
-/// Frame-counted output clock at one device rate.
+/// A fixed-budget mapping from device submissions to source-media ranges.
+/// Underrun silence advances only the device cursor. A hold freezes both cursors.
 #[derive(Clone, Copy, Debug)]
-pub struct OutputClock {
-    /// Device sample rate in Hz.
-    pub rate_hz: u32,
-    /// Frames consumed by the device since stream start.
-    pub consumed_frames: u64,
-    /// Estimated output latency in frames (buffer + device).
-    pub latency_frames: u64,
-    /// What was requested last.
-    pub requested: RequestedState,
-    /// What the device reports.
-    pub running: RunningState,
-    /// Cumulative device underruns (ring ran dry).
-    pub underruns: u64,
+struct Span {
+    block: crate::OutputBlock,
+    device_start: u64,
 }
-
-impl OutputClock {
-    /// Create at a device rate with no consumption yet.
-    pub fn new(rate_hz: u32) -> Self {
+pub struct MediaClock {
+    spans: Box<[Option<Span>]>,
+    head: usize,
+    len: usize,
+    cursor: u64,
+    position: Option<u64>,
+}
+impl Default for MediaClock {
+    fn default() -> Self {
         Self {
-            rate_hz: rate_hz.max(1),
-            consumed_frames: 0,
-            latency_frames: 0,
-            requested: RequestedState::Held,
-            running: RunningState::Closed,
-            underruns: 0,
+            spans: vec![None; 2048].into_boxed_slice(),
+            head: 0,
+            len: 0,
+            cursor: 0,
+            position: None,
         }
     }
-
-    /// Record `frames` consumed by one device callback.
-    pub fn advance(&mut self, frames: u64) {
-        self.consumed_frames = self.consumed_frames.saturating_add(frames);
+}
+impl MediaClock {
+    pub fn reset(&mut self) {
+        self.head = 0;
+        self.len = 0;
+        self.cursor = 0;
+        self.position = None;
     }
-
-    /// Audible media time in seconds (consumed frames at device rate,
-    /// minus latency while running).
-    pub fn media_time_secs(&self) -> f64 {
-        let audible = self.consumed_frames.saturating_sub(match self.running {
-            RunningState::Running => self.latency_frames,
-            _ => 0,
+    pub fn submit(&mut self, block: crate::OutputBlock, callback_offset: u64) -> bool {
+        if self.len == self.spans.len() {
+            return false;
+        }
+        let tail = (self.head + self.len) % self.spans.len();
+        self.spans[tail] = Some(Span {
+            block,
+            device_start: self.cursor + callback_offset,
         });
-        audible as f64 / self.rate_hz as f64
+        self.len += 1;
+        true
     }
-
-    /// Convert consumed device frames to provider-timeline frames at
-    /// `source_rate_hz` (for position reports before resamplingPolicy
-    /// refinements land with gapless preparation).
-    pub fn to_source_frames(&self, consumed: u64, source_rate_hz: u32) -> u64 {
-        (consumed as f64 * source_rate_hz as f64 / self.rate_hz as f64).round() as u64
+    pub fn advance(&mut self, frames: u64, latency: u64) -> Option<u64> {
+        self.cursor += frames;
+        if self.cursor < latency {
+            return self.position;
+        }
+        let audible = self.cursor - latency;
+        while self.len > 0 {
+            let span = self.spans[self.head].unwrap();
+            if audible < span.device_start {
+                break;
+            }
+            let count = (audible - span.device_start).min(span.block.valid_frames as u64) as usize;
+            self.position = Some(span.block.slice(0, count).source_end);
+            if count < span.block.valid_frames {
+                break;
+            }
+            self.spans[self.head] = None;
+            self.head = (self.head + 1) % self.spans.len();
+            self.len -= 1;
+        }
+        self.position
+    }
+    pub fn drained(&self) -> bool {
+        self.len == 0
     }
 }
-
 #[cfg(test)]
-mod tests {
+mod media_clock_tests {
     use super::*;
-
+    use crate::{Generation, OutputBlock, PcmLayout};
+    fn block(generation: Generation, source: u64) -> OutputBlock {
+        OutputBlock {
+            generation,
+            source_start: source,
+            source_end: source + 10,
+            source_rate: 48_000,
+            output_start: 0,
+            layout: PcmLayout::stereo48k(),
+            valid_frames: 10,
+        }
+    }
     #[test]
-    fn clock_distinguishes_requested_from_running() {
-        let mut clock = OutputClock::new(48_000);
-        clock.requested = RequestedState::Running;
-        assert_eq!(clock.running, RunningState::Closed);
-        clock.running = RunningState::Running;
-        clock.latency_frames = 480;
-        clock.advance(48_480);
-        assert!((clock.media_time_secs() - 1.0).abs() < 1e-9);
-        // Suspended output stops claiming latency-adjusted progress.
-        clock.running = RunningState::Suspended;
-        assert!((clock.media_time_secs() - 1.01).abs() < 1e-9);
+    fn underrun_latency_and_seek_origin_are_separate() {
+        let mut clock = MediaClock::default();
+        assert_eq!(clock.advance(100, 10), None);
+        assert!(clock.submit(block(Generation(1), 500), 0));
+        assert_eq!(clock.advance(5, 10), None);
+        assert_eq!(clock.advance(10, 10), Some(505));
+        assert!(!clock.drained());
+        assert_eq!(clock.advance(5, 10), Some(510));
+        assert!(clock.drained());
+        assert_eq!(clock.advance(100_000, 10), Some(510));
+        clock.reset();
+        clock.submit(block(Generation(2), 2000), 0);
+        assert_eq!(clock.advance(10, 0), Some(2010));
     }
 }

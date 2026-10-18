@@ -39,6 +39,11 @@ pub struct OutputMonitor {
     mute: AtomicBool,
     queued_frames: AtomicUsize,
     render_epoch: AtomicU64,
+    media_position: AtomicU64,
+    media_generation: AtomicU64,
+    media_valid: AtomicBool,
+    clock_drained: AtomicBool,
+    timing_overflow: AtomicBool,
     pool: Arc<Pool>,
 }
 
@@ -78,7 +83,41 @@ impl OutputMonitor {
         let epoch = self.render_epoch.load(Ordering::Acquire);
         epoch % 2 == 0
             && self.len_frames() == 0
+            && self.clock_drained.load(Ordering::Acquire)
             && self.render_epoch.load(Ordering::Acquire) == epoch
+    }
+    /// A coherent callback observation; no source progress during underruns.
+    pub fn media_position(&self) -> Option<(Generation, u64)> {
+        let epoch = self.render_epoch.load(Ordering::Acquire);
+        if epoch % 2 != 0 || !self.media_valid.load(Ordering::Acquire) {
+            return None;
+        }
+        let value = (
+            Generation(self.media_generation.load(Ordering::Relaxed)),
+            self.media_position.load(Ordering::Relaxed),
+        );
+        (self.render_epoch.load(Ordering::Acquire) == epoch).then_some(value)
+    }
+    /// Completion and position must come from the same callback boundary.
+    /// A separate empty-queue query followed by a position query can race the
+    /// next callback and finalize with an older snapshot.
+    pub fn completed_position(&self) -> Option<(Generation, Option<u64>)> {
+        let epoch = self.render_epoch.load(Ordering::Acquire);
+        if epoch % 2 != 0 || self.len_frames() != 0 || !self.clock_drained.load(Ordering::Acquire) {
+            return None;
+        }
+        let generation = self.acknowledged_generation();
+        let position = if self.media_valid.load(Ordering::Acquire)
+            && self.media_generation.load(Ordering::Relaxed) == generation.0
+        {
+            Some(self.media_position.load(Ordering::Relaxed))
+        } else {
+            None
+        };
+        (self.render_epoch.load(Ordering::Acquire) == epoch).then_some((generation, position))
+    }
+    pub fn timing_failed(&self) -> bool {
+        self.timing_overflow.load(Ordering::Acquire)
     }
     pub fn capacity_frames(&self) -> usize {
         self.pool.slots.len() * BLOCK_FRAMES
@@ -102,6 +141,9 @@ pub struct PcmConsumer {
     active: Option<usize>,
     offset: usize,
     processor: AudioProcessor,
+    clock: libzci::audio::clock::MediaClock,
+    clock_generation: Generation,
+    latency: u64,
 }
 
 /// Preallocate before starting output. The returned endpoints have unique queue
@@ -142,6 +184,11 @@ pub fn pcm_transport(
         mute: AtomicBool::new(false),
         queued_frames: AtomicUsize::new(0),
         render_epoch: AtomicU64::new(0),
+        media_position: AtomicU64::new(0),
+        media_generation: AtomicU64::new(generation.0),
+        media_valid: AtomicBool::new(false),
+        clock_drained: AtomicBool::new(true),
+        timing_overflow: AtomicBool::new(false),
         pool,
     });
     (
@@ -157,6 +204,9 @@ pub fn pcm_transport(
             active: None,
             offset: 0,
             processor: AudioProcessor::new(),
+            clock: Default::default(),
+            clock_generation: generation,
+            latency: 0,
         },
         monitor,
     )
@@ -242,10 +292,19 @@ impl PcmConsumer {
         self.render_boundary(out, || {})
     }
 
+    pub fn render_with_latency(&mut self, out: &mut [f32], latency: u64) -> usize {
+        self.latency = latency;
+        self.render(out)
+    }
     fn render_boundary(&mut self, out: &mut [f32], boundary: impl FnOnce()) -> usize {
         self.monitor.render_epoch.fetch_add(1, Ordering::AcqRel);
         out.fill(0.0);
         let generation = self.monitor.generation();
+        if self.clock_generation != generation {
+            self.clock.reset();
+            self.clock_generation = generation;
+            self.monitor.media_valid.store(false, Ordering::Release);
+        }
         let mut frames = 0;
         self.select_current(generation);
         self.monitor
@@ -262,6 +321,12 @@ impl PcmConsumer {
                 let count = (out.len() / 2 - frames).min(slot.block.valid_frames - self.offset);
                 out[frames * 2..(frames + count) * 2]
                     .copy_from_slice(&slot.samples[self.offset * 2..(self.offset + count) * 2]);
+                if !self
+                    .clock
+                    .submit(slot.block.slice(self.offset, count), frames as u64)
+                {
+                    self.monitor.timing_overflow.store(true, Ordering::Release);
+                }
                 self.offset += count;
                 frames += count;
                 self.monitor
@@ -278,6 +343,10 @@ impl PcmConsumer {
         let current = self.monitor.generation();
         if current != generation || self.monitor.is_stopped() {
             out.fill(0.0);
+            self.clock.reset();
+            self.clock_generation = current;
+            self.monitor.media_valid.store(false, Ordering::Release);
+            self.monitor.clock_drained.store(true, Ordering::Release);
             self.select_current(current);
             self.monitor
                 .acknowledged
@@ -285,6 +354,20 @@ impl PcmConsumer {
             self.monitor.render_epoch.fetch_add(1, Ordering::Release);
             return 0;
         }
+        if !self.monitor.held.load(Ordering::Acquire) {
+            if let Some(position) = self.clock.advance((out.len() / 2) as u64, self.latency) {
+                self.monitor
+                    .media_position
+                    .store(position, Ordering::Relaxed);
+                self.monitor
+                    .media_generation
+                    .store(generation.0, Ordering::Relaxed);
+                self.monitor.media_valid.store(true, Ordering::Release);
+            }
+        }
+        self.monitor
+            .clock_drained
+            .store(self.clock.drained(), Ordering::Release);
         self.processor
             .set_volume(f32::from_bits(self.monitor.volume.load(Ordering::Relaxed)));
         self.processor

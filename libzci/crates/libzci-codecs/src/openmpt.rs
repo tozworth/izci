@@ -17,10 +17,10 @@ use std::ffi::CString;
 use std::sync::Arc;
 
 use libzci::{
-    AppliedAdjustments, CancelFlag, DecoderInstance, LibzciError, ProbeInput, ProbeScore,
-    ProviderFactory, ProviderId, ProviderInfo, ProviderMetadata, Result, RuntimeSource,
     audio::pcm::{ChannelLayout, PcmLayout},
     format::sniff_module_family,
+    AppliedAdjustments, CancelFlag, DecoderInstance, LibzciError, ProbeInput, ProbeScore,
+    ProviderFactory, ProviderId, ProviderInfo, ProviderMetadata, Result, RuntimeSource,
 };
 
 use crate::openmpt_ffi;
@@ -43,7 +43,9 @@ pub struct OpenmptLimits {
 
 impl Default for OpenmptLimits {
     fn default() -> Self {
-        Self { max_source_bytes: MAX_MODULE_BYTES }
+        Self {
+            max_source_bytes: MAX_MODULE_BYTES,
+        }
     }
 }
 
@@ -138,17 +140,22 @@ impl OpenmptInstance {
         })?;
         if len > limits.max_source_bytes {
             return Err(LibzciError::ResourceExhausted {
-                detail: format!("module source {len} bytes exceeds limit {}", limits.max_source_bytes),
+                detail: format!(
+                    "module source {len} bytes exceeds limit {}",
+                    limits.max_source_bytes
+                ),
             });
         }
         // Bounded complete buffer (declared module-provider requirement).
         let mut data = vec![0u8; len as usize];
-        source.read_exact_at(0, &mut data, cancel).map_err(|e| match e {
-            LibzciError::Corrupt { .. } => LibzciError::Corrupt {
-                detail: "truncated module source".into(),
-            },
-            other => other,
-        })?;
+        source
+            .read_exact_at(0, &mut data, cancel)
+            .map_err(|e| match e {
+                LibzciError::Corrupt { .. } => LibzciError::Corrupt {
+                    detail: "truncated module source".into(),
+                },
+                other => other,
+            })?;
         let magic = sniff_module_family(&data);
         // SAFETY: data outlives the create call; libopenmpt copies input.
         let mut error = 0;
@@ -186,15 +193,15 @@ impl OpenmptInstance {
                 detail: "libopenmpt ext has no module".into(),
             });
         }
-        let mut iface: openmpt_ffi::InteractiveInterface =
-            unsafe { std::mem::zeroed() };
+        let mut iface: openmpt_ffi::InteractiveInterface = unsafe { std::mem::zeroed() };
         let interactive = unsafe {
             openmpt_ffi::openmpt_module_ext_get_interface(
                 ext,
                 openmpt_ffi::INTERFACE_INTERACTIVE.as_ptr() as *const _,
                 &mut iface as *mut _ as *mut _,
                 std::mem::size_of_val(&iface),
-            ) == 1 && iface.set_channel_mute_status.is_some()
+            ) == 1
+                && iface.set_channel_mute_status.is_some()
         };
         // Finite EOF: play once, no repeats.
         unsafe { openmpt_ffi::openmpt_module_set_repeat_count(mod_, 0) };
@@ -318,7 +325,8 @@ impl OpenmptInstance {
         }
         // Interface present (checked at open); calling a stored
         // function pointer needs no unsafe block.
-        let ok = self.iface.set_channel_mute_status.unwrap()(self.ext, channel as i32, muted as i32);
+        let ok =
+            self.iface.set_channel_mute_status.unwrap()(self.ext, channel as i32, muted as i32);
         if ok != 1 {
             return Err(LibzciError::DecoderFailure {
                 detail: "set_channel_mute_status failed".into(),
@@ -371,6 +379,37 @@ impl Drop for OpenmptInstance {
 }
 
 impl DecoderInstance for OpenmptInstance {
+    fn capabilities(&self) -> libzci::ModuleCapabilities {
+        libzci::ModuleCapabilities {
+            subsongs: self.subsong_count(),
+            interpolation: true,
+            channel_mute: true,
+        }
+    }
+    fn module_control(
+        &mut self,
+        control: libzci::ModuleControl,
+        cancel: &CancelFlag,
+    ) -> Result<()> {
+        cancel.check()?;
+        match control {
+            libzci::ModuleControl::Subsong(n) => {
+                self.select_subsong(n, cancel)?;
+            }
+            libzci::ModuleControl::Interpolation(n) => {
+                if !self.set_interpolation(n) {
+                    return Err(LibzciError::InvalidArgument {
+                        detail: "invalid interpolation".into(),
+                    });
+                }
+            }
+            libzci::ModuleControl::ChannelMute { channel, mute } => {
+                self.set_channel_mute(channel, mute)?
+            }
+        }
+        Ok(())
+    }
+
     fn info(&self) -> ProviderInfo {
         self.info
     }
@@ -467,6 +506,7 @@ impl DecoderInstance for OpenmptInstance {
             total_frames: self.total_frames,
             applied: AppliedAdjustments::default(),
             declared_channels: self.channels as u16,
+            comments: Vec::new(),
         }
     }
 }
@@ -481,8 +521,12 @@ mod tests {
         let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../../.local/verification-fixtures/v1")
             .join(id);
-        std::fs::read(&path)
-            .unwrap_or_else(|_| panic!("missing fixture {} — run `node fixtures/generate.mjs` first", path.display()))
+        std::fs::read(&path).unwrap_or_else(|_| {
+            panic!(
+                "missing fixture {} — run `node fixtures/generate.mjs` first",
+                path.display()
+            )
+        })
     }
 
     fn open_bytes(bytes: Vec<u8>) -> OpenmptInstance {
@@ -557,7 +601,10 @@ mod tests {
         // The helper's second subsong loops after a few rows, so its
         // finite total is short; seeks land exactly and clamp at it.
         let total = inst.total_frames().expect("finite subsong total");
-        assert!(total > 0 && total < 48_000, "short looping subsong total {total}");
+        assert!(
+            total > 0 && total < 48_000,
+            "short looping subsong total {total}"
+        );
         assert_eq!(inst.seek_to_frame(total / 2, &cancel).unwrap(), total / 2);
         assert_eq!(inst.seek_to_frame(total + 10_000, &cancel).unwrap(), total);
     }
@@ -586,9 +633,12 @@ mod tests {
             &cancel,
         )
         .unwrap();
-        let mut b =
-            OpenmptInstance::open(Arc::new(MemSource::new(bytes)), OpenmptLimits::default(), &cancel)
-                .unwrap();
+        let mut b = OpenmptInstance::open(
+            Arc::new(MemSource::new(bytes)),
+            OpenmptLimits::default(),
+            &cancel,
+        )
+        .unwrap();
         a.select_subsong(1, &cancel).unwrap();
         a.set_channel_mute(2, true).unwrap();
         let mut buf = vec![0.0f32; 512];
@@ -605,10 +655,16 @@ mod tests {
     fn registry_selects_openmpt_for_mod() {
         use libzci::ProviderRegistry;
         let mut registry = ProviderRegistry::new();
-        registry.register(Arc::new(OpenmptFactory::default())).unwrap();
+        registry
+            .register(Arc::new(OpenmptFactory::default()))
+            .unwrap();
         let cancel = CancelFlag::default();
         let (info, mut instance) = registry
-            .open_best(Arc::new(MemSource::new(tone_module(false))), Some("mod"), &cancel)
+            .open_best(
+                Arc::new(MemSource::new(tone_module(false))),
+                Some("mod"),
+                &cancel,
+            )
             .unwrap();
         assert_eq!(info.id, ProviderId::OPENMPT);
         let mut buf = vec![0.0f32; 256];

@@ -15,10 +15,10 @@
 use std::sync::Arc;
 
 use libzci::{
+    audio::pcm::{ChannelLayout, PcmLayout},
+    format::{sniff_module_family, HivelyKind, ModuleFamily},
     AppliedAdjustments, CancelFlag, DecoderInstance, LibzciError, ProbeInput, ProbeScore,
     ProviderFactory, ProviderId, ProviderInfo, ProviderMetadata, Result, RuntimeSource,
-    audio::pcm::{ChannelLayout, PcmLayout},
-    format::{HivelyKind, ModuleFamily, sniff_module_family},
 };
 
 use crate::hively_ffi;
@@ -44,7 +44,9 @@ pub struct HivelyLimits {
 
 impl Default for HivelyLimits {
     fn default() -> Self {
-        Self { max_source_bytes: MAX_HIVELY_BYTES }
+        Self {
+            max_source_bytes: MAX_HIVELY_BYTES,
+        }
     }
 }
 
@@ -121,16 +123,21 @@ impl HivelyInstance {
         })?;
         if len > limits.max_source_bytes {
             return Err(LibzciError::ResourceExhausted {
-                detail: format!("hively source {len} bytes exceeds limit {}", limits.max_source_bytes),
+                detail: format!(
+                    "hively source {len} bytes exceeds limit {}",
+                    limits.max_source_bytes
+                ),
             });
         }
         let mut data = vec![0u8; len as usize];
-        source.read_exact_at(0, &mut data, cancel).map_err(|e| match e {
-            LibzciError::Corrupt { .. } => LibzciError::Corrupt {
-                detail: "truncated hively source".into(),
-            },
-            other => other,
-        })?;
+        source
+            .read_exact_at(0, &mut data, cancel)
+            .map_err(|e| match e {
+                LibzciError::Corrupt { .. } => LibzciError::Corrupt {
+                    detail: "truncated hively source".into(),
+                },
+                other => other,
+            })?;
         let kind = match sniff_module_family(&data) {
             Some(ModuleFamily::Hively(kind)) => kind,
             _ => {
@@ -212,7 +219,13 @@ impl HivelyInstance {
             let mut duration = 0u32;
             // SAFETY: owned context.
             let ok = unsafe {
-                hively_ffi::lz_hively_probe_step(self.ctx, PROBE_BATCH_FRAMES, &mut rendered, &mut ended, &mut duration)
+                hively_ffi::lz_hively_probe_step(
+                    self.ctx,
+                    PROBE_BATCH_FRAMES,
+                    &mut rendered,
+                    &mut ended,
+                    &mut duration,
+                )
             };
             if ok != 1 {
                 return Err(LibzciError::DecoderFailure {
@@ -285,9 +298,7 @@ impl HivelyInstance {
     /// Set a channel mute (per-instance).
     pub fn set_channel_mute(&mut self, channel: u32, muted: bool) -> Result<()> {
         // SAFETY: owned context.
-        let ok = unsafe {
-            hively_ffi::lz_hively_set_channel_mute(self.ctx, channel, muted as i32)
-        };
+        let ok = unsafe { hively_ffi::lz_hively_set_channel_mute(self.ctx, channel, muted as i32) };
         if ok != 1 {
             return Err(LibzciError::InvalidArgument {
                 detail: format!("hively channel {channel} out of range"),
@@ -332,6 +343,33 @@ impl Drop for HivelyInstance {
 }
 
 impl DecoderInstance for HivelyInstance {
+    fn capabilities(&self) -> libzci::ModuleCapabilities {
+        libzci::ModuleCapabilities {
+            subsongs: self.subsong_count(),
+            interpolation: true,
+            channel_mute: true,
+        }
+    }
+    fn module_control(
+        &mut self,
+        control: libzci::ModuleControl,
+        cancel: &CancelFlag,
+    ) -> Result<()> {
+        cancel.check()?;
+        match control {
+            libzci::ModuleControl::Subsong(n) => {
+                self.select_subsong(n, cancel)?;
+            }
+            libzci::ModuleControl::Interpolation(n) => {
+                self.set_interpolation(n);
+            }
+            libzci::ModuleControl::ChannelMute { channel, mute } => {
+                self.set_channel_mute(channel, mute)?
+            }
+        }
+        Ok(())
+    }
+
     fn info(&self) -> ProviderInfo {
         self.info
     }
@@ -388,7 +426,12 @@ impl DecoderInstance for HivelyInstance {
             let mut position = 0u32;
             // SAFETY: owned context.
             let ok = unsafe {
-                hively_ffi::lz_hively_seek_step(self.ctx, target_hvl, SEEK_BATCH_FRAMES, &mut position)
+                hively_ffi::lz_hively_seek_step(
+                    self.ctx,
+                    target_hvl,
+                    SEEK_BATCH_FRAMES,
+                    &mut position,
+                )
             };
             if ok != 1 {
                 return Err(LibzciError::DecoderFailure {
@@ -426,6 +469,7 @@ impl DecoderInstance for HivelyInstance {
             total_frames: self.total_frames,
             applied: AppliedAdjustments::default(),
             declared_channels: self.channels as u16,
+            comments: Vec::new(),
         }
     }
 }
@@ -468,12 +512,18 @@ mod tests {
 
     #[test]
     fn blank_tunes_run_lifecycle_to_eof() {
-        for (bytes, kind) in [(blank_ahx(), HivelyKind::Ahx), (blank_hvl(), HivelyKind::Hvl)] {
+        for (bytes, kind) in [
+            (blank_ahx(), HivelyKind::Ahx),
+            (blank_hvl(), HivelyKind::Hvl),
+        ] {
             let mut inst = open_bytes(bytes);
             assert_eq!(inst.kind(), kind);
             assert_eq!(inst.subsong_count(), 1);
             let total = inst.total_frames().expect("blank tune has finite EOF");
-            assert!(total > 0 && total < 48_000 * 60 * 31, "bounded duration {total}");
+            assert!(
+                total > 0 && total < 48_000 * 60 * 31,
+                "bounded duration {total}"
+            );
             let cancel = CancelFlag::default();
             let mut buf = vec![0.0f32; 4096];
             let mut rendered = 0u64;
@@ -556,7 +606,10 @@ mod tests {
             }
         }
         // No magic at all.
-        match factory.open(Arc::new(MemSource::new(b"definitely not a tune......".to_vec())), &cancel) {
+        match factory.open(
+            Arc::new(MemSource::new(b"definitely not a tune......".to_vec())),
+            &cancel,
+        ) {
             Err(LibzciError::Unsupported { .. }) => {}
             Err(e) => panic!("expected Unsupported, got {}", e.kind()),
             Ok(_) => panic!("expected Unsupported, opened successfully"),
