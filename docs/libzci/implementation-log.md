@@ -122,6 +122,96 @@ First implementation milestone; final acceptance/target audit follows separately
 - Existing browser proof facade compiles against the shared machine; it does not
   claim decoder read-ahead is audible. Actual reference browser output is R4.
 
+## Recovery R2/R3: final acceptance — verified on Windows MSVC
+
+2026-10-18. Implementation commit `d878d9b8` (transport workers, reference Opus
+and streaming CLI), followed by "Verify libzci native transport and reference CLI
+end to end" (acceptance, lifecycle/race hardening, recipes and documentation).
+Target: `x86_64-pc-windows-msvc`; Rust/Cargo 1.98.1; MSVC 19.44.35229, `/MD`.
+No ordinary izci profile/grants/assets, frontend, desktop or Android build changed.
+
+R2 is verified through the native harness and CLI. R3 is verified for Windows
+reference Opus. GNU/Linux acquisition recipes were retained with target-aware
+paths and syntax checked, but no Linux recovery build/run was reproduced here
+(WSL is not installed). Browser/reference-WASM output remains R4, and additional
+formats/module recovery remain M1. Windows success does not verify those targets.
+
+Final checks (run from the repository root):
+
+- `cargo test --locked --manifest-path libzci/Cargo.toml --workspace
+  --features libzci-native/provider-tests`: **76 passed, 0 failed**; two explicit
+  hardware tests ignored in this ordinary run. The MSVC web cdylib link prints an
+  informational import-library message; no source diagnostic or failing check.
+- `cargo test --locked --manifest-path libzci/Cargo.toml -p libzci-native
+  --features provider-tests -- --ignored --nocapture`: **2 hardware tests passed**.
+  `Headphone (Realtek(R) Audio)`, F32 stereo, 48,000 Hz. Commands alone exercised
+  Play/Pause/Seek/Stop, volume/mute, resume, final drain and disposal. Paused media
+  time stayed frozen; a seek while paused landed at 480,000; final consumption
+  reached 1,440,006 with an empty pool. Observed device latency was about 1,530
+  frames (32 ms); already submitted OS audio cannot be recalled.
+- Full CLI device run of the 30-second changing stereo chirp, at volume 0.08:
+  exit **0**, final media position **1,440,006**. The human user separately
+  confirmed: "Yes, it sounds clean". This listening evidence is distinct from
+  callback/frame accounting.
+- Real Opus through the production preparation/output worker and a deliberately
+  slow **two-slot pool** matches an unrestricted reference render sample for
+  sample at 48,000 and 44,100 Hz, including the final tail. The pure marked-source
+  checks also cover 96,000 Hz. No dropped/duplicate media or early Ended.
+- Reference Opus tests cover mono/stereo, fractional end trim, pre-skip,
+  zero/middle/last-frame/EOF seeks, mandatory header gain exactly once,
+  R128/ReplayGain reporting without applying tags, mixed-layout chained Ogg,
+  corrupt/truncated headers, unsupported channel maps, two live handles,
+  callback cancellation during open/seek/decode, bounded reads and preserved
+  source access errors. Historical raw packet decoding agrees with the reference
+  PCM and frame count and is now test-only.
+- Held open/seek/decode jobs cannot block another session or Stop/Dispose.
+  Rapid seeks/new loads reject late results, including after decode and before
+  callback consumption. Pending is not EOF. Duplicate old commands cannot cancel
+  newer jobs, even after source release. An output survives a decoder failure and
+  recovers on a new Load. Event drains include loss counters and a recovery
+  snapshot. Closed sessions/workers and render jobs have no retained runtime cycle.
+- `python libzci/tests/generate-r3-media.py`: separate ignored CC0 R3 signals,
+  FFmpeg **8.1.1**, exact commands, binary hash and output digests recorded in
+  `.local/libzci/media/r3/provenance.json`. It does not overwrite the existing
+  frontend fixture corpus or relax its generation pins. Long source SHA256:
+  `8f8567613bd7b481611c5a6c0cd4a2833ce1cb688d30214a98e3eb93c7572ab6`.
+  Reference FFmpeg decode and native output have identical lengths; maximum
+  sample difference is **0.00001531** (different libopus builds), within 0.00003.
+- Native long render: **1,440,006 stereo frames / 11,520,048 bytes** at 48 kHz.
+  Start 15.5 s: **696,006 frames**. Start at EOF: **0 frames**. Converted long
+  render at 44.1 kHz: **1,323,006 frames**. Rendering is incremental, explicitly
+  raw or fixed-master processed, with bounded chunks and cancellation.
+- `ZCI_PLAY=<release executable> python libzci/tests/check-cli.py`: **8 process
+  checks passed**, including missing/corrupt/usage/device failures (exit 2), help
+  and completed render (0), and playback/render interruption (130). Final packaged
+  executable returned 130 about **28 ms** after playback interruption and **2 ms**
+  after render interruption. Source-callback tests separately prove real provider
+  cancellation. These timings are local observations, not OS-wide guarantees.
+- `cargo test --locked --manifest-path libzci/Cargo.toml -p libzci-native
+  --test output_allocations -- --nocapture`: fixed test-pipeline peak heap is
+  140,312 / 311,706 / 387,522 bytes at 48 / 44.1 / 96 kHz, with respectively
+  10 / 52 / 44 setup allocations. The 10,003- and 100,003-frame runs have identical
+  peaks/counts and release all allocations. Includes the preallocated consumption
+  clock and private FFT storage; excludes providers/devices. Callback render,
+  gain/mute updates, reset/recycling, underrun and stop allocate/deallocate **zero**.
+- Acquisition `-CheckOnly` re-verified all three pinned archive digests. MSVC
+  archives and per-library BUILD-RECORDs are in `build-x86_64-pc-windows-msvc/`;
+  GNU archives use their own Rust-target directories. HTTP/TLS is disabled.
+  `bash -n` passed for both retained GNU/Linux acquisition scripts.
+- `cargo build --locked --manifest-path libzci/Cargo.toml -p zci-play --release`:
+  **passed**. Packaged executable: `artifacts/libzci/zci-play.exe`, **1,896,448
+  bytes**, SHA256 `9221edfbea2db2a120d12b78b4b734d2cf7384b4ad6f837657da012f6dae7801`.
+  `dumpbin /DEPENDENTS` shows Windows system/API-set libraries and the Microsoft
+  CRT only; no JS, browser/webview, WASM, FFmpeg, codec DLL or C++ runtime dependency.
+  The native media libraries are static; the ordinary MSVC CRT remains dynamic.
+- Scoped Rustfmt and `git diff --check` passed. No browser/server/installed-PWA
+  launch or frontend/desktop/Android build is claimed by these native results.
+
+Local raw evidence: `.local/libzci/final-tests.log`, `final-hardware.log`,
+`final-allocations.log`, `playback-long-windows.log`, `cli-evidence.json`,
+`dependencies-release-windows.txt`, and media provenance above. Reproduction
+commands are in `libzci/README.md` and the CLI README.
+
 Historical entries follow unchanged.
 
 ---

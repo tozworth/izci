@@ -6,8 +6,7 @@
 
 use crate::ids::{RequestId, SessionId, SourceId};
 
-/// Target frame rate note: positions are expressed in provider-timeline
-/// frames so seeks are exact before any output-rate conversion.
+/// Public commands use seconds; core converts them on the provider timeline.
 #[derive(Clone, Debug)]
 pub enum Command {
     /// Open `source` on the session, replacing any current decoder.
@@ -38,14 +37,14 @@ pub enum Command {
         /// Session to pause.
         session: SessionId,
     },
-    /// Seek to an absolute frame on the provider timeline.
+    /// Seek to absolute media time in seconds.
     /// Bumps the generation and flushes older PCM.
     Seek {
         /// Command identity.
         request_id: RequestId,
         /// Session to seek.
         session: SessionId,
-        /// Target frame.
+        /// Target time in seconds.
         time: MediaTime,
     },
     /// Stop output and park at the start without disposing the decoder.

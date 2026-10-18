@@ -58,6 +58,15 @@ impl NativeRuntime {
     ) -> Result<(CommandAccept, Vec<Event>)> {
         cancel.check()?;
         let entry = self.entry(command.session())?;
+        if let Some(receipt) = entry
+            .control
+            .lock()
+            .unwrap()
+            .owner
+            .receipt(command.request_id())
+        {
+            return Ok((receipt, Vec::new()));
+        }
         let source = if let Command::Load { source, .. } = command {
             Some(
                 self.get_source(*source)
@@ -75,9 +84,22 @@ impl NativeRuntime {
         if let Some((generation, position)) = c.output.as_ref().and_then(|o| o.media_position()) {
             c.owner.consumed(generation, position, false);
         }
-        let old = c.owner.generation();
+        let previous = c.owner.snapshot();
+        let previous_tag = c.owner.tag();
+        let old = previous.generation;
         let (receipt, actions) = c.owner.accept(command)?;
+        if actions.is_empty() {
+            return Ok((receipt, Vec::new()));
+        }
         if old != receipt.generation {
+            if previous.pending_operation {
+                c.events.push(Event::Failed {
+                    session: command.session(),
+                    request_id: Some(previous_tag.operation),
+                    generation: old,
+                    error: LibzciError::Cancelled,
+                });
+            }
             if let Some(p) = &c.plan {
                 p.cancel.cancel();
             }
@@ -169,8 +191,15 @@ impl NativeRuntime {
     pub fn snapshot(&self, id: SessionId) -> Result<Snapshot> {
         Ok(self.entry(id)?.snapshot())
     }
-    pub fn events(&self, id: SessionId) -> Result<Vec<Event>> {
-        Ok(self.entry(id)?.control.lock().unwrap().events.drain())
+    pub fn events(&self, id: SessionId) -> Result<EventBatch> {
+        let entry = self.entry(id)?;
+        let mut c = entry.control.lock().unwrap();
+        Ok(EventBatch {
+            events: c.events.drain(),
+            coalesced: std::mem::take(&mut c.events.coalesced),
+            dropped: std::mem::take(&mut c.events.dropped),
+            snapshot: c.owner.snapshot(),
+        })
     }
     /// Wait for open/seek completion while observing the caller's cancellation.
     pub fn wait_ready(&self, id: SessionId, cancel: &CancelFlag) -> Result<Snapshot> {
@@ -214,7 +243,7 @@ impl NativeRuntime {
             cancel,
         )?;
         self.wait_ready(session, cancel)?;
-        self.events(session)
+        Ok(self.events(session)?.events)
     }
     pub fn dispose_session(&self, id: SessionId) {
         if let Some(entry) = self.sessions.lock().unwrap().remove(&id) {

@@ -36,7 +36,7 @@ pub use audio::{
 };
 pub use command::{Command, CommandAccept, LoadOptions, MediaTime, ModuleControl};
 pub use error::{LibzciError, Result};
-pub use event::{Event, EventQueue, Snapshot};
+pub use event::{Event, EventBatch, EventQueue, Snapshot};
 pub use format::{
     is_hively_extension_hint, is_module_extension_hint, is_opus_extension_hint,
     parse_opus_head_packet, parse_opus_tags_packet, sniff_module_family, sniff_opus_head_page,

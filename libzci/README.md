@@ -1,62 +1,89 @@
 # libzci workspace
 
-Independent Rust workspace for the reusable izci engine. It is separate from
-`src-tauri/`; the root frontend/PWA build does not depend on it.
+Independent Rust workspace for the reusable izci engine. The existing izci
+frontend, Tauri/Android shells, assets and profiles remain independent.
 
-Start with the [current plan](../docs/libzci/README.md),
-[implementation design](../docs/libzci/scaffolding.md), and
-[source review](../docs/libzci/review.md). The attempt at `168874dd` needs output
-and transport recovery before feature work. The old Phase 2.2 log is historical.
+R1 and R2 are verified; R3's native reference Opus CLI is verified on
+`x86_64-pc-windows-msvc`, including real device transport, a full 30-second run
+and user-confirmed clean listening. See the [evidence](../docs/libzci/implementation-log.md).
+R4 browser output and M1's additional formats/module recovery remain separate work.
 
-## Present code
+- `libzci`: control-only session action machine, source/provider contracts,
+  generation-tagged jobs, media consumption clock, bounded PCM preparation.
+- `libzci-native`: sequential decoder workers, incremental renders, native files,
+  fixed-pool SPSC transport and CPAL format/channel/sample conversion.
+- `libzci-codecs`: reference libopusfile/Opus provider by default; optional
+  libopenmpt/Hively providers behind `modules`. The historical packet decoder
+  exists only in comparison tests.
+- `libzci-web`: shared control-machine driver and existing silent browser proof.
+  Host tests pass; this is not reference browser audio or an installed PWA.
+- `consumers/zci-play`: direct native embedding, without a JS/webview/WASM runtime.
 
-- `crates/libzci`: types, sources/providers, synchronous session implementation,
-  audio transport/clock/processing/resampling and format/Ogg helpers.
-- `crates/libzci-native`: native files/runtime, CPAL device output and pipeline.
-- `crates/libzci-codecs`: raw-libopus/Ogg, libopenmpt 0.8.4 and instance-safe
-  Hively wrappers, C bridges, native build linkage.
-- `crates/libzci-web`: browser engine/host decoder, Ogg helpers and WASM bindings.
-- `consumers/zci-play`: audible CLI and device-free render path needing recovery.
-- `consumers/crude-pwa`: silent decode proof page on port 5197 with independent
-  Vite config and engine/decode workers; currently uses WebCodecs audio.
-- `scripts/`, `vendor/dependencies.json`: GNU/Linux acquisition/build recipes
-  and dependency/provenance records. Browser C codec and Windows recipes remain
-  work; inspect the plan before treating existing commands as target coverage.
+## Native build
 
-No SQL/profile, installed PWA, native GUI, or FFI implementation exists here yet.
-The roadmap adds the GUI in M1, storage/install support in M2, and FFI in M6.
-Native and browser share core behavior/SQL/DSP; consumers render/dispatch and
-adapters implement mechanisms.
+Use Rust/Cargo 1.98.1 or a compatible installed release, with the committed
+lockfile. On Windows use the x64 MSVC toolchain, C++ Build Tools/Windows SDK,
+CMake, Ninja, curl and tar. Acquisition never changes system settings.
 
-## R1 output recovery
-
-The output path now uses bounded shared preparation and native ready/recycle
-queues over a fixed block pool (`rtrb = "=0.4.0"`). It retains short writes and
-converter tails and switches generations at the consumer boundary. Pure checks
-need no C libraries, media fixtures, or audio device:
-
-```sh
-cargo test --manifest-path libzci/Cargo.toml -p libzci -p libzci-native
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File libzci/scripts/acquire-media-deps.ps1
+cargo build --locked --manifest-path libzci/Cargo.toml -p zci-play --release
+.\libzci\target\release\zci-play.exe C:\Music\track.opus
 ```
 
-`libzci-native --features provider-tests` opts into the existing real-provider
-suites and requires the pinned C archives and fixtures. The device unit smoke
-is ignored by default and additionally requires `--ignored` and runtime
-authorization. R2 transport/clock/job recovery and R3/R4 real-provider/output
-verification remain open. See the [log](../docs/libzci/implementation-log.md)
-for exact evidence and limits.
+If using this checkout's project-local Rust rather than system Cargo, initialize
+it in the current PowerShell process before the Cargo command:
 
-## Outputs and state
+```powershell
+$env:CARGO_HOME = "$PWD/.local/desktop-toolchain/cargo"
+$env:RUSTUP_HOME = "$PWD/.local/desktop-toolchain/rustup"
+$env:PATH = "$env:CARGO_HOME/bin;$env:PATH"
+```
 
-`target/` is ignored. Acquisition scratch/builds/generated media stay in root
-`.local/libzci/`. The crude PWA has its own generated WASM and build directories;
-it does not share the root application's outputs or service worker.
+The GNU/Linux recipe requires Rust, GCC, make, pkg-config, Python 3, curl, tar,
+and ALSA development headers. It retains the original autotools path, with
+explicit target-specific archives. Its R3 build/run has not been reproduced in
+this Windows environment; Windows success does not verify Linux.
 
-M2 will create native `.local/libzci/profiles/crude-native/`, browser OPFS
-`/libzci-crude-v1/`, and real FSA registry `libzci-crude-capabilities-v1` on the
-independent origin. CLI stays transient unless given `--profile`. Tests use
-unique disposable namespaces. Preserve the ordinary player's data/grants.
+```sh
+libzci/scripts/acquire-media-deps.sh
+cargo build --locked --manifest-path libzci/Cargo.toml -p zci-play --release
+libzci/target/release/zci-play track.opus
+```
 
-Follow [AGENTS.md](../AGENTS.md) for explicit build/runtime authorization. Pin
-real Rust/C/Emscripten toolchains when reproducing recovery; the current lockfile
-is not evidence that every target recipe or runtime path works.
+Optional modules need `acquire-module-deps.sh` and `--features modules`; that
+acquisition path currently targets GNU/Linux. Windows module archives are not
+part of R3's verified Opus target. No module dependency is needed for Opus.
+
+Archives and BUILD-RECORDs live under ignored
+`.local/libzci/vendor/<library>/<release>/build-<Rust-target>/`. GNU `.a` archives
+are never accepted as MSVC `.lib` inputs. HTTP/TLS support is disabled in opusfile.
+MSVC builds use `/MD` and require the normal Microsoft C runtime.
+
+## Checks
+
+Pure core/native checks need no C libraries, fixtures, audio device or browser:
+
+```sh
+cargo test --locked --manifest-path libzci/Cargo.toml -p libzci -p libzci-native
+```
+
+Reference integration uses separate, ignored CC0 synthetic R3 media, generated
+with FFmpeg 8.1.1. The generator records exact commands, binary hash and media
+hashes; it does not replace the existing frontend corpus or its pins.
+
+```sh
+python libzci/tests/generate-r3-media.py
+cargo test --locked --manifest-path libzci/Cargo.toml --workspace --features libzci-native/provider-tests
+cargo test --locked --manifest-path libzci/Cargo.toml -p libzci-native --features provider-tests --test audible -- --ignored --nocapture
+python libzci/tests/check-cli.py
+```
+
+The last two checks require authorized hardware access. Device absence fails the
+explicit hardware check; it is not reported as success. `ZCI_PLAY` can select a
+release executable for the process-level CLI check. Real browser/installed-PWA
+checks remain R4. Follow [AGENTS.md](../AGENTS.md) for build/runtime authorization.
+
+No SQL/profile, installed PWA, native GUI or FFI implementation exists yet.
+Generated outputs stay in `target/` and `.local/libzci/`; ordinary player data and
+grants are preserved. The [roadmap](../docs/libzci/phases.md) owns later work.

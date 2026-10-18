@@ -50,7 +50,7 @@ fn usage() -> String {
         "  --device NAME     output device name substring (default: system default)",
         "  --volume V        master volume, linear 0.0..=1.0 (default 1.0)",
         "  --start SECONDS   start position in seconds, >= 0.0 (default 0.0)",
-        "  --subsong N       subsong index for module content (default: first)",
+        "  --subsong N       module subsong index (requires a build with modules)",
         "  --diagnostics     verbose stderr diagnostics (provider, device, clock)",
         "  --render-pcm FILE render stereo float32 LE PCM at 48000 Hz to FILE, no device",
         "  --help            this text",
@@ -284,6 +284,14 @@ fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
         },
         cancel,
     )?;
+    if args.diagnostics {
+        if let Some(device) = runtime.output_state(output) {
+            eprintln!(
+                "zci-play: device={} rate_hz={} latency_frames={}",
+                device.device_label, device.rate_hz, device.latency_frames
+            );
+        }
+    }
     eprintln!("zci-play: playing {}", args.path.display());
     if args.diagnostics {
         eprintln!(

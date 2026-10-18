@@ -14,22 +14,15 @@ fn manifest_field(id: &str, field: &str) -> String {
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../vendor/dependencies.json");
     let text = std::fs::read_to_string(&manifest)
         .unwrap_or_else(|e| panic!("read {}: {e}", manifest.display()));
-    // Minimal field lookup without new dependencies: find the "id" block,
-    // then the first `"field": "value"` inside it.
-    let id_key = format!("\"id\": \"{id}\"");
-    let id_pos = text
-        .find(&id_key)
-        .unwrap_or_else(|| panic!("{id} missing from dependencies.json"));
-    let after = &text[id_pos..];
-    let field_key = format!("\"{field}\": \"");
-    let field_pos = after
-        .find(&field_key)
-        .unwrap_or_else(|| panic!("{field} missing for {id}"));
-    let value_start = field_pos + field_key.len();
-    let value_end = after[value_start..]
-        .find('"')
-        .unwrap_or_else(|| panic!("unterminated {field} for {id}"));
-    after[value_start..value_start + value_end].to_string()
+    let manifest: serde_json::Value = serde_json::from_str(&text).expect("valid dependencies.json");
+    manifest["libraries"]
+        .as_array()
+        .expect("libraries array")
+        .iter()
+        .find(|lib| lib["id"].as_str() == Some(id))
+        .and_then(|lib| lib[field].as_str())
+        .unwrap_or_else(|| panic!("{field} missing for {id}"))
+        .to_owned()
 }
 
 fn link_prestatic(id: &str, lib: &str, script: &str) {

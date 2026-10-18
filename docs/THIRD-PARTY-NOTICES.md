@@ -492,7 +492,7 @@ License: BSD-3-Clause (Xiph.Org license)
 
 Source: https://downloads.xiph.org/releases/ogg/libogg-1.3.5.tar.gz ; https://downloads.xiph.org/releases/opus/opus-1.5.2.tar.gz ; https://downloads.xiph.org/releases/opus/opusfile-0.12.tar.gz
 
-Pinned by libzci/vendor/dependencies.json and acquired/built by libzci/scripts/acquire-media-deps.sh into ignored .local/libzci/vendor/ locations; never overwriting the frontend/server assets above. libzci-codecs links the native libopus 1.5.2 static build for its Opus provider and mirrors opusfile header-gain/trim semantics. Copyrights are held by the Xiph.Org Foundation and the contributors identified in each source tree.
+Pinned by libzci/vendor/dependencies.json and acquired/built by libzci/scripts/acquire-media-deps.sh (GNU/Linux) or acquire-media-deps.ps1 (Windows MSVC) into ignored, target-specific .local/libzci/vendor/ locations; never overwriting the frontend/server assets above. libzci-codecs statically links libopusfile 0.12, libopus 1.5.2 and libogg 1.3.5 for its reference Opus provider; libopusfile applies the header gain and container trims. HTTP/TLS support is disabled. Copyrights are held by the Xiph.Org Foundation and the contributors identified in each source tree.
 
 Full license/notice texts: L042 (COPYING.Xiph).
 

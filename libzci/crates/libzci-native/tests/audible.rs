@@ -1,86 +1,107 @@
-//! Audible output smoke: real device consumption when present,
-//! typed unavailability otherwise. Plays the short Opus fixture at low
-//! volume; asserts consumed frames advance, pause halts consumption,
-//! and EOF drains to finished.
-
-use std::sync::Arc;
-use std::time::{Duration, Instant};
-
-use libzci::{CancelFlag, Command, MemSource, RequestId};
+//! Hardware verification is explicit: absence/failure is a failing check.
+use libzci::*;
 use libzci_codecs::OpusFactory;
-use libzci_native::{NativeRuntime, OutputSpec};
-
-fn fixture(rel: &str) -> Vec<u8> {
-    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../.local/verification-fixtures/v1")
-        .join(rel);
-    std::fs::read(&path)
-        .unwrap_or_else(|_| panic!("missing fixture {} — run `node fixtures/generate.mjs` first", path.display()))
-}
-
-#[test]
-fn audible_play_pause_eof() {
-    let runtime = NativeRuntime::new();
-    runtime.register_provider(Arc::new(OpusFactory::default())).unwrap();
-    let session = runtime.create_session();
-    let source = runtime.insert_source(Arc::new(MemSource::new(fixture("media/audio/tone.opus"))));
-    let cancel = CancelFlag::default();
-    runtime.load(session, source, Some("opus"), &cancel).unwrap();
-    runtime
-        .submit(
-            &Command::Play { request_id: RequestId::fresh(), session },
-            &cancel,
-        )
-        .unwrap();
-
-    let id = match runtime.start_output(session, &OutputSpec::default(), 0.15) {
-        Ok(id) => id,
-        Err(e) => {
-            assert_eq!(e.kind(), "device-unavailable");
-            eprintln!("audible smoke skipped (no device): {e}");
-            return;
-        }
-    };
-
-    // Wait for real consumption.
-    let start = Instant::now();
+use libzci_native::{NativeFileSource, NativeRuntime, OutputSpec};
+use std::{
+    path::PathBuf,
+    sync::Arc,
+    time::{Duration, Instant},
+};
+fn wait(rt: &NativeRuntime, s: SessionId, condition: impl Fn(&Snapshot) -> bool) -> Snapshot {
+    let deadline = Instant::now() + Duration::from_secs(5);
     loop {
-        let state = runtime.output_state(id).expect("output alive");
-        if state.consumed_frames > 1_000 || start.elapsed() > Duration::from_secs(10) {
-            break;
+        let snap = rt.snapshot(s).unwrap();
+        assert!(snap.error.is_none(), "{:?}", snap.error);
+        if condition(&snap) {
+            return snap;
         }
-        std::thread::sleep(Duration::from_millis(20));
+        assert!(Instant::now() < deadline, "device deadline: {snap:?}");
+        std::thread::sleep(Duration::from_millis(5));
     }
-    let before_pause = runtime.output_state(id).unwrap().consumed_frames;
-    assert!(before_pause > 0, "device consumed audible frames");
-
-    // Pause halts consumption.
-    runtime.pause_output(id).unwrap();
-    std::thread::sleep(Duration::from_millis(300));
-    let during_pause = runtime.output_state(id).unwrap().consumed_frames;
-    assert_eq!(before_pause, during_pause, "paused device holds its clock");
-
-    // Resume drains to EOF and finishes.
-    runtime.resume_output(id).unwrap();
-    let start = Instant::now();
-    let finished = loop {
-        let state = runtime.output_state(id).unwrap();
-        if state.finished || start.elapsed() > Duration::from_secs(15) {
-            break state.finished;
-        }
-        std::thread::sleep(Duration::from_millis(50));
-    };
-    let final_state = runtime.output_state(id).unwrap();
-    eprintln!(
-        "audible smoke: device={} rate={} consumed={} hungry={} drained={} finished={}",
-        final_state.device_label,
-        final_state.rate_hz,
-        final_state.consumed_frames,
-        final_state.hungry_pops,
-        final_state.drained,
-        final_state.finished
+}
+#[test]
+#[ignore = "requires authorized hardware output"]
+fn audible_api_play_pause_seek_stop_resume_and_final_drain() {
+    let rt = NativeRuntime::new();
+    rt.register_provider(Arc::new(OpusFactory::default()))
+        .unwrap();
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../.local/libzci/media/r3/long.opus");
+    let source = rt.insert_source(Arc::new(NativeFileSource::open(&path).unwrap()));
+    let session = rt.create_session();
+    let cancel = CancelFlag::default();
+    rt.load(session, source, Some("opus"), &cancel).unwrap();
+    let submit = |c: Command| rt.submit(&c, &cancel).unwrap();
+    submit(Command::SetVolume {
+        session,
+        request_id: RequestId::fresh(),
+        volume: 0.08,
+    });
+    let output = rt
+        .start_output(session, &OutputSpec::default())
+        .expect("hardware output required");
+    submit(Command::Play {
+        session,
+        request_id: RequestId::fresh(),
+    });
+    wait(&rt, session, |s| s.position_frames > 4800);
+    submit(Command::Pause {
+        session,
+        request_id: RequestId::fresh(),
+    });
+    let paused = rt.snapshot(session).unwrap().position_frames;
+    std::thread::sleep(Duration::from_millis(150));
+    assert_eq!(rt.snapshot(session).unwrap().position_frames, paused);
+    submit(Command::Seek {
+        session,
+        request_id: RequestId::fresh(),
+        time: MediaTime(10.0),
+    });
+    assert_eq!(
+        rt.wait_ready(session, &cancel).unwrap().position_frames,
+        480_000
     );
-    runtime.stop_output(id).unwrap();
-    assert!(finished, "short fixture drains to finished");
-    assert!(final_state.consumed_frames >= 12_000, "consumed covers the audible total");
+    std::thread::sleep(Duration::from_millis(50));
+    assert_eq!(rt.snapshot(session).unwrap().position_frames, 480_000);
+    submit(Command::Play {
+        session,
+        request_id: RequestId::fresh(),
+    });
+    wait(&rt, session, |s| s.position_frames > 484_800);
+    submit(Command::SetMute {
+        session,
+        request_id: RequestId::fresh(),
+        mute: true,
+    });
+    submit(Command::SetMute {
+        session,
+        request_id: RequestId::fresh(),
+        mute: false,
+    });
+    submit(Command::Stop {
+        session,
+        request_id: RequestId::fresh(),
+    });
+    assert_eq!(rt.wait_ready(session, &cancel).unwrap().position_frames, 0);
+    submit(Command::Seek {
+        session,
+        request_id: RequestId::fresh(),
+        time: MediaTime(29.0),
+    });
+    rt.wait_ready(session, &cancel).unwrap();
+    submit(Command::Play {
+        session,
+        request_id: RequestId::fresh(),
+    });
+    let ended = wait(&rt, session, |s| s.state == TransportState::Ended);
+    assert_eq!(ended.position_frames, 1_440_006);
+    let state = rt.output_state(output).unwrap();
+    assert!(state.finished);
+    assert!(state.drained);
+    eprintln!(
+        "hardware {state:?}; final media frame {}",
+        ended.position_frames
+    );
+    rt.dispose_session(session);
+    assert!(rt.output_state(output).is_none());
 }

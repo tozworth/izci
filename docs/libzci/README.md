@@ -9,8 +9,10 @@ This plan starts from the attempted implementation at `168874dd` on
 `libzci-muse`. The [source review](review.md) identifies useful work and defects
 to recover. The old [implementation log](implementation-log.md) contains
 historical reports, not a declaration that recovery is complete. All milestones
-in this replacement roadmap started open. R1 is now verified by the device-free
-checks in the [implementation log](implementation-log.md); R2 is next.
+in this replacement roadmap started open. R1 and R2 are verified, and R3 now has
+a working reference Opus CLI on Windows MSVC, including hardware/listening checks.
+See the [implementation log](implementation-log.md) for target-specific evidence;
+R4 browser output is next. GNU/Linux recovery remains unverified target work.
 
 ## Start here
 

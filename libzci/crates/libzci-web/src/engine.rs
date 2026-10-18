@@ -846,11 +846,11 @@ mod tests {
 
     fn fixture_bytes(rel: &str) -> Vec<u8> {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../.local/verification-fixtures/v1")
+            .join("../../../.local/libzci/media/r3")
             .join(rel);
         std::fs::read(&path).unwrap_or_else(|_| {
             panic!(
-                "missing fixture {} — run `node fixtures/generate.mjs` first",
+                "missing fixture {} — run `python libzci/tests/generate-r3-media.py` first",
                 path.display()
             )
         })
@@ -867,7 +867,7 @@ mod tests {
     }
 
     fn full_header() -> Vec<u8> {
-        let bytes = fixture_bytes("media/audio/tone.opus");
+        let bytes = fixture_bytes("mono.opus");
         bytes[..bytes.len().min(libzci::provider::PROBE_BYTES)].to_vec()
     }
 
@@ -927,7 +927,7 @@ mod tests {
             .ingest_pcm(session, accept.generation, 2, vec![0.0; 8])
             .unwrap();
         assert_eq!(accepted, 8);
-        assert_eq!(position, 10);
+        assert_eq!(position, 2); // Decoding alone cannot advance audible position.
     }
 
     #[test]
@@ -1018,9 +1018,9 @@ mod tests {
 
     #[test]
     fn seek_plans_match_native_math() {
-        let bytes = fixture_bytes("media/audio/tone.opus");
+        let bytes = fixture_bytes("mono.opus");
         let (pages, audio_page, audio_packet) = scan_pages(&bytes);
-        // tone.opus: headers alone on pages 0-1, all audio on page 2.
+        // R3 mono fixture: headers on pages 0-1, all audio on page 2.
         assert_eq!((audio_page, audio_packet), (2, 0));
         let preskip = 312u64;
         let total = pages
@@ -1029,7 +1029,7 @@ mod tests {
             .find(|p| p.granule != libzci::GRANULE_NONE)
             .map(|p| p.granule - preskip)
             .unwrap();
-        assert_eq!(total, 12000);
+        assert_eq!(total, 12006);
         // From the top: start at the audio page, discard preskip.
         assert_eq!(
             plan_opus_seek(&pages, audio_page, audio_packet, preskip, total, 0).unwrap(),
@@ -1061,20 +1061,20 @@ mod tests {
 
     #[test]
     fn commit_then_plan_round_trip() {
-        let bytes = fixture_bytes("media/audio/tone.opus");
+        let bytes = fixture_bytes("mono.opus");
         let (pages, audio_page, audio_packet) = scan_pages(&bytes);
         let (mut engine, session) =
             open_engine(&bytes[..bytes.len().min(libzci::provider::PROBE_BYTES)]);
         let (total, _, _) = engine
             .commit_index(session, pages, audio_page, audio_packet, 312, 1)
             .unwrap();
-        assert_eq!(total, 12000);
+        assert_eq!(total, 12006);
         let (plan, planned_total) = engine.plan_seek(session, 1000).unwrap();
-        assert_eq!(planned_total, 12000);
+        assert_eq!(planned_total, 12006);
         assert_eq!(plan.start_page, 2);
         assert_eq!(plan.skip_samples, 1312);
         // Header mismatch is a decoder failure, not silent acceptance.
-        let bytes2 = fixture_bytes("media/audio/tone.opus");
+        let bytes2 = fixture_bytes("mono.opus");
         let (pages2, _, _) = scan_pages(&bytes2);
         let err = engine
             .commit_index(session, pages2, 2, 0, 999, 1)
