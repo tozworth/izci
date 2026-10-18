@@ -53,7 +53,11 @@ impl AudioProcessor {
     /// Set the master volume (linear 0..=1, clamped, finite).
     /// Out-of-range or non-finite input is clamped, never stored raw.
     pub fn set_volume(&mut self, volume: f32) {
-        let clamped = if volume.is_finite() { volume.clamp(0.0, 1.0) } else { self.target_gain };
+        let clamped = if volume.is_finite() {
+            volume.clamp(0.0, 1.0)
+        } else {
+            self.target_gain
+        };
         if (clamped - self.target_gain).abs() > f32::EPSILON {
             self.target_gain = clamped;
             self.ramp_from = self.effective_gain();
@@ -122,6 +126,18 @@ impl AudioProcessor {
                 }
             }
             output[index] = sample * gain;
+        }
+        self.last_raw_peak = peak;
+    }
+
+    /// Same shared master stage over callback-owned storage, without scratch
+    /// allocation. Preserve the existing gain/mute ramp semantics.
+    pub fn process_stereo_in_place(&mut self, samples: &mut [f32]) {
+        let mut peak = 0.0f32;
+        for frame in samples.chunks_exact_mut(2) {
+            let input = [frame[0], frame[1]];
+            peak = peak.max(input[0].abs()).max(input[1].abs());
+            self.process_stereo(&input, frame);
         }
         self.last_raw_peak = peak;
     }

@@ -30,20 +30,26 @@ pub mod session;
 pub mod source;
 
 pub use audio::pcm::{ChannelLayout, PcmChunk, PcmLayout};
-pub use audio::{AudioProcessor, OutputClock, PcmRing, RateConverter, RequestedState, RunningState};
+pub use audio::{
+    AudioProcessor, OutputBlock, OutputClock, OutputPreparation, RateConverter, RequestedState,
+    RunningState,
+};
 pub use command::{Command, CommandAccept};
 pub use error::{LibzciError, Result};
 pub use event::{Event, EventQueue, Snapshot};
 pub use format::{
-    HivelyKind, ModuleFamily, OpusStreamParams, OpusTags, is_hively_extension_hint,
-    is_module_extension_hint, is_opus_extension_hint, parse_opus_head_packet, parse_opus_tags_packet,
-    sniff_module_family, sniff_opus_head_page,
+    is_hively_extension_hint, is_module_extension_hint, is_opus_extension_hint,
+    parse_opus_head_packet, parse_opus_tags_packet, sniff_module_family, sniff_opus_head_page,
+    HivelyKind, ModuleFamily, OpusStreamParams, OpusTags,
 };
 pub use ids::{Generation, RequestId, Revision, SessionId, SourceId};
-pub use ogg_reader::{GRANULE_NONE, MAX_SINGLE_READ, IndexFacts, PageEntry, PageScanner, ogg_crc, split_packets_with_carry, validate_ogg_index};
+pub use ogg_reader::{
+    ogg_crc, split_packets_with_carry, validate_ogg_index, IndexFacts, PageEntry, PageScanner,
+    GRANULE_NONE, MAX_SINGLE_READ,
+};
 pub use provider::{
-    AppliedAdjustments, DecoderInstance, PROBE_BYTES, ProbeInput, ProbeScore, ProviderFactory,
-    ProviderId, ProviderInfo, ProviderMetadata, ProviderRegistry, decode_chunk,
+    decode_chunk, AppliedAdjustments, DecoderInstance, ProbeInput, ProbeScore, ProviderFactory,
+    ProviderId, ProviderInfo, ProviderMetadata, ProviderRegistry, PROBE_BYTES,
 };
 pub use session::{PcmCollector, Session, TransportState};
 pub use source::{CancelFlag, MemSource, RuntimeSource, SourceCaps};

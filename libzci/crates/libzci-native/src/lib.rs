@@ -6,11 +6,12 @@
 //! arrive in later phases through their own modules.
 
 pub mod audio;
+pub mod pcm_transport;
 pub mod playback;
 pub mod runtime;
 pub mod source;
 
-pub use audio::{DeviceOutput, OutputSpec, list_devices, open_output};
+pub use audio::{list_devices, open_output, DeviceOutput, OutputSpec};
 pub use playback::{OutputId, OutputObservation};
 pub use runtime::NativeRuntime;
 pub use source::NativeFileSource;

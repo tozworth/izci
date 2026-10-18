@@ -43,9 +43,12 @@ impl NativeFileSource {
                 detail: format!("cannot open {}: {e}", path.display()),
             },
         })?;
-        let len = file.metadata().map(|m| m.len()).map_err(|e| LibzciError::Unavailable {
-            detail: format!("cannot stat {}: {e}", path.display()),
-        })?;
+        let len = file
+            .metadata()
+            .map(|m| m.len())
+            .map_err(|e| LibzciError::Unavailable {
+                detail: format!("cannot stat {}: {e}", path.display()),
+            })?;
         // Revision from mtime (nanos) when available, else length.
         // Stable enough to invalidate preparation/caches; durable
         // identity stays path-based in later catalog phases.
@@ -96,17 +99,18 @@ impl RuntimeSource for NativeFileSource {
         }
         // Clamp to EOF so providers observe a finite stream.
         let max = (self.len - offset).min(buf.len() as u64) as usize;
-        let n = self
-            .file
-            .read_at(&mut buf[..max], offset)
-            .map_err(|e| match e.kind() {
-                std::io::ErrorKind::PermissionDenied => LibzciError::AccessRequired {
-                    detail: format!("permission denied reading {}: {e}", self.path.display()),
-                },
-                _ => LibzciError::Unavailable {
-                    detail: format!("read failed at {offset}: {e}"),
-                },
-            })?;
+        #[cfg(unix)]
+        let read = self.file.read_at(&mut buf[..max], offset);
+        #[cfg(windows)]
+        let read = self.file.seek_read(&mut buf[..max], offset);
+        let n = read.map_err(|e| match e.kind() {
+            std::io::ErrorKind::PermissionDenied => LibzciError::AccessRequired {
+                detail: format!("permission denied reading {}: {e}", self.path.display()),
+            },
+            _ => LibzciError::Unavailable {
+                detail: format!("read failed at {offset}: {e}"),
+            },
+        })?;
         Ok(n)
     }
 }

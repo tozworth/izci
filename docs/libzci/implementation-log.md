@@ -10,6 +10,45 @@ are all open. No build, test, listening, or browser result was newly produced by
 this documentation revision. Append future results under the new milestone IDs.
 The old phase labels and next-step statements below do not direct current work.
 
+## Recovery R1: bounded, lossless output — implemented; final checks pending
+
+2026-10-18. Baseline `8c6dfe0a111b250619b8938fdfcdae62ee9d5772`,
+branch `libzci-codex` tracking `origin/libzci-codex`; dirty files: none.
+Available toolchain: project-local Rust `1.98.1 (48a229cea 2026-09-01)`,
+Cargo `1.98.1 (797e8a9bc 2026-08-05)`, `x86_64-pc-windows-msvc`.
+Profile: none. No product build, device, browser, or ordinary-player launch.
+
+- Replaced the mutable-Vec ring with native `rtrb = "=0.4.0"` ready/recycle
+  queues carrying indices into a fixed 256-frame stereo block pool. Unique
+  endpoint ownership and queue handoffs guard private UnsafeCell slots.
+- Added shared generation/source-range/rate/layout/valid-length descriptors and
+  bounded preparation with short-write suffix retention, decode credits,
+  distinct source EOF, converter drain, and consumer completion observations.
+- Fixed converter delay/tail loss, including block-aligned EOF; output has
+  ceil(input frames * output rate / input rate) frames after delay removal.
+  Input, FIFO, scratch, and pending storage are bounded independently of duration.
+- Native output now uses this path, applies shared master smoothing at callback
+  consumption, and acknowledges generations from the consumer. Reset cannot
+  rewrite a read cursor; stop/dispose bypass full PCM queues. Existing session
+  command authority, clocks, provider Pending, and job locking remain R2 work.
+- Pure native tests no longer pull C codecs: real-provider suites require
+  `--features provider-tests`; the device unit smoke is explicitly ignored.
+  A pre-existing Unix-only `File::read_at` call blocked Windows tests; Windows
+  now uses its positional `seek_read` counterpart, retaining bounded reads.
+- Initial checks: core 29 unit + 5 output-pipeline tests, native 9 unit + 5
+  output-pipeline tests passed; one device test intentionally ignored. Coverage
+  includes 50,003 numbered frames, zero/partial writes, extreme conversion
+  ratios, final impulses, fixed capacity, reset during pop, full/held queues,
+  20,000 concurrent marked blocks, 2,000 generation changes, and actual worker
+  stop/session disposal without consumer progress. No sleep-based assertions.
+- Selected upstream rtrb 0.4.0 suites `lib` and `write_and_read`: 12 passed,
+  including parallel handoff and drop tests, in an ignored `.local/libzci/` copy.
+  Miri/sanitizers are unavailable in the installed stable Windows toolchain;
+  this is concurrency-test evidence, not a dynamic soundness proof.
+
+Final validation, measured allocation budgets, and implementation commit identity
+will be recorded below. Historical entries follow unchanged.
+
 ---
 
 Status values per `docs/libzci/phases.md`: `not started /

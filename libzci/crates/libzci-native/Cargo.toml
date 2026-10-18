@@ -12,6 +12,16 @@ path = "src/lib.rs"
 [dependencies]
 libzci = { path = "../libzci" }
 cpal = "0.18"
+rtrb = "=0.4.0"
+libzci-codecs = { path = "../libzci-codecs", optional = true }
 
-[dev-dependencies]
-libzci-codecs = { path = "../libzci-codecs" }
+[features]
+provider-tests = ["dep:libzci-codecs"]
+
+[[test]]
+name = "providers_render"
+required-features = ["provider-tests"]
+
+[[test]]
+name = "audible"
+required-features = ["provider-tests"]
