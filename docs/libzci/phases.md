@@ -4,13 +4,17 @@
 [Review](review.md) · [Consumers](crudes.md) · [Checks](validation.md)
 
 Start at `168874dd` with recoverable code, not an empty workspace. The old log's
-Phase 2.2 is not this roadmap's starting gate. R1-R4 and M1-M6 below are all
-open. Execute in order; numbered items within a milestone are commit-sized
+Phase 2.2 is not this roadmap's starting gate. R1 is verified by the device-free
+checks recorded in the [implementation log](implementation-log.md#recovery-r1-bounded-lossless-output--verified).
+R2-R4 and M1-M6 remain open. Execute in order; numbered items within a milestone are commit-sized
 units where coherent. A milestone closes when its deliverable works and the
 listed checks pass, not when its file list exists. Pending verification is a
 real dependency, not a pass. See the build/runtime rule in [README](README.md).
 
 ## R1: make the output path lossless and bounded
+
+Status: **verified** (2026-10-18, Windows MSVC; pure core/native and queue checks).
+Real codecs/devices and browser output remain R3/R4 checks.
 
 **Deliverable:** a long marked PCM source reaches a deliberately slow fake output
 exactly once, including converter tails, with fixed retained-memory bounds.

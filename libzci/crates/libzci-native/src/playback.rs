@@ -58,9 +58,10 @@ pub struct OutputObservation {
     pub hungry_pops: u64,
     /// Ring fill in device frames.
     pub ring_fill_frames: u64,
-    /// `true` after decoder EOF fully drained into the ring.
+    /// `true` after source EOF and all converter tails reached the output pool.
     pub drained: bool,
-    /// `true` after drained audio fully played.
+    /// `true` after final current-generation media crossed a callback boundary.
+    /// Device latency/audible-position integration remains separate.
     pub finished: bool,
     /// Device label for diagnostics.
     pub device_label: String,
@@ -436,7 +437,7 @@ fn pipeline_main(
             continue;
         }
         if let Some(prepared) = &mut preparation {
-            prepared.pump(|block, samples| producer.write(block, samples));
+            let progress = prepared.pump(|block, samples| producer.write(block, samples));
             if prepared.is_drained() {
                 drained.store(true, Ordering::Release);
                 finished.store(
@@ -446,7 +447,9 @@ fn pipeline_main(
                 );
             }
             if !prepared.needs_input() {
-                std::thread::sleep(std::time::Duration::from_millis(2));
+                if progress == 0 {
+                    std::thread::sleep(std::time::Duration::from_millis(2));
+                }
                 continue;
             }
         }
@@ -588,5 +591,71 @@ mod tests {
         done.recv_timeout(Duration::from_secs(2))
             .expect("capacity blocked dispose");
         assert!(runtime.outputs.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn native_worker_matches_unrestricted_render_through_tiny_pool() {
+        for rate in [48_000, 44_100, 96_000] {
+            let runtime = NativeRuntime::new();
+            runtime
+                .register_provider(Arc::new(FakeFactory::new(20_003, PcmLayout::mono48k())))
+                .unwrap();
+            let source = runtime.insert_source(Arc::new(MemSource::new(b"FAKE-output".to_vec())));
+            let cancel = CancelFlag::default();
+            let session = runtime.create_session();
+            let reference_session = runtime.create_session();
+            runtime.load(session, source, None, &cancel).unwrap();
+            runtime
+                .load(reference_session, source, None, &cancel)
+                .unwrap();
+            let (reference, _) = runtime
+                .render_to_vec(reference_session, rate, 1.0, u64::MAX, &cancel)
+                .unwrap();
+            let (producer, mut consumer, transport) =
+                pcm_transport(2, runtime.session_generation(session));
+            let controls = Arc::new(OutputControls {
+                transport,
+                paused: AtomicBool::new(false),
+                stop: AtomicBool::new(false),
+            });
+            let drained = Arc::new(AtomicBool::new(false));
+            let finished = Arc::new(AtomicBool::new(false));
+            let worker_runtime = runtime.clone();
+            let worker_controls = controls.clone();
+            let worker_drained = drained.clone();
+            let worker_finished = finished.clone();
+            let worker = std::thread::spawn(move || {
+                pipeline_main(
+                    &worker_runtime,
+                    session,
+                    rate,
+                    producer,
+                    &worker_controls,
+                    &worker_drained,
+                    &worker_finished,
+                    &Arc::new(AtomicU64::new(0)),
+                );
+            });
+            let deadline = Instant::now() + Duration::from_secs(5);
+            let mut rendered = Vec::new();
+            let mut scratch = [0.0; 193 * 2];
+            let mut tick = 0;
+            while !finished.load(Ordering::Acquire) && Instant::now() < deadline {
+                let frames = [0, 1, 7, 193, 0, 11][tick % 6];
+                tick += 1;
+                let got = consumer.render(&mut scratch[..frames * 2]);
+                rendered.extend_from_slice(&scratch[..got * 2]);
+                std::thread::yield_now();
+            }
+            controls.stop.store(true, Ordering::Release);
+            controls.transport.stop();
+            worker.join().unwrap();
+            assert!(
+                finished.load(Ordering::Acquire),
+                "worker failed to finish {rate}"
+            );
+            assert!(drained.load(Ordering::Acquire));
+            assert_eq!(rendered, reference, "native worker lost PCM at {rate}");
+        }
     }
 }

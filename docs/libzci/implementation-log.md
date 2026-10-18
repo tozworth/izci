@@ -10,7 +10,7 @@ are all open. No build, test, listening, or browser result was newly produced by
 this documentation revision. Append future results under the new milestone IDs.
 The old phase labels and next-step statements below do not direct current work.
 
-## Recovery R1: bounded, lossless output — implemented; final checks pending
+## Recovery R1: bounded, lossless output — verified
 
 2026-10-18. Baseline `8c6dfe0a111b250619b8938fdfcdae62ee9d5772`,
 branch `libzci-codex` tracking `origin/libzci-codex`; dirty files: none.
@@ -46,8 +46,50 @@ Profile: none. No product build, device, browser, or ordinary-player launch.
   Miri/sanitizers are unavailable in the installed stable Windows toolchain;
   this is concurrency-test evidence, not a dynamic soundness proof.
 
-Final validation, measured allocation budgets, and implementation commit identity
-will be recorded below. Historical entries follow unchanged.
+Implementation milestone: `f0ecbd2e` ("Make libzci PCM output bounded and lossless
+under backpressure"). Follow-up commit "Verify libzci output allocation budgets
+and worker continuity" adds allocator instrumentation and final acceptance checks.
+
+Final evidence (same target/toolchain, profile none):
+
+- `cargo test --manifest-path libzci/Cargo.toml -p libzci -p libzci-native`:
+  **55 passed, 0 failed, 1 ignored** (the explicitly gated device unit test).
+  Includes all existing device-free native pipeline tests and doc tests. The
+  production worker exactly matches independent session renders at 48,000,
+  44,100, and 96,000 Hz through a two-slot pool under variable sink consumption.
+- `cargo test --manifest-path libzci/Cargo.toml -p libzci-native
+  --test output_allocations -- --nocapture`: **2 passed**. Thread-local system
+  allocator instrumentation includes pool, descriptors, queues, preparation,
+  converter staging/tail/output, and private FFT plans/workspace. Sources and
+  sinks use fixed stack scratch. For 10,003 versus 100,003 input frames:
+
+  | Output rate | Peak heap bytes | Setup allocations (both lengths) |
+  | --- | ---: | ---: |
+  | 48,000 Hz | 9,216 | 9 |
+  | 44,100 Hz | 180,610 | 51 |
+  | 96,000 Hz | 256,426 | 43 |
+
+  Both lengths have identical peak bytes and allocation counts; every tracked
+  allocation is released on teardown. Callback render, partial-block handling,
+  master updates, stale recycling, underrun, and stop perform **zero allocations
+  and zero deallocations**. These are allocator-requested heap bytes, not RSS or
+  provider/device allocations; production additionally owns its fixed 4,096-sample
+  decode scratch and a bounded session decoder chunk. Other pool/block/rate
+  configurations have their own fixed budgets, rather than these exact numbers.
+- `cargo test --manifest-path .local/libzci/rtrb-0.4.0-checks/Cargo.toml
+  --test lib --test write_and_read`: **12 passed** against an unmodified ignored
+  copy of the pinned crate. No dependency code was added to browser mechanisms.
+- Scoped `rustfmt --check` and `git diff --check`: passed.
+- Additional, non-gating web host-test attempt using `-p libzci-web`: 3 passed,
+  6 failed before media operations because `tone.opus` is absent from the existing
+  `.local/verification-fixtures/v1` corpus. No fixture generation was performed.
+  This does not establish browser runtime/WASM/reference-codec behavior.
+- Clippy was attempted but unavailable: the installed toolchain has Rustfmt but
+  no Clippy component. Miri/sanitizers, real C providers, product builds, devices,
+  browser inspection and installed-PWA checks were not run. R1's acceptance is
+  device-free; the corresponding R2-R4 integration checks remain open.
+
+Historical entries follow unchanged.
 
 ---
 

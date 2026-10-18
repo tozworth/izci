@@ -197,13 +197,15 @@ impl OutputPreparation {
     }
 
     /// Retained sample-storage bytes (including empty reserved staging/tails).
-    /// Rubato's fixed FFT plans/workspace are reported separately by that library;
-    /// they are constructed once and do not scale with source length.
+    /// Excludes rubato's private fixed FFT plans/workspace. Allocator tests measure
+    /// the complete pipeline heap separately, including those private buffers.
     pub fn retained_bytes(&self) -> usize {
         (self.stereo.capacity() + self.pending.capacity()) * size_of::<f32>()
             + self.converter.as_ref().map_or(0, |c| c.retained_bytes())
     }
 
+    /// Occupied PCM frame slots plus fixed stereo scratch. This is a storage
+    /// count across input/output rates, not a duration on either timeline.
     pub fn retained_frames(&self) -> usize {
         self.max_input_frames
             + (self.pending_len - self.offset) / 2

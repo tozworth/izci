@@ -9,7 +9,8 @@ This plan starts from the attempted implementation at `168874dd` on
 `libzci-muse`. The [source review](review.md) identifies useful work and defects
 to recover. The old [implementation log](implementation-log.md) contains
 historical reports, not a declaration that recovery is complete. All milestones
-in this replacement roadmap start open.
+in this replacement roadmap started open. R1 is now verified by the device-free
+checks in the [implementation log](implementation-log.md); R2 is next.
 
 ## Start here
 
