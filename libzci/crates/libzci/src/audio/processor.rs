@@ -208,4 +208,23 @@ mod tests {
         AudioProcessor::upmix_mono(&[0.5, -0.5, 0.25], &mut out);
         assert_eq!(out, vec![0.5, 0.5, -0.5, -0.5, 0.25, 0.25]);
     }
+
+    #[test]
+    fn in_place_renderer_preserves_shared_gain_and_mute_ramps() {
+        let mut reference = AudioProcessor::new();
+        let mut renderer = AudioProcessor::new();
+        let input: Vec<f32> = (0..1024).map(|n| (n % 17) as f32 / 16.0 - 0.5).collect();
+        for (volume, mute) in [(0.4, false), (0.4, true), (0.8, false)] {
+            reference.set_volume(volume);
+            renderer.set_volume(volume);
+            reference.set_mute(mute);
+            renderer.set_mute(mute);
+            let mut expected = vec![0.0; input.len()];
+            reference.process_stereo(&input, &mut expected);
+            let mut output = input.clone();
+            renderer.process_stereo_in_place(&mut output);
+            assert_eq!(output, expected);
+            assert_eq!(renderer.last_raw_peak(), reference.last_raw_peak());
+        }
+    }
 }

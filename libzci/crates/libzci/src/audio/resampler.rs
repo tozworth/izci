@@ -1,7 +1,7 @@
 //! Device-rate conversion over the pinned maintained resampler.
 //!
 //! [`RateConverter`] wraps `rubato` FFT sinc resampling (pinned in
-//! `Cargo.lock`) behind the engine's staging discipline: arbitrary
+//! `Cargo.lock`) behind the engine's staging discipline: bounded
 //! decode chunks in, fixed input blocks through the resampler,
 //! device-rate frames out of a FIFO. State is explicit (input
 //! staging, output FIFO, delay/drain accounting); ratio changes
@@ -217,7 +217,7 @@ mod tests {
         let mut out = vec![0.0f32; 8192];
         let n = conv.pop(&mut out);
         assert!(n > 4000, "identity emits ~all frames (got {n} samples)");
-        // Compensate the resampler's leading delay before comparing.
+        // The converter has already removed its leading delay.
         let body = &out[500..2500];
         let expect = &tone[500..2500];
         let num: f32 = body.iter().zip(expect).map(|(a, b)| a * b).sum();

@@ -28,6 +28,24 @@ The roadmap adds the GUI in M1, storage/install support in M2, and FFI in M6.
 Native and browser share core behavior/SQL/DSP; consumers render/dispatch and
 adapters implement mechanisms.
 
+## R1 output recovery
+
+The output path now uses bounded shared preparation and native ready/recycle
+queues over a fixed block pool (`rtrb = "=0.4.0"`). It retains short writes and
+converter tails and switches generations at the consumer boundary. Pure checks
+need no C libraries, media fixtures, or audio device:
+
+```sh
+cargo test --manifest-path libzci/Cargo.toml -p libzci -p libzci-native
+```
+
+`libzci-native --features provider-tests` opts into the existing real-provider
+suites and requires the pinned C archives and fixtures. The device unit smoke
+is ignored by default and additionally requires `--ignored` and runtime
+authorization. R2 transport/clock/job recovery and R3/R4 real-provider/output
+verification remain open. See the [log](../docs/libzci/implementation-log.md)
+for exact evidence and limits.
+
 ## Outputs and state
 
 `target/` is ignored. Acquisition scratch/builds/generated media stay in root
