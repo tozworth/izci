@@ -1,102 +1,64 @@
-# Codebase discovery reference
+# Source and input reference
 
-[Plan entry point](README.md) · [Boundaries](boundaries.md) ·
-[Scaffolding](scaffolding.md) · [Phases](phases.md)
+[Overview](README.md) · [Review](review.md) · [Roadmap](phases.md)
 
-Read-only discovery and implementation-plan grounding were performed on
-2026-10-05. These are behavior and provenance references, not instructions to
-copy the current runtime into
-libzci. Follow code and current operating rules if archived plans disagree.
+Recovery baseline: `168874dd` on `libzci-muse`. Original discovery: 2026-10-05;
+review/revision: 2026-10-18. Source links are implementation inputs, not claims
+that the new engine reproduces all behavior.
 
-## Checkout baseline
+## Attempted implementation
 
-There is no root Cargo workspace, libzci source tree, native Opus provider, or
-browser SQLite/OPFS integration. The Rust project is the Tauri shell; server
-SQLite belongs to its Go module. Root npm/Vite scripts only build the existing
-application. The proposed packages and recipes in [scaffolding](scaffolding.md)
-must be created before their run commands exist.
-
-## 1. Playback, providers, and browser integration
-
-| Reference | Useful evidence |
+| Source | Recover or inspect |
 | --- | --- |
-| [player-controller.ts](../../src/lib/services/player-controller.ts), [playback-commands.ts](../../src/lib/services/playback-commands.ts) | Backend ownership, prepared/outgoing bundles, cancellation and sequencing |
-| [howler-player.ts](../../src/lib/services/howler-player.ts), [video-player.ts](../../src/lib/services/video-player.ts) | Current HTML5-audio and literal video-element implementation; not reusable native engines |
-| [openmpt](../../src/lib/services/openmpt/), [module-player.ts](../../src/lib/services/module-player.ts) | Inspection/worklet separation, ABI, source loading, module settings/pattern capabilities |
-| [libopenmpt provenance](../../src/lib/vendor/libopenmpt/README.md) | Pinned WASM/generated-loader origin; native source/toolchain still needs establishing |
-| [Hively recipe](../../scripts/vendor/ahx/README.md), [C wrapper](../../scripts/vendor/ahx/ahx-wrapper.c) | Pinned upstream source, interpolation/pattern APIs, mutable-global isolation hazard; synchronous load-time duration and replay-seek loops need bounded stepping |
-| [third-party notices](../THIRD-PARTY-NOTICES.md) | Browser/server Hively artifacts differ; server source revision is unverified |
-| [media-session.ts](../../src/lib/services/media-session.ts) | Transport handlers and hidden eight-second low-amplitude WAV anchor, separate from real audio |
-| [VideoStage](../../src/lib/components/workspace/VideoStage.svelte), [ImageStage](../../src/lib/components/workspace/ImageStage.svelte) | Current element mounting; future surface consumers must preserve single ownership |
-| [vite.config.ts](../../vite.config.ts), [pwa-updates.ts](../../src/lib/services/pwa-updates.ts) | Current production SW/offline/assets/update constraints, including precache size limits |
-| [Android runtime notes](../../src/android/README.md) | SAF/headless workflow; screen-off/background/notification acceptance remains deferred |
+| [Session](../../libzci/crates/libzci/src/session.rs), [commands](../../libzci/crates/libzci/src/command.rs), [events](../../libzci/crates/libzci/src/event.rs) | R2 replaces synchronous ownership with command/job/output flow |
+| [Ring](../../libzci/crates/libzci/src/audio/buffer.rs), [native pipeline](../../libzci/crates/libzci-native/src/playback.rs) | R1 safety, credits, suffix/tail retention, generation acknowledgment |
+| [Native output](../../libzci/crates/libzci-native/src/audio.rs), [runtime](../../libzci/crates/libzci-native/src/runtime.rs), [clock](../../libzci/crates/libzci/src/audio/clock.rs) | Lock lifetime, truthful state, clock and format negotiation |
+| [Sources](../../libzci/crates/libzci-native/src/source.rs), [providers](../../libzci/crates/libzci/src/provider.rs) | Bounded reads/instances; Pending vs EOF and public options |
+| [Opus](../../libzci/crates/libzci-codecs/src/opus.rs), [Ogg](../../libzci/crates/libzci/src/ogg_reader.rs) | Existing raw-libopus policy/tests to compare with libopusfile |
+| [OpenMPT](../../libzci/crates/libzci-codecs/src/openmpt.rs), [Hively](../../libzci/crates/libzci-codecs/src/hively.rs), [C context](../../libzci/crates/libzci-codecs/c/hively_context.c) | Native wrappers, stepped jobs, instance isolation |
+| [Browser engine](../../libzci/crates/libzci-web/src/engine.rs), [worker](../../libzci/consumers/crude-pwa/src/workers/decode-worker.ts) | Platform-codec path, duplicate seek policy, scan responsiveness, async EOF |
+| [CLI](../../libzci/consumers/zci-play/src/main.rs) | Move subsong policy/render buffering to public operations |
+| [Pins](../../libzci/vendor/dependencies.json), [scripts](../../libzci/scripts/), [long Opus](../../libzci/tests/synth-opus-30s.sh) | Provenance; GNU/Linux recipes, missing browser/Windows work |
+| [Old log](implementation-log.md) | Historical claims/pending checks, not readiness |
 
-There is no dedicated shared WebCodecs video player to extract today. Existing
-tools use browser-oriented media processing libraries, but the new video
-transport/provider integration is new work. The transport anchor does not prove
-background decoder/output survival.
+## Existing behavior and acquisition inputs
 
-## 2. Domain, sources, and visual assets
-
-| Reference | Useful evidence |
+| Area | Source |
 | --- | --- |
-| [types.ts](../../src/lib/types.ts), [queue.ts](../../src/lib/stores/queue.ts), [queue-persistence.ts](../../src/lib/stores/queue-persistence.ts) | Durable/runtime fields currently mixed; separate queue/library/favorites IDB snapshots; duplicate queue semantics |
-| [workspace-collections.ts](../../src/lib/services/workspace-collections.ts), [track-ratings.ts](../../src/lib/services/track-ratings.ts) | Half-star ratings copied between rows today; favorites include subsong membership |
-| [play-count.ts](../../src/lib/services/play-count.ts), [playback-bookmarks.ts](../../src/lib/services/playback-bookmarks.ts) | Library-only continuous-play counts; localStorage bookmarks and path/fallback keys |
-| [loadouts](../../src/lib/services/loadouts.ts), [loadout store](../../src/lib/stores/loadouts.ts) | Context matching mixes playback/Raf/appearance; current tag matching uses JS RegExp |
-| [platform README](../../src/platform/README.md), [filesystem contract](../../src/lib/services/platform-files-types.ts) | Genuine FSA handles vs native paths/SAF URIs, capabilities, ranged access |
-| [filesystem-folders.ts](../../src/lib/services/filesystem-folders.ts), [library-folder-scanner.ts](../../src/lib/services/library-folder-scanner.ts) | Folder domain data currently mixed with handles; no launch prompts; owned reconciliation |
-| [files.ts](../../src/lib/utils/files.ts), [native-media-files.ts](../../src/lib/utils/native-media-files.ts) | Current identity rules differ; preserve platform case instead of copying generic lowercasing |
-| [stream-artwork.ts](../../src/lib/services/stream-artwork.ts), [metadata reader](../../src/lib/services/media-metadata/reader.ts) | Custom stream readers plus Mediabunny workbench parser; artwork and tag-writing scope differ |
-| [artwork-cache.ts](../../src/lib/services/artwork-cache.ts), [visual-thumbnail-cache.ts](../../src/lib/services/visual-thumbnail-cache.ts) | Separate bounded rebuildable caches; current budgets are references, not schema compatibility |
-| [image-session.ts](../../src/lib/services/image-session.ts), [image-viewer.ts](../../src/lib/services/image-viewer.ts) | Captured image sequence, independent transport, URL ownership; currently browser Image decoding |
+| Transport/preparation | [Controller](../../src/lib/services/player-controller.ts), [commands](../../src/lib/services/playback-commands.ts), characterization tests |
+| Modules | [OpenMPT](../../src/lib/services/openmpt/), [module player](../../src/lib/services/module-player.ts), [Hively C wrapper](../../scripts/vendor/ahx/ahx-wrapper.c), [Hively tests](../../src/lib/services/ahx-worklet.test.ts) |
+| Queue/facts | [Types](../../src/lib/types.ts), [queue](../../src/lib/stores/queue.ts), navigation/dedupe/reconciliation tests, [ratings](../../src/lib/services/track-ratings.ts), [counts](../../src/lib/services/play-count.ts), [bookmarks](../../src/lib/services/playback-bookmarks.ts) |
+| Sources/scans | [Platform](../../src/platform/README.md), [filesystem contract](../../src/lib/services/platform-files-types.ts), [scanner](../../src/lib/services/library-folder-scanner.ts) |
+| Metadata/lyrics | [Reader](../../src/lib/services/media-metadata/reader.ts), stream-meta MP3/FLAC/Ogg/ReplayGain modules, [lyrics](../../src/lib/services/lyrics.ts) |
+| Visual assets | [Artwork](../../src/lib/services/stream-artwork.ts), [artwork cache](../../src/lib/services/artwork-cache.ts), [thumbnails](../../src/lib/services/visual-thumbnail-cache.ts), [image session](../../src/lib/services/image-session.ts) |
+| DSP/loadouts | [Audio bus](../../src/lib/services/audio-bus.ts), [Raf](../../src/lib/services/raf-engine.ts), [registry](../../src/lib/services/raf-effect-registry.ts), [effects](../../src/lib/services/raf-effects/), [loadouts](../../src/lib/services/loadouts.ts) and tests |
+| Lifecycle | [Media Session](../../src/lib/services/media-session.ts), [Vite/PWA](../../vite.config.ts), [updates](../../src/lib/services/pwa-updates.ts), [Android](../../src/android/README.md) |
+| Server adoption | [PCM](../../izci-server/internal/media/render.go), [jobs](../../izci-server/internal/media/render_job.go), [sessions](../../izci-server/internal/host/session.go), [SQLite](../../izci-server/internal/persistence/store.go) |
 
-Useful domain scenarios already live in queue navigation/dedupe/hydration/folder
-reconciliation tests, platform filesystem/reference tests, and play-count,
-bookmark, rating, loadout, artwork-cache, thumbnail, and image-session tests.
-Translate their intended outcomes; do not reproduce old storage object shapes.
+Current browser players/Web Audio and the Go/FFmpeg host are behavior references,
+not an existing Rust engine to extract. Port intended outcomes, not old storage
+shapes or node topology. A transport anchor does not prove background audio.
 
-## 3. Raf and headless hosting
+- [Corpus contract](../../fixtures/README.md) and [manifest](../../fixtures/manifest.json):
+  generation requires exact paired FFmpeg/FFprobe pins. Outputs are ignored;
+  preserve digests instead of accepting another build's bytes.
+- `audio-opus` is about 0.25 s audible, `module-mod` 7.68 s. Add markers to long
+  audio for dropped/duplicate-frame checks. [toneModule](../../src/lib/services/openmpt/test-fixtures.ts)
+  supplies MOD/subsong data. Blank Hively is lifecycle only; audible pinned
+  XM/S3M/IT/MO3/AHX/HVL inputs remain acquisition work.
+- [OpenMPT provenance](../../src/lib/vendor/libopenmpt/README.md),
+  [Hively recipe](../../scripts/vendor/ahx/README.md), [notices](../THIRD-PARTY-NOTICES.md):
+  keep source/loader/ABI provenance and old runtime assets intact.
 
-| Reference | Useful evidence |
-| --- | --- |
-| [audio-bus.ts](../../src/lib/services/audio-bus.ts), [raf-engine.ts](../../src/lib/services/raf-engine.ts) | Signal ownership, smooth differential updates, rack topology changes and temporary bypass |
-| [effect registry](../../src/lib/services/raf-effect-registry.ts), [effects](../../src/lib/services/raf-effects/) | Eight effects and meaningful knobs; registry currently mixes presentation and construction |
-| [Raf settings](../../src/lib/stores/raf-settings.ts), [transfer helpers](../../src/lib/services/raf-settings-transfer.ts) | Old localStorage/BC and JSON preset surfaces; no migration/import obligation |
-| [server PCM producers](../../izci-server/internal/media/render.go), [render jobs](../../izci-server/internal/media/render_job.go) | Device-free PCM seam, FFmpeg encoding, bounded render/cache behavior |
-| [server libopenmpt](../../izci-server/internal/media/openmpt.go), [Hively](../../izci-server/internal/media/hively.go) | Native library loading versus wazero-isolated replay; not a full local device player |
-| [server sessions](../../izci-server/internal/host/session.go), [delivery boundary](../../izci-server/internal/host/delivery.go) | Shared/Freeplay timelines and remote preparation distinct from decode/render jobs |
-| [server SQLite](../../izci-server/internal/persistence/store.go) | Catalog/queue/identity storage precedent; current schema is not the new core schema |
-| [fixture corpus](../../fixtures/README.md), [manifest](../../fixtures/manifest.json), [app protocol fixtures](../../tests/multiplayer-protocol/README.md) | Generator/pins and expected outcomes; media outputs are ignored, not checked in; candid format gaps |
+## Primary mechanism references
 
-Pitch and upward compression have custom worklets; other effects rely heavily
-on browser filters, compressors, gains/delays, convolution, and waveshaping.
-Current tests include topology/parameter checks and synthetic signal tests, not
-an old-sound golden corpus. Use effect-property tests for the new implementation.
+- [Rust interior mutability](https://doc.rust-lang.org/std/cell/struct.UnsafeCell.html):
+  atomic indices do not make shared sample storage mutation sound.
+- [opusfile](https://opus-codec.org/docs/opusfile_api-0.12/index.html): callbacks,
+  seek/timeline, channels, and gain policy.
+- [SQLite WASM](https://sqlite.org/wasm/doc/trunk/persistence.md): VFS/ownership/
+  initialization requires actual integration proof.
+- [File API](https://www.w3.org/TR/FileAPI/), [WebCodecs](https://www.w3.org/TR/webcodecs/):
+  worker reads and asynchronous resources; recheck concrete versions/configs.
 
-The server currently decodes ordinary audio/video via FFmpeg, modules via native
-libopenmpt, Hively via embedded WASM, then encodes buffered Opus/WebM. Its host
-clock coordinates delivery rather than driving a local audio device. Those are
-useful later integration seams, not a reason to turn the Go host into libzci.
-
-Initial generated inputs are `audio-opus` and `module-mod`, under
-`.local/verification-fixtures/v1/` after authorized generation with the exact
-FFmpeg/FFprobe pin. The OpenMPT [test helper](../../src/lib/services/openmpt/test-fixtures.ts)
-also constructs one/two-subsong MOD inputs. Browser
-[Hively tests](../../src/lib/services/ahx-worklet.test.ts) construct blank AHX/HVL
-for actual replay lifecycle/EOF/seek. Those are useful starting vectors, but
-audible instrument/mute/interpolation and concurrent native contexts need further
-fixtures and checks. Server Hively tests prove repeated lifecycle/garbage
-rejection only.
-
-## 4. Primary platform references
-
-- [Rust native C interoperability](https://doc.rust-lang.org/stable/embedded-book/interoperability/rust-with-c.html).
-- [Rust WASM target constraints](https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html).
-- [SQLite OPFS persistence](https://sqlite.org/wasm/doc/trunk/persistence.md): VFS/worker/concurrency choices require an integration proof.
-- [FSA handle persistence](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access): handles use browser structured-clone storage rather than SQL serialization.
-- [Reference Opus file API](https://opus-codec.org/docs/opusfile_api-0.12/index.html).
-- [WebCodecs specification](https://www.w3.org/TR/webcodecs/) and [browser frame handling](https://developer.chrome.com/docs/web-platform/best-practices/webcodecs): configuration support, asynchronous decode, external frames, resource/lifecycle behavior.
-
-Recheck upstream behavior while implementing. Browsing/API documentation and
-code discovery do not substitute for installed-PWA or real-device measurements.
+Source/documentation checks do not substitute for actual runtime evidence.

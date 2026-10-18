@@ -1,13 +1,14 @@
 # Runtime contracts
 
 [Plan entry point](README.md) · [Ownership boundaries](boundaries.md) ·
-[Initial scaffolding](scaffolding.md)
+[Implementation design](scaffolding.md)
 
-These are invariants for implementation, not a requirement to create every type
-in Phase 1. The [roadmap](phases.md) says when each part is introduced: runtime
-sources/sessions/providers in Phase 1, audio output in Phase 2, queue/storage in
-Phase 3, catalog/assets in Phase 4, Raf/preparation in Phase 5, and video in
-Phase 6. Add concrete API types when their operations are implemented.
+These are preserved behavioral requirements, not a requirement to create every
+type during recovery. The [roadmap](phases.md) introduces session/output repair
+in R1-R4, remaining providers/crudes in M1, queue/storage in M2, catalog/assets in
+M3, Raf/preparation in M4, video in M5, and foreign embedding in M6. Implement
+concrete types with their operations. The design document specifies execution;
+this document specifies the invariants those operations must preserve.
 
 ## 1. Identity and sources
 
@@ -59,8 +60,9 @@ They cannot mutate engine collections or obtain internal player pointers.
 
 - Commands identify the target session and a request ID. Define acceptance,
   completion/failure, cancellation, and durable commit acknowledgment separately.
-- Each session's control executor serializes its state changes. Shared catalog
-  changes use the profile's mutation owner and SQLite transactions.
+- Each session's control executor serializes state changes without waiting on
+  decoder/I/O/output work. Jobs return instance/operation/generation-tagged
+  results. Shared catalog changes use the profile mutation owner and transactions.
 - State snapshots carry revision/sequence information. Initial subscription and
   reconnect obtain an authoritative snapshot; subsequent deltas can be checked
   against that revision. Suppress duplicate commands/events at transport seams.
@@ -103,6 +105,11 @@ Keep supported-extension/kind policy centralized. The optional unknown-extension
 verification setting invokes a background module probe only for unknown inputs;
 metadata inspection is a separate job and never creates an audio output player.
 
+Decode distinguishes data, pending, EOF, and failure. A temporarily empty async
+feed is pending; decoder EOF is separate from final audible consumption.
+Load/module options are public core operations, including subsongs; consumers
+must not construct concrete instances to express them.
+
 Support both packet-decoder providers and source-decoder providers. libopus,
 libopusfile, libopenmpt/Hively, and FFmpeg have different useful boundaries; do
 not force all of them into a fake identical demux interface. Normalize their
@@ -142,6 +149,13 @@ callback/worklet does no database work, UI callbacks, blocking I/O, unbounded
 allocation, or waiting on a mutex held by control/decode jobs. Preallocate the
 required buffers and bounded transport. Define underrun, suspension, and drain
 behavior explicitly.
+
+PCM transport retains unaccepted suffixes and converter tails, applies
+backpressure before requesting more decode, and has bounded retained memory.
+Output owns generation-switch acknowledgment; a producer never resets a live
+consumer cursor. Media position maps consumed media ranges, not read-ahead or
+underrun silence. Requested transport and observed output state stay distinct;
+suspension freezes audible position.
 
 Use floating-point processing with explicit channel layout and sample rate.
 Stereo is the initial output baseline; accepted multichannel sources must map
@@ -193,9 +207,9 @@ SQLite and IndexedDB cannot share one transaction. Preserve grants through
 normal development restarts. SAF grants stay with Android, not a fake registry
 of browser handles.
 
-Profiles begin when storage is implemented in Phase 3, not during workspace
-setup. Use new profile names and an explicit current schema version. Unsupported schema
-versions fail clearly or require an explicitly selected fresh profile; never
+Profiles begin when storage is implemented in M2, not during recovery or
+workspace setup. Use new profile names and an explicit current schema version.
+Unsupported schema versions fail clearly or require an explicitly selected fresh profile; never
 wipe user state on initialization failure. Implement no pre-libzci readers or
 migration helpers. A disposable test profile is not the ordinary player's data.
 

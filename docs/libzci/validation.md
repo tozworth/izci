@@ -1,153 +1,93 @@
-# Verification and maturity
+# Verification
 
-[Plan entry point](README.md) · [Phases](phases.md) ·
-[Crudes](crudes.md) · [Codebase reference](reference.md)
+[Overview](README.md) · [Roadmap](phases.md) · [Review](review.md)
 
-Verification follows engine behavior and target capabilities. A native build,
-WASM compilation, a foreground browser page, and an installed PWA are different
-evidence. Record them separately. Do not run builds, servers, browsers, or device
-reinstalls without the authorization required by the repository operating guide.
+Pure tests, builds, devices, browser pages, and installed PWAs prove different
+things. Follow AGENTS.md for authorization. This revision performed source and
+document checks only; old test/listening claims remain historical.
 
-## 1. Verification layers
+## Recovery checks
 
-| Layer | Proves |
-| --- | --- |
-| Pure domain tests | Identity, queue occurrences, navigation, matching, reconciliation, user facts |
-| Shared DSP tests | Effect properties, stability, parameter changes, latency/reset/tails |
-| Provider/source contract tests | Codec coverage, trimming/gain, bounded reads, seek/drain/cancel, instance isolation |
-| Storage tests | Actual engine SQL, native/OPFS reopening, failed writes, revision publication, registry recovery |
-| Native consumer checks | Device output, CLI lifecycle, crude controls, multiple sessions, native binding |
-| Browser consumer checks | WASM/buffer wiring, WebCodecs probes, output timing, grants, worker/client lifetime |
-| Installed PWA/device checks | Offline assets/update, OS controls, background/screen-off/interruption and recovery |
-
-Use focused tests that would detect a meaningful regression. Port domain
-scenarios rather than asserting old JS object shapes, Web Audio node topology,
-or localStorage/IDB serialization. Do not create a massive mechanically translated
-suite or golden output for every old effect.
-
-## 2. Fixtures and behavioral scenarios
-
-Reuse [fixtures/README.md](../../fixtures/README.md) and its provenance-backed
-manifest/generator. Respect its exact toolchain requirements; a skipped media
-case is not codec evidence. Add tiny synthetic or verified permissive fixtures
-for missing XM/S3M/IT/MO3/AHX/HVL coverage. Personal library playback is useful
-local acceptance evidence, not a redistributable CI corpus.
-
-Prioritize Opus: ordinary and chained files, supported channel layouts, metadata,
-pre-skip/end trimming, header gain and ReplayGain exactly once, long seeks,
-duration, EOF, preparation joins, and changed-file revisions. Add corrupted and
-denied/unavailable sources. Measure sample/time behavior; "heard audio" alone
-does not establish seeking or gapless correctness.
-
-Cross-target scenarios use stable IDs and expected semantic outcomes: duplicate
-queue navigation, rapid seek/load cancellation, failed next-track preparation,
-scan ownership, source changes, favorite/subsong membership, rating propagation,
-bookmarks, continuous-play counts, and image navigation alongside audio.
-
-Hively requires two simultaneously live native contexts with interleaved state
-changes, plus output/inspection isolation. Independent WASM memories and a loop
-of sequential opens cannot satisfy that check.
-
-## 3. DSP, timing, and performance
-
-Use generated tones, sweeps, impulses, silence, transients, and stereo signals.
-Check EQ response, AGC target/bounds/recovery, maximizer ceiling behavior, stereo
-mapping, pitch ratio, bypass/dry-wet, state reset, and effect/rack latency. Compare
-the new native and WASM implementations with justified numerical tolerances;
-old browser output is a reference, not an acceptance golden.
-
-Exercise varied sample rates/block sizes, live parameter/topology edits,
-crossfades, silence/EOF, and device suspension. Inspect the output path for
-blocking/allocations and capture actual underruns, bounded queues, memory, and
-worst-case processing cost. Establish numerical budgets using declared target
-hardware and workloads before closing a phase; do not invent a universal budget
-or call an unmeasured path real-time safe.
-
-Video checks include visible A/V sync after seeking and DSP changes, silent video,
-bounded frame retention, surface handoff, hidden-video/audio continuation,
-decoder loss/reopen, and resource release. Track hardware/software decode
-selection where observable without claiming acceleration is guaranteed. Compare
-CPU/memory/power indicators against the workload; foreground correctness alone
-does not close efficiency or background gates.
-
-## 4. Browser lifecycle and persistence
-
-For each declared browser/device configuration, record ordinary tab and installed
-PWA results separately: user activation, pause/resume, seek, lockscreen actions,
-background, screen-off, audio interruption, return to foreground, and recovery.
-Confirm audible output/progress, not merely Media Session metadata or buttons.
-Emulator/desktop success does not establish Android real-device behavior.
-
-Exercise offline cold launch, all WASM/worklet/provider assets, updates with a
-long-lived window, attached-client reconnect, database-owner loss, and clean
-shutdown/reopen. Test actual engine SQL under OPFS, failed initialization without
-data destruction, busy/quota/access failures, and FSA registry orphan recovery.
-Preserve the normal player's profile and grants.
-
-Track capability reports and optional-feature absence on other browsers rather
-than assuming Chromium-only APIs universally exist. If persistent OPFS or a
-codec configuration is unavailable, show a clear unsupported result or an
-explicit nonpersistent test mode. No silent durable-success claims and no
-software-video bundle fallback.
-
-## Core maturity gate
-
-Before server adoption and then existing-shell migration:
-
-- [ ] CLI/native crude use libzci without a JS runtime, browser, or webview.
-- [ ] Crude PWA independently exercises the actual WASM engine, browser providers,
-  sources, DSP/output, SQLite, and offline/lifecycle mechanisms.
-- [ ] Mandatory Opus and declared ordinary/module formats have codec, seek,
-  preparation, EOF, and instance-isolation evidence; remaining fixture gaps are
-  explicit and do not hide mandatory failures.
-- [ ] Catalog, queue occurrences, favorites/ratings/bookmarks/counts, scans,
-  settings, metadata, artwork/images, and useful Raf controls are public APIs.
-- [ ] Native and browser run one shared domain/SQL model and DSP implementation;
-  consumers contain no corrective business logic or direct domain SQL.
-- [ ] Multiple independent sessions and device-free rendering are exercised;
-  shared resources remain bounded and do not route through a global player.
-- [ ] Cancellation, stale-output rejection, source/grant loss, database errors,
-  decoder loss, and output interruption have observable recovery behavior.
-- [ ] Browser video uses platform codecs/surfaces coordinated by libzci, with
-  measured A/V timing, hidden-surface behavior, and bounded resource ownership.
-- [ ] Installed/offline/update, Media Session, background/screen-off, and target
-  device behavior have recorded results; limitations are explicitly scoped.
-- [ ] Native/WASM dependency provenance, target exclusions, profile/schema/API
-  identities, and resource lifetimes are documented and reproducible.
-- [ ] No pre-libzci readers/import/migration/preset conversion or cross-generation
-  backup/restore machinery was introduced; old profiles were not wiped.
-
-The gate measures independent usefulness, not pixel parity with the existing
-shells. Do not silently waive mandatory browser/core behavior to start migrating
-Svelte. Scope changes need an explicit recorded decision.
-
-## 5. Evidence format
-
-Create `docs/libzci/implementation-log.md` in Phase 0.1. Track each numbered
-subphase as not started, implemented with verification pending, or verified.
-The initial log records the checkout and missing inputs; it cannot contain
-playback results or a profile because those do not exist yet.
-
-For a check record subphase/scenario, commit/API identity, exact command or crude
-interaction, target/toolchain, browser/device, fixture ID/path, result, relevant
-measurements, and limitations. Profile is `none` before storage; afterwards use
-the actual isolated profile name. Differentiate passed, failed, unsupported, and
-not run. Link detailed logs only
-when useful; avoid dumping sensitive paths, file contents, tokens, or signaling
-data. This plan itself is not evidence that any implementation gate passed.
-
-The first cross-target scenarios are concrete:
-
-| Introduced in | Scenario | Required observation |
+| Milestone | Concrete check | Failure it detects |
 | --- | --- | --- |
-| 1.1 | Delayed decode, then seek/dispose | Old-generation results are rejected/released; no observer update after disposal |
-| 1.2–1.3 | Reference Opus open/EOF/seek on native and browser | Provider version, bounded reads, finite PCM, audible sample count/timing, release |
-| 1.4 | Interleave two Hively contexts | Seek/subsong/mute/dispose on A does not mutate B; silent lifecycle alone does not prove sound |
-| 2.1–2.4 | Audible transport on both outputs | Requested/running state, consumed-frame clock, pause/seek/drain and underruns |
-| 3.2 | Shared SQL setting/queue commit and reopen | Same core statements, committed revision, persisted order/duplicates, failed write unchanged |
-| 3.3 | Two windows and owner loss | One engine/output/SQL owner, snapshot reconnect, paused durable recovery |
-| 3.4 | Installed PWA offline/background/update | Actual required assets, coherent version, audible output and OS actions recorded separately |
+| R1 | Long numbered/marked source through tiny variable-capacity sink; compare samples/tail | Unwritten frames or converter output discarded |
+| R1 | Concurrent producer/consumer, generation change during pop, blocked-capacity teardown | Unsound mutation, producer cursor reset, stuck shutdown |
+| R2 | Pause/seek/stop solely through session commands | Separate output control is required for transport |
+| R2 | Hold decode open; seek/stop/dispose and operate second session | Global locks or decoder work block commands |
+| R2 | Pending, then data, EOF, final consumption | Starvation becomes EOF or Ended comes early |
+| R2 | Underrun, seek to marker, pause/suspend/resume | Silence/read-ahead/wall time becomes media position |
+| R2 | Interrupt open/seek/streaming render | Disconnected cancellation or file-sized memory growth |
+| R3 | Long real Opus plus reference render/frame accounting | Short smoke hides drops, trim or gain errors |
+| R4 | Play real File with AudioDecoder disabled | Optional platform decode substitutes for reference path |
+| R4 | Cancel long scan, seek pending decode, throttle output | Unresponsive worker or unbounded queues |
 
-Use these scenarios to identify the first tests, not to build a second generic
-test framework. Existing Vitest tests validate the old runtime; a passing old
-test does not verify the corresponding new Rust/browser implementation.
+Use deterministic sink/job schedules for ordering/budgets and real providers
+for media/output behavior. Sleep-based unit tests or a steady sine's peak/RMS
+do not establish sample continuity.
+
+## Media, DSP, and timing
+
+Use the [corpus](../../fixtures/README.md) and exact generation pins/digests.
+Distinguish recipes from available bytes. Add long marked signals, channel/rate
+variants, Opus gain/trim/chained/corrupt/seek cases, and licensed audible modules.
+Blank AHX/HVL proves lifecycle only. Private-library listening is local evidence,
+not redistributable fixtures. Keep generated media ignored.
+
+Record sample counts, target/landed seek, decode/queue/output ranges, applied
+trim/gain, and drain. Native/browser semantics and shared kernels use justified
+tolerances; old JS/storage/browser-node output is not the golden.
+
+DSP inputs include sweeps/tones/impulses/silence/transients/stereo. Check response,
+gain bounds/recovery/ceiling, width/pitch, mix/bypass, smoothing, latency/reset/
+tails, topology edits, finite output, rates/block sizes. Measure processing cost,
+queue/memory high-water marks, allocations/blocking, underruns and worst-case rack
+cost on declared hardware; establish budgets from evidence.
+
+Video checks cover seek/preroll, visible A/V sync/DSP latency, silent video,
+orientation/color, exclusive surface handoff, hidden-video/audio continuity,
+decoder reclamation, bounded leases, and cleanup. WebCodecs availability does
+not prove configuration support, acceleration, efficiency, or background survival.
+
+## Persistence and installed behavior
+
+Test real native SQLite and browser OPFS through shared SQL: commit/reopen,
+failed writes, busy/quota/schema/init failure, owner loss, and registry/SQL crash
+boundaries. Failures preserve data and publish no committed success. Scans
+preserve facts on cancellation/access loss and reconcile only their own root.
+Counts/loadouts/navigation do not depend on UI lifetime. Attach/reconnect clients
+to one profile/session owner.
+
+Offline cold launch includes every emitted loader/WASM/worklet/provider/SQL
+asset; verify coherent updates. Record tab and installed PWA separately on
+desktop Chromium and physical Android Chrome: activation, transport, background/
+screen-off, lockscreen actions, interruption, return/recovery. Emulator or
+foreground success does not close physical-device checks. APK/SAF integration
+is a separate later adapter task.
+
+## Adoption readiness
+
+Before A1 and then A2, required evidence is:
+
+| Area | Required result |
+| --- | --- |
+| Embedding | Native CLI/crude and C caller without JS/webview/WASM runtime; two sessions/device-free jobs |
+| Transport | Lossless bounded long output, audible clock, pending/drain, responsive cancel, prepared/outgoing overlap |
+| Formats | Reference Opus and declared regular/module families with audible seek/EOF/isolation on both targets |
+| Domain | Queue/catalog/facts/roots/scans/metadata/lyrics/patterns/artwork/images/settings through public API |
+| DSP | Useful eight-effect inventory, loadouts/presets, shared native/worklet/render code, measured properties/cost |
+| Video | Browser codecs, native declared support, shared timing, bounded frames/recovery |
+| Storage | Shared SQL, native/OPFS reopen/failure, real capability registry, single ownership/reconnect |
+| PWA | Installed offline/update and physical-device background/OS control evidence |
+| Portability | Reproducible target-aware recipes, required Windows/Linux gaps resolved |
+| Ownership | No second domain/DSP engine, direct domain SQL, or corrective media policy in crudes/bindings |
+
+This is a finite acceptance target. Optional capabilities stay separate. Missing
+required checks stay open unless the user changes scope.
+
+## Recording evidence
+
+Append milestone, commit/API identity, command/interaction, toolchain, target/
+device/browser, input, result, measurements and limits to the log. Use `open`,
+`implemented; checks pending`, or `verified`. Distinguish unsupported, failed,
+not-run and passed. Profile is `none` before M2. Historical Phase labels stay
+historical. Avoid sensitive file contents, tokens, SDP and signaling data.
