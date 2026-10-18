@@ -1,7 +1,7 @@
 # Ownership boundaries
 
 [Plan entry point](README.md) · [Runtime contracts](contracts.md) ·
-[Initial scaffolding](scaffolding.md)
+[Implementation design](scaffolding.md)
 
 These boundaries precede the implementation sequence. Keep them stable as the
 crudes expand; refine an ambiguous case here before duplicating it in a consumer.

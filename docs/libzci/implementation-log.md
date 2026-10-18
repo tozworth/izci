@@ -1,5 +1,17 @@
 # libzci implementation log
 
+## Historical log notice: 2026-10-18 plan revision
+
+The entries below record the first attempt through `168874dd`. They are retained
+as history, including their claims and pending checks. The [source review](review.md)
+found execution/output defects that those reported checks do not close.
+The [replacement roadmap](phases.md) starts at R1; its R1-R4 and M1-M6 milestones
+are all open. No build, test, listening, or browser result was newly produced by
+this documentation revision. Append future results under the new milestone IDs.
+The old phase labels and next-step statements below do not direct current work.
+
+---
+
 Status values per `docs/libzci/phases.md`: `not started /
 implemented, verification pending / verified`. A check needs evidence,
 not a declaration. Missing build authorization or hardware leaves the
