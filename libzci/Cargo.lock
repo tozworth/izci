@@ -331,6 +331,7 @@ version = "0.1.0"
 dependencies = [
  "libzci",
  "ogg",
+ "serde_json",
 ]
 
 [[package]]

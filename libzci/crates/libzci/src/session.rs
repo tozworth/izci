@@ -97,6 +97,12 @@ impl Session {
     pub fn is_current(&self, generation: Generation) -> bool {
         !self.disposed && generation == self.generation()
     }
+    pub fn receipt(&self, request: RequestId) -> Option<CommandAccept> {
+        self.receipts
+            .iter()
+            .find(|r| r.request_id == request)
+            .copied()
+    }
     pub fn tag(&self) -> JobTag {
         JobTag {
             session: self.id(),
@@ -196,7 +202,11 @@ impl Session {
                     self.snapshot.state,
                     TransportState::Idle | TransportState::Failed
                 ) {
-                    return Err(invalid("play with no playable source"));
+                    return Err(self
+                        .snapshot
+                        .error
+                        .clone()
+                        .unwrap_or_else(|| invalid("play with no playable source")));
                 }
                 if self.snapshot.state == TransportState::Ended {
                     self.invalidate(request);
@@ -285,7 +295,7 @@ impl Session {
         self.snapshot.layout = Some(metadata.layout);
         self.snapshot.total_frames = metadata.total_frames;
         self.snapshot.capabilities = capabilities;
-        self.snapshot.metadata = Some(metadata);
+        self.snapshot.metadata = Some(std::sync::Arc::new(metadata));
         self.landed(tag, position)
     }
     pub fn landed(&mut self, tag: JobTag, position: u64) -> bool {

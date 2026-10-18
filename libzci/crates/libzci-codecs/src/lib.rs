@@ -1,7 +1,6 @@
 //! Codec providers over compiled reference media libraries.
 //!
-//! - `opus`: reference Opus (Ogg packet reader plus packet-level
-//!   libopus decode).
+//! - `opus`: reference libopusfile callbacks, trim/gain, float decode and seek.
 //! - `openmpt`: tracker modules over libopenmpt 0.8.4 (Phase 1.4).
 //! - `hively`: AHX/HVL over the instance-safe context wrapper in `c/`
 //!   (Phase 1.4; lifecycle now, audible fixtures later).

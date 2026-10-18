@@ -31,6 +31,8 @@ impl Default for RenderOptions {
 pub struct RenderProgress {
     pub source_frames: u64,
     pub output_frames: u64,
+    /// PCM storage budget: preparation/converter staging, one decoded chunk,
+    /// and one handed-off output chunk. Excludes codec and FFT-private metadata.
     pub retained_bytes: usize,
 }
 #[derive(Clone, Copy, Debug)]
@@ -87,13 +89,16 @@ impl NativeRuntime {
             self.dispose_session(session);
             return Err(error);
         }
-        self.submit(
+        if let Err(error) = self.submit(
             &Command::Play {
                 session,
                 request_id: RequestId::fresh(),
             },
             &token,
-        )?;
+        ) {
+            self.dispose_session(session);
+            return Err(error);
+        }
         Ok(RenderJob {
             runtime: self.clone(),
             entry: self.entry(session)?,
@@ -120,6 +125,12 @@ impl RenderJob {
     }
     pub fn next(&mut self) -> Result<RenderStep> {
         self.cancel.check()?;
+        if self.complete {
+            return Ok(RenderStep::Complete(RenderResult {
+                output_frames: self.progress.output_frames,
+                rate_hz: self.options.output_rate,
+            }));
+        }
         loop {
             if let Some(p) = &mut self.preparation {
                 let mut output = None;
@@ -132,7 +143,7 @@ impl RenderJob {
                     output = Some(RenderStep::Data { block, samples });
                     block.valid_frames
                 });
-                self.progress.retained_bytes = p.retained_bytes() + DECODE_SAMPLES * 4;
+                self.progress.retained_bytes = p.retained_bytes() + DECODE_SAMPLES * 12;
                 if let Some(RenderStep::Data { block, samples }) = output {
                     self.progress.output_frames += block.valid_frames as u64;
                     self.entry

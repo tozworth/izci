@@ -1,15 +1,18 @@
 {
   "schemaVersion": 1,
-  "note": "Phase 0 acquisition inventory. Pinned entries name exact sources already proven in this checkout; pending entries must resolve to an exact release plus digest in Phase 1.2 before any download. Floating URLs or version ranges are not acquisition inputs.",
+  "note": "Pinned native media sources for libzci. R3 reference Opus uses libopusfile callbacks; the ordinary izci frontend/server assets are independent.",
   "toolchain": {
-    "rustc": "1.99.0 (b940084d7 2026-09-28) via stable-x86_64-unknown-linux-gnu",
-    "policy": "No rust-toolchain.toml is committed: the environment toolchain reports a version with no matching versioned rustup channel, so a channel file would break builds. The exact rustc version above plus the committed libzci/Cargo.lock are the Phase 1.2 pin; re-evaluate a versioned channel when a real release channel exists.",
+    "rustc": "1.98.1 (48a229cea 2026-09-01)",
+    "cargo": "1.98.1 (797e8a9bc 2026-08-05)",
+    "verifiedTarget": "x86_64-pc-windows-msvc",
+    "cCompiler": "MSVC 19.44.35229, /MD",
+    "policy": "Use an installed real Rust release and the committed lockfile. Windows R2/R3 was verified with the project-local toolchain above. GNU/Linux recovery builds and browser codec builds are not verified by the Windows result.",
     "lockfile": "libzci/Cargo.lock (committed)"
   },
   "libraries": [
     {
       "id": "libogg",
-      "role": "Ogg container reference for the Opus provider (container parsing itself is the shared pure-Rust Ogg reader in libzci-codecs; the reference source is acquired/built for provenance and the Emscripten comparison).",
+      "role": "Container library statically linked by reference libopusfile. Shared pure-Rust Ogg helpers remain for browser demux and historical packet comparison tests.",
       "status": "pinned-release",
       "pinnedRelease": "1.3.5",
       "archive": "https://downloads.xiph.org/releases/ogg/libogg-1.3.5.tar.gz",
@@ -27,18 +30,18 @@
       "digest": "sha256:65c1d2f78b9f2fb20082c38cbe47c951ad5839345876e46941612ee87f9a7ce1",
       "upstream": "https://opus-codec.org/ + https://downloads.xiph.org/releases/opus/",
       "license": "BSD-3-Clause (Xiph.Org Foundation et al.; see COPYING in the source tree)",
-      "evidence": "Downloaded, digest-verified, and natively built (--disable-shared) by libzci/scripts/acquire-media-deps.sh; linked by libzci-codecs/build.rs. Runtime version asserted via opus_get_version_string in provider tests."
+      "evidence": "R3: digest-verified source, Windows MSVC CMake/Ninja static opus.lib, /MD, linked by libopusfile; runtime version asserted as libopus 1.5.2. GNU/Linux acquisition recipe retained."
     },
     {
       "id": "libopusfile",
-      "role": "Ogg Opus stream reference (header-gain/trim semantics). Acquired/built for provenance and the browser-module comparison; the native provider decodes packets with reference libopus through the shared Ogg reader (scoped packet-level fallback per scaffolding §3) and mirrors opusfile semantics: header output gain applied, zero additional offset, pre-skip/end-trim applied exactly once. ReplayGain/R128 tag policy stays core-owned later.",
+      "role": "Production reference native Opus provider: owned source callbacks, float decode, PCM seek, per-link comments, pre-skip/end trim, OP_HEADER_GAIN with zero additional offset. ReplayGain/R128 tags are reported without applying them.",
       "status": "pinned-release",
       "pinnedRelease": "0.12",
       "archive": "https://downloads.xiph.org/releases/opus/opusfile-0.12.tar.gz",
       "digest": "sha256:118d8601c12dd6a44f52423e68ca9083cc9f2bfe72da7a8c1acb22a80ae3550b",
       "upstream": "https://opus-codec.org/ + https://downloads.xiph.org/releases/opus/",
       "license": "BSD-3-Clause (Xiph.Org Foundation; see COPYING in the source tree)",
-      "evidence": "Downloaded, digest-verified, and natively built (--disable-shared --disable-http) by libzci/scripts/acquire-media-deps.sh (Phase 1.2). Native provider rationale recorded in docs/libzci/implementation-log.md §1.2."
+      "evidence": "R3: digest-verified source; Windows MSVC static opusfile.lib built from the four core translation units with OP_DISABLE_HTTP and /MD. Linked with pinned libogg/libopus. Quantitative, seek/gain/chain and hardware evidence is in docs/libzci/implementation-log.md."
     },
     {
       "id": "libopenmpt",
@@ -49,7 +52,7 @@
       "digest": "sha256:97530b25f88564fba8128333580ca0b12ac52c0c11c18ea5b8882a23176afa76",
       "upstream": "https://github.com/OpenMPT/openmpt/tree/libopenmpt-0.8.4",
       "license": "BSD-3-Clause (plus bundled miniz/minimp3/stb_vorbis/TinyFFT/Opal notices; see docs/THIRD-PARTY-NOTICES.md)",
-      "evidence": "Downloaded, digest-verified, and natively built (static bin/libopenmpt.a, bundled miniz/minimp3/stb_vorbis, no mpg123 — same feature set as the checked-in WASM in src/lib/vendor/libopenmpt/) by libzci/scripts/acquire-module-deps.sh; linked by libzci-codecs/build.rs (Phase 1.4)."
+      "evidence": "Downloaded, digest-verified, and natively built (static bin/libopenmpt.a, bundled miniz/minimp3/stb_vorbis, no mpg123 \u00e2\u20ac\u201d same feature set as the checked-in WASM in src/lib/vendor/libopenmpt/) by libzci/scripts/acquire-module-deps.sh; linked by libzci-codecs/build.rs (Phase 1.4)."
     },
     {
       "id": "hivelytracker-replay",
@@ -60,29 +63,11 @@
       "digest": "sha256:523de29ec7da41cd1e308e08297ec18f5545cc59d6e90cc61b0015ad01d5baba",
       "upstream": "https://github.com/pete-gordon/hivelytracker/tree/f393ca7c6416f00bcb574b334a7e8b57dcb19eb2",
       "license": "BSD-3-Clause (Pete Gordon 2006-2018; see LICENSE.md and public/vendor/hivelytracker-LICENSE.txt)",
-      "evidence": "Upstream hvl2wav/replay.c downloaded and digest-verified; compiled with the new libzci-codecs/c/hively_context.c wrapper into an ignored static lib by libzci/scripts/acquire-module-deps.sh; linked by libzci-codecs/build.rs (Phase 1.4). Upstream playback touches no global state (audit in implementation-log §1.4); tables go immutable after one Rust-Once-synchronized init."
+      "evidence": "Upstream hvl2wav/replay.c downloaded and digest-verified; compiled with the new libzci-codecs/c/hively_context.c wrapper into an ignored static lib by libzci/scripts/acquire-module-deps.sh; linked by libzci-codecs/build.rs (Phase 1.4). Upstream playback touches no global state (audit in implementation-log \u00c2\u00a71.4); tables go immutable after one Rust-Once-synchronized init."
     }
   ],
-  "recipesToAddIn1_2": {
-    "command": "libzci/scripts/acquire-media-deps.sh (to be created in Phase 1.2; not present in Phase 0)",
-    "inputs": ["libzci/vendor/dependencies.json (this file, with pending pins resolved)"],
-    "outputs": [
-      ".local/libzci/vendor/<library>/<pinned-release>/source/ (ignored download + digest check)",
-      ".local/libzci/vendor/<library>/<pinned-release>/build-native/ (ignored native artifacts)",
-      ".local/libzci/vendor/<library>/<pinned-release>/build-wasm/ (ignored Emscripten artifacts)"
-    ],
-    "records": [
-      "compiler flags, Emscripten exports, and the exact command that produced each artifact",
-      "reproducible recipe + required licenses/notices committed alongside the provider (1.2, 1.4)"
-    ],
-    "constraints": [
-      "Downloads and builds go only into ignored locations (.local/libzci/, libzci/target/).",
-      "Must not overwrite public/vendor/*, src/lib/vendor/*, or any izci-server asset.",
-      "Commit the resolved Rust toolchain pin and workspace lockfile with the 1.2 resolutions."
-    ]
-  },
   "defaultExperiment": {
-    "design": "Rust WASM core plus separate Emscripten codec modules; native links compiled libraries directly (scaffolding §3).",
+    "design": "Rust WASM core plus separate Emscripten codec modules; native links compiled libraries directly (scaffolding \u00c2\u00a73).",
     "fallback": "If the synchronous-C-callback bridge (bounded FileReaderSync Blob-slice reads in a dedicated decode worker) fails, use the core's shared Ogg reader with packet-level libopus, confined to the Opus provider. Compare a unified Emscripten build on the same scenarios and document the replacement before proceeding."
   },
   "firstExperiment": {
@@ -96,6 +81,22 @@
       "SQLite/browser glue and OPFS integration (Phase 3.2).",
       "Native device output and shared audio processing (Phase 2.1).",
       "AudioWorklet output and WebCodecs packet providers (Phase 2.4)."
+    ]
+  },
+  "nativeAcquisition": {
+    "commands": {
+      "x86_64-pc-windows-msvc": "powershell -NoProfile -ExecutionPolicy Bypass -File libzci/scripts/acquire-media-deps.ps1",
+      "GNU/Linux": "libzci/scripts/acquire-media-deps.sh; optional modules: libzci/scripts/acquire-module-deps.sh"
+    },
+    "outputs": [
+      ".local/libzci/vendor/<library>/<pinned-release>/source/",
+      ".local/libzci/vendor/<library>/<pinned-release>/build-<Rust-target>/lib/",
+      "per-library BUILD-RECORD.txt with source digest, compiler and runtime"
+    ],
+    "constraints": [
+      "Only ignored output locations; preserve frontend/server assets, profiles and grants.",
+      "Media defaults to reference Opus only. Module archives are required only for the modules feature.",
+      "Windows media archives use .lib and /MD; GNU/Linux uses .a plus the appropriate native C++ runtime for optional modules."
     ]
   }
 }

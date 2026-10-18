@@ -33,7 +33,7 @@ pub struct Snapshot {
     /// Request that produced this snapshot, when applicable.
     pub request_id: Option<RequestId>,
     pub layout: Option<crate::PcmLayout>,
-    pub metadata: Option<crate::ProviderMetadata>,
+    pub metadata: Option<std::sync::Arc<crate::ProviderMetadata>>,
     pub volume: f32,
     pub mute: bool,
     pub requested: crate::RequestedState,
@@ -41,6 +41,15 @@ pub struct Snapshot {
     pub decoding_eof: bool,
     pub pending_operation: bool,
     pub capabilities: crate::ModuleCapabilities,
+}
+
+/// A bounded event drain includes loss counters and a recovery snapshot.
+#[derive(Clone, Debug)]
+pub struct EventBatch {
+    pub events: Vec<Event>,
+    pub coalesced: u64,
+    pub dropped: u64,
+    pub snapshot: Snapshot,
 }
 
 /// Observable session event.

@@ -274,6 +274,7 @@ impl SessionEntry {
             }
             c.result = Some(result);
             c.demand = false;
+            c.refresh_output();
             self.wake.notify_all();
             if pending {
                 // A worker-local empty feed yields; commands still use the same

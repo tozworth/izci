@@ -6,7 +6,8 @@
 Start at `168874dd` with recoverable code, not an empty workspace. The old log's
 Phase 2.2 is not this roadmap's starting gate. R1 is verified by the device-free
 checks recorded in the [implementation log](implementation-log.md#recovery-r1-bounded-lossless-output--verified).
-R2-R4 and M1-M6 remain open. Execute in order; numbered items within a milestone are commit-sized
+R2 and native reference Opus R3 are verified on Windows MSVC (2026-10-18);
+R4 and M1-M6 remain open. GNU/Linux R3 recovery remains unverified target work. Execute in order; numbered items within a milestone are commit-sized
 units where coherent. A milestone closes when its deliverable works and the
 listed checks pass, not when its file list exists. Pending verification is a
 real dependency, not a pass. See the build/runtime rule in [README](README.md).
@@ -50,6 +51,8 @@ cannot establish concurrency safety.
 
 ## R2: make commands, decode jobs, and output one transport
 
+Status: **verified** (2026-10-18, Windows MSVC). See the [recovery evidence](implementation-log.md).
+
 **Deliverable:** a small native test harness and the existing CLI exercise one
 public transport API. A held decode job cannot block a second session or Stop.
 
@@ -86,6 +89,11 @@ long streaming render with bounded retained memory. Test generation changes
 after decode but before consumption, not only before decode starts.
 
 ## R3: recover a dependable native reference Opus CLI
+
+Status: **verified for x86_64-pc-windows-msvc** (2026-10-18), including
+quantitative reference checks, full device playback, interruption and user-confirmed
+clean listening. GNU/Linux recipes are retained but have not been re-run here;
+no Linux or browser runtime success is inferred. See the [recovery evidence](implementation-log.md).
 
 **Deliverable:** `zci-play file.opus` plays a long source to its real end;
 `--start`, volume, interruption, and streaming `--render-pcm` use the same API.

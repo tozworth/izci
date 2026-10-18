@@ -88,7 +88,7 @@ fn fix_page_crc(bytes: &mut [u8], offset: usize) {
 fn independent_instances_header_gain_once_and_reported_tags() {
     let bytes = media("stereo.opus");
     let mut a = open(bytes.clone());
-    let b = open(bytes.clone());
+    let mut b = open(bytes.clone());
     assert!(a
         .metadata()
         .comments
@@ -102,6 +102,8 @@ fn independent_instances_header_gain_once_and_reported_tags() {
     let baseline = decode(&mut a);
     assert_eq!(b.position_frames(), 0);
     drop(a);
+    b.seek_to_frame(1000, &CancelFlag::default()).unwrap();
+    assert_eq!(decode(&mut b).len(), (60006 - 1000) * 2);
     let mut gain = bytes;
     let header = gain.windows(8).position(|s| s == b"OpusHead").unwrap();
     gain[header + 16..header + 18].copy_from_slice(&(-6i16 * 256).to_le_bytes());
@@ -221,4 +223,75 @@ fn raw_packet_path_matches_reference_trim_gain_and_pcm() {
         assert_eq!(a.len(), b.len());
         assert!(a.iter().zip(b).all(|(a, b)| (a - b).abs() < 0.000001));
     }
+}
+#[test]
+fn cancellation_inside_real_source_callbacks_and_source_errors_survive_ffi() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    #[derive(Debug)]
+    struct Source {
+        inner: MemSource,
+        cancel_next: AtomicBool,
+        deny: AtomicBool,
+    }
+    impl RuntimeSource for Source {
+        fn id(&self) -> SourceId {
+            self.inner.id()
+        }
+        fn revision(&self) -> u64 {
+            1
+        }
+        fn caps(&self) -> SourceCaps {
+            self.inner.caps()
+        }
+        fn read_at(&self, offset: u64, buf: &mut [u8], cancel: &CancelFlag) -> Result<usize> {
+            if self.deny.load(Ordering::Acquire) {
+                return Err(LibzciError::AccessRequired {
+                    detail: "test grant revoked".into(),
+                });
+            }
+            if self.cancel_next.swap(false, Ordering::AcqRel) {
+                cancel.cancel();
+            }
+            self.inner.read_at(offset, buf, cancel)
+        }
+    }
+    let source = Arc::new(Source {
+        inner: MemSource::new(media("long.opus")),
+        cancel_next: AtomicBool::new(true),
+        deny: AtomicBool::new(false),
+    });
+    assert!(matches!(
+        OpusInstance::open(source.clone(), Default::default(), &CancelFlag::default()),
+        Err(LibzciError::Cancelled)
+    ));
+    let mut instance =
+        OpusInstance::open(source.clone(), Default::default(), &CancelFlag::default()).unwrap();
+    source.cancel_next.store(true, Ordering::Release);
+    assert!(matches!(
+        instance.seek_to_frame(720_000, &CancelFlag::default()),
+        Err(LibzciError::Cancelled)
+    ));
+    instance.seek_to_frame(0, &CancelFlag::default()).unwrap();
+    source.cancel_next.store(true, Ordering::Release);
+    let mut scratch = [0.0; 4096];
+    let mut interrupted = false;
+    for _ in 0..1000 {
+        match instance.decode_into(&mut scratch, &CancelFlag::default()) {
+            Err(LibzciError::Cancelled) => {
+                interrupted = true;
+                break;
+            }
+            Ok(_) => (),
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+    assert!(interrupted);
+    drop(instance);
+    assert_eq!(Arc::strong_count(&source), 1);
+    source.deny.store(true, Ordering::Release);
+    assert!(matches!(
+        OpusInstance::open(source.clone(), Default::default(), &CancelFlag::default()),
+        Err(LibzciError::AccessRequired { .. })
+    ));
+    assert_eq!(Arc::strong_count(&source), 1);
 }

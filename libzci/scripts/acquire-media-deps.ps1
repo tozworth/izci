@@ -4,6 +4,9 @@ $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $manifest = Get-Content (Join-Path $repo 'libzci/vendor/dependencies.json') -Raw | ConvertFrom-Json
 $target = 'x86_64-pc-windows-msvc'
+$required = @('curl.exe','tar.exe')
+if (-not $CheckOnly) { $required += @('cmake.exe','ninja.exe') }
+foreach ($tool in $required) { if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Missing $tool. Install curl/tar, CMake and Ninja, and put them on PATH before acquiring media dependencies." } }
 if (-not $CheckOnly) { . (Join-Path $PSScriptRoot 'windows-toolchain.ps1') }
 function Run([string]$Program, [string[]]$Arguments) {
     & $Program @Arguments

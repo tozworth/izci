@@ -90,13 +90,19 @@ pub fn open_output(spec: &OutputSpec, seconds: f32) -> Result<DeviceOutput> {
     let supported = if spec.rate_hz.is_none()
         && usable(default.sample_format())
         && (1..=32).contains(&default.channels())
+        && (8000..=192000).contains(&default.sample_rate())
     {
         default
     } else {
         let mut ranges: Vec<_> = device
             .supported_output_configs()
             .map_err(device_error)?
-            .filter(|r| usable(r.sample_format()) && (1..=32).contains(&r.channels()))
+            .filter(|r| {
+                usable(r.sample_format())
+                    && (1..=32).contains(&r.channels())
+                    && r.min_sample_rate() <= 192000
+                    && r.max_sample_rate() >= 8000
+            })
             .collect();
         ranges.sort_by_key(|r| {
             (
@@ -116,7 +122,10 @@ pub fn open_output(spec: &OutputSpec, seconds: f32) -> Result<DeviceOutput> {
                 }
             })
             .ok_or_else(|| device_error("no supported PCM configuration for requested rate"))?;
-        range.with_sample_rate(desired_rate.clamp(range.min_sample_rate(), range.max_sample_rate()))
+        range.with_sample_rate(desired_rate.clamp(
+            range.min_sample_rate().max(8000),
+            range.max_sample_rate().min(192000),
+        ))
     };
     let format = supported.sample_format();
     let config: cpal::StreamConfig = supported.into();

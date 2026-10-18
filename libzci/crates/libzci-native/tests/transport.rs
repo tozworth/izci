@@ -72,6 +72,29 @@ impl ProviderFactory for Factory {
     }
 }
 impl DecoderInstance for Decoder {
+    fn capabilities(&self) -> ModuleCapabilities {
+        ModuleCapabilities {
+            subsongs: 2,
+            interpolation: true,
+            channel_mute: true,
+        }
+    }
+    fn module_control(&mut self, control: ModuleControl, cancel: &CancelFlag) -> Result<()> {
+        cancel.check()?;
+        match control {
+            ModuleControl::Subsong(n) if n < 2 => {
+                self.inner.seek_to_frame(0, cancel)?;
+            }
+            ModuleControl::Interpolation(n) if [1, 2, 4].contains(&n) => (),
+            ModuleControl::ChannelMute { channel, .. } if channel < 4 => (),
+            _ => {
+                return Err(LibzciError::InvalidArgument {
+                    detail: "unsupported fake module parameter".into(),
+                })
+            }
+        }
+        Ok(())
+    }
     fn info(&self) -> ProviderInfo {
         self.inner.info()
     }
@@ -257,4 +280,123 @@ fn starvation_is_pending_then_data_and_final_completion() {
         }
     }
     assert_eq!(frames, 100_003);
+}
+#[test]
+fn duplicate_old_load_does_not_cancel_a_new_timeline_even_after_source_release() {
+    let rt = NativeRuntime::new();
+    rt.register_provider(Arc::new(libzci::provider::FakeFactory::new(
+        100003,
+        PcmLayout::mono48k(),
+    )))
+    .unwrap();
+    let source = rt.insert_source(Arc::new(MemSource::new(b"FAKE".to_vec())));
+    let session = rt.create_session();
+    let load = Command::Load {
+        session,
+        request_id: RequestId::fresh(),
+        source,
+        extension_hint: None,
+        options: LoadOptions::default(),
+    };
+    let first = rt.submit(&load, &CancelFlag::default()).unwrap().0;
+    rt.wait_ready(session, &CancelFlag::default()).unwrap();
+    seek(&rt, session, 1.0);
+    let later = rt.wait_ready(session, &CancelFlag::default()).unwrap();
+    rt.release_source(source);
+    assert_eq!(rt.submit(&load, &CancelFlag::default()).unwrap().0, first);
+    let after = rt.snapshot(session).unwrap();
+    assert_eq!(after.generation, later.generation);
+    assert_eq!(after.position_frames, 48000);
+    assert!(after.error.is_none());
+}
+#[test]
+fn public_load_options_module_capabilities_and_controls() {
+    let rt = NativeRuntime::new();
+    rt.register_provider(Arc::new(Factory {
+        open: None,
+        decode: None,
+        seek: None,
+        pending: Default::default(),
+    }))
+    .unwrap();
+    let source = rt.insert_source(Arc::new(MemSource::new(b"B".to_vec())));
+    let session = rt.create_session();
+    let cancel = CancelFlag::default();
+    rt.submit(
+        &Command::Load {
+            session,
+            request_id: RequestId::fresh(),
+            source,
+            extension_hint: None,
+            options: LoadOptions {
+                subsong: Some(1),
+                start_time: MediaTime(0.5),
+            },
+        },
+        &cancel,
+    )
+    .unwrap();
+    let s = rt.wait_ready(session, &cancel).unwrap();
+    assert_eq!(s.position_frames, 24000);
+    assert_eq!(s.capabilities.subsongs, 2);
+    for control in [
+        ModuleControl::Subsong(0),
+        ModuleControl::Interpolation(4),
+        ModuleControl::ChannelMute {
+            channel: 1,
+            mute: true,
+        },
+    ] {
+        rt.submit(
+            &Command::Module {
+                session,
+                request_id: RequestId::fresh(),
+                control,
+            },
+            &cancel,
+        )
+        .unwrap();
+        rt.wait_ready(session, &cancel).unwrap();
+    }
+    assert_eq!(rt.snapshot(session).unwrap().position_frames, 0);
+    rt.submit(
+        &Command::Module {
+            session,
+            request_id: RequestId::fresh(),
+            control: ModuleControl::Interpolation(99),
+        },
+        &cancel,
+    )
+    .unwrap();
+    assert!(matches!(
+        rt.wait_ready(session, &cancel),
+        Err(LibzciError::InvalidArgument { .. })
+    ));
+}
+#[test]
+fn bounded_event_overflow_is_visible_and_recovers_with_snapshot() {
+    let rt = NativeRuntime::new();
+    let session = rt.create_session();
+    for _ in 0..200 {
+        rt.submit(
+            &Command::SetVolume {
+                session,
+                request_id: RequestId::fresh(),
+                volume: 0.5,
+            },
+            &CancelFlag::default(),
+        )
+        .unwrap();
+    }
+    let batch = rt.events(session).unwrap();
+    assert!(batch.events.len() <= 128);
+    assert!(batch.dropped > 0);
+    assert_eq!(batch.snapshot.volume, 0.5);
+    assert_eq!(
+        batch.snapshot.revision,
+        rt.snapshot(session).unwrap().revision
+    );
+    let next = rt.events(session).unwrap();
+    assert_eq!(next.dropped, 0);
+    assert!(next.events.is_empty());
 }
