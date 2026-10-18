@@ -78,13 +78,17 @@ impl NativeRuntime {
         extension_hint: Option<&str>,
         cancel: &CancelFlag,
     ) -> Result<Vec<Event>> {
-        let src = self.get_source(source).ok_or_else(|| LibzciError::Unavailable {
-            detail: format!("unknown source {source:?}"),
-        })?;
+        let src = self
+            .get_source(source)
+            .ok_or_else(|| LibzciError::Unavailable {
+                detail: format!("unknown source {source:?}"),
+            })?;
         let sessions = self.sessions.lock().unwrap();
-        let cell = sessions.get(&session).ok_or_else(|| LibzciError::InvalidArgument {
-            detail: format!("unknown session {session:?}"),
-        })?;
+        let cell = sessions
+            .get(&session)
+            .ok_or_else(|| LibzciError::InvalidArgument {
+                detail: format!("unknown session {session:?}"),
+            })?;
         let mut sess = cell.lock().unwrap();
         let registry = self.registry.lock().unwrap();
         sess.load_source(RequestId::fresh(), src, extension_hint, &registry, cancel)
@@ -101,19 +105,28 @@ impl NativeRuntime {
         cancel: &CancelFlag,
     ) -> Result<Vec<Event>> {
         let sessions = self.sessions.lock().unwrap();
-        let cell = sessions.get(&session).ok_or_else(|| LibzciError::InvalidArgument {
-            detail: "unknown session".into(),
-        })?;
+        let cell = sessions
+            .get(&session)
+            .ok_or_else(|| LibzciError::InvalidArgument {
+                detail: "unknown session".into(),
+            })?;
         let mut sess = cell.lock().unwrap();
         sess.load_opened(RequestId::fresh(), info, instance, cancel)
     }
 
     /// Submit one serialized command to a session.
-    pub fn submit(&self, command: &Command, cancel: &CancelFlag) -> Result<(CommandAccept, Vec<Event>)> {
+    pub fn submit(
+        &self,
+        command: &Command,
+        cancel: &CancelFlag,
+    ) -> Result<(CommandAccept, Vec<Event>)> {
         let sessions = self.sessions.lock().unwrap();
-        let cell = sessions.get(&command.session()).ok_or_else(|| LibzciError::InvalidArgument {
-            detail: "unknown session".into(),
-        })?;
+        let cell =
+            sessions
+                .get(&command.session())
+                .ok_or_else(|| LibzciError::InvalidArgument {
+                    detail: "unknown session".into(),
+                })?;
         let mut sess = cell.lock().unwrap();
         let registry = self.registry.lock().unwrap();
         let sources = self.sources.lock().unwrap();
@@ -123,9 +136,11 @@ impl NativeRuntime {
     /// Current snapshot for a session.
     pub fn snapshot(&self, session: SessionId) -> Result<Snapshot> {
         let sessions = self.sessions.lock().unwrap();
-        let cell = sessions.get(&session).ok_or_else(|| LibzciError::InvalidArgument {
-            detail: "unknown session".into(),
-        })?;
+        let cell = sessions
+            .get(&session)
+            .ok_or_else(|| LibzciError::InvalidArgument {
+                detail: "unknown session".into(),
+            })?;
         let snapshot = cell.lock().unwrap().snapshot();
         Ok(snapshot)
     }
@@ -140,9 +155,11 @@ impl NativeRuntime {
         cancel: &CancelFlag,
     ) -> Result<PcmCollector> {
         let sessions = self.sessions.lock().unwrap();
-        let cell = sessions.get(&session).ok_or_else(|| LibzciError::InvalidArgument {
-            detail: "unknown session".into(),
-        })?;
+        let cell = sessions
+            .get(&session)
+            .ok_or_else(|| LibzciError::InvalidArgument {
+                detail: "unknown session".into(),
+            })?;
         let mut sess = cell.lock().unwrap();
         let mut collector = PcmCollector::default();
         collector.collect_until_eof(&mut sess, max_samples_per_chunk, max_chunks, cancel)?;
@@ -153,18 +170,22 @@ impl NativeRuntime {
     /// become authoritative afterwards.
     pub fn dispose_session(&self, session: SessionId) {
         self.sessions.lock().unwrap().remove(&session);
+        self.stop_session_outputs(session);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use libzci::{MemSource, provider::FakeFactory};
+    use libzci::{provider::FakeFactory, MemSource};
 
     fn runtime_with_fake(total: u64) -> Arc<NativeRuntime> {
         let rt = NativeRuntime::new();
-        rt.register_provider(Arc::new(FakeFactory::new(total, libzci::PcmLayout::mono48k())))
-            .unwrap();
+        rt.register_provider(Arc::new(FakeFactory::new(
+            total,
+            libzci::PcmLayout::mono48k(),
+        )))
+        .unwrap();
         rt
     }
 

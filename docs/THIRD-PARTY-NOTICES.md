@@ -496,6 +496,41 @@ Pinned by libzci/vendor/dependencies.json and acquired/built by libzci/scripts/a
 
 Full license/notice texts: L042 (COPYING.Xiph).
 
+### libzci native PCM queue (rtrb 0.4.0)
+
+License: MIT OR Apache-2.0 (MIT option reproduced below).
+
+Source: https://github.com/mgeier/rtrb/tree/v0.4.0
+
+Pinned in libzci/crates/libzci-native/Cargo.toml and libzci/Cargo.lock.
+The crate includes cache_padded.rs from Crossbeam under the same license choice.
+
+```text
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
 ## WASM runtime support
 
 The replay and encoder binaries were produced with Emscripten. The runtime/glue and applicable C/C++ runtime notices are retained here. Exact Emscripten/LLVM revisions are not recorded for every precompiled upstream binary; these entries do not assert a single common toolchain version for all codecs.

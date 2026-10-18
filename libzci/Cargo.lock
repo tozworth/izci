@@ -340,6 +340,7 @@ dependencies = [
  "cpal",
  "libzci",
  "libzci-codecs",
+ "rtrb",
 ]
 
 [[package]]
@@ -633,6 +634,12 @@ checksum = "f821338fddb99d089116342c46e9f1fbf3828dba077674613e734e01d6ea8677"
 dependencies = [
  "rustfft",
 ]
+
+[[package]]
+name = "rtrb"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9278fb35b3e730abe136e9b395b5b81b96d06b9f5478a50f0c8430a2237b22de"
 
 [[package]]
 name = "rubato"
