@@ -14,14 +14,12 @@
 //! Ctrl-C interruption.
 
 use std::path::{Path, PathBuf};
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
-use std::time::{Duration, Instant};
+use std::sync::Arc;
+use std::time::Duration;
 
-use libzci::{CancelFlag, Command, DecoderInstance, LibzciError, RequestId};
-use libzci_codecs::{HivelyFactory, HivelyInstance, OpenmptFactory, OpenmptInstance, OpusFactory};
+use libzci::{CancelFlag, Command, LibzciError, LoadOptions, MediaTime, RequestId, TransportState};
+use libzci_codecs::OpusFactory;
+use libzci_native::render::{ProcessingMode, RenderOptions, RenderStep};
 use libzci_native::{NativeFileSource, NativeRuntime, OutputSpec};
 
 /// Parsed CLI inputs (units documented in `usage`).
@@ -81,7 +79,9 @@ fn parse_args(argv: &[String]) -> Result<Args, UsageError> {
         let arg = argv[i].as_str();
         let value_of = |i: &mut usize| -> Result<String, UsageError> {
             *i += 1;
-            argv.get(*i).cloned().ok_or_else(|| UsageError(format!("{arg} needs a value")))
+            argv.get(*i)
+                .cloned()
+                .ok_or_else(|| UsageError(format!("{arg} needs a value")))
         };
         match arg {
             "--help" => return Err(UsageError("help".into())),
@@ -111,7 +111,9 @@ fn parse_args(argv: &[String]) -> Result<Args, UsageError> {
             }
             "--diagnostics" => args.diagnostics = true,
             "--render-pcm" => args.render_pcm = Some(PathBuf::from(value_of(&mut i)?)),
-            other if other.starts_with("--") => return Err(UsageError(format!("unknown flag {other}"))),
+            other if other.starts_with("--") => {
+                return Err(UsageError(format!("unknown flag {other}")))
+            }
             positional_arg => {
                 if positional.is_some() {
                     return Err(UsageError("only one <path> is accepted".into()));
@@ -130,16 +132,20 @@ fn report(error: &LibzciError, path: &Path) -> ! {
     let hint = match error {
         LibzciError::AccessRequired { .. } => "grant file access and retry",
         LibzciError::Unavailable { .. } => "check the path still exists",
-        LibzciError::Unsupported { .. } => "unsupported or unrecognized media for the registered providers",
+        LibzciError::Unsupported { .. } => {
+            "unsupported or unrecognized media for the registered providers"
+        }
         LibzciError::Corrupt { .. } => "the file claims a supported format but does not decode",
         LibzciError::DecoderFailure { .. } => "the decoder failed mid-stream",
-        LibzciError::DeviceUnavailable { .. } => "no usable output device (try --device or --render-pcm)",
+        LibzciError::DeviceUnavailable { .. } => {
+            "no usable output device (try --device or --render-pcm)"
+        }
         LibzciError::Cancelled => "cancelled",
         LibzciError::InvalidArgument { .. } => "invalid argument",
         LibzciError::ResourceExhausted { .. } => "resource limit reached",
     };
     eprintln!("zci-play: {}: {error} ({hint})", path.display());
-    std::process::exit(2);
+    std::process::exit(if error.is_cancelled() { 130 } else { 2 });
 }
 
 fn extension_hint(path: &Path) -> Option<String> {
@@ -155,207 +161,157 @@ fn main() {
         Err(UsageError(message)) => {
             if message == "help" {
                 eprintln!("{}", usage());
-                std::process::exit(0);
+                return;
             }
             eprintln!("zci-play: {message}\n\n{}", usage());
             std::process::exit(2);
         }
     };
-
-    let interrupted = Arc::new(AtomicBool::new(false));
-    {
-        let flag = Arc::clone(&interrupted);
-        let _ = ctrlc::set_handler(move || flag.store(true, Ordering::SeqCst));
-    }
-
-    let runtime = NativeRuntime::new();
-    runtime.register_provider(Arc::new(OpusFactory::default())).unwrap_or_else(|e| report(&e, &args.path));
-    runtime.register_provider(Arc::new(OpenmptFactory::default())).unwrap_or_else(|e| report(&e, &args.path));
-    runtime.register_provider(Arc::new(HivelyFactory::default())).unwrap_or_else(|e| report(&e, &args.path));
     let cancel = CancelFlag::default();
-
-    // Register the runtime source (bounded native file, verbatim path).
-    let file = NativeFileSource::open(&args.path).unwrap_or_else(|e| report(&e, &args.path));
-    let display_path = file.display_path();
-    let source = runtime.insert_source(Arc::new(file));
-    let session = runtime.create_session();
-    let hint = extension_hint(&args.path);
-
-    // Open through provider selection — or, with --subsong on module
-    // content, through a concrete instance with the subsong applied
-    // before the session takes over.
-    if args.subsong.is_none() {
-        if let Err(e) = runtime.load(session, source, hint.as_deref(), &cancel) {
-            report(&e, &args.path);
-        }
-    } else if let Some(subsong) = args.subsong {
-        let _ = open_with_subsong(&runtime, session, source, subsong, &cancel, &args);
-    }
-    let snapshot = runtime.snapshot(session).unwrap_or_else(|e| report(&e, &args.path));
-    let provider = snapshot.provider.unwrap_or_else(|| {
-        report(&LibzciError::Unsupported { detail: "no provider claimed the source".into() }, &args.path)
-    });
-    let snapshot = runtime.snapshot(session).unwrap_or_else(|e| report(&e, &args.path));
-    let started_at_frame = (args.start_secs * 48_000.0).round() as u64;
-    if started_at_frame > 0 {
-        match runtime.submit(
-            &Command::Seek { request_id: RequestId::fresh(), session, frame: started_at_frame },
-            &cancel,
-        ) {
-            Ok(_) => {}
-            Err(e) => report(&e, &args.path),
-        }
-    }
-
-    if args.diagnostics {
-        eprintln!(
-            "zci-play: {} provider={:?}/{} total={:?} start_frame={} volume={}",
-            display_path,
-            provider.id.0,
-            provider.version,
-            snapshot.total_frames,
-            started_at_frame,
-            args.volume
-        );
-    }
-
-    if let Some(render_path) = args.render_pcm.clone() {
-        render_to_file(&runtime, session, &render_path, &args, &cancel, &interrupted);
-        return;
-    }
-
-    // Request play through a core command, then feed the device.
-    match runtime.submit(&Command::Play { request_id: RequestId::fresh(), session }, &cancel) {
-        Ok(_) => {}
-        Err(e) => report(&e, &args.path),
-    }
-    let spec = OutputSpec { device_name: args.device.clone(), rate_hz: None };
-    let output = match runtime.start_output(session, &spec, args.volume) {
-        Ok(id) => id,
-        Err(e) => report(&e, &args.path),
-    };
-    if args.diagnostics {
-        if let Some(state) = runtime.output_state(output) {
-            eprintln!(
-                "zci-play: device={} rate={} latency_frames={}",
-                state.device_label, state.rate_hz, state.latency_frames
-            );
-        }
-    }
-    eprintln!("zci-play: playing {display_path}");
-    let deadline = Instant::now() + Duration::from_secs(3600 * 12);
-    loop {
-        if interrupted.load(Ordering::SeqCst) {
-            let _ = runtime.stop_output(output);
-            eprintln!("zci-play: interrupted");
-            std::process::exit(130);
-        }
-        let state = runtime.output_state(output).unwrap_or_else(|| {
-            eprintln!("zci-play: output lost");
-            std::process::exit(2);
-        });
-        if args.diagnostics {
-            eprintln!(
-                "zci-play: decoded={} consumed={} hungry={} drained={} finished={}",
-                state.decoded_position, state.consumed_frames, state.hungry_pops, state.drained, state.finished
-            );
-        }
-        if state.finished {
-            break;
-        }
-        if Instant::now() > deadline {
-            eprintln!("zci-play: playback deadline exceeded");
-            std::process::exit(2);
-        }
-        std::thread::sleep(Duration::from_millis(100));
-    }
-    let _ = runtime.stop_output(output);
-    eprintln!("zci-play: done {display_path}");
-}
-
-/// Open module content with a subsong applied before session load.
-/// Non-module content with --subsong is an actionable usage error.
-fn open_with_subsong(
-    runtime: &Arc<NativeRuntime>,
-    session: libzci::SessionId,
-    source: libzci::SourceId,
-    subsong: u32,
-    cancel: &CancelFlag,
-    args: &Args,
-) {
-    let src = runtime.get_source(source).unwrap_or_else(|| {
-        report(&LibzciError::Unavailable { detail: "source vanished".into() }, &args.path)
-    });
-    // Peek at the family through the centralized sniff (bounded read).
-    let mut header = vec![0u8; 8192];
-    let n = src.read_at(0, &mut header, cancel).unwrap_or(0);
-    header.truncate(n);
-    match libzci::sniff_module_family(&header) {
-        Some(libzci::ModuleFamily::Openmpt) => {
-            let mut instance = OpenmptInstance::open(src, Default::default(), cancel)
-                .unwrap_or_else(|e| report(&e, &args.path));
-            let selected = instance.select_subsong(subsong, cancel).unwrap_or_else(|e| report(&e, &args.path));
-            if args.diagnostics {
-                eprintln!("zci-play: subsong {selected} selected");
-            }
-            let info = instance.info();
-            runtime.load_opened(session, info, Box::new(instance), cancel).unwrap_or_else(|e| report(&e, &args.path));
-        }
-        Some(libzci::ModuleFamily::Hively(_)) => {
-            let mut instance = HivelyInstance::open(src, Default::default(), cancel)
-                .unwrap_or_else(|e| report(&e, &args.path));
-            let selected = instance.select_subsong(subsong, cancel).unwrap_or_else(|e| report(&e, &args.path));
-            if args.diagnostics {
-                eprintln!("zci-play: subsong {selected} selected");
-            }
-            let info = instance.info();
-            runtime.load_opened(session, info, Box::new(instance), cancel).unwrap_or_else(|e| report(&e, &args.path));
-        }
-        _ => report(
-            &LibzciError::InvalidArgument { detail: "--subsong needs module (MOD/Hively) content".into() },
-            &args.path,
-        ),
-    }
-}
-
-/// Explicit stereo-float render path (no device opened).
-fn render_to_file(
-    runtime: &Arc<NativeRuntime>,
-    session: libzci::SessionId,
-    render_path: &Path,
-    args: &Args,
-    cancel: &CancelFlag,
-    interrupted: &Arc<AtomicBool>,
-) {
-    use std::io::Write;
-    // Request play so EOF semantics flow through the core path.
-    match runtime.submit(&Command::Play { request_id: RequestId::fresh(), session }, cancel) {
-        Ok(_) => {}
-        Err(e) => report(&e, &args.path),
-    }
-    let (samples, rate) = runtime
-        .render_to_vec(session, 48_000, args.volume, u64::MAX, cancel)
-        .unwrap_or_else(|e| {
-            if interrupted.load(Ordering::SeqCst) {
-                eprintln!("zci-play: interrupted");
-                std::process::exit(130);
-            }
-            report(&e, &args.path)
-        });
-    let mut file = std::fs::File::create(render_path).unwrap_or_else(|e| {
-        eprintln!("zci-play: cannot write {}: {e}", render_path.display());
+    let signal = cancel.clone();
+    ctrlc::set_handler(move || signal.cancel()).unwrap_or_else(|e| {
+        eprintln!("zci-play: cannot install interruption handler: {e}");
         std::process::exit(2);
     });
-    for sample in &samples {
-        file.write_all(&sample.to_le_bytes()).unwrap_or_else(|e| {
-            eprintln!("zci-play: cannot write {}: {e}", render_path.display());
-            std::process::exit(2);
-        });
+    let outcome = run(&args, &cancel);
+    if let Err(error) = outcome {
+        report(&error, &args.path);
     }
-    eprintln!(
-        "zci-play: rendered {} frames stereo f32le @ {} Hz to {}",
-        samples.len() / 2,
-        rate,
-        render_path.display()
-    );
+}
+fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
+    let runtime = NativeRuntime::new();
+    runtime.register_provider(Arc::new(OpusFactory::default()))?;
+    #[cfg(feature = "modules")]
+    {
+        runtime.register_provider(Arc::new(libzci_codecs::OpenmptFactory::default()))?;
+        runtime.register_provider(Arc::new(libzci_codecs::HivelyFactory::default()))?;
+    }
+    cancel.check()?;
+    let source = runtime.insert_source(Arc::new(NativeFileSource::open(&args.path)?));
+    let hint = extension_hint(&args.path);
+    let options = LoadOptions {
+        start_time: MediaTime(args.start_secs),
+        subsong: args.subsong,
+    };
+    if let Some(path) = &args.render_pcm {
+        if std::fs::canonicalize(path).ok() == std::fs::canonicalize(&args.path).ok() {
+            return Err(LibzciError::InvalidArgument {
+                detail: "render output must differ from input".into(),
+            });
+        }
+        let mut job = runtime.start_render(
+            source,
+            hint.as_deref(),
+            RenderOptions {
+                load: options,
+                processing: ProcessingMode::Master {
+                    volume: args.volume,
+                    mute: false,
+                },
+                ..Default::default()
+            },
+            cancel,
+        )?;
+        use std::io::Write;
+        let file = std::fs::File::create(path).map_err(|e| LibzciError::Unavailable {
+            detail: format!("cannot create {}: {e}", path.display()),
+        })?;
+        let mut file = std::io::BufWriter::new(file);
+        let mut bytes = Vec::with_capacity(4096 * 8);
+        loop {
+            cancel.check()?;
+            match job.next()? {
+                RenderStep::Data { samples, .. } => {
+                    bytes.clear();
+                    for sample in samples {
+                        bytes.extend_from_slice(&sample.to_le_bytes());
+                    }
+                    file.write_all(&bytes)
+                        .map_err(|e| LibzciError::Unavailable {
+                            detail: format!("render write: {e}"),
+                        })?;
+                }
+                RenderStep::Pending => std::thread::sleep(Duration::from_millis(2)),
+                RenderStep::Complete(result) => {
+                    file.flush().map_err(|e| LibzciError::Unavailable {
+                        detail: format!("render flush: {e}"),
+                    })?;
+                    eprintln!(
+                        "zci-play: rendered {} frames stereo f32le @ {} Hz to {}",
+                        result.output_frames,
+                        result.rate_hz,
+                        path.display()
+                    );
+                    if args.diagnostics {
+                        eprintln!("zci-play: render {:?}", job.progress());
+                    }
+                    return Ok(());
+                }
+            }
+        }
+    }
+    let session = runtime.create_session();
+    runtime.submit(
+        &Command::Load {
+            request_id: RequestId::fresh(),
+            session,
+            source,
+            options,
+            extension_hint: hint,
+        },
+        cancel,
+    )?;
+    let loaded = runtime.wait_ready(session, cancel)?;
+    runtime.submit(
+        &Command::SetVolume {
+            request_id: RequestId::fresh(),
+            session,
+            volume: args.volume,
+        },
+        cancel,
+    )?;
+    let output = runtime.start_output(
+        session,
+        &OutputSpec {
+            device_name: args.device.clone(),
+            rate_hz: None,
+        },
+    )?;
+    runtime.submit(
+        &Command::Play {
+            request_id: RequestId::fresh(),
+            session,
+        },
+        cancel,
+    )?;
+    eprintln!("zci-play: playing {}", args.path.display());
+    if args.diagnostics {
+        eprintln!(
+            "zci-play: provider={:?} total={:?} start_frame={}",
+            loaded.provider, loaded.total_frames, loaded.position_frames
+        );
+    }
+    loop {
+        cancel.check()?;
+        let snapshot = runtime.snapshot(session)?;
+        if let Some(error) = snapshot.error {
+            return Err(error);
+        }
+        if args.diagnostics {
+            let state =
+                runtime
+                    .output_state(output)
+                    .ok_or_else(|| LibzciError::DeviceUnavailable {
+                        detail: "output lost".into(),
+                    })?;
+            eprintln!("zci-play: position={} decoded={} device_frames={} hungry={} drained={} finished={}", snapshot.position_frames, state.decoded_position, state.consumed_frames, state.hungry_pops, state.drained, state.finished);
+        }
+        if snapshot.state == TransportState::Ended {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    runtime.dispose_session(session);
+    eprintln!("zci-play: done {}", args.path.display());
+    Ok(())
 }

@@ -26,11 +26,11 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
+use crate::session_driver::WebSession as Session;
 use libzci::{
     AppliedAdjustments, CancelFlag, ChannelLayout, DecoderInstance, Event, Generation, LibzciError,
     MemSource, OpusStreamParams, PcmLayout, ProviderFactory, ProviderId, ProviderInfo,
-    ProviderMetadata, ProviderRegistry, RequestId, Result, RuntimeSource, Session, SessionId,
-    Snapshot,
+    ProviderMetadata, ProviderRegistry, RequestId, Result, RuntimeSource, SessionId, Snapshot,
 };
 
 // ---------------------------------------------------------------------------
@@ -63,7 +63,9 @@ pub struct BrowserOpusFactory {
 impl BrowserOpusFactory {
     /// Create (the engine keeps its own `Arc` to this factory).
     pub fn new() -> Arc<Self> {
-        Arc::new(Self { last: Mutex::new(None) })
+        Arc::new(Self {
+            last: Mutex::new(None),
+        })
     }
 
     /// Take the shared cell of the most recently opened instance.
@@ -202,6 +204,17 @@ impl HostDecoder {
 }
 
 impl DecoderInstance for HostDecoder {
+    fn decode(&mut self, out: &mut [f32], cancel: &CancelFlag) -> Result<libzci::DecodeStatus> {
+        let n = self.decode_into(out, cancel)?;
+        if n > 0 {
+            Ok(libzci::DecodeStatus::Data(n))
+        } else if self.shared.lock().unwrap().eof {
+            Ok(libzci::DecodeStatus::EndOfStream)
+        } else {
+            Ok(libzci::DecodeStatus::Pending)
+        }
+    }
+
     fn info(&self) -> ProviderInfo {
         self.info
     }
@@ -262,6 +275,7 @@ impl DecoderInstance for HostDecoder {
                 applied_header_gain: true,
             },
             declared_channels: shared.params.channels as u16,
+            comments: Vec::new(),
         }
     }
 }
@@ -469,10 +483,19 @@ impl Engine {
         extension_hint: Option<&str>,
     ) -> Result<Snapshot> {
         let source: Arc<dyn RuntimeSource> = Arc::new(MemSource::new(header));
-        let session_ref = self.sessions.get_mut(&session).ok_or_else(|| LibzciError::InvalidArgument {
-            detail: "unknown session".into(),
-        })?;
-        let events = session_ref.load_source(RequestId::fresh(), source, extension_hint, &self.registry, &self.cancel)?;
+        let session_ref =
+            self.sessions
+                .get_mut(&session)
+                .ok_or_else(|| LibzciError::InvalidArgument {
+                    detail: "unknown session".into(),
+                })?;
+        let events = session_ref.load_source(
+            RequestId::fresh(),
+            source,
+            extension_hint,
+            &self.registry,
+            &self.cancel,
+        )?;
         let failed = events.iter().find_map(|e| match e {
             Event::Failed { error, .. } => Some(error.clone()),
             _ => None,
@@ -480,18 +503,24 @@ impl Engine {
         if let Some(error) = failed {
             return Err(error);
         }
-        let shared = self.factory.take_last().ok_or_else(|| LibzciError::DecoderFailure {
-            detail: "browser factory opened nothing".into(),
-        })?;
+        let shared = self
+            .factory
+            .take_last()
+            .ok_or_else(|| LibzciError::DecoderFailure {
+                detail: "browser factory opened nothing".into(),
+            })?;
         self.shared.insert(session, shared);
         Ok(session_ref.snapshot())
     }
 
     /// Look up the shared decoder cell for index/ingest paths.
     fn shared_for(&self, session: SessionId) -> Result<Arc<Mutex<HostShared>>> {
-        self.shared.get(&session).cloned().ok_or_else(|| LibzciError::InvalidArgument {
-            detail: "session has no shared decoder cell".into(),
-        })
+        self.shared
+            .get(&session)
+            .cloned()
+            .ok_or_else(|| LibzciError::InvalidArgument {
+                detail: "session has no shared decoder cell".into(),
+            })
     }
 
     /// Commit a scanned page index: validate with the shared core rule,
@@ -512,7 +541,9 @@ impl Engine {
         let shared = self.shared_for(session)?;
         let total = {
             let guard = shared.lock().unwrap();
-            if reported_preskip != guard.params.preskip || reported_channels != guard.params.channels {
+            if reported_preskip != guard.params.preskip
+                || reported_channels != guard.params.channels
+            {
                 return Err(LibzciError::DecoderFailure {
                     detail: format!(
                         "worker/core header mismatch: worker preskip {reported_preskip}/ch {reported_channels} vs core {}/{}",
@@ -531,27 +562,39 @@ impl Engine {
         };
         shared.lock().unwrap().total_frames = Some(total);
         self.pages.insert(session, pages);
-        self.audio_start.insert(session, (audio_start_page, audio_start_packet));
+        self.audio_start
+            .insert(session, (audio_start_page, audio_start_packet));
         Ok((total, audio_start_page, audio_start_packet))
     }
 
     /// Plan a decode start for `target` on a committed index. Pure
     /// engine decision; the worker executes the returned plan.
     pub fn plan_seek(&self, session: SessionId, target: u64) -> Result<(SeekPlan, u64)> {
-        let pages = self.pages.get(&session).ok_or_else(|| LibzciError::InvalidArgument {
-            detail: "session has no committed index".into(),
-        })?;
-        let (audio_page, audio_packet) = self.audio_start.get(&session).copied().ok_or_else(|| LibzciError::InvalidArgument {
-            detail: "session has no committed index".into(),
-        })?;
+        let pages = self
+            .pages
+            .get(&session)
+            .ok_or_else(|| LibzciError::InvalidArgument {
+                detail: "session has no committed index".into(),
+            })?;
+        let (audio_page, audio_packet) =
+            self.audio_start.get(&session).copied().ok_or_else(|| {
+                LibzciError::InvalidArgument {
+                    detail: "session has no committed index".into(),
+                }
+            })?;
         let shared = self.shared_for(session)?;
         let guard = shared.lock().unwrap();
-        let total = guard.total_frames.ok_or_else(|| LibzciError::InvalidArgument {
-            detail: "index not committed".into(),
-        })?;
+        let total = guard
+            .total_frames
+            .ok_or_else(|| LibzciError::InvalidArgument {
+                detail: "index not committed".into(),
+            })?;
         let preskip = guard.params.preskip;
         drop(guard);
-        Ok((plan_opus_seek(pages, audio_page, audio_packet, preskip, total, target)?, total))
+        Ok((
+            plan_opus_seek(pages, audio_page, audio_packet, preskip, total, target)?,
+            total,
+        ))
     }
 
     /// Ingest worker PCM tagged with its generation. Stale generations
@@ -567,9 +610,12 @@ impl Engine {
         samples: Vec<f32>,
     ) -> Result<(u64, u64)> {
         let accepted = {
-            let session_ref = self.sessions.get(&session).ok_or_else(|| LibzciError::InvalidArgument {
-                detail: "unknown session".into(),
-            })?;
+            let session_ref =
+                self.sessions
+                    .get(&session)
+                    .ok_or_else(|| LibzciError::InvalidArgument {
+                        detail: "unknown session".into(),
+                    })?;
             let shared = self.shared_for(session)?;
             let mut guard = shared.lock().unwrap();
             if !session_ref.is_current(generation) {
@@ -626,9 +672,12 @@ impl Engine {
     /// Pump queued PCM through the core session; returns the session
     /// position afterwards.
     fn pump_session(&mut self, session: SessionId, max_samples: usize) -> Result<u64> {
-        let session_ref = self.sessions.get_mut(&session).ok_or_else(|| LibzciError::InvalidArgument {
-            detail: "unknown session".into(),
-        })?;
+        let session_ref =
+            self.sessions
+                .get_mut(&session)
+                .ok_or_else(|| LibzciError::InvalidArgument {
+                    detail: "unknown session".into(),
+                })?;
         let (generation, _) = session_ref.decode_for_generation(max_samples, &self.cancel)?;
         if !session_ref.is_current(generation) {
             return Err(LibzciError::Cancelled);
@@ -641,9 +690,12 @@ impl Engine {
     /// reaches the total without a UI timer driving transport.
     pub fn note_eof(&mut self, session: SessionId, generation: Generation) -> Result<bool> {
         let current = {
-            let session_ref = self.sessions.get(&session).ok_or_else(|| LibzciError::InvalidArgument {
-                detail: "unknown session".into(),
-            })?;
+            let session_ref =
+                self.sessions
+                    .get(&session)
+                    .ok_or_else(|| LibzciError::InvalidArgument {
+                        detail: "unknown session".into(),
+                    })?;
             session_ref.is_current(generation)
         };
         if !current {
@@ -671,12 +723,19 @@ impl Engine {
     /// stream has not ended (pending, not EOF). The display timer may
     /// call this to refresh meters; transport never depends on it
     /// (ingest/note_eof already pump).
-    pub fn pump(&mut self, session: SessionId, max_samples: usize) -> Result<Option<(Generation, u64)>> {
+    pub fn pump(
+        &mut self,
+        session: SessionId,
+        max_samples: usize,
+    ) -> Result<Option<(Generation, u64)>> {
         let shared = self.shared_for(session)?;
         let generation = {
-            let session_ref = self.sessions.get(&session).ok_or_else(|| LibzciError::InvalidArgument {
-                detail: "unknown session".into(),
-            })?;
+            let session_ref =
+                self.sessions
+                    .get(&session)
+                    .ok_or_else(|| LibzciError::InvalidArgument {
+                        detail: "unknown session".into(),
+                    })?;
             session_ref.generation()
         };
         let has_work = {
@@ -692,9 +751,12 @@ impl Engine {
 
     /// Current snapshot for the page.
     pub fn snapshot(&self, session: SessionId) -> Result<Snapshot> {
-        self.sessions.get(&session).map(Session::snapshot).ok_or_else(|| LibzciError::InvalidArgument {
-            detail: "unknown session".into(),
-        })
+        self.sessions
+            .get(&session)
+            .map(Session::snapshot)
+            .ok_or_else(|| LibzciError::InvalidArgument {
+                detail: "unknown session".into(),
+            })
     }
 
     /// Submit play/pause/stop/seek through the core session. Seeks
@@ -708,19 +770,44 @@ impl Engine {
     ) -> Result<(libzci::CommandAccept, Vec<Event>, Option<Snapshot>)> {
         let request = RequestId::fresh();
         let command = match kind {
-            EngineCommand::Play => libzci::Command::Play { request_id: request, session },
-            EngineCommand::Pause => libzci::Command::Pause { request_id: request, session },
-            EngineCommand::Stop => libzci::Command::Stop { request_id: request, session },
-            EngineCommand::Seek { frame } => libzci::Command::Seek { request_id: request, session, frame },
-            EngineCommand::Dispose => libzci::Command::Dispose { request_id: request, session },
+            EngineCommand::Play => libzci::Command::Play {
+                request_id: request,
+                session,
+            },
+            EngineCommand::Pause => libzci::Command::Pause {
+                request_id: request,
+                session,
+            },
+            EngineCommand::Stop => libzci::Command::Stop {
+                request_id: request,
+                session,
+            },
+            EngineCommand::Seek { frame } => libzci::Command::Seek {
+                request_id: request,
+                session,
+                time: libzci::MediaTime::from_frames(
+                    frame,
+                    self.sessions
+                        .get(&session)
+                        .and_then(|s| s.snapshot().layout)
+                        .map_or(48_000, |l| l.sample_rate),
+                ),
+            },
+            EngineCommand::Dispose => libzci::Command::Dispose {
+                request_id: request,
+                session,
+            },
         };
         // Empty registry/sources: only Load consults them, and loads go
         // through open_header, never this path.
         let registry = ProviderRegistry::new();
         let sources = HashMap::new();
-        let session_ref = self.sessions.get_mut(&session).ok_or_else(|| LibzciError::InvalidArgument {
-            detail: "unknown session".into(),
-        })?;
+        let session_ref =
+            self.sessions
+                .get_mut(&session)
+                .ok_or_else(|| LibzciError::InvalidArgument {
+                    detail: "unknown session".into(),
+                })?;
         let (accept, events) = session_ref.apply(&command, &registry, &sources, &self.cancel)?;
         if matches!(kind, EngineCommand::Dispose) {
             self.sessions.remove(&session);
@@ -762,7 +849,10 @@ mod tests {
             .join("../../../.local/verification-fixtures/v1")
             .join(rel);
         std::fs::read(&path).unwrap_or_else(|_| {
-            panic!("missing fixture {} — run `node fixtures/generate.mjs` first", path.display())
+            panic!(
+                "missing fixture {} — run `node fixtures/generate.mjs` first",
+                path.display()
+            )
         })
     }
 
@@ -793,8 +883,12 @@ mod tests {
     #[test]
     fn browser_module_opens_stay_visibly_pending() {
         let mut probe_registry = ProviderRegistry::new();
-        probe_registry.register(Arc::new(BrowserModuleFactory)).unwrap();
-        probe_registry.register(Arc::new(BrowserHivelyFactory)).unwrap();
+        probe_registry
+            .register(Arc::new(BrowserModuleFactory))
+            .unwrap();
+        probe_registry
+            .register(Arc::new(BrowserHivelyFactory))
+            .unwrap();
         // Minimal MOD magic: the module factory claims it by sniff, then
         // reports the pending Emscripten build instead of decoding.
         let mut header = vec![0u8; 1084];
@@ -822,11 +916,16 @@ mod tests {
         assert!(accept.generation > gen0);
         // ...so late PCM for the old generation is refused, never queued.
         assert_eq!(
-            engine.ingest_pcm(session, gen0, 4, vec![0.5; 4]).unwrap_err().kind(),
+            engine
+                .ingest_pcm(session, gen0, 4, vec![0.5; 4])
+                .unwrap_err()
+                .kind(),
             "cancelled"
         );
         // And the new generation is contiguous from the seek target.
-        let (accepted, position) = engine.ingest_pcm(session, accept.generation, 2, vec![0.0; 8]).unwrap();
+        let (accepted, position) = engine
+            .ingest_pcm(session, accept.generation, 2, vec![0.0; 8])
+            .unwrap();
         assert_eq!(accepted, 8);
         assert_eq!(position, 10);
     }
@@ -835,7 +934,9 @@ mod tests {
     fn noncontiguous_ingest_is_a_decoder_failure() {
         let (mut engine, session) = open_engine(&full_header());
         let gen = engine.snapshot(session).unwrap().generation;
-        let err = engine.ingest_pcm(session, gen, 96, vec![0.0; 4]).unwrap_err();
+        let err = engine
+            .ingest_pcm(session, gen, 96, vec![0.0; 4])
+            .unwrap_err();
         assert_eq!(err.kind(), "decoder-failure");
     }
 
@@ -843,7 +944,9 @@ mod tests {
     fn eof_for_stale_generation_is_ignored() {
         let (mut engine, session) = open_engine(&full_header());
         let gen0 = engine.snapshot(session).unwrap().generation;
-        let (_, _, _) = engine.command(session, EngineCommand::Seek { frame: 0 }).unwrap();
+        let (_, _, _) = engine
+            .command(session, EngineCommand::Seek { frame: 0 })
+            .unwrap();
         assert!(!engine.note_eof(session, gen0).unwrap());
     }
 
@@ -873,9 +976,15 @@ mod tests {
         let mut audio_page = 0usize;
         let mut audio_packet = 0usize;
         for (i, page) in pages.iter().enumerate() {
-            let body = scanner.read_at(page.offset + page.header_len, page.body_len as usize).unwrap();
-            let lacing = scanner.read_at(page.offset + 27, (page.header_len - 27) as usize).unwrap();
-            let packets = libzci::split_packets_with_carry(&body, &lacing, &mut carry, page.header_type).unwrap();
+            let body = scanner
+                .read_at(page.offset + page.header_len, page.body_len as usize)
+                .unwrap();
+            let lacing = scanner
+                .read_at(page.offset + 27, (page.header_len - 27) as usize)
+                .unwrap();
+            let packets =
+                libzci::split_packets_with_carry(&body, &lacing, &mut carry, page.header_type)
+                    .unwrap();
             let mut consumed = 0usize;
             for packet in &packets {
                 if headers < 2 {
@@ -924,17 +1033,29 @@ mod tests {
         // From the top: start at the audio page, discard preskip.
         assert_eq!(
             plan_opus_seek(&pages, audio_page, audio_packet, preskip, total, 0).unwrap(),
-            SeekPlan { start_page: 2, skip_packets: 0, skip_samples: 312 }
+            SeekPlan {
+                start_page: 2,
+                skip_packets: 0,
+                skip_samples: 312
+            }
         );
         // Mid-stream on the same single audio page.
         assert_eq!(
             plan_opus_seek(&pages, audio_page, audio_packet, preskip, total, 6000).unwrap(),
-            SeekPlan { start_page: 2, skip_packets: 0, skip_samples: 6312 }
+            SeekPlan {
+                start_page: 2,
+                skip_packets: 0,
+                skip_samples: 6312
+            }
         );
         // At/past the end: immediate EOF plan.
         assert_eq!(
             plan_opus_seek(&pages, audio_page, audio_packet, preskip, total, total).unwrap(),
-            SeekPlan { start_page: pages.len(), skip_packets: 0, skip_samples: 0 }
+            SeekPlan {
+                start_page: pages.len(),
+                skip_packets: 0,
+                skip_samples: 0
+            }
         );
     }
 
@@ -942,7 +1063,8 @@ mod tests {
     fn commit_then_plan_round_trip() {
         let bytes = fixture_bytes("media/audio/tone.opus");
         let (pages, audio_page, audio_packet) = scan_pages(&bytes);
-        let (mut engine, session) = open_engine(&bytes[..bytes.len().min(libzci::provider::PROBE_BYTES)]);
+        let (mut engine, session) =
+            open_engine(&bytes[..bytes.len().min(libzci::provider::PROBE_BYTES)]);
         let (total, _, _) = engine
             .commit_index(session, pages, audio_page, audio_packet, 312, 1)
             .unwrap();
@@ -954,7 +1076,9 @@ mod tests {
         // Header mismatch is a decoder failure, not silent acceptance.
         let bytes2 = fixture_bytes("media/audio/tone.opus");
         let (pages2, _, _) = scan_pages(&bytes2);
-        let err = engine.commit_index(session, pages2, 2, 0, 999, 1).unwrap_err();
+        let err = engine
+            .commit_index(session, pages2, 2, 0, 999, 1)
+            .unwrap_err();
         assert_eq!(err.kind(), "decoder-failure");
     }
 }

@@ -13,7 +13,7 @@ pub mod pcm;
 pub mod processor;
 pub mod resampler;
 
-pub use clock::{OutputClock, RequestedState, RunningState};
+pub use clock::{MediaClock, RequestedState, RunningState};
 pub use output::{OutputBlock, OutputPreparation};
 pub use processor::AudioProcessor;
 pub use resampler::RateConverter;

@@ -32,6 +32,15 @@ pub struct Snapshot {
     pub error: Option<LibzciError>,
     /// Request that produced this snapshot, when applicable.
     pub request_id: Option<RequestId>,
+    pub layout: Option<crate::PcmLayout>,
+    pub metadata: Option<crate::ProviderMetadata>,
+    pub volume: f32,
+    pub mute: bool,
+    pub requested: crate::RequestedState,
+    pub running: crate::RunningState,
+    pub decoding_eof: bool,
+    pub pending_operation: bool,
+    pub capabilities: crate::ModuleCapabilities,
 }
 
 /// Observable session event.

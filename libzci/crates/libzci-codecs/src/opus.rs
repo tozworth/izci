@@ -1,1029 +1,395 @@
-//! Reference Opus provider: shared Ogg packet reader plus packet-level
-//! reference libopus decode.
-//!
-//! Design (scoped packet-level path per `scaffolding §3`):
-//!
-//! - The Ogg container is parsed by the shared reader in this module
-//!   (page headers, lacing, continued packets, granule index). The
-//!   reference libogg source is still acquired/built for provenance and
-//!   the Emscripten comparison; see `libzci/vendor/dependencies.json`.
-//! - Compressed packets are decoded by reference libopus 1.5.2
-//!   (statically linked; version asserted in tests via
-//!   `opus_get_version_string`).
-//! - opusfile semantics are mirrored exactly once: the mandatory
-//!   OpusHead output gain is applied with zero additional offset,
-//!   pre-skip samples are discarded before the audible timeline, and
-//!   end trimming truncates the final packet to the granule timeline.
-//!   ReplayGain/R128 tag policy stays core-owned (later); tags are
-//!   parsed for diagnostics but never applied here.
-//! - Output is normalized float PCM at 48 kHz, mono or stereo
-//!   (mapping family 0). Mapping family 1+, channel counts above
-//!   stereo, and chained Ogg links fail explicitly as named gaps —
-//!   never silent wrong audio.
-//! - Reads are bounded: the index scan reads page headers only, decode
-//!   reads one page body at a time (≤ 64 KiB), and no whole-file copy
-//!   is retained. Limits in [`OpusLimits`] are observable and enforced.
+//! Production reference Opus provider. libopusfile owns demux, seek, pre-skip,
+//! end trim and mandatory header gain. R128/ReplayGain comments are reported only.
+//! Only mapping-family-0 mono/stereo links are accepted; mixed chains are stereo.
+use crate::opusfile_ffi as ffi;
+use libzci::*;
+use std::{ffi::c_void, ptr::NonNull, sync::Arc};
 
-use std::sync::Arc;
-
-use libzci::{
-    AppliedAdjustments, CancelFlag, DecoderInstance, LibzciError, ProbeInput, ProbeScore,
-    ProviderFactory, ProviderId, ProviderInfo, ProviderMetadata, Result, RuntimeSource,
-    audio::pcm::{ChannelLayout, PcmLayout},
-    format::{parse_opus_tags_packet, sniff_opus_head_page},
-    ogg_reader::{
-        GRANULE_NONE, PageEntry, PageScanner, ogg_crc, split_packets_with_carry, validate_ogg_index,
-    },
-};
-
-use crate::opus_ffi;
-
-/// Provider identity for diagnostics and PCM provenance.
-pub const OPUS_VERSION: &str = "libopus-1.5.2/p1";
-
-/// Maximum Opus frame block per decode call: 120 ms at 48 kHz.
-pub const MAX_DECODE_FRAMES: usize = 5760;
-
-/// Observable resource limits.
+pub const OPUS_VERSION: &str = "libopusfile-0.12/libopus-1.5.2/r3";
 #[derive(Clone, Copy, Debug)]
 pub struct OpusLimits {
-    /// Refuse to open sources larger than this (bytes).
     pub max_source_bytes: u64,
-    /// Refuse to index more pages than this.
-    pub max_pages: usize,
+    pub max_links: usize,
+    pub max_comment_bytes: usize,
 }
-
 impl Default for OpusLimits {
     fn default() -> Self {
         Self {
             max_source_bytes: 1 << 30,
-            max_pages: 262_144,
+            max_links: 1024,
+            max_comment_bytes: 65536,
         }
     }
 }
-
-/// Reference Opus factory.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct OpusFactory {
     limits: OpusLimits,
 }
-
-impl Default for OpusFactory {
-    fn default() -> Self {
-        Self {
-            limits: OpusLimits::default(),
-        }
-    }
-}
-
 impl OpusFactory {
-    /// Create with explicit limits (tests use small limits to prove
-    /// enforcement is observable).
     pub fn with_limits(limits: OpusLimits) -> Self {
         Self { limits }
     }
-
-    /// Active limits.
     pub fn limits(&self) -> OpusLimits {
         self.limits
     }
 }
-
-fn provider_info() -> ProviderInfo {
+fn info() -> ProviderInfo {
     ProviderInfo {
         id: ProviderId::OPUS,
         version: OPUS_VERSION,
-        display_name: "Reference Opus",
+        display_name: "Reference Opus (libopusfile)",
     }
 }
-
 impl ProviderFactory for OpusFactory {
     fn info(&self) -> ProviderInfo {
-        provider_info()
+        info()
     }
-
     fn probe(&self, input: &ProbeInput<'_>) -> ProbeScore {
-        if sniff_opus_head_page(input.header).is_some() {
+        if input.header.windows(8).take(300).any(|v| v == b"OpusHead")
+            && input.header.starts_with(b"OggS")
+        {
             ProbeScore::Magic
+        } else if input.extension_hint == Some("opus") {
+            ProbeScore::Hint
         } else {
             ProbeScore::No
         }
     }
-
     fn open(
         &self,
         source: Arc<dyn RuntimeSource>,
         cancel: &CancelFlag,
     ) -> Result<Box<dyn DecoderInstance>> {
-        OpusInstance::open(source, self.limits, cancel).map(|i| Box::new(i) as _)
+        Ok(Box::new(OpusInstance::open(source, self.limits, cancel)?))
     }
 }
-
-// ---------------------------------------------------------------------------
-// Stream headers
-// ---------------------------------------------------------------------------
-
-#[derive(Clone, Debug)]
-struct OpusHeaders {
-    channels: u8,
-    preskip: u64,
-    gain_linear: f32,
-    vendor: String,
-    comment_count: usize,
-}
-
-/// Mandatory header output gain, opusfile-style, zero additional offset.
-fn parse_opus_head(packet: &[u8]) -> Result<(u8, u64, f32)> {
-    let params = libzci::format::parse_opus_head_packet(packet)?;
-    Ok((params.channels, params.preskip, params.gain_linear()?))
-}
-
-/// Tags are diagnostics-only here (core policy: never applied).
-fn parse_opus_tags(packet: &[u8]) -> Result<(String, usize)> {
-    let tags = parse_opus_tags_packet(packet)?;
-    Ok((tags.vendor, tags.comment_count))
-}
-
-// ---------------------------------------------------------------------------
-// Decoder instance
-// ---------------------------------------------------------------------------
-
-/// One independent opened Opus stream.
-pub struct OpusInstance {
-    info: ProviderInfo,
-    layout: PcmLayout,
-    headers: OpusHeaders,
-    total_frames: u64,
+struct Context {
     source: Arc<dyn RuntimeSource>,
-    pages: Vec<PageEntry>,
-    /// Location of the first audio packet, computed at open by
-    /// counting exactly two header packets (never "first page with
-    /// ≥2 packets", which drops audio when headers occupy own pages).
-    audio_start_page: usize,
-    audio_start_packet: usize,
-    /// Page currently loaded for packet extraction.
-    loaded_page: usize,
-    /// Data packets of the loaded page (headers excluded).
-    loaded_packets: Vec<Vec<u8>>,
-    loaded_index: usize,
-    /// `true` once the audio-start page has been processed.
-    past_headers: bool,
-    /// One-shot skip for a seek that reloads the audio-start page.
-    seek_skip: Option<(usize, usize)>,
-    /// Carry for a packet continued from the previous page.
-    carry: Vec<u8>,
-    /// libopus handle, owned by this instance.
-    decoder: *mut opus_ffi::OpusDecoder,
-    /// Reusable decode scratch (interleaved, ≤ 5760 frames).
-    scratch: Vec<f32>,
-    /// Stash for decoded output exceeding the caller's buffer.
-    stash: std::collections::VecDeque<f32>,
-    /// Discards still owed before the audible timeline (preskip, then
-    /// seek skips). Preskip does not advance `position`; seek skips set
-    /// it directly.
-    pending_discard: u64,
-    position_frames: u64,
-    finished: bool,
+    position: u64,
+    len: u64,
+    cancel: CancelFlag,
+    error: Option<LibzciError>,
+    closed: bool,
 }
+impl Context {
+    fn callback<T>(&mut self, failure: T, f: impl FnOnce(&mut Self) -> Result<T>) -> T {
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(self))) {
+            Ok(Ok(value)) => value,
+            Ok(Err(error)) => {
+                self.error = Some(error);
+                failure
+            }
+            Err(_) => {
+                self.error = Some(LibzciError::DecoderFailure {
+                    detail: "source callback panicked".into(),
+                });
+                failure
+            }
+        }
+    }
+}
+unsafe extern "C" fn read(ctx: *mut c_void, out: *mut u8, len: i32) -> i32 {
+    let ctx = &mut *ctx.cast::<Context>();
+    ctx.callback(-1, |c| {
+        c.cancel.check()?;
+        if len < 0 || out.is_null() {
+            return Err(corrupt("invalid opusfile read"));
+        }
+        let len = (len as usize).min(32 * 1024);
+        let slice = std::slice::from_raw_parts_mut(out, len);
+        let n = c.source.read_at(c.position, slice, &c.cancel)?;
+        if n > len {
+            return Err(corrupt("source exceeded callback buffer"));
+        }
+        c.position += n as u64;
+        Ok(n as i32)
+    })
+}
+unsafe extern "C" fn seek(ctx: *mut c_void, offset: i64, whence: i32) -> i32 {
+    let ctx = &mut *ctx.cast::<Context>();
+    ctx.callback(-1, |c| {
+        c.cancel.check()?;
+        let base = match whence {
+            0 => 0,
+            1 => c.position,
+            2 => c.len,
+            _ => return Err(corrupt("invalid seek origin")),
+        };
+        let target = base as i128 + offset as i128;
+        if target < 0 || target > c.len as i128 {
+            return Err(corrupt("seek outside source"));
+        }
+        c.position = target as u64;
+        Ok(0)
+    })
+}
+unsafe extern "C" fn tell(ctx: *mut c_void) -> i64 {
+    (*ctx.cast::<Context>()).position as i64
+}
+unsafe extern "C" fn close(ctx: *mut c_void) -> i32 {
+    (*ctx.cast::<Context>()).closed = true;
+    0
+}
+static CALLBACKS: ffi::OpusFileCallbacks = ffi::OpusFileCallbacks {
+    read: Some(read),
+    seek: Some(seek),
+    tell: Some(tell),
+    close: Some(close),
+};
 
-// SAFETY: the handle is owned by this instance and only touched through
-// `&mut self` on the owning decode job.
+pub struct OpusInstance {
+    handle: NonNull<ffi::OggOpusFile>,
+    context: Box<Context>,
+    layout: PcmLayout,
+    total: u64,
+    declared_channels: u16,
+    comments: Vec<(String, String)>,
+    at_eof: bool,
+}
+// SAFETY: the owned handle and stable boxed callbacks are used sequentially by
+// one decoder worker. No pointer or borrow escapes a method; instances share no C state.
 unsafe impl Send for OpusInstance {}
-
 impl OpusInstance {
-    fn open(
+    pub fn linked_version() -> String {
+        unsafe { std::ffi::CStr::from_ptr(crate::opus_ffi::opus_get_version_string()) }
+            .to_string_lossy()
+            .into_owned()
+    }
+    pub fn open(
         source: Arc<dyn RuntimeSource>,
         limits: OpusLimits,
         cancel: &CancelFlag,
     ) -> Result<Self> {
         cancel.check()?;
-        if let Some(len) = source.caps().len {
-            if len > limits.max_source_bytes {
-                return Err(LibzciError::ResourceExhausted {
-                    detail: format!("opus source {len} bytes exceeds limit {}", limits.max_source_bytes),
-                });
-            }
-        }
-        let scanner = PageScanner::new(&source, cancel);
-        // Index page headers only (bounded reads, no whole-file copy).
-        let mut pages = Vec::new();
-        let mut offset = 0u64;
-        loop {
-            cancel.check()?;
-            match scanner.read_page_entry(offset)? {
-                None => break,
-                Some(entry) => {
-                    if pages.len() >= limits.max_pages {
-                        return Err(LibzciError::ResourceExhausted {
-                            detail: format!("opus page count exceeds limit {}", limits.max_pages),
-                        });
-                    }
-                    offset = entry.offset + entry.header_len + entry.body_len;
-                    pages.push(entry);
-                }
-            }
-        }
-        if pages.is_empty() {
-            return Err(LibzciError::Unsupported {
-                detail: "empty source".into(),
-            });
-        }
-        // Serial/sequence/chained validation is the shared core rule.
-        let _facts = validate_ogg_index(&pages)?;
-        // Walk page bodies from the start, counting exactly two header
-        // packets, and record where audio begins. Headers may share a
-        // page with audio or occupy pages alone; counting packets (not
-        // "first page with ≥2 packets") keeps audio intact either way.
-        let mut header_packets: Vec<Vec<u8>> = Vec::new();
-        let mut audio_start_page = 0usize;
-        let mut audio_start_packet = 0usize;
-        let mut carry: Vec<u8> = Vec::new();
-        let mut pages_consumed = 0usize;
-        for (i, page) in pages.iter().enumerate() {
-            let body = scanner.read_at(page.offset + page.header_len, page.body_len as usize)?;
-            if body.len() as u64 != page.body_len {
-                return Err(LibzciError::Corrupt {
-                    detail: "truncated Ogg page body".into(),
-                });
-            }
-            // CRC check now that the body is in hand.
-            let fixed = scanner.read_at(page.offset, page.header_len as usize)?;
-            let stored = u32::from_le_bytes(fixed[22..26].try_into().unwrap());
-            if ogg_crc(&fixed, &body, 22) != stored {
-                return Err(LibzciError::Corrupt {
-                    detail: format!("Ogg checksum mismatch at {}", page.offset),
-                });
-            }
-            let lacing = scanner.read_at(page.offset + 27, (page.header_len - 27) as usize)?;
-            let packets = split_packets_with_carry(&body, &lacing, &mut carry, page.header_type)?;
-            pages_consumed = i + 1;
-            let mut consumed_here = 0usize;
-            for packet in &packets {
-                if header_packets.len() < 2 {
-                    header_packets.push(packet.clone());
-                    consumed_here += 1;
-                } else {
-                    break;
-                }
-            }
-            if header_packets.len() >= 2 {
-                audio_start_page = i;
-                audio_start_packet = consumed_here;
-                break;
-            }
-            if i + 1 >= pages.len() {
-                break;
-            }
-        }
-        if header_packets.len() < 2 {
-            return Err(LibzciError::Corrupt {
-                detail: "missing OpusHead/OpusTags".into(),
-            });
-        }
-        let _ = pages_consumed;
-        let (channels, preskip, gain_linear) = parse_opus_head(&header_packets[0])?;
-        let (vendor, comment_count) = parse_opus_tags(&header_packets[1])?;
-        // Audible total: last valid granule minus preskip.
-        let mut total_frames = None;
-        for page in pages.iter().rev() {
-            if page.granule != GRANULE_NONE {
-                total_frames = Some(page.granule.saturating_sub(preskip));
-                break;
-            }
-        }
-        let total_frames = total_frames.ok_or_else(|| LibzciError::Corrupt {
-            detail: "no Ogg granule position".into(),
+        let caps = source.caps();
+        let len = caps.len.ok_or_else(|| LibzciError::Unsupported {
+            detail: "reference Opus requires a finite source length".into(),
         })?;
-        let layout = PcmLayout::new(
-            if channels == 1 {
-                ChannelLayout::Mono
-            } else {
+        if !caps.seekable {
+            return Err(LibzciError::Unsupported {
+                detail: "reference Opus requires ranged seekable reads".into(),
+            });
+        }
+        if len > limits.max_source_bytes || len > i64::MAX as u64 {
+            return Err(LibzciError::ResourceExhausted {
+                detail: "Opus source exceeds byte budget".into(),
+            });
+        }
+        let mut context = Box::new(Context {
+            source,
+            position: 0,
+            len,
+            cancel: cancel.clone(),
+            error: None,
+            closed: false,
+        });
+        let mut error = 0;
+        let handle = unsafe {
+            ffi::op_open_callbacks(
+                (&mut *context as *mut Context).cast(),
+                &CALLBACKS,
+                std::ptr::null(),
+                0,
+                &mut error,
+            )
+        };
+        let handle = NonNull::new(handle).ok_or_else(|| {
+            context
+                .error
+                .take()
+                .unwrap_or_else(|| code_error("open", error))
+        })?;
+        // Install ownership before any fallible metadata work so every error frees it.
+        let mut instance = Self {
+            handle,
+            context,
+            layout: PcmLayout::mono48k(),
+            total: 0,
+            declared_channels: 1,
+            comments: Vec::new(),
+            at_eof: false,
+        };
+        let links = unsafe { ffi::op_link_count(handle.as_ptr()) };
+        if links <= 0 || links as usize > limits.max_links {
+            return Err(LibzciError::ResourceExhausted {
+                detail: "Opus chain exceeds link budget".into(),
+            });
+        }
+        let mut channels = None;
+        let mut mixed = false;
+        let mut comment_bytes = 0usize;
+        for link in 0..links {
+            cancel.check()?;
+            let head = unsafe { ffi::op_head(handle.as_ptr(), link).as_ref() }
+                .ok_or_else(|| corrupt("missing OpusHead"))?;
+            if head.mapping_family != 0 || !(1..=2).contains(&head.channel_count) {
+                return Err(LibzciError::Unsupported {
+                    detail: "Opus supports mapping-family-0 mono/stereo links only".into(),
+                });
+            }
+            instance.declared_channels = instance.declared_channels.max(head.channel_count as u16);
+            mixed |= channels.is_some_and(|n| n != head.channel_count);
+            channels = Some(head.channel_count);
+            let tags = unsafe { ffi::op_tags(handle.as_ptr(), link).as_ref() }
+                .ok_or_else(|| corrupt("missing OpusTags"))?;
+            if tags.comments < 0 || tags.comments as usize > limits.max_comment_bytes {
+                return Err(corrupt("invalid Opus comment count"));
+            }
+            for i in 0..tags.comments as usize {
+                let size = unsafe { *tags.comment_lengths.add(i) };
+                if size < 0 {
+                    return Err(corrupt("invalid comment length"));
+                }
+                comment_bytes = comment_bytes
+                    .checked_add(size as usize)
+                    .ok_or_else(|| corrupt("comment size overflow"))?;
+                if comment_bytes > limits.max_comment_bytes {
+                    return Err(LibzciError::ResourceExhausted {
+                        detail: "Opus comments exceed byte budget".into(),
+                    });
+                }
+                let bytes = unsafe {
+                    std::slice::from_raw_parts(
+                        (*tags.user_comments.add(i)).cast::<u8>(),
+                        size as usize,
+                    )
+                };
+                let text = String::from_utf8_lossy(bytes);
+                if let Some((key, value)) = text.split_once('=') {
+                    instance
+                        .comments
+                        .push((key.to_ascii_uppercase(), value.to_owned()));
+                }
+            }
+        }
+        instance.layout = PcmLayout::new(
+            if mixed || channels == Some(2) {
                 ChannelLayout::Stereo
+            } else {
+                ChannelLayout::Mono
             },
             48_000,
         )?;
-        let channels_i = channels as std::os::raw::c_int;
-        let mut error = 0;
-        // SAFETY: valid args; null checked below.
-        let decoder = unsafe { opus_ffi::opus_decoder_create(48_000, channels_i, &mut error) };
-        if decoder.is_null() || error != opus_ffi::OPUS_OK {
-            return Err(LibzciError::ResourceExhausted {
-                detail: format!("opus_decoder_create failed: {}", opus_ffi::error_string(error)),
-            });
+        let total = unsafe { ffi::op_pcm_total(handle.as_ptr(), -1) };
+        if total < 0 {
+            return Err(code_error("total", total as i32));
         }
-        Ok(Self {
-            info: provider_info(),
-            layout,
-            headers: OpusHeaders {
-                channels,
-                preskip,
-                gain_linear,
-                vendor,
-                comment_count,
-            },
-            total_frames,
-            source,
-            pages,
-            audio_start_page,
-            audio_start_packet,
-            loaded_page: usize::MAX,
-            loaded_packets: Vec::new(),
-            loaded_index: 0,
-            past_headers: false,
-            seek_skip: None,
-            carry: Vec::new(),
-            decoder,
-            scratch: vec![0.0; MAX_DECODE_FRAMES * 2],
-            stash: std::collections::VecDeque::new(),
-            pending_discard: preskip,
-            position_frames: 0,
-            finished: total_frames == 0,
-        })
-    }
-
-    /// Linked reference libopus version (provenance proof).
-    pub fn linked_version() -> String {
-        opus_ffi::version_string()
-    }
-
-    /// Parsed OpusTags vendor string (diagnostics; tags never affect gain).
-    pub fn vendor(&self) -> &str {
-        &self.headers.vendor
-    }
-
-    /// Parsed comment count (diagnostics only).
-    pub fn comment_count(&self) -> usize {
-        self.headers.comment_count
-    }
-
-    /// Declared channel count from OpusHead.
-    pub fn declared_channels(&self) -> u16 {
-        self.headers.channels as u16
-    }
-
-    fn ensure_page_loaded(&mut self, cancel: &CancelFlag) -> Result<bool> {
-        if self.loaded_index < self.loaded_packets.len() {
-            return Ok(true);
+        instance.total = total as u64;
+        let code = unsafe { ffi::op_set_gain_offset(handle.as_ptr(), ffi::OP_HEADER_GAIN, 0) };
+        if code != 0 {
+            return Err(code_error("header gain", code));
         }
-        // Advance to the next page with packet data.
-        let mut next = if self.loaded_page == usize::MAX {
-            0
-        } else {
-            self.loaded_page + 1
-        };
-        loop {
-            if next >= self.pages.len() {
-                return Ok(false);
-            }
-            // Never decode header-only pages as data: audio starts at
-            // (audio_start_page, audio_start_packet) by exact count.
-            if next < self.audio_start_page {
-                self.loaded_page = next;
-                next += 1;
-                continue;
-            }
-            let page = self.pages[next];
-            let scanner = PageScanner::new(&self.source, cancel);
-            let body = scanner.read_at(page.offset + page.header_len, page.body_len as usize)?;
-            if body.len() as u64 != page.body_len {
-                return Err(LibzciError::Corrupt {
-                    detail: format!("truncated Ogg page body at {}", page.offset),
-                });
-            }
-            let fixed = scanner.read_at(page.offset, page.header_len as usize)?;
-            let stored = u32::from_le_bytes(fixed[22..26].try_into().unwrap());
-            if ogg_crc(&fixed, &body, 22) != stored {
-                return Err(LibzciError::Corrupt {
-                    detail: format!("Ogg checksum mismatch at {}", page.offset),
-                });
-            }
-            let lacing = scanner.read_at(page.offset + 27, (page.header_len - 27) as usize)?;
-            let mut packets =
-                split_packets_with_carry(&body, &lacing, &mut self.carry, page.header_type)?;
-            if !self.past_headers {
-                // Drain exactly the header packets on the audio-start
-                // page (a seek reload may ask for a different count via
-                // seek_skip); pages past the headers decode in full.
-                let skip = match self.seek_skip.take() {
-                    Some((p, n)) if p == next => n,
-                    Some((p, n)) => {
-                        self.seek_skip = Some((p, n));
-                        if next == self.audio_start_page {
-                            self.audio_start_packet
-                        } else {
-                            0
-                        }
-                    }
-                    None if next == self.audio_start_page => self.audio_start_packet,
-                    None => 0,
-                };
-                let drop = skip.min(packets.len());
-                packets.drain(..drop);
-                // If the whole page was headers, keep scanning.
-                if packets.is_empty() && self.carry.is_empty() {
-                    self.loaded_page = next;
-                    self.past_headers = true;
-                    next += 1;
-                    continue;
-                }
-                self.past_headers = true;
-            }
-            self.loaded_page = next;
-            self.loaded_packets = packets;
-            self.loaded_index = 0;
-            if self.loaded_packets.is_empty() {
-                next += 1;
-                continue;
-            }
-            return Ok(true);
-        }
-    }
-
-    fn decode_one_packet(&mut self, cancel: &CancelFlag) -> Result<usize> {
         cancel.check()?;
-        if !self.ensure_page_loaded(cancel)? {
-            self.finished = true;
-            return Ok(0);
-        }
-        let packet = self.loaded_packets[self.loaded_index].clone();
-        self.loaded_index += 1;
-        if packet.is_empty() {
-            return Ok(0);
-        }
-        let channels = self.headers.channels as usize;
-        let capacity_frames = MAX_DECODE_FRAMES;
-        // SAFETY: decoder owned, scratch sized for capacity*channels.
-        let decoded = unsafe {
-            opus_ffi::opus_decode_float(
-                self.decoder,
-                packet.as_ptr(),
-                packet.len() as i32,
-                self.scratch.as_mut_ptr(),
-                capacity_frames as std::os::raw::c_int,
-                0,
-            )
-        };
-        if decoded < 0 {
-            if decoded == opus_ffi::OPUS_INVALID_PACKET {
-                return Err(LibzciError::Corrupt {
-                    detail: format!("invalid opus packet: {}", opus_ffi::error_string(decoded)),
-                });
-            }
-            return Err(LibzciError::DecoderFailure {
-                detail: format!("opus_decode_float: {}", opus_ffi::error_string(decoded)),
-            });
-        }
-        let mut frames = decoded as usize;
-        let mut start = 0usize;
-        // Owed discards (preskip at stream start).
-        if self.pending_discard > 0 {
-            let drop = (self.pending_discard as usize).min(frames);
-            start += drop;
-            frames -= drop;
-            self.pending_discard -= drop as u64;
-        }
-        // End trimming: never emit past the granule total.
-        let remaining = self.total_frames.saturating_sub(self.position_frames) as usize;
-        frames = frames.min(remaining);
-        if frames == 0 {
-            if self.position_frames >= self.total_frames {
-                self.finished = true;
-            }
-            return Ok(0);
-        }
-        let gain = self.headers.gain_linear;
-        for i in 0..frames {
-            for ch in 0..channels {
-                self.stash.push_back(self.scratch[(start + i) * channels + ch] * gain);
-            }
-        }
-        self.position_frames += frames as u64;
-        if self.position_frames >= self.total_frames {
-            self.finished = true;
-        }
-        Ok(frames * channels)
+        Ok(instance)
     }
-
-    fn seek_aligned(&mut self, target: u64, cancel: &CancelFlag) -> Result<u64> {
-        let target = target.min(self.total_frames);
-        let granule_target = target + self.headers.preskip;
-        // First page whose packet data ends past the target granule.
-        let mut found = None;
-        let mut prev_valid = 0u64;
-        for (i, page) in self.pages.iter().enumerate() {
-            if page.granule != GRANULE_NONE {
-                if page.granule > granule_target {
-                    found = Some((i, prev_valid));
-                    break;
-                }
-                prev_valid = page.granule;
-            }
+    pub fn comments(&self) -> &[(String, String)] {
+        &self.comments
+    }
+    fn prepare(&mut self, cancel: &CancelFlag) -> Result<()> {
+        cancel.check()?;
+        self.context.cancel = cancel.clone();
+        self.context.error = None;
+        Ok(())
+    }
+    fn checked(&mut self, operation: &str, code: i32) -> Result<i32> {
+        if let Some(error) = self.context.error.take() {
+            return Err(error);
         }
-        // SAFETY: reset owned decoder in place.
-        let rc = unsafe { opus_ffi::opus_decoder_init(self.decoder, 48_000, self.headers.channels as std::os::raw::c_int) };
-        if rc != opus_ffi::OPUS_OK {
-            return Err(LibzciError::DecoderFailure {
-                detail: format!("opus_decoder_init: {}", opus_ffi::error_string(rc)),
-            });
-        }
-        self.stash.clear();
-        self.finished = false;
-        match found {
-            None => {
-                // Target at/past the audible end.
-                self.position_frames = self.total_frames;
-                self.pending_discard = 0;
-                self.stash.clear();
-                self.loaded_packets.clear();
-                self.loaded_index = 0;
-                self.seek_skip = None;
-                self.finished = true;
-                Ok(self.position_frames)
-            }
-            Some((page_idx, prev)) => {
-                // Walk back over continued packets so the preroll starts
-                // at a fresh packet; never walk into header pages.
-                let mut start = page_idx;
-                while start > self.audio_start_page
-                    && self.pages[start].header_type & 0x01 != 0
-                {
-                    start -= 1;
-                }
-                self.loaded_page = start.wrapping_sub(1);
-                // Ensure the very next load lands on `start` even when
-                // `start` is 0 (wrapping_sub underflows to MAX and the
-                // loader treats MAX as "start from 0").
-                if start == 0 {
-                    self.loaded_page = usize::MAX;
-                }
-                self.loaded_packets.clear();
-                self.loaded_index = 0;
-                self.carry.clear();
-                self.past_headers = false;
-                self.seek_skip = Some((
-                    start,
-                    if start == self.audio_start_page {
-                        self.audio_start_packet
-                    } else {
-                        0
-                    },
-                ));
-                self.position_frames = target;
-                // Decode-and-discard from the page start: this both lands
-                // the cursor and prerolls the decoder. Granule windows
-                // keep preskip/end-trim exact: decoded block k covers
-                // granules [granule_pos, granule_pos + got), of which
-                // [granule_target, preskip + total) is audible output.
-                // Only the crossing block's tail is stashed; later
-                // packets decode on demand with identical state.
-                let audible_end = self.headers.preskip + self.total_frames;
-                let mut granule_pos = prev;
-                let mut kept = 0u64;
-                let mut empty_skips = 0u32;
-                while granule_pos < granule_target {
-                    cancel.check()?;
-                    if !self.ensure_page_loaded(cancel)? {
-                        break;
-                    }
-                    let packet = self.loaded_packets[self.loaded_index].clone();
-                    self.loaded_index += 1;
-                    if packet.is_empty() {
-                        empty_skips += 1;
-                        if empty_skips > 1024 {
-                            return Err(LibzciError::Corrupt {
-                                detail: "too many empty packets during seek preroll".into(),
-                            });
-                        }
-                        continue;
-                    }
-                    let decoded = unsafe {
-                        opus_ffi::opus_decode_float(
-                            self.decoder,
-                            packet.as_ptr(),
-                            packet.len() as i32,
-                            self.scratch.as_mut_ptr(),
-                            MAX_DECODE_FRAMES as std::os::raw::c_int,
-                            0,
-                        )
-                    };
-                    if decoded < 0 {
-                        return Err(LibzciError::Corrupt {
-                            detail: format!("invalid opus packet during seek: {}", opus_ffi::error_string(decoded)),
-                        });
-                    }
-                    let got = decoded as u64;
-                    let keep_start = granule_pos.max(granule_target);
-                    let keep_end = (granule_pos + got).min(audible_end);
-                    if keep_end > keep_start {
-                        let drop = (keep_start - granule_pos) as usize;
-                        let keep = (keep_end - keep_start) as usize;
-                        let channels = self.headers.channels as usize;
-                        let gain = self.headers.gain_linear;
-                        for i in 0..keep {
-                            for ch in 0..channels {
-                                self.stash.push_back(self.scratch[(drop + i) * channels + ch] * gain);
-                            }
-                        }
-                        kept += keep as u64;
-                    }
-                    granule_pos += got;
-                }
-                if granule_pos < granule_target {
-                    return Err(LibzciError::Corrupt {
-                        detail: format!(
-                            "seek preroll exhausted before target {target} (granule {granule_pos} < {granule_target})"
-                        ),
-                    });
-                }
-                self.position_frames = target + kept;
-                self.pending_discard = 0;
-                if self.position_frames >= self.total_frames {
-                    self.finished = true;
-                }
-                Ok(target)
-            }
+        if code < 0 {
+            Err(code_error(operation, code))
+        } else {
+            Ok(code)
         }
     }
 }
-
-impl Drop for OpusInstance {
-    fn drop(&mut self) {
-        if !self.decoder.is_null() {
-            // SAFETY: created by opus_decoder_create, owned here.
-            unsafe { opus_ffi::opus_decoder_destroy(self.decoder) };
-            self.decoder = std::ptr::null_mut();
-        }
-    }
-}
-
 impl DecoderInstance for OpusInstance {
     fn info(&self) -> ProviderInfo {
-        self.info
+        info()
     }
-
     fn layout(&self) -> PcmLayout {
         self.layout
     }
-
     fn total_frames(&self) -> Option<u64> {
-        Some(self.total_frames)
+        Some(self.total)
     }
-
     fn position_frames(&self) -> u64 {
-        self.position_frames
+        if self.at_eof {
+            return self.total;
+        }
+        unsafe { ffi::op_pcm_tell(self.handle.as_ptr()) }.max(0) as u64
     }
-
     fn decode_into(&mut self, out: &mut [f32], cancel: &CancelFlag) -> Result<usize> {
-        cancel.check()?;
-        if out.is_empty() {
+        self.prepare(cancel)?;
+        if self.at_eof {
             return Ok(0);
         }
-        // Drain stash first.
-        let mut written = 0;
-        while written < out.len() {
-            match self.stash.pop_front() {
-                Some(s) => {
-                    out[written] = s;
-                    written += 1;
-                }
-                None => break,
-            }
+        let channels = self.layout.layout.channels() as usize;
+        let len = out.len().min(8192) / channels * channels;
+        if len == 0 {
+            return Err(LibzciError::InvalidArgument {
+                detail: "Opus output buffer holds no frame".into(),
+            });
         }
-        while written < out.len() && !self.finished {
-            let before = self.stash.len();
-            let produced = self.decode_one_packet(cancel)?;
-            if produced == 0 && self.stash.len() == before {
-                break;
+        let code = unsafe {
+            if channels == 2 {
+                ffi::op_read_float_stereo(self.handle.as_ptr(), out.as_mut_ptr(), len as i32)
+            } else {
+                ffi::op_read_float(
+                    self.handle.as_ptr(),
+                    out.as_mut_ptr(),
+                    len as i32,
+                    std::ptr::null_mut(),
+                )
             }
-            while written < out.len() {
-                match self.stash.pop_front() {
-                    Some(s) => {
-                        out[written] = s;
-                        written += 1;
-                    }
-                    None => break,
-                }
-            }
-        }
-        // Validate finished state against the granule total.
-        if self.finished {
-            self.position_frames = self.position_frames.min(self.total_frames);
-        }
-        Ok(written)
-    }
-
-    fn seek_to_frame(&mut self, frame: u64, cancel: &CancelFlag) -> Result<u64> {
+        };
+        let frames = self.checked("decode", code)? as usize;
         cancel.check()?;
-        self.seek_aligned(frame, cancel)
+        Ok(frames * channels)
     }
-
+    fn seek_to_frame(&mut self, frame: u64, cancel: &CancelFlag) -> Result<u64> {
+        self.prepare(cancel)?;
+        if frame >= self.total {
+            self.at_eof = true;
+            return Ok(self.total);
+        }
+        self.at_eof = false;
+        let code = unsafe { ffi::op_pcm_seek(self.handle.as_ptr(), frame.min(self.total) as i64) };
+        self.checked("seek", code)?;
+        cancel.check()?;
+        Ok(self.position_frames())
+    }
     fn metadata(&self) -> ProviderMetadata {
         ProviderMetadata {
-            info: self.info,
+            info: info(),
             layout: self.layout,
-            total_frames: Some(self.total_frames),
+            total_frames: Some(self.total),
+            declared_channels: self.declared_channels,
+            comments: self.comments.clone(),
             applied: AppliedAdjustments {
                 trimmed_preskip: true,
                 trimmed_end: true,
                 applied_header_gain: true,
             },
-            declared_channels: self.headers.channels as u16,
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use libzci::source::MemSource;
-    use std::path::PathBuf;
-
-    fn fixture_path(rel: &str) -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../.local/verification-fixtures/v1")
-            .join(rel)
+impl Drop for OpusInstance {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::op_free(self.handle.as_ptr());
+        }
+        debug_assert!(self.context.closed);
     }
-
-    fn fixture_bytes(rel: &str) -> Vec<u8> {
-        let path = fixture_path(rel);
-        std::fs::read(&path).unwrap_or_else(|_| {
-            panic!(
-                "missing fixture {} — run `node fixtures/generate.mjs` first (no ungenerated file may pass as decode evidence)",
-                path.display()
-            )
-        })
+}
+fn corrupt(detail: &str) -> LibzciError {
+    LibzciError::Corrupt {
+        detail: detail.into(),
     }
-
-    #[test]
-    fn links_reference_libopus_1_5_2() {
-        let version = OpusInstance::linked_version();
-        assert!(
-            version.starts_with("libopus 1.5.2"),
-            "linked {version:?}, expected pinned libopus 1.5.2"
-        );
-    }
-
-    #[test]
-    fn probe_claims_opus_rejects_vorbis() {
-        let factory = OpusFactory::default();
-        let opus = fixture_bytes("media/audio/tone.opus");
-        let vorbis = fixture_bytes("media/audio/tone.ogg");
-        let cancel = CancelFlag::default();
-        let _ = &cancel;
-        assert_eq!(
-            factory.probe(&ProbeInput {
-                header: &opus[..opus.len().min(8192)],
-                extension_hint: Some("opus"),
-                requires_full_buffer: false,
-            }),
-            ProbeScore::Magic
-        );
-        assert_eq!(
-            factory.probe(&ProbeInput {
-                header: &vorbis[..vorbis.len().min(8192)],
-                extension_hint: Some("ogg"),
-                requires_full_buffer: false,
-            }),
-            ProbeScore::No
-        );
-    }
-
-    #[test]
-    fn open_read_eof_seek_reopen() {
-        let bytes = fixture_bytes("media/audio/tone.opus");
-        let factory = OpusFactory::default();
-        let cancel = CancelFlag::default();
-        let open = || {
-            factory
-                .open(Arc::new(MemSource::new(bytes.clone())), &cancel)
-                .expect("open tone.opus")
-        };
-        let mut inst = open();
-        let meta = inst.metadata();
-        assert_eq!(meta.declared_channels, 1);
-        assert!(meta.applied.trimmed_preskip && meta.applied.trimmed_end && meta.applied.applied_header_gain);
-        let total = meta.total_frames.expect("finite opus total");
-        // 0.2565 s at 48 kHz ≈ 12312 frames; allow codec rounding.
-        assert!(
-            (11_000..=13_500).contains(&total),
-            "audible total {total} outside expected range"
-        );
-        assert_eq!(inst.layout().sample_rate, 48_000);
-        // Read to EOF through bounded chunks.
-        let mut pcm = Vec::new();
-        let mut buf = vec![0.0f32; 4096];
-        loop {
-            let n = inst.decode_into(&mut buf, &cancel).expect("decode");
-            if n == 0 {
-                break;
-            }
-            pcm.extend_from_slice(&buf[..n]);
-        }
-        assert_eq!(pcm.len() as u64, total, "decoded samples match audible total");
-        assert!(pcm.iter().all(|s| s.is_finite()), "finite pcm");
-        assert!(pcm.iter().any(|&s| s != 0.0), "nonempty audible pcm");
-        // Seek to the middle and re-decode to EOF.
-        let mid = total / 2;
-        assert_eq!(inst.seek_to_frame(mid, &cancel).unwrap(), mid);
-        let mut rest = 0u64;
-        loop {
-            let n = inst.decode_into(&mut buf, &cancel).unwrap();
-            if n == 0 {
-                break;
-            }
-            rest += n as u64;
-        }
-        assert_eq!(rest, total - mid, "post-seek tail length");
-        // Reopen: same total, same length.
-        let mut again = open();
-        let mut count = 0u64;
-        loop {
-            let n = again.decode_into(&mut buf, &cancel).unwrap();
-            if n == 0 {
-                break;
-            }
-            count += n as u64;
-        }
-        assert_eq!(count, total);
-    }
-
-    #[test]
-    fn corrupt_input_reports_corrupt_not_success() {
-        let bytes = fixture_bytes("media/audio/tone.opus");
-        let factory = OpusFactory::default();
-        let cancel = CancelFlag::default();
-        // Truncate mid-stream: headers intact, body damaged.
-        let truncated = bytes[..bytes.len().min(100)].to_vec();
-        let result = factory.open(Arc::new(MemSource::new(truncated)), &cancel);
-        match result {
-            Ok(mut inst) => {
-                let mut buf = vec![0.0f32; 1024];
-                let mut saw_error = false;
-                loop {
-                    match inst.decode_into(&mut buf, &cancel) {
-                        Ok(0) => break,
-                        Ok(_) => {}
-                        Err(e) => {
-                            assert!(
-                                matches!(e, LibzciError::Corrupt { .. } | LibzciError::Unsupported { .. }),
-                                "unexpected {e:?}"
-                            );
-                            saw_error = true;
-                            break;
-                        }
-                    }
-                }
-                assert!(saw_error || inst.position_frames() < 11_000, "truncated input must not decode as full length");
-            }
-            Err(e) => assert!(
-                matches!(e, LibzciError::Corrupt { .. } | LibzciError::Unsupported { .. }),
-                "unexpected {e:?}"
-            ),
-        }
-    }
-
-    #[test]
-    fn two_handles_interleave_and_survive_dispose() {
-        let bytes = fixture_bytes("media/audio/tone.opus");
-        let factory = OpusFactory::default();
-        let cancel = CancelFlag::default();
-        let mut a = factory
-            .open(Arc::new(MemSource::new(bytes.clone())), &cancel)
-            .unwrap();
-        let mut b = factory.open(Arc::new(MemSource::new(bytes)), &cancel).unwrap();
-        let total = a.total_frames().unwrap();
-        let mut buf = vec![0.0f32; 512];
-        // First audio packet decodes 960 frames; preskip discards 312, so
-        // 648 audible frames are produced while only 512 fit the buffer
-        // (remainder sits in the instance stash, already counted).
-        assert_eq!(a.decode_into(&mut buf, &cancel).unwrap(), 512);
-        assert_eq!(a.position_frames(), 648);
-        assert_eq!(b.position_frames(), 0);
-        b.seek_to_frame(1000, &cancel).unwrap();
-        assert_eq!(a.position_frames(), 648);
-        drop(a); // disposing one handle leaves the other usable
-        let mut count = 0u64;
-        loop {
-            let n = b.decode_into(&mut buf, &cancel).unwrap();
-            if n == 0 {
-                break;
-            }
-            count += n as u64;
-        }
-        assert_eq!(b.position_frames(), total);
-        assert_eq!(count, total - 1000);
-    }
-
-    #[test]
-    fn reads_stay_bounded_for_large_source() {
-        let bytes = fixture_bytes("media/audio/tone.opus");
-        #[derive(Debug)]
-        struct Counting {
-            inner: MemSource,
-            max_single: std::sync::atomic::AtomicUsize,
-        }
-        impl RuntimeSource for Counting {
-            fn id(&self) -> libzci::SourceId {
-                self.inner.id()
-            }
-            fn revision(&self) -> u64 {
-                1
-            }
-            fn caps(&self) -> libzci::SourceCaps {
-                self.inner.caps()
-            }
-            fn read_at(&self, offset: u64, buf: &mut [u8], cancel: &CancelFlag) -> Result<usize> {
-                let n = self.inner.read_at(offset, buf, cancel)?;
-                self.max_single.fetch_max(n, std::sync::atomic::Ordering::Relaxed);
-                Ok(n)
-            }
-        }
-        let factory = OpusFactory::default();
-        let cancel = CancelFlag::default();
-        let counting = Arc::new(Counting {
-            inner: MemSource::new(bytes),
-            max_single: std::sync::atomic::AtomicUsize::new(0),
-        });
-        let mut inst = factory.open(counting.clone(), &cancel).unwrap();
-        let mut buf = vec![0.0f32; 1024];
-        loop {
-            if inst.decode_into(&mut buf, &cancel).unwrap() == 0 {
-                break;
-            }
-        }
-        let max = counting.max_single.load(std::sync::atomic::Ordering::Relaxed);
-        assert!(max <= libzci::MAX_SINGLE_READ, "single read {max} exceeds bound");
-    }
-
-    #[test]
-    fn seek_across_pages_on_longer_synth() {
-        // Ignored generated media (recipe: libzci/tests/synth-opus-30s.sh).
-        // Fail closed when absent, like corpus fixtures.
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../.local/libzci/media/synth-opus-30s.opus");
-        let bytes = std::fs::read(&path).unwrap_or_else(|_| {
-            panic!(
-                "missing {} — run `libzci/tests/synth-opus-30s.sh` first",
-                path.display()
-            )
-        });
-        let factory = OpusFactory::default();
-        let cancel = CancelFlag::default();
-        let mut inst = factory
-            .open(Arc::new(MemSource::new(bytes)), &cancel)
-            .expect("open synth");
-        assert_eq!(inst.layout().layout, libzci::ChannelLayout::Stereo);
-        let total = inst.total_frames().unwrap();
-        assert_eq!(total, 1_440_000, "30 s stereo at 48 kHz");
-        let mut buf = vec![0.0f32; 8192];
-        // Mid-stream seek across many pages.
-        let mid = 720_000u64;
-        assert_eq!(inst.seek_to_frame(mid, &cancel).unwrap(), mid);
-        let mut rest = 0u64;
-        loop {
-            let n = inst.decode_into(&mut buf, &cancel).unwrap();
-            if n == 0 {
-                break;
-            }
-            rest += n as u64 / 2;
-        }
-        assert_eq!(rest, total - mid);
-        // Near-EOF seek.
-        assert_eq!(inst.seek_to_frame(total - 100, &cancel).unwrap(), total - 100);
-        let mut tail = 0u64;
-        loop {
-            let n = inst.decode_into(&mut buf, &cancel).unwrap();
-            if n == 0 {
-                break;
-            }
-            tail += n as u64 / 2;
-        }
-        assert_eq!(tail, 100);
-        // Back to zero renders the full stream again.
-        assert_eq!(inst.seek_to_frame(0, &cancel).unwrap(), 0);
-        let mut full = 0u64;
-        loop {
-            let n = inst.decode_into(&mut buf, &cancel).unwrap();
-            if n == 0 {
-                break;
-            }
-            full += n as u64 / 2;
-        }
-        assert_eq!(full, total);
-    }
-
-    #[test]
-    fn oversized_source_is_refused_observably() {
-        let factory = OpusFactory::with_limits(OpusLimits {
-            max_source_bytes: 64,
-            max_pages: 8,
-        });
-        let bytes = fixture_bytes("media/audio/tone.opus");
-        let cancel = CancelFlag::default();
-        match factory.open(Arc::new(MemSource::new(bytes)), &cancel) {
-            Err(LibzciError::ResourceExhausted { .. }) => {}
-            Err(e) => panic!("expected ResourceExhausted, got {}", e.kind()),
-            Ok(_) => panic!("expected ResourceExhausted, opened successfully"),
-        }
+}
+fn code_error(operation: &str, code: i32) -> LibzciError {
+    let detail = format!("libopusfile {operation} returned {code}");
+    match code {
+        -130 | -134 => LibzciError::Unsupported { detail },
+        _ => LibzciError::Corrupt { detail },
     }
 }

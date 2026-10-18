@@ -17,6 +17,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 MANIFEST="$REPO_ROOT/libzci/vendor/dependencies.json"
 VENDOR_ROOT="$REPO_ROOT/.local/libzci/vendor"
 CHECK_ONLY="${1:-}"
+need_target="${LIBZCI_TARGET:-$(rustc -vV | sed -n 's/^host: //p')}"
+[[ "$need_target" == *-linux-gnu ]] || { echo "This recipe requires native GNU/Linux. For Windows MSVC use acquire-media-deps.ps1." >&2; exit 1; }
+NATIVE_BUILD="build-$need_target"
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "missing required tool: $1" >&2; exit 1; }; }
 need python3; need curl; need sha256sum; need tar
@@ -40,7 +43,7 @@ build_ogg() {
   local id="$1" release="$2" archive="$3" digest="$4"
   local dest="$VENDOR_ROOT/$id/$release"
   local src="$dest/source/libogg-$release"
-  local prefix="$dest/build-native"
+  local prefix="$dest/$NATIVE_BUILD"
   echo "==> $id $release"
   mkdir -p "$dest/source" "$prefix"
   local tarball="$dest/source/$(basename "$archive")"
@@ -81,7 +84,7 @@ build_opus() {
   local id="$1" release="$2" archive="$3" digest="$4"
   local dest="$VENDOR_ROOT/$id/$release"
   local src="$dest/source/opus-$release"
-  local prefix="$dest/build-native"
+  local prefix="$dest/$NATIVE_BUILD"
   echo "==> $id $release"
   mkdir -p "$dest/source" "$prefix"
   local tarball="$dest/source/$(basename "$archive")"
@@ -123,7 +126,7 @@ build_opusfile() {
   local ogg_prefix="$5" opus_prefix="$6"
   local dest="$VENDOR_ROOT/$id/$release"
   local src="$dest/source/opusfile-$release"
-  local prefix="$dest/build-native"
+  local prefix="$dest/$NATIVE_BUILD"
   echo "==> $id $release"
   mkdir -p "$dest/source" "$prefix"
   local tarball="$dest/source/$(basename "$archive")"
@@ -173,8 +176,8 @@ for id in libogg libopus libopusfile; do
       ogg_release="$(read_pin libogg pinnedRelease)"
       opus_release="$(read_pin libopus pinnedRelease)"
       build_opusfile "$id" "$release" "$archive" "$digest" \
-        "$VENDOR_ROOT/libogg/$ogg_release/build-native" \
-        "$VENDOR_ROOT/libopus/$opus_release/build-native"
+        "$VENDOR_ROOT/libogg/$ogg_release/$NATIVE_BUILD" \
+        "$VENDOR_ROOT/libopus/$opus_release/$NATIVE_BUILD"
       ;;
   esac
 done

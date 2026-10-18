@@ -35,12 +35,17 @@ fn manifest_field(id: &str, field: &str) -> String {
 fn link_prestatic(id: &str, lib: &str, script: &str) {
     let release = manifest_field(id, "pinnedRelease");
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let target = std::env::var("TARGET").unwrap();
     let prefix = manifest_dir
         .join("../../../.local/libzci/vendor")
         .join(id)
         .join(&release)
-        .join("build-native");
-    let archive = prefix.join("lib").join(format!("lib{lib}.a"));
+        .join(format!("build-{target}"));
+    let archive = prefix.join("lib").join(if target.ends_with("msvc") {
+        format!("{lib}.lib")
+    } else {
+        format!("lib{lib}.a")
+    });
     if !archive.is_file() {
         panic!(
             "missing pinned {id} {release} static build at {}.\n\
@@ -48,20 +53,46 @@ fn link_prestatic(id: &str, lib: &str, script: &str) {
             archive.display()
         );
     }
-    println!("cargo:rustc-link-search=native={}", prefix.join("lib").display());
+    println!("cargo:rerun-if-changed={}", archive.display());
+    println!(
+        "cargo:rustc-link-search=native={}",
+        prefix.join("lib").display()
+    );
     println!("cargo:rustc-link-lib=static={lib}");
 }
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../../vendor/dependencies.json");
-    link_prestatic("libopus", "opus", "libzci/scripts/acquire-media-deps.sh");
-    link_prestatic("libopenmpt", "openmpt", "libzci/scripts/acquire-module-deps.sh");
-    link_prestatic(
-        "hivelytracker-replay",
-        "hivelycontext",
-        "libzci/scripts/acquire-module-deps.sh",
-    );
-    // libopenmpt is C++; the Rust link needs the C++ standard library.
-    println!("cargo:rustc-link-lib=stdc++");
+    let target = std::env::var("TARGET").unwrap();
+    let media_recipe = if target.ends_with("msvc") {
+        "powershell -File libzci/scripts/acquire-media-deps.ps1"
+    } else {
+        "libzci/scripts/acquire-media-deps.sh"
+    };
+    if std::env::var_os("CARGO_FEATURE_OPUS").is_some() {
+        link_prestatic("libopusfile", "opusfile", media_recipe);
+        link_prestatic("libopus", "opus", media_recipe);
+        link_prestatic("libogg", "ogg", media_recipe);
+        if !target.contains("windows") {
+            println!("cargo:rustc-link-lib=m");
+        }
+    }
+    if std::env::var_os("CARGO_FEATURE_MODULES").is_some() {
+        link_prestatic(
+            "libopenmpt",
+            "openmpt",
+            "libzci/scripts/acquire-module-deps.sh",
+        );
+        link_prestatic(
+            "hivelytracker-replay",
+            "hivelycontext",
+            "libzci/scripts/acquire-module-deps.sh",
+        );
+        if target.contains("linux") || target.ends_with("windows-gnu") {
+            println!("cargo:rustc-link-lib=stdc++");
+        } else if target.contains("apple") {
+            println!("cargo:rustc-link-lib=c++");
+        }
+    }
 }

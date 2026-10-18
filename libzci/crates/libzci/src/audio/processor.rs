@@ -142,6 +142,13 @@ impl AudioProcessor {
         self.last_raw_peak = peak;
     }
 
+    /// Fixed master setting for an offline render (no startup ramp).
+    pub fn apply_gain(samples: &mut [f32], gain: f32) {
+        debug_assert!(gain.is_finite());
+        for sample in samples {
+            *sample *= gain;
+        }
+    }
     /// Explicit mono-to-stereo upmix (`out` gets `L,R = m,m`).
     pub fn upmix_mono(input: &[f32], out: &mut [f32]) {
         debug_assert_eq!(out.len(), input.len() * 2);

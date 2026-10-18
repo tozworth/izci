@@ -8,7 +8,9 @@
 pub mod audio;
 pub mod pcm_transport;
 pub mod playback;
+pub mod render;
 pub mod runtime;
+mod session_jobs;
 pub mod source;
 
 pub use audio::{list_devices, open_output, DeviceOutput, OutputSpec};

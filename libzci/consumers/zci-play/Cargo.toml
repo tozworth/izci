@@ -14,3 +14,6 @@ libzci = { path = "../../crates/libzci" }
 libzci-native = { path = "../../crates/libzci-native" }
 libzci-codecs = { path = "../../crates/libzci-codecs" }
 ctrlc = "3"
+
+[features]
+modules = ["libzci-codecs/modules"]

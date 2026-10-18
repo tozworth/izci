@@ -14,3 +14,12 @@ libzci = { path = "../libzci" }
 ogg = "0.9"
 
 [build-dependencies]
+
+[features]
+default = ["opus"]
+opus = []
+modules = []
+
+[[example]]
+name = "mod-dump"
+required-features = ["modules"]

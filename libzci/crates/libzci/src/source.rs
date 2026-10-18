@@ -19,8 +19,8 @@
 //!   lowercases); identity comparison follows platform rules later.
 
 use std::sync::{
-    Arc,
     atomic::{AtomicBool, Ordering},
+    Arc,
 };
 
 use crate::error::{LibzciError, Result};
@@ -28,7 +28,10 @@ use crate::ids::SourceId;
 
 /// Cooperative cancellation flag shared between control and decode jobs.
 #[derive(Clone, Debug, Default)]
-pub struct CancelFlag(Arc<AtomicBool>);
+pub struct CancelFlag {
+    local: Arc<AtomicBool>,
+    parent: Option<Arc<CancelFlag>>,
+}
 
 impl CancelFlag {
     /// A flag that is already cancelled (for tests and disposal paths).
@@ -38,14 +41,21 @@ impl CancelFlag {
         flag
     }
 
+    /// A job can be cancelled independently or by its caller.
+    pub fn child_of(parent: &Self) -> Self {
+        Self {
+            local: Arc::new(AtomicBool::new(false)),
+            parent: Some(Arc::new(parent.clone())),
+        }
+    }
     /// Signal cancellation.
     pub fn cancel(&self) {
-        self.0.store(true, Ordering::SeqCst);
+        self.local.store(true, Ordering::SeqCst);
     }
 
     /// `true` if cancellation was signalled.
     pub fn is_cancelled(&self) -> bool {
-        self.0.load(Ordering::SeqCst)
+        self.local.load(Ordering::SeqCst) || self.parent.as_ref().is_some_and(|p| p.is_cancelled())
     }
 
     /// Return [`LibzciError::Cancelled`] when signalled.
@@ -110,7 +120,12 @@ pub trait RuntimeSource: Send + Sync + std::fmt::Debug {
     /// Read exactly `buf.len()` bytes unless EOF or cancellation.
     /// Providers needing a complete bounded buffer use this after
     /// checking [`SourceCaps::max_buffer_bytes`].
-    fn read_exact_at(&self, mut offset: u64, mut buf: &mut [u8], cancel: &CancelFlag) -> Result<()> {
+    fn read_exact_at(
+        &self,
+        mut offset: u64,
+        mut buf: &mut [u8],
+        cancel: &CancelFlag,
+    ) -> Result<()> {
         while !buf.is_empty() {
             cancel.check()?;
             let n = self.read_at(offset, buf, cancel)?;
@@ -191,9 +206,11 @@ impl RuntimeSource for MemSource {
         if buf.is_empty() {
             return Ok(0);
         }
-        let offset: usize = offset.try_into().map_err(|_| LibzciError::InvalidArgument {
-            detail: "offset out of range".into(),
-        })?;
+        let offset: usize = offset
+            .try_into()
+            .map_err(|_| LibzciError::InvalidArgument {
+                detail: "offset out of range".into(),
+            })?;
         if offset >= self.data.len() {
             return Ok(0);
         }
@@ -216,10 +233,7 @@ mod tests {
         let mut head = [0u8; 16];
         let mut tail = [0u8; 16];
         assert_eq!(src.read_at(0, &mut head, &cancel).unwrap(), 16);
-        assert_eq!(
-            src.read_at(65520, &mut tail, &cancel).unwrap(),
-            16
-        );
+        assert_eq!(src.read_at(65520, &mut tail, &cancel).unwrap(), 16);
         assert_eq!(&head, &data[..16]);
         assert_eq!(&tail, &data[65520..]);
         let mut eof = [0u8; 8];

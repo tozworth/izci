@@ -101,6 +101,7 @@ pub struct ProviderMetadata {
     pub applied: AppliedAdjustments,
     /// Declared channel count from the container.
     pub declared_channels: u16,
+    pub comments: Vec<(String, String)>,
 }
 
 impl ProviderMetadata {
@@ -117,6 +118,26 @@ impl ProviderMetadata {
 /// instance at a time on its decode job, while a second session drives
 /// its own instance concurrently.
 pub trait DecoderInstance: Send {
+    /// Temporary starvation is distinct from EOF; async providers override this.
+    fn decode(&mut self, out: &mut [f32], cancel: &CancelFlag) -> Result<DecodeStatus> {
+        match self.decode_into(out, cancel)? {
+            0 => Ok(DecodeStatus::EndOfStream),
+            n => Ok(DecodeStatus::Data(n)),
+        }
+    }
+    fn capabilities(&self) -> ModuleCapabilities {
+        ModuleCapabilities::default()
+    }
+    fn module_control(
+        &mut self,
+        _control: crate::command::ModuleControl,
+        _cancel: &CancelFlag,
+    ) -> Result<()> {
+        Err(LibzciError::Unsupported {
+            detail: "provider has no module controls".into(),
+        })
+    }
+
     /// Static provider identity.
     fn info(&self) -> ProviderInfo;
     /// Normalized output layout.
@@ -153,6 +174,7 @@ pub trait ProviderFactory: Send + Sync {
 /// Selection prefers the highest probe score in registration order;
 /// ties keep the earlier registration. Extension hints never
 /// outrank sniffed magic.
+#[derive(Clone)]
 pub struct ProviderRegistry {
     factories: Vec<Arc<dyn ProviderFactory>>,
     /// Observable budget: maximum simultaneous open instances the
@@ -210,7 +232,7 @@ impl ProviderRegistry {
         let n = match source.read_at(0, &mut header, cancel) {
             Ok(n) => n,
             Err(LibzciError::Cancelled) => return Err(LibzciError::Cancelled),
-            Err(_) => 0,
+            Err(e) => return Err(e),
         };
         header.truncate(n);
         let input = ProbeInput {
@@ -405,6 +427,7 @@ impl DecoderInstance for FakeInstance {
             total_frames: Some(self.total_frames),
             applied: AppliedAdjustments::default(),
             declared_channels: self.layout.layout.channels(),
+            comments: Vec::new(),
         }
     }
 }
@@ -490,7 +513,8 @@ mod tests {
     #[test]
     fn magic_outranks_extension_hint() {
         let mut reg = ProviderRegistry::new();
-        reg.register(Arc::new(HintOnlyFactory::new("test.hint"))).unwrap();
+        reg.register(Arc::new(HintOnlyFactory::new("test.hint")))
+            .unwrap();
         reg.register(Arc::new(FakeFactory::new(16, PcmLayout::mono48k())))
             .unwrap();
         let cancel = CancelFlag::default();
@@ -536,4 +560,17 @@ mod tests {
         assert_eq!(a.position_frames(), 480);
         assert_eq!(b.position_frames(), 100);
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DecodeStatus {
+    Data(usize),
+    Pending,
+    EndOfStream,
+}
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ModuleCapabilities {
+    pub subsongs: u32,
+    pub interpolation: bool,
+    pub channel_mute: bool,
 }

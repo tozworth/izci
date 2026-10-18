@@ -89,6 +89,39 @@ Final evidence (same target/toolchain, profile none):
   browser inspection and installed-PWA checks were not run. R1's acceptance is
   device-free; the corresponding R2-R4 integration checks remain open.
 
+## Recovery R2/R3: transport and native reference implementation
+
+2026-10-18. Baseline `a551ea92f9617a801914ed0b77ff2aff6fc2a557`,
+branch `libzci-codex`; initial dirty files: none. Builds authorized by the user.
+First implementation milestone; final acceptance/target audit follows separately.
+
+- Core Session is a control-only action machine with explicit source/options,
+  seconds-based time, volume/mute/module controls and instance/operation/generation
+  tags. Native sequential decoder workers perform open/seek/decode outside control
+  and map locks. Cancellation bypasses capacity and held codec work.
+- Native output and incremental render jobs use the same commands and bounded R1
+  preparation. The callback maps consumption spans to source time, including
+  underrun silence, generation changes and device latency. EOF is separate from
+  final consumption. No runtime/output thread Arc cycle remains.
+- CLI no longer constructs decoders or collects whole renders. Native production
+  Opus now owns libopusfile callback contexts/handles, applies header gain with
+  zero additional offset and reports tags/trim facts. Historical packet decoding
+  is confined to comparison tests. Modules are an explicit optional feature.
+- Acquired digest-checked libogg 1.3.5, libopus 1.5.2 and opusfile 0.12 with MSVC
+  19.44.35229, /MD, target-specific archives. Built `zci-play` on Windows MSVC
+  using project-local Rust/Cargo 1.98.1. Ordinary player assets/profiles untouched.
+- First checks: core/native/codecs device-free suites pass, including held
+  open/seek/decode cancellation, Pending, a 50,003-frame production-worker output
+  through two pool slots at 48/44.1/96 kHz, fixed memory and zero callback allocation.
+  Separate generated R3 Opus fixtures use FFmpeg 8.1.1 and CC0 synthetic chirps.
+  Mono/stereo/30-second frame counts and seek tails match; raw packet comparison
+  agrees with libopusfile. Reference FFmpeg PCM maximum difference <0.00003.
+- CLI rendered 1,440,006 stereo frames (11,520,048 bytes) for the long fixture;
+  a start-at-29-second Windows device run reached exactly frame 1,440,006.
+  Automated device consumption is evidence, not a human listening claim.
+- Existing browser proof facade compiles against the shared machine; it does not
+  claim decoder read-ahead is audible. Actual reference browser output is R4.
+
 Historical entries follow unchanged.
 
 ---

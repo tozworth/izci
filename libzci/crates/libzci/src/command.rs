@@ -4,7 +4,7 @@
 //! messages) into these commands. Parsing only converts arguments;
 //! selection, sequencing, and transport policy live in the session.
 
-use crate::ids::{RequestId, SessionId};
+use crate::ids::{RequestId, SessionId, SourceId};
 
 /// Target frame rate note: positions are expressed in provider-timeline
 /// frames so seeks are exact before any output-rate conversion.
@@ -20,6 +20,8 @@ pub enum Command {
         session: SessionId,
         /// Extension hint (`"opus"`, `"mod"`, ...) when known.
         extension_hint: Option<String>,
+        source: SourceId,
+        options: LoadOptions,
     },
     /// Start or resume output. Distinct from output actually running
     /// (see snapshots/events).
@@ -44,7 +46,7 @@ pub enum Command {
         /// Session to seek.
         session: SessionId,
         /// Target frame.
-        frame: u64,
+        time: MediaTime,
     },
     /// Stop output and park at the start without disposing the decoder.
     Stop {
@@ -52,6 +54,21 @@ pub enum Command {
         request_id: RequestId,
         /// Session to stop.
         session: SessionId,
+    },
+    SetVolume {
+        request_id: RequestId,
+        session: SessionId,
+        volume: f32,
+    },
+    SetMute {
+        request_id: RequestId,
+        session: SessionId,
+        mute: bool,
+    },
+    Module {
+        request_id: RequestId,
+        session: SessionId,
+        control: ModuleControl,
     },
     /// Dispose the session: no further results from it become
     /// authoritative and its buffers are released.
@@ -72,7 +89,10 @@ impl Command {
             | Self::Pause { session, .. }
             | Self::Seek { session, .. }
             | Self::Stop { session, .. }
-            | Self::Dispose { session, .. } => session,
+            | Self::Dispose { session, .. }
+            | Self::SetVolume { session, .. }
+            | Self::SetMute { session, .. }
+            | Self::Module { session, .. } => session,
         }
     }
 
@@ -85,7 +105,10 @@ impl Command {
             | Self::Pause { request_id, .. }
             | Self::Seek { request_id, .. }
             | Self::Stop { request_id, .. }
-            | Self::Dispose { request_id, .. } => request_id,
+            | Self::Dispose { request_id, .. }
+            | Self::SetVolume { request_id, .. }
+            | Self::SetMute { request_id, .. }
+            | Self::Module { request_id, .. } => request_id,
         }
     }
 }
@@ -100,4 +123,42 @@ pub struct CommandAccept {
     pub session: SessionId,
     /// Generation the command was accepted under.
     pub generation: crate::ids::Generation,
+}
+
+/// Public media time, in seconds. Validation occurs at command acceptance.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct MediaTime(pub f64);
+impl MediaTime {
+    pub fn frames(self, rate: u32) -> crate::Result<u64> {
+        self.validate()?;
+        if rate == 0 || self.0 * rate as f64 >= u64::MAX as f64 {
+            return Err(crate::LibzciError::InvalidArgument {
+                detail: "media time exceeds timeline".into(),
+            });
+        }
+        Ok((self.0 * rate as f64).round() as u64)
+    }
+    pub fn from_frames(frames: u64, rate: u32) -> Self {
+        Self(frames as f64 / rate.max(1) as f64)
+    }
+    pub fn validate(self) -> crate::Result<()> {
+        if self.0.is_finite() && self.0 >= 0.0 {
+            Ok(())
+        } else {
+            Err(crate::LibzciError::InvalidArgument {
+                detail: "time must be finite and nonnegative seconds".into(),
+            })
+        }
+    }
+}
+#[derive(Clone, Debug, Default)]
+pub struct LoadOptions {
+    pub start_time: MediaTime,
+    pub subsong: Option<u32>,
+}
+#[derive(Clone, Copy, Debug)]
+pub enum ModuleControl {
+    Subsong(u32),
+    Interpolation(u32),
+    ChannelMute { channel: u32, mute: bool },
 }

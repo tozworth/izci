@@ -1,218 +1,244 @@
-//! Minimal native runtime assembly.
-//!
-//! Owns the provider registry, runtime source handles, and sessions.
-//! Each session's commands are serialized through a per-session mutex;
-//! cancellation/close prevents late results becoming authoritative,
-//! and observers receive bounded/coalesced events.
-//!
-//! No database, profile, device output, or GUI lives here in Phase 1.1.
-
+//! Runtime assembly and prompt command acceptance; decoders live on job workers.
+use crate::session_jobs::{Plan, SessionEntry};
+use libzci::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-use libzci::{
-    CancelFlag, Command, CommandAccept, Event, LibzciError, PcmCollector, ProviderFactory,
-    ProviderRegistry, RequestId, Result, RuntimeSource, Session, SessionId, Snapshot, SourceId,
-};
-
-/// Native runtime: registry + sources + serialized sessions.
 #[derive(Default)]
 pub struct NativeRuntime {
-    pub(crate) registry: Mutex<ProviderRegistry>,
-    pub(crate) sources: Mutex<HashMap<SourceId, Arc<dyn RuntimeSource>>>,
-    pub(crate) sessions: Mutex<HashMap<SessionId, Mutex<Session>>>,
+    registry: Mutex<ProviderRegistry>,
+    sources: Mutex<HashMap<SourceId, Arc<dyn RuntimeSource>>>,
+    pub(crate) sessions: Mutex<HashMap<SessionId, Arc<SessionEntry>>>,
     pub(crate) outputs: Mutex<crate::playback::OutputMap>,
 }
-
 impl NativeRuntime {
-    /// Create an empty runtime (no providers registered).
     pub fn new() -> Arc<Self> {
         Arc::new(Self::default())
     }
-
-    /// Register one provider factory.
     pub fn register_provider(&self, factory: Arc<dyn ProviderFactory>) -> Result<()> {
         self.registry.lock().unwrap().register(factory)
     }
-
-    /// Registered provider IDs in order.
-    pub fn provider_ids(&self) -> Vec<libzci::ProviderId> {
+    pub fn provider_ids(&self) -> Vec<ProviderId> {
         self.registry.lock().unwrap().provider_ids()
     }
-
-    /// Insert an already-opened runtime source; returns its ID.
-    /// (File opening itself lives in [`crate::source::NativeFileSource`].)
     pub fn insert_source(&self, source: Arc<dyn RuntimeSource>) -> SourceId {
         let id = source.id();
         self.sources.lock().unwrap().insert(id, source);
         id
     }
-
-    /// Look up a registered source.
     pub fn get_source(&self, id: SourceId) -> Option<Arc<dyn RuntimeSource>> {
         self.sources.lock().unwrap().get(&id).cloned()
     }
-
-    /// Release a source handle (decode instances already opened keep
-    /// their own `Arc`; in-flight reads complete or cancel).
     pub fn release_source(&self, id: SourceId) {
         self.sources.lock().unwrap().remove(&id);
     }
-
-    /// Create one idle session.
     pub fn create_session(&self) -> SessionId {
         let id = SessionId::fresh();
         self.sessions
             .lock()
             .unwrap()
-            .insert(id, Mutex::new(Session::new(id)));
+            .insert(id, SessionEntry::new(id));
         id
     }
-
-    /// Load a registered source into a session through provider
-    /// selection. Bumps the session generation.
-    pub fn load(
-        &self,
-        session: SessionId,
-        source: SourceId,
-        extension_hint: Option<&str>,
-        cancel: &CancelFlag,
-    ) -> Result<Vec<Event>> {
-        let src = self
-            .get_source(source)
-            .ok_or_else(|| LibzciError::Unavailable {
-                detail: format!("unknown source {source:?}"),
-            })?;
-        let sessions = self.sessions.lock().unwrap();
-        let cell = sessions
-            .get(&session)
-            .ok_or_else(|| LibzciError::InvalidArgument {
-                detail: format!("unknown session {session:?}"),
-            })?;
-        let mut sess = cell.lock().unwrap();
-        let registry = self.registry.lock().unwrap();
-        sess.load_source(RequestId::fresh(), src, extension_hint, &registry, cancel)
-    }
-
-    /// Load an already-opened provider instance into a session
-    /// (e.g. a module with options applied first). The session takes
-    /// ownership with the same generation discipline as [`Self::load`].
-    pub fn load_opened(
-        &self,
-        session: SessionId,
-        info: libzci::ProviderInfo,
-        instance: Box<dyn libzci::DecoderInstance>,
-        cancel: &CancelFlag,
-    ) -> Result<Vec<Event>> {
-        let sessions = self.sessions.lock().unwrap();
-        let cell = sessions
-            .get(&session)
+    pub(crate) fn entry(&self, id: SessionId) -> Result<Arc<SessionEntry>> {
+        self.sessions
+            .lock()
+            .unwrap()
+            .get(&id)
+            .cloned()
             .ok_or_else(|| LibzciError::InvalidArgument {
                 detail: "unknown session".into(),
-            })?;
-        let mut sess = cell.lock().unwrap();
-        sess.load_opened(RequestId::fresh(), info, instance, cancel)
+            })
     }
-
-    /// Submit one serialized command to a session.
     pub fn submit(
         &self,
         command: &Command,
         cancel: &CancelFlag,
     ) -> Result<(CommandAccept, Vec<Event>)> {
-        let sessions = self.sessions.lock().unwrap();
-        let cell =
-            sessions
-                .get(&command.session())
-                .ok_or_else(|| LibzciError::InvalidArgument {
-                    detail: "unknown session".into(),
-                })?;
-        let mut sess = cell.lock().unwrap();
-        let registry = self.registry.lock().unwrap();
-        let sources = self.sources.lock().unwrap();
-        sess.apply(command, &registry, &sources, cancel)
+        cancel.check()?;
+        let entry = self.entry(command.session())?;
+        let source = if let Command::Load { source, .. } = command {
+            Some(
+                self.get_source(*source)
+                    .ok_or_else(|| LibzciError::Unavailable {
+                        detail: "unknown source".into(),
+                    })?,
+            )
+        } else {
+            None
+        };
+        let registry = source
+            .as_ref()
+            .map(|_| self.registry.lock().unwrap().clone());
+        let mut c = entry.control.lock().unwrap();
+        if let Some((generation, position)) = c.output.as_ref().and_then(|o| o.media_position()) {
+            c.owner.consumed(generation, position, false);
+        }
+        let old = c.owner.generation();
+        let (receipt, actions) = c.owner.accept(command)?;
+        if old != receipt.generation {
+            if let Some(p) = &c.plan {
+                p.cancel.cancel();
+            }
+            c.result = None;
+        }
+        let deferred = actions.iter().any(|a| {
+            matches!(
+                a,
+                SessionAction::Open { .. }
+                    | SessionAction::Seek { .. }
+                    | SessionAction::Module { .. }
+            )
+        });
+        for action in actions {
+            match action {
+                SessionAction::Open {
+                    tag, hint, options, ..
+                } => {
+                    c.plan = Some(Plan {
+                        tag,
+                        source: source.clone().unwrap(),
+                        registry: registry.clone().unwrap(),
+                        hint,
+                        options,
+                        controls: Vec::new(),
+                        cancel: CancelFlag::child_of(cancel),
+                    });
+                }
+                SessionAction::Seek { tag, time } => {
+                    if let Some(p) = &mut c.plan {
+                        p.tag = tag;
+                        p.options.start_time = time;
+                        p.cancel = CancelFlag::child_of(cancel);
+                    }
+                }
+                SessionAction::Module { tag, control } => {
+                    let s = c.owner.snapshot();
+                    if let Some(p) = &mut c.plan {
+                        p.tag = tag;
+                        p.cancel = CancelFlag::child_of(cancel);
+                        p.options.start_time = MediaTime::from_frames(
+                            s.position_frames,
+                            s.layout.unwrap().sample_rate,
+                        );
+                        match control {
+                            ModuleControl::Subsong(n) => {
+                                p.options.subsong = Some(n);
+                                p.options.start_time = MediaTime(0.0);
+                            }
+                            _ => {
+                                // Coalesce controls by parameter, bounded by module channels.
+                                p.controls.retain(|v| !same_parameter(*v, control));
+                                p.controls.push(control);
+                            }
+                        }
+                    }
+                }
+                SessionAction::Close => {
+                    c.closed = true;
+                    if let Some(p) = &c.plan {
+                        p.cancel.cancel();
+                    }
+                }
+                SessionAction::Output => (),
+            }
+        }
+        let snap = c.owner.snapshot();
+        c.refresh_output();
+        let event = Event::StateChanged {
+            session: command.session(),
+            generation: snap.generation,
+            revision: snap.revision,
+        };
+        c.events.push(event.clone());
+        if !deferred {
+            c.events.push(Event::Completed {
+                session: command.session(),
+                generation: receipt.generation,
+                request_id: receipt.request_id,
+            });
+        }
+        entry.wake.notify_all();
+        drop(c);
+        if matches!(command, Command::Dispose { .. }) {
+            self.dispose_session(command.session());
+        }
+        Ok((receipt, vec![event]))
     }
-
-    /// Current snapshot for a session.
-    pub fn snapshot(&self, session: SessionId) -> Result<Snapshot> {
-        let sessions = self.sessions.lock().unwrap();
-        let cell = sessions
-            .get(&session)
-            .ok_or_else(|| LibzciError::InvalidArgument {
-                detail: "unknown session".into(),
-            })?;
-        let snapshot = cell.lock().unwrap().snapshot();
-        Ok(snapshot)
+    pub fn snapshot(&self, id: SessionId) -> Result<Snapshot> {
+        Ok(self.entry(id)?.snapshot())
     }
-
-    /// Device-free render: decode until EOF/cancel through the public
-    /// session API into a [`PcmCollector`].
-    pub fn render_to_collector(
+    pub fn events(&self, id: SessionId) -> Result<Vec<Event>> {
+        Ok(self.entry(id)?.control.lock().unwrap().events.drain())
+    }
+    /// Wait for open/seek completion while observing the caller's cancellation.
+    pub fn wait_ready(&self, id: SessionId, cancel: &CancelFlag) -> Result<Snapshot> {
+        let entry = self.entry(id)?;
+        let mut c = entry.control.lock().unwrap();
+        loop {
+            cancel.check()?;
+            if c.closed {
+                return Err(LibzciError::Cancelled);
+            }
+            let s = c.owner.snapshot();
+            if let Some(e) = s.error {
+                return Err(e);
+            }
+            if !s.pending_operation {
+                return Ok(s);
+            }
+            c = entry
+                .wake
+                .wait_timeout(c, Duration::from_millis(10))
+                .unwrap()
+                .0;
+        }
+    }
+    /// Convenience for synchronous hosts; uses exactly the same Load operation.
+    pub fn load(
         &self,
         session: SessionId,
-        max_samples_per_chunk: usize,
-        max_chunks: usize,
+        source: SourceId,
+        hint: Option<&str>,
         cancel: &CancelFlag,
-    ) -> Result<PcmCollector> {
-        let sessions = self.sessions.lock().unwrap();
-        let cell = sessions
-            .get(&session)
-            .ok_or_else(|| LibzciError::InvalidArgument {
-                detail: "unknown session".into(),
-            })?;
-        let mut sess = cell.lock().unwrap();
-        let mut collector = PcmCollector::default();
-        collector.collect_until_eof(&mut sess, max_samples_per_chunk, max_chunks, cancel)?;
-        Ok(collector)
+    ) -> Result<Vec<Event>> {
+        self.submit(
+            &Command::Load {
+                request_id: RequestId::fresh(),
+                session,
+                source,
+                options: LoadOptions::default(),
+                extension_hint: hint.map(str::to_owned),
+            },
+            cancel,
+        )?;
+        self.wait_ready(session, cancel)?;
+        self.events(session)
     }
-
-    /// Dispose a session and forget it. Late results from it can never
-    /// become authoritative afterwards.
-    pub fn dispose_session(&self, session: SessionId) {
-        self.sessions.lock().unwrap().remove(&session);
-        self.stop_session_outputs(session);
+    pub fn dispose_session(&self, id: SessionId) {
+        if let Some(entry) = self.sessions.lock().unwrap().remove(&id) {
+            entry.close();
+        }
+        self.stop_session_outputs(id);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use libzci::{provider::FakeFactory, MemSource};
-
-    fn runtime_with_fake(total: u64) -> Arc<NativeRuntime> {
-        let rt = NativeRuntime::new();
-        rt.register_provider(Arc::new(FakeFactory::new(
-            total,
-            libzci::PcmLayout::mono48k(),
-        )))
-        .unwrap();
-        rt
+fn same_parameter(a: ModuleControl, b: ModuleControl) -> bool {
+    match (a, b) {
+        (ModuleControl::Interpolation(_), ModuleControl::Interpolation(_)) => true,
+        (
+            ModuleControl::ChannelMute { channel: a, .. },
+            ModuleControl::ChannelMute { channel: b, .. },
+        ) => a == b,
+        _ => false,
     }
-
-    #[test]
-    fn two_sessions_hold_separate_fake_state() {
-        let rt = runtime_with_fake(48000);
-        let cancel = CancelFlag::default();
-        let a = rt.create_session();
-        let b = rt.create_session();
-        let sa = rt.insert_source(Arc::new(MemSource::new(b"FAKE-a".to_vec())));
-        let sb = rt.insert_source(Arc::new(MemSource::new(b"FAKE-b".to_vec())));
-        rt.load(a, sa, None, &cancel).unwrap();
-        rt.load(b, sb, None, &cancel).unwrap();
-        let ca = rt.render_to_collector(a, 480, 200, &cancel).unwrap();
-        assert_eq!(ca.accepted_frames, 48000);
-        assert_eq!(rt.snapshot(a).unwrap().position_frames, 48000);
-        assert_eq!(rt.snapshot(b).unwrap().position_frames, 0);
-    }
-
-    #[test]
-    fn dispose_prevents_late_authority() {
-        let rt = runtime_with_fake(8000);
-        let cancel = CancelFlag::default();
-        let s = rt.create_session();
-        let src = rt.insert_source(Arc::new(MemSource::new(b"FAKEx".to_vec())));
-        rt.load(s, src, None, &cancel).unwrap();
-        rt.dispose_session(s);
-        assert!(rt.snapshot(s).is_err());
+}
+impl Drop for NativeRuntime {
+    fn drop(&mut self) {
+        for entry in self.sessions.get_mut().unwrap().values() {
+            entry.close();
+        }
+        // OutputEntry releases streams and workers without a runtime Arc cycle.
+        self.outputs.get_mut().unwrap().clear();
     }
 }
