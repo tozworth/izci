@@ -1,159 +1,110 @@
-/**
- * Engine worker: owns the WASM core (provider selection, sessions,
- * generations, snapshots). The document sends selected-File header
- * bytes plus decode-worker results; this worker never touches the
- * DOM, SQL, or transport policy beyond core commands. PCM crosses as
- * transferable Float32Arrays, never JSON.
- */
-import type { MainToEngine, EngineToMain, Snapshot } from '../protocol.js';
 import init, { WebEngine } from '../generated/libzci_web.js';
+import { failure, sameTag, type Snapshot, type Tag } from '../protocol.js';
 
-let engine: WebEngine | null = null;
-
-/**
- * u64 crossing the WASM boundary is a BigInt; the protocol uses numbers
- * (ids/generations never approach 2^53 in a page lifetime). Convert at
- * this boundary only, failing loudly on overflow rather than truncating.
- */
-function inId(id: number): bigint {
-  if (!Number.isSafeInteger(id) || id < 0) throw new Error(`id out of range: ${id}`);
-  return BigInt(id);
-}
-
-function outNum(value: bigint): number {
-  if (value > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error(`u64 out of range: ${value}`);
-  return Number(value);
-}
-
-async function ready(): Promise<WebEngine> {
-  if (!engine) {
-    await init();
-    engine = new WebEngine();
+const decoder = new Worker(new URL('./decode-worker.ts', import.meta.url), {type:'module'});
+const ready = init().then(() => new WebEngine());
+let web: WebEngine;
+let output: MessagePort;
+let file: File | undefined;
+let stats: Record<string, unknown> = {};
+let outputStats: Record<string, unknown> = {};
+let generation = -1;
+let disposed = false;
+let contextState = 'suspended';
+let latency = 0;
+let failedTag: Tag | null = null;
+let outstanding = false;
+let dirty = true;
+let acknowledgedGeneration = -1;
+let pendingJob: Record<string,unknown> | null = null;
+function launch(): void {
+  if (pendingJob && acknowledgedGeneration === generation) {
+    decoder.postMessage(pendingJob); pendingJob = null;
   }
-  return engine;
 }
 
-function post(message: EngineToMain, transfer?: Transferable[]): void {
-  self.postMessage(message, transfer ?? []);
+function snapshot(): Snapshot {return JSON.parse(web.snapshot()) as Snapshot;}
+function publish(): void {
+  dirty = true;
+  // One UI update in flight: a stalled document never grows a message queue.
+  if (outstanding) return;
+  outstanding = true; dirty = false;
+  self.postMessage({type:'snapshot',snapshot:snapshot(),stats,output:outputStats,disposed});
 }
-
-function fail(session: number, error: unknown): void {
-  const detail =
-    typeof error === 'object' && error !== null && 'message' in error
-      ? String((error as { message: unknown }).message)
-      : String(error);
-  post({ type: 'error', session, kind: 'engine', detail });
-}
-
-function snapshotOf(web: WebEngine, session: bigint): Snapshot {
-  return JSON.parse(web.snapshot(session)) as Snapshot;
-}
-
-self.onmessage = async (event: MessageEvent<MainToEngine>) => {
-  const message = event.data;
-  try {
-    const web = await ready();
-    switch (message.type) {
-      case 'open': {
-        const session = outNum(web.create_session());
-        web.open_header(inId(session), new Uint8Array(message.header), message.extensionHint);
-        post({ type: 'snapshot', session, snapshot: snapshotOf(web, inId(session)) });
-        break;
-      }
-      case 'commit-index': {
-        const committed = JSON.parse(
-          web.commit_index(
-            inId(message.session),
-            JSON.stringify(message.pages),
-            message.audioStartPage,
-            message.audioStartPacket,
-            BigInt(message.preskip),
-            message.channels,
-          ),
-        ) as { total_frames: number; audio_start_page: number; audio_start_packet: number };
-        post({
-          type: 'index-committed',
-          session: message.session,
-          totalFrames: committed.total_frames,
-          audioStartPage: committed.audio_start_page,
-          audioStartPacket: committed.audio_start_packet,
-        });
-        break;
-      }
-      case 'ingest-pcm': {
-        const ingested = JSON.parse(
-          web.ingest_pcm(inId(message.session), inId(message.generation), BigInt(message.startFrame), message.pcm),
-        ) as { accepted_frames: number; position_frames: number };
-        post({
-          type: 'pumped',
-          session: message.session,
-          generation: message.generation,
-          acceptedFrames: ingested.accepted_frames,
-          positionFrames: ingested.position_frames,
-        });
-        break;
-      }
-      case 'note-eof': {
-        web.note_eof(inId(message.session), inId(message.generation));
-        post({ type: 'snapshot', session: message.session, snapshot: snapshotOf(web, inId(message.session)) });
-        break;
-      }
-      case 'command': {
-        const result = JSON.parse(web.command(inId(message.session), message.kind, BigInt(message.frame ?? 0))) as {
-          generation: number;
-          snapshot: Snapshot | null;
-        };
-        if (result.snapshot) {
-          post({ type: 'command-result', session: message.session, generation: result.generation, snapshot: result.snapshot });
-        } else {
-          // Disposed: keep the last snapshot shape with idle state for display.
-          post({
-            type: 'command-result',
-            session: message.session,
-            generation: result.generation,
-            snapshot: {
-              session: message.session,
-              revision: 0,
-              generation: result.generation,
-              state: 'idle',
-              provider: null,
-              position_frames: 0,
-              total_frames: null,
-              error: null,
-            },
-          });
-        }
-        break;
-      }
-      case 'seek-plan': {
-        const planned = JSON.parse(web.seek_plan(inId(message.session), BigInt(message.target))) as {
-          start_page: number;
-          skip_packets: number;
-          skip_samples: number;
-          total_frames: number;
-        };
-        post({
-          type: 'seek-plan',
-          session: message.session,
-          target: message.target,
-          startPage: planned.start_page,
-          skipPackets: planned.skip_packets,
-          skipSamples: planned.skip_samples,
-          totalFrames: planned.total_frames,
-        });
-        break;
-      }
-      case 'snapshot': {
-        post({ type: 'snapshot', session: message.session, snapshot: snapshotOf(web, inId(message.session)) });
-        break;
-      }
-    }
-  } catch (error) {
-    const session = typeof event.data === 'object' && event.data !== null && 'session' in event.data
-      ? Number((event.data as { session: unknown }).session)
-      : -1;
-    fail(session, error);
+function settings(): void {
+  const s = snapshot();
+  if (generation !== s.generation) {
+    generation = s.generation;
+    decoder.postMessage({type:'invalidate'});
+    output.postMessage({type:'reset',generation,position:s.position_frames});
   }
+  output.postMessage({type:'settings',generation,running:s.requested === 'Running' && !s.pending_operation && s.state !== 'Failed',volume:s.volume,mute:s.mute,latency});
+}
+function command(kind: string, value = 0): void {
+  const result = JSON.parse(web.command(kind, value));
+  disposed = kind === 'dispose'; failedTag = null;
+  settings();
+  for (const a of result.actions) {
+    if (a.kind === 'open') pendingJob = {type:'open',tag:a.tag,file};
+    if (a.kind === 'seek') pendingJob = {type:'seek',tag:a.tag,seconds:a.seconds,file};
+    if (a.kind === 'close') { pendingJob = null; decoder.postMessage({type:'close'}); output.postMessage({type:'close'}); }
+  }
+  launch();
+  publish();
+}
+function fail(tag: Tag | undefined, kind: string, detail: string): void {
+  if (tag && sameTag(tag,snapshot().tag)) {
+    web.failed(JSON.stringify(tag),kind,detail); failedTag = tag;
+    decoder.postMessage({type:'cancel'}); settings();
+  }
+  self.postMessage({type:'error',kind,detail}); publish();
+}
+decoder.onmessage = e => {
+  if (!web) return;
+  const m = e.data;
+  if (m.type === 'released') {self.postMessage({type:'released'});return;}
+  if (m.type === 'progress') decoder.postMessage({type:'stats-ack'});
+  if (!m.tag || !sameTag(m.tag,snapshot().tag) || disposed || failedTag) return;
+  if (m.stats) stats = m.stats;
+  if (m.type === 'opened') web.opened(JSON.stringify(m.tag),m.total,m.position);
+  if (m.type === 'landed') web.landed(JSON.stringify(m.tag),m.position);
+  if (m.type === 'eof') web.eof(JSON.stringify(m.tag));
+  if (m.type === 'failed') {fail(m.tag,m.kind,m.detail);return;}
+  settings(); publish();
 };
+decoder.onerror = e => {if (web) fail(snapshot().tag,'decoder-failure',e.message);};
 
-export {};
+self.onmessage = async e => {
+  try {
+    if (!web) web = await ready;
+    const m = e.data;
+    if (m.type === 'attach') {
+      output = m.control; latency = m.latency;
+      output.onmessage = event => {
+        const o = event.data;
+        if (o.type === 'report') {
+          outputStats = o;
+          if (!disposed && o.generation === snapshot().generation) {
+            web.consumed(o.generation,o.position,o.finished);
+            if (o.finished) settings();
+            publish();
+          }
+          output.postMessage({type:'report-ack'});
+        } else if (o.type === 'reset-ack') {
+          if (o.generation === generation) {acknowledgedGeneration = o.generation; launch();}
+        } else if (o.type === 'failed') fail(snapshot().tag,'device-unavailable',o.detail);
+      };
+      decoder.postMessage({type:'init',rate:m.rate,output:m.decode},[m.decode]);
+      self.postMessage({type:'ready'});
+    } else if (m.type === 'load') {
+      if (disposed) {web.free(); web = new WebEngine(); disposed = false; generation = -1;}
+      file = m.file; command('load');
+    } else if (m.type === 'command') command(m.kind,m.value);
+    else if (m.type === 'context') {
+      contextState = m.state; latency = m.latency;
+      web.output_state(contextState === 'running' ? 'running' : contextState === 'closed' ? 'closed' : 'suspended');
+      settings(); publish();
+    } else if (m.type === 'output-error') fail(snapshot().tag,'device-unavailable',m.detail);
+    else if (m.type === 'ack') {outstanding = false; if (dirty) publish();}
+  } catch (e) {self.postMessage({type:'error',...failure(e)});}
+};

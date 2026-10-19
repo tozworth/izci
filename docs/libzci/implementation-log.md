@@ -10,6 +10,28 @@ are all open. No build, test, listening, or browser result was newly produced by
 this documentation revision. Append future results under the new milestone IDs.
 The old phase labels and next-step statements below do not direct current work.
 
+## Recovery R4: reference browser player — implemented; extended checks pending
+
+2026-10-19, Windows x64. Baseline `3b5fc39b`; initial dirty files: none.
+Builds and headless tests explicitly authorized. Profile: none.
+
+Reference libopusfile 0.12 / libopus 1.5.2 / libogg 1.3.5 use the existing
+source digests with Emscripten 4.0.10 (emsdk tag commit
+`62a853cd3b3134398ce85cde8bb5cbb2ef0194cb`). Bounded FileReaderSync C callbacks
+use Asyncify task yields for cancellation during open/seek scans. The engine
+worker drives the same Rust Session as native; separate import-free audio WASM
+uses shared processing/clock code. Eight transferable PCM blocks (262,144 bytes)
+travel directly from decoder to worklet, with recycle credits and explicit
+consumer generation acknowledgment. No PCM traverses the document.
+
+Initial validation: reference C build; Rust web/audio tests (3 passed); both
+Rust WASM builds; TypeScript check; production Vite build; fresh Chromium page
+with AudioDecoder disabled. The real stereo File produced nonzero worklet
+samples, paused, sought to 14,400 frames and drained at exactly 60,006 frames.
+Extended callback, memory, long-output, lifecycle and regression checks follow.
+This result does not establish hardware listening, screen-off or physical Android.
+No ordinary izci assets, profiles, databases or grants changed.
+
 ## Recovery R1: bounded, lossless output — verified
 
 2026-10-18. Baseline `8c6dfe0a111b250619b8938fdfcdae62ee9d5772`,

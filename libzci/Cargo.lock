@@ -326,6 +326,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "libzci-audio-web"
+version = "0.1.0"
+dependencies = [
+ "libzci",
+]
+
+[[package]]
 name = "libzci-codecs"
 version = "0.1.0"
 dependencies = [
