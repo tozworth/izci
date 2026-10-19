@@ -1,7 +1,8 @@
 # zci-play
 
-Native reference Opus player and streaming PCM renderer over libzci. It opens
-bounded native file ranges and embeds Rust/libopusfile/libopus/libogg directly.
+Native file player and streaming PCM renderer over libzci: WAV, MP3, FLAC,
+Vorbis, reference Opus, OpenMPT modules (MOD/XM/S3M/IT/MO3) and AHX/HVL. It opens
+bounded native file ranges and embeds Rust and the pinned media libraries directly.
 No database/profile, browser, webview, JS engine or WASM interpreter is involved.
 
 Build prerequisites and acquisition commands are in the [workspace README](../../README.md).
@@ -19,8 +20,9 @@ On GNU/Linux use `libzci/target/release/zci-play` with the same flags.
 - `--device NAME`: output-device name substring; defaults to the system device.
 - `--volume V`: linear master volume, finite 0.0 through 1.0; default 1.0.
 - `--start SECONDS`: finite nonnegative media time; converted by the core.
-- `--subsong N`: module subsong index, when built with the optional `modules`
-  feature and matching module archives. Explicitly rejected for Opus.
+- `--subsong N`: module subsong index; modules are enabled by default.
+  Explicitly rejected for ordinary audio and Opus. `--no-default-features`
+  builds a CLI without module support/archives.
 - `--diagnostics`: provider, device, audible/decode progress and drain on stderr.
 - `--render-pcm FILE`: bounded incremental stereo float32 little-endian PCM at
   48,000 Hz, after the requested fixed master volume, with no audio device.

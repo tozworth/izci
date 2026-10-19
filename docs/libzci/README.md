@@ -16,6 +16,10 @@ R4 reference browser output and headless checks are implemented; actual hidden-t
 screen-off and physical Android checks remain pending. GNU/Linux recovery remains
 unverified target work.
 
+M1 now implements ordinary audio, modules, both crude UIs, independent probe/render
+jobs and optional WebCodecs Opus, verified on Windows native/headless Chromium.
+Its target-specific evidence and limits are in the implementation log.
+
 ## Start here
 
 1. Read [the review](review.md) for the actual starting code.
