@@ -10,6 +10,113 @@ are all open. No build, test, listening, or browser result was newly produced by
 this documentation revision. Append future results under the new milestone IDs.
 The old phase labels and next-step statements below do not direct current work.
 
+## M1: file players, modules and both crudes
+
+2026-10-19, Windows x64 MSVC and headless Chromium. User authorized builds and
+headless tests; profile: none. Initial checkout was clean. Status: **verified
+for these targets/checks**, with physical/background and other-platform limits
+below. The existing izci shells, assets, profiles and grants were preserved.
+
+Implementation milestones:
+
+- `879e6bd8`: ordinary audio provider, module controls/observations, independent
+  probe jobs, generated audible fixtures and the native crude.
+- `cecdf19e`: ordinary/module browser providers, shared Session integration,
+  independent jobs and optional WebCodecs Opus.
+- `b2850425`: hidden native transport validation, audible module controls,
+  source/cancellation checks, exact EOF anchoring and final codec limits.
+
+Symphonia **0.5.5**, with only WAV/PCM, MP3, FLAC, Ogg and Vorbis features,
+implements one native/WASM provider over bounded source reads. Opus retains
+the pinned reference path. Selection/classification remains core/provider-owned;
+neither crude nor the CLI chooses a media family. Unknown-extension verification
+defaults off and affects only independent inspection; enabled verification can
+open the module provider without constructing output.
+
+Pinned OpenMPT **0.8.4** and Hively **f393ca7** now build reproducibly for MSVC
+(`/MD`) and Emscripten **4.0.10**, with input digest checks and build records.
+Native Hively initialization uses Rust `Once`; browser module instances have
+separate heaps and immutable initialized tables. Hively duration/seek work is
+stepped and cancellable. Both providers expose subsongs, interpolation, channel
+mutes, metadata and bounded transient patterns. OpenMPT also exposes ramping,
+speed/pitch and finite repeat limits. Unsupported Hively controls are disabled
+with an explanation. Allocated OpenMPT strings are copied/freed.
+
+Both crudes issue public operations for transport, volume/mute, module controls,
+inspection and separate raw rendering. The native crude uses eframe/egui
+**0.32.3**; no JS/webview/WASM interpreter is linked. Browser render export writes
+bounded chunks to a user-selected FSA destination when available. Probe jobs
+construct no AudioContext. Stop/dispose/cancel remain independent of PCM credits.
+The worklet acknowledges the provider's actual landed frame before new PCM,
+including empty EOF seeks; earlier unanchored reports cannot replace that frame.
+
+Optional WebCodecs Opus is off by default, only for proved single-link family-0
+mono/stereo configurations. Shared Rust Ogg CRC/lacing/header and TOC-duration
+policy feed the platform decoder; Rust applies pre-skip, seek discard, mandatory
+header gain and end trim once. Restart/discard seeks match the sequential native
+reference suffix exactly. The optimized opusfile seek can have a short preroll
+transient, so it is not the golden for restart/discard. Chained content and
+unavailable AudioDecoder configurations fall back to reference. Pending platform
+decodes can be interrupted before their callback returns.
+
+Validation (Rust/Cargo **1.98.1**, wasm-bindgen **0.2.129**, MSVC **19.44.35229**,
+FFmpeg **8.1.1**, Playwright **1.61.1** / Chromium **149.0.7827.55**):
+
+- `python libzci/scripts/build-module-deps.py`,
+  `python libzci/scripts/build-browser-codecs.py`,
+  `python libzci/scripts/build-browser-modules.py`, and
+  `python libzci/consumers/crude-pwa/scripts/build-wasm.py`: **passed**. All
+  generated output remains isolated/ignored; ordinary izci WASM was untouched.
+- `python libzci/tests/generate-m1-media.py`: **15 generated CC0 inputs**,
+  exact recipe/tool binary/file hashes in `.local/libzci/media/m1/provenance.json`.
+  Mono 44.1 kHz and stereo 48 kHz ordinary formats; audible MOD/XM/S3M/IT/MO3
+  PCM-sample modules and synthesized AHX/HVL instruments. No external music.
+- `cargo test --locked --manifest-path libzci/Cargo.toml --workspace
+  --features libzci-native/provider-tests`: **89 passed, 0 failed, 2 explicit
+  hardware opt-in tests ignored**. Includes exact seek/rewind/EOF, bounded reads,
+  revoked source access, replacement cancellation tokens, two contexts, audible
+  channel mutes/interpolation, speed/repeat lengths and independent probe/render.
+- `cargo build --locked --manifest-path libzci/Cargo.toml -p zci-play
+  -p crude-native --release`: **passed**. CLI modules are enabled by default;
+  `--no-default-features` retains the lighter ordinary/reference-only build.
+- `crude-native.exe --headless-test <fixture>` on HVL, MOD and 44.1 kHz FLAC:
+  **passed** using a real hidden eframe window and muted CPAL output. Tests
+  play/pause/seek, available module control, independent probe, stop and dispose.
+  The separate egui test draws the actual UI and runs independent jobs without
+  creating a window/device. PE dependency inspection confirms no JS/webview/WASM
+  runtime in either native executable.
+- PWA `typecheck`, production `build` and audio-only WASM tests: **passed**.
+  Import-free output WASM keeps its fixed heap under long marked input.
+- PWA `test:m1`: **39 scenarios passed**, including real File/worklet transport
+  across all 15 inputs, module controls, independent jobs, unknown verification,
+  cancellation, live ordinary-source loss and every-sample native comparison.
+  All seven module outputs match exactly. Ordinary-audio maximum sample error:
+  **1.49e-7**; acceptance tolerance **3e-5**. Recycling high-water stays at **8**.
+- PWA `test:webcodecs`: **8 scenarios passed**, including actual optional
+  worklet output, rapid seeks/stop/EOF, five sample/timeline comparisons, chained
+  fallback and AudioDecoder disabled **inside the decode worker**. Optional PCM
+  matches the sequential reference exactly on the proved fixtures.
+- PWA `test:callbacks` and `test:browser`: **passed** after M1 integration.
+  Existing long reference output, starvation, delayed recycling, cancellation,
+  rate-conversion tails, suspension, rapid seeks, source loss, missing codec
+  assets, a stalled document and final consumption remain covered.
+
+Raw evidence: `.local/libzci/m1-workspace-tests.log`, `m1-browser-evidence.json`,
+`m1-webcodecs-evidence.json`, `m1-production-regression.log`,
+`m1-reference-regression.log`, `m1-native-hidden.log`, native dependency reports
+and the acquisition/build logs. Packaged outputs and SHA-256 values are in
+`artifacts/libzci/m1-artifacts.json`: `zci-play.exe`, `crude-native.exe` and
+`crude-pwa.zip`, with dependency notices.
+
+Limits: ordinary audio is mono/stereo, 8–192 kHz; modules are capped at 64 MiB.
+OpenMPT source duration must be finite and under 12 hours, repeats 0–16; Hively
+scan limit is 30 minutes and unsupported controls remain named. The MO3 fixture
+proves its uncompressed PCM-sample path, not every compressed-sample variant.
+Linux recipes are retained but unverified. New-format hardware listening,
+physical Android and R4's true background/screen-off checks remain pending.
+No SQLite/profile, installation, service worker or offline-launch behavior is
+claimed before M2.
+
 ## Recovery R4: reference browser player — implemented; checks pending
 
 2026-10-19, Windows x64. Baseline `3b5fc39b`; initial dirty files: none.

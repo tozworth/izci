@@ -7,7 +7,8 @@ R1 and R2 are verified; R3's native reference Opus CLI is verified on
 `x86_64-pc-windows-msvc`, including real device transport, a full 30-second run
 and user-confirmed clean listening. See the [evidence](../docs/libzci/implementation-log.md).
 R4 now has working reference browser output and headless end-to-end checks;
-hidden-tab/screen-off and physical-device checks remain pending. M1 is separate.
+hidden-tab/screen-off and physical-device checks remain pending. M1 adds ordinary
+audio, modules, inspection/jobs and both crudes on Windows/headless Chromium.
 
 - `libzci`: control-only session action machine, source/provider contracts,
   generation-tagged jobs, media consumption clock, bounded PCM preparation.
@@ -16,9 +17,13 @@ hidden-tab/screen-off and physical-device checks remain pending. M1 is separate.
 - `libzci-codecs`: reference libopusfile/Opus provider by default; optional
   libopenmpt/Hively providers behind `modules`. The historical packet decoder
   exists only in comparison tests.
+- `libzci-symphonia`: shared native/WASM WAV/PCM, MP3, FLAC and Vorbis provider;
+  bounded range reads and exact cancellable restart/discard seeks.
 - `libzci-web`: shared Session bindings and bounded output preparation for workers.
 - `libzci-audio-web`: import-free, audio-only shared Rust worklet renderer.
-- `consumers/crude-pwa`: reference File Opus playback; [build/run/checks](consumers/crude-pwa/README.md).
+- `consumers/crude-pwa`: ordinary audio/modules/reference Opus and optional
+  WebCodecs Opus; [build/run/checks](consumers/crude-pwa/README.md).
+- `consumers/crude-native`: egui file player; [build/run/checks](consumers/crude-native/README.md).
 - `consumers/zci-play`: direct native embedding, without a JS/webview/WASM runtime.
 
 ## Native build
@@ -29,6 +34,8 @@ CMake, Ninja, curl and tar. Acquisition never changes system settings.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File libzci/scripts/acquire-media-deps.ps1
+. ./libzci/scripts/windows-toolchain.ps1
+python libzci/scripts/build-module-deps.py
 cargo build --locked --manifest-path libzci/Cargo.toml -p zci-play --release
 .\libzci\target\release\zci-play.exe C:\Music\track.opus
 ```
@@ -49,13 +56,15 @@ this Windows environment; Windows success does not verify Linux.
 
 ```sh
 libzci/scripts/acquire-media-deps.sh
+libzci/scripts/acquire-module-deps.sh
 cargo build --locked --manifest-path libzci/Cargo.toml -p zci-play --release
 libzci/target/release/zci-play track.opus
 ```
 
-Optional modules need `acquire-module-deps.sh` and `--features modules`; that
-acquisition path currently targets GNU/Linux. Windows module archives are not
-part of R3's verified Opus target. No module dependency is needed for Opus.
+The CLI enables modules by default. `--no-default-features` builds a lighter
+Opus/ordinary-audio CLI without module archives. Native GUI builds always include
+modules. The Windows recipe builds pinned OpenMPT/Hively with MSVC `/MD`;
+GNU/Linux retains its target-specific recipe and remains unverified here.
 
 Archives and BUILD-RECORDs live under ignored
 `.local/libzci/vendor/<library>/<release>/build-<Rust-target>/`. GNU `.a` archives
@@ -76,6 +85,7 @@ hashes; it does not replace the existing frontend corpus or its pins.
 
 ```sh
 python libzci/tests/generate-r3-media.py
+python libzci/tests/generate-m1-media.py
 cargo test --locked --manifest-path libzci/Cargo.toml --workspace --features libzci-native/provider-tests
 cargo test --locked --manifest-path libzci/Cargo.toml -p libzci-native --features provider-tests --test audible -- --ignored --nocapture
 python libzci/tests/check-cli.py
@@ -85,6 +95,6 @@ The last two checks require authorized hardware access. Device absence fails the
 explicit hardware check; it is not reported as success. `ZCI_PLAY` can select a
 release executable for the process-level CLI check. Browser checks are documented in the crude README. Installed-PWA checks begin in M2. Follow [AGENTS.md](../AGENTS.md) for build/runtime authorization.
 
-No SQL/profile, installed PWA, native GUI or FFI implementation exists yet.
+No SQL/profile, installed PWA or FFI implementation exists yet.
 Generated outputs stay in `target/` and `.local/libzci/`; ordinary player data and
 grants are preserved. The [roadmap](../docs/libzci/phases.md) owns later work.
