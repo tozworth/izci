@@ -40,7 +40,7 @@ try {
   results.push({name:'cancel real 1000-link scan, replace, seek, close',...cancelled});
   for(const name of ['corrupt','truncated','mapping']) {
     const error=await page.evaluate(async bytes=>{try {await window.referenceHarness.run(new File([new Uint8Array(bytes)],'bad.opus'),new Float32Array());return null;}catch(e){return String(e);}},await input(name));
-    assert(error?.includes('opusfile'),`${name} must report a codec failure`);results.push({name,error});
+    assert(error && /unsupported|corrupt|decoder-failure/.test(error),`${name} must report a typed media failure`);results.push({name,error});
   }
   await writeFile(path.join(root,'.local/libzci/r4-callback-evidence.json'),JSON.stringify(results,null,2));
 } finally {await browser?.close();await server.close();}

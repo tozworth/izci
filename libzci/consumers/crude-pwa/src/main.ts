@@ -1,5 +1,6 @@
 import { BrowserRuntime, type Observation } from './runtime.js';
 import type {CommandKind} from './protocol.js';
+import { FileJob } from './file-job.js';
 const byId=<T extends HTMLElement>(id:string):T=>document.getElementById(id) as T;
 let runtime:BrowserRuntime;
 let disposed=false;
@@ -21,6 +22,15 @@ function create():void {
   runtime.onObservation=o=>{
     latest=o;disposed=o.disposed;
     const s=o.snapshot;
+    for(const button of document.querySelectorAll<HTMLButtonElement>('[data-module]')) {
+      const kind=button.dataset.module!;
+      const supported=kind==='subsong'?s.capabilities.subsongs>0:kind==='loops'?s.capabilities.loop_limit:kind.startsWith('channel-')?s.capabilities.channel_mute:Boolean(s.capabilities[kind as keyof typeof s.capabilities]);
+      button.disabled=!supported;button.title=supported?'':'Unavailable from this provider';
+    }
+    byId('capabilities').textContent=`${s.capabilities.subsongs} subsongs · ${s.capabilities.channels} module channels. Disabled controls are unavailable from this provider.`;
+    byId('metadata').textContent=s.metadata?.map(([k,v])=>`${k}: ${v}`).join('\n')??'';
+    const p=s.module;
+    byId('patterns').textContent=p?`Decoder order ${p.order} / pattern ${p.pattern} / row ${p.row}\n`+Array.from({length:p.rows},(_,r)=>`${(r+p.first_row).toString(16).padStart(2,'0')}  `+p.cells.slice(r*p.channels,(r+1)*p.channels).map(c=>c.map(n=>n.toString(16).padStart(2,'0')).join(' ')).join(' | ')).join('\n'):'';
     table('snapshot',[
       ['source',o.sourceName],['source bytes',o.sourceBytes],
       ['session / generation',`${s.session} / ${s.generation}`],['state',s.state],['requested / output',`${s.requested} / ${s.running}`],
@@ -34,15 +44,39 @@ function create():void {
 create();
 function run(p:Promise<unknown>):void {void p.catch(e=>log(String(e)));}
 byId('open').onclick=()=>{
-  const file=byId<HTMLInputElement>('file').files?.[0];if(!file) {log('Select an Opus File');return;}
+  const file=byId<HTMLInputElement>('file').files?.[0];if(!file) {log('Select a media File');return;}
   if(disposed) {run(runtime.close());create();}
-  run(runtime.load(file));
+  run(runtime.load(file,byId<HTMLInputElement>('prefer-webcodecs').checked));
 };
-for(const kind of ['play','pause','stop','dispose'] as CommandKind[]) byId(kind).onclick=()=>run(runtime.command(kind));
+for(const kind of ['play','pause','stop','dispose'] as CommandKind[]) byId(kind).onclick=()=>{
+  if(kind==='dispose')for(const job of jobs)job.cancel();run(runtime.command(kind));
+};
 byId('seek').onclick=()=>run(runtime.command('seek',Number(byId<HTMLInputElement>('seek-seconds').value)));
 byId<HTMLInputElement>('volume').oninput=e=>run(runtime.command('volume',Number((e.target as HTMLInputElement).value)));
 byId<HTMLInputElement>('mute').onchange=e=>run(runtime.command('mute',Number((e.target as HTMLInputElement).checked)));
+for(const button of document.querySelectorAll<HTMLButtonElement>('[data-module]'))button.onclick=()=>{
+  const kind=button.dataset.module as CommandKind;
+  run(runtime.command(kind,Number(byId<HTMLInputElement>(`${kind.startsWith('channel-')?'channel':kind}-value`).value)));
+};
+function job(mode:'probe'|'render',sink?:(bytes:ArrayBuffer)=>Promise<void>):FileJob {
+  const file=byId<HTMLInputElement>('file').files?.[0];if(!file)throw new Error('Select a media File');
+  const job=new FileJob(file,mode,byId<HTMLInputElement>('verify-unknown').checked,sink);
+  byId('job-result').textContent=`${mode} running…`;
+  void job.result.then(r=>{byId('job-result').textContent=JSON.stringify(r,null,2);},e=>{byId('job-result').textContent=String(e);});
+  return job;
+}
+const jobs=new Set<FileJob>();
+function trackJob(j:FileJob):FileJob {jobs.add(j);void j.result.then(()=>jobs.delete(j),()=>jobs.delete(j));return j;}
+byId('probe').onclick=()=>{try{trackJob(job('probe'));}catch(e){log(String(e));}};
+byId('render').onclick=()=>run((async()=>{
+  const picker=(window as unknown as {showSaveFilePicker?: (options:unknown)=>Promise<{createWritable:()=>Promise<{write:(b:ArrayBuffer)=>Promise<void>;close:()=>Promise<void>;abort:()=>Promise<void>}>}>}).showSaveFilePicker;
+  const writer=picker?await (await picker({suggestedName:'render.f32'})).createWritable():null;
+  try {await trackJob(job('render',writer?b=>writer.write(b):undefined)).result;await writer?.close();}
+  catch(e){await writer?.abort();throw e;}
+})());
+byId('cancel-jobs').onclick=()=>{for(const j of jobs)j.cancel();};
 // Explicit diagnostics surface for headless integration and lifecycle checks.
 // It exposes commands and observations, never decoder instances or live PCM.
 Object.assign(window,{libzci:{load:(file:File)=>runtime.load(file),command:(kind:CommandKind,value?:number)=>runtime.command(kind,value),
-  snapshot:()=>latest,suspend:()=>runtime.suspend(),resume:()=>runtime.resume()}});
+  snapshot:()=>latest,suspend:()=>runtime.suspend(),resume:()=>runtime.resume(),
+  job:(mode:'probe'|'render',verify=false)=>runtime.startJob(mode,verify).result,cancelJobs:()=>runtime.cancelJobs()}});

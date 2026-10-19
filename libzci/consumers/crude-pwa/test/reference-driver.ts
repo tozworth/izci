@@ -2,16 +2,18 @@
 // Compares every normalized sample without putting PCM into the player document.
 import { BLOCK_FRAMES, type Tag } from '../src/protocol.js';
 const tag=(generation:number):Tag=>({session:1,instance:1,operation:generation,generation});
-function run(file:File,reference:Float32Array,start=0,delay=0,rate=48000):Promise<Record<string,unknown>> {
+function run(file:File,reference:Float32Array,start=0,delay=0,rate=48000,sourceRate=48000,preferWebCodecs=false,disableWebCodecs=false):Promise<Record<string,unknown>> {
   return new Promise((resolve,reject)=>{
-    const worker=new Worker(new URL('../src/workers/decode-worker.ts',import.meta.url),{type:'module'});
+    const url=new URL('../src/workers/decode-worker.ts',import.meta.url);
+    const bootstrap=disableWebCodecs?URL.createObjectURL(new Blob([`const pending=[];self.onmessage=e=>pending.push(e);Object.defineProperty(globalThis,'AudioDecoder',{value:undefined,configurable:true});await import(${JSON.stringify(url.href)});for(const e of pending)self.onmessage(e);`],{type:'text/javascript'})):null;
+    const worker=new Worker(bootstrap??url,{type:'module'});
     const channel=new MessageChannel();
     const generation=start?2:1;
-    let index=0,frames=0,blocks=0,maxError=0,lastEnd=Math.round(start*48000),stats={};
+    let index=0,frames=0,blocks=0,maxError=0,lastEnd=Math.round(start*sourceRate),stats={},provider='';
     let eof=false,inflight=0,highWater=0;
     const outstanding=new Set<number>();
     const timer=setTimeout(()=>done(new Error('reference worker timed out')),30000);
-    function done(error?:Error):void {clearTimeout(timer);worker.terminate();channel.port1.close();if(error)reject(error);else resolve({frames,blocks,maxError,highWater,stats,lastEnd});}
+    function done(error?:Error):void {clearTimeout(timer);worker.terminate();channel.port1.close();if(bootstrap)URL.revokeObjectURL(bootstrap);if(error)reject(error);else resolve({frames,blocks,maxError,highWater,stats,lastEnd,provider});}
     channel.port1.onmessage=e=>{
       const m=e.data;
       if(m.type==='eof' && m.generation===generation) {eof=true;if(!inflight)done();return;}
@@ -37,8 +39,9 @@ function run(file:File,reference:Float32Array,start=0,delay=0,rate=48000):Promis
     worker.onerror=e=>done(new Error(e.message));
     worker.onmessage=e=>{
       const m=e.data;
-      if(m.type==='ready')worker.postMessage({type:'open',tag:tag(1),file});
-      if(m.type==='opened'&&m.tag.generation===1&&start)worker.postMessage({type:'seek',tag:tag(2),frame:Math.round(start*48000)});
+      if(m.type==='opened')provider=m.facts.provider.id;
+      if(m.type==='ready')worker.postMessage({type:'open',tag:tag(1),file,preferWebCodecs});
+      if(m.type==='opened'&&m.tag.generation===1&&start)worker.postMessage({type:'seek',tag:tag(2),frame:Math.round(start*sourceRate)});
       if(m.type==='failed')done(new Error(`${m.kind}: ${m.detail}`));
       if(m.type==='progress'){stats=m.stats;worker.postMessage({type:'stats-ack'});}
       if(m.type==='eof'&&m.tag.generation===generation)stats=m.stats;

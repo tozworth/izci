@@ -6,6 +6,12 @@ use wasm_bindgen::prelude::*;
 fn js(e: impl ToString) -> JsValue {
     JsValue::from_str(&e.to_string())
 }
+fn typed_js(e:LibzciError)->JsValue {
+    let value=js_sys::Object::new();
+    let _=js_sys::Reflect::set(&value,&"kind".into(),&e.kind().into());
+    let _=js_sys::Reflect::set(&value,&"detail".into(),&e.to_string().into());
+    value.into()
+}
 #[derive(Deserialize)]
 struct Tag {
     session: u64,
@@ -35,10 +41,26 @@ impl WebEngine {
         }
     }
     pub fn command(&mut self, kind: &str, value: f64) -> std::result::Result<String, JsValue> {
-        Ok(self.inner.command(kind, value).map_err(js)?.to_string())
+        Ok(self.inner.command(kind, value).map_err(typed_js)?.to_string())
     }
     pub fn snapshot(&self) -> String {
         self.inner.snapshot().to_string()
+    }
+    pub fn opened_facts(
+        &mut self,
+        tag: &str,
+        facts: &str,
+        position: f64,
+    ) -> std::result::Result<bool, JsValue> {
+        let facts = serde_json::from_str(facts).map_err(js)?;
+        self.inner
+            .opened_facts(parse_tag(tag)?, &facts, position as u64)
+            .map_err(js)
+    }
+    pub fn observed(&mut self, tag: &str, module: &str) -> std::result::Result<(), JsValue> {
+        self.inner
+            .observed(parse_tag(tag)?, &serde_json::from_str(module).map_err(js)?);
+        Ok(())
     }
     pub fn opened(
         &mut self,
@@ -66,7 +88,10 @@ impl WebEngine {
         let detail = detail.to_owned();
         let e = match kind {
             "cancelled" => LibzciError::Cancelled,
-            "source-access" => LibzciError::Unavailable { detail },
+            "source-access" | "unavailable" => LibzciError::Unavailable { detail },
+            "access-required" => LibzciError::AccessRequired { detail },
+            "corrupt" => LibzciError::Corrupt { detail },
+            "invalid-argument" => LibzciError::InvalidArgument { detail },
             "unsupported" => LibzciError::Unsupported { detail },
             "resource-exhausted" => LibzciError::ResourceExhausted { detail },
             "device-unavailable" => LibzciError::DeviceUnavailable { detail },
@@ -108,6 +133,28 @@ impl WebPreparation {
                 Generation(generation as u64),
             )
             .map_err(js)?,
+            block: vec![0.; 8192],
+            descriptor: String::new(),
+        })
+    }
+    pub fn for_layout(
+        source_rate: u32,
+        channels: u32,
+        rate: u32,
+        generation: f64,
+    ) -> std::result::Result<Self, JsValue> {
+        let layout = PcmLayout::new(
+            if channels == 1 {
+                ChannelLayout::Mono
+            } else {
+                ChannelLayout::Stereo
+            },
+            source_rate,
+        )
+        .map_err(js)?;
+        Ok(Self {
+            prep: OutputPreparation::new(layout, rate, 4096, Generation(generation as u64))
+                .map_err(js)?,
             block: vec![0.; 8192],
             descriptor: String::new(),
         })

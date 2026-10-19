@@ -7,6 +7,7 @@ ready.catch(e => self.postMessage({type:'error',kind:'unavailable',detail:`contr
 let web: WebEngine;
 let output: MessagePort;
 let file: File | undefined;
+let preferWebCodecs=false;
 let stats: Record<string, unknown> = {};
 let outputStats: Record<string, unknown> = {};
 let generation = -1;
@@ -33,6 +34,7 @@ function publish(): void {
   self.postMessage({type:'snapshot',snapshot:snapshot(),stats,output:outputStats,disposed,sourceName:file?.name,sourceBytes:file?.size});
 }
 function settings(): void {
+  if(!output)return;
   const s = snapshot();
   if (generation !== s.generation) {
     generation = s.generation;
@@ -46,8 +48,9 @@ function command(kind: string, value = 0): void {
   disposed = kind === 'dispose'; failedTag = null;
   settings();
   for (const a of result.actions) {
-    if (a.kind === 'open') pendingJob = {type:'open',tag:a.tag,file};
+    if (a.kind === 'open') pendingJob = {type:'open',tag:a.tag,file,preferWebCodecs};
     if (a.kind === 'seek') pendingJob = {type:'seek',tag:a.tag,frame:a.frame,file};
+    if (a.kind === 'module') pendingJob = {type:'module',tag:a.tag,frame:a.frame,file,control:a.control};
     if (a.kind === 'close') { pendingJob = null; decoder.postMessage({type:'close'}); output.postMessage({type:'close'}); }
   }
   launch();
@@ -63,13 +66,16 @@ function fail(tag: Tag | undefined, kind: string, detail: string): void {
 decoder.onmessage = e => {
   if (!web) return;
   const m = e.data;
+  if(m.type==='capability'){self.postMessage({type:'error',kind:'capability',detail:m.detail});return;}
   if (m.type === 'released') {self.postMessage({type:'released'});return;}
   if (m.type === 'failed' && !m.tag) {fail(snapshot().tag,m.kind,m.detail);return;}
   if (m.type === 'progress') decoder.postMessage({type:'stats-ack'});
   if (!m.tag || !sameTag(m.tag,snapshot().tag) || disposed || failedTag) return;
   if (m.stats) stats = m.stats;
-  if (m.type === 'opened') web.opened(JSON.stringify(m.tag),m.total,m.position);
+  if (m.type === 'opened') web.opened_facts(JSON.stringify(m.tag),JSON.stringify(m.facts),m.position);
+  if(m.module)web.observed(JSON.stringify(m.tag),JSON.stringify(m.module));
   if (m.type === 'landed') web.landed(JSON.stringify(m.tag),m.position);
+  if(m.type==='opened'||m.type==='landed')output.postMessage({type:'anchor',generation:m.tag.generation,position:m.position});
   if (m.type === 'eof') web.eof(JSON.stringify(m.tag));
   if (m.type === 'failed') {fail(m.tag,m.kind,m.detail);return;}
   settings(); publish();
@@ -94,13 +100,15 @@ self.onmessage = async e => {
           output.postMessage({type:'report-ack'});
         } else if (o.type === 'reset-ack') {
           if (o.generation === generation) {acknowledgedGeneration = o.generation; launch();}
+        } else if(o.type==='anchor-ack') {
+          if(o.generation===snapshot().generation)decoder.postMessage({type:'anchored',tag:snapshot().tag});
         } else if (o.type === 'failed') fail(snapshot().tag,'device-unavailable',o.detail);
       };
-      decoder.postMessage({type:'init',rate:m.rate,output:m.decode},[m.decode]);
+      decoder.postMessage({type:'init',rate:m.rate,output:m.decode,transport:true},[m.decode]);
       self.postMessage({type:'ready'});
     } else if (m.type === 'load') {
       if (disposed) throw new Error('Disposed output requires a new runtime');
-      file = m.file; command('load');
+      file = m.file; preferWebCodecs=!!m.preferWebCodecs; command('load');
     } else if (m.type === 'command') command(m.kind,m.value);
     else if (m.type === 'context') {
       contextState = m.state; latency = m.latency;

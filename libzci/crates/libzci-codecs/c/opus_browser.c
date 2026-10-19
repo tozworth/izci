@@ -60,6 +60,7 @@ EMSCRIPTEN_KEEPALIVE int zci_open(ZciOpus *c) {
   return op_set_gain_offset(c->file, OP_HEADER_GAIN, 0);
 }
 EMSCRIPTEN_KEEPALIVE double zci_total(ZciOpus *c) { return (double)op_pcm_total(c->file, -1); }
+EMSCRIPTEN_KEEPALIVE int zci_links(ZciOpus *c) { return op_link_count(c->file); }
 EMSCRIPTEN_KEEPALIVE double zci_position(ZciOpus *c) { return c->at_eof ? (double)op_pcm_total(c->file, -1) : (double)op_pcm_tell(c->file); }
 EMSCRIPTEN_KEEPALIVE int zci_read(ZciOpus *c, float *out, int samples) {
   if (c->at_eof) return 0;
