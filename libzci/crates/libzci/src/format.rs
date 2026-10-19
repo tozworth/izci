@@ -9,18 +9,55 @@ use crate::error::{LibzciError, Result};
 
 pub const AUDIO_EXTENSIONS: &[&str] = &["wav", "wave", "mp3", "flac", "ogg", "oga", "opus"];
 pub fn known_audio_extension(ext: &str) -> bool {
-    AUDIO_EXTENSIONS.contains(&ext) || MODULE_EXTENSIONS.contains(&ext) || HIVELY_EXTENSIONS.contains(&ext)
+    AUDIO_EXTENSIONS.contains(&ext)
+        || MODULE_EXTENSIONS.contains(&ext)
+        || HIVELY_EXTENSIONS.contains(&ext)
 }
 /// Bounded shared classification. Opus is reserved for the reference provider.
 pub fn sniff_ordinary_audio(h: &[u8]) -> bool {
     (h.starts_with(b"RIFF") && h.get(8..12) == Some(b"WAVE"))
-        || h.starts_with(b"fLaC") || h.starts_with(b"ID3")
+        || h.starts_with(b"fLaC")
+        || h.starts_with(b"ID3")
         || (h.len() >= 2 && h[0] == 0xff && h[1] & 0xe0 == 0xe0 && h[1] & 0x06 != 0)
         || (h.starts_with(b"OggS") && h.windows(7).take(300).any(|w| w == b"\x01vorbis"))
 }
 
 /// Extensions that suggest (never prove) Ogg Opus content.
 pub const OPUS_EXTENSIONS: &[&str] = &["opus", "ogg", "oga"];
+
+/// Opus TOC packet duration on its mandatory 48 kHz timeline (RFC 6716).
+/// Bounds match the reference libopus 120 ms maximum.
+pub fn opus_packet_frames(packet: &[u8]) -> Result<u32> {
+    let corrupt = || LibzciError::Corrupt {
+        detail: "invalid Opus packet duration".into(),
+    };
+    let toc = *packet.first().ok_or_else(corrupt)?;
+    let frame = if toc & 0x80 != 0 {
+        120u32 << ((toc >> 3) & 3)
+    } else if toc & 0x60 == 0x60 {
+        if toc & 8 != 0 {
+            960
+        } else {
+            480
+        }
+    } else {
+        match (toc >> 3) & 3 {
+            3 => 2880,
+            n => 480u32 << n,
+        }
+    };
+    let count = match toc & 3 {
+        0 => 1,
+        1 | 2 => 2,
+        _ => (*packet.get(1).ok_or_else(corrupt)? & 0x3f) as u32,
+    };
+    let frames = frame * count;
+    if frames == 0 || frames > 5760 {
+        Err(corrupt())
+    } else {
+        Ok(frames)
+    }
+}
 
 /// Extensions suggesting tracker-module content (libopenmpt surface).
 pub const MODULE_EXTENSIONS: &[&str] = &[
@@ -62,7 +99,10 @@ impl OpusStreamParams {
     pub fn check_supported(&self) -> Result<()> {
         if self.channels == 0 || self.channels > 2 {
             return Err(LibzciError::Unsupported {
-                detail: format!("opus channel count {} (multichannel is a named gap)", self.channels),
+                detail: format!(
+                    "opus channel count {} (multichannel is a named gap)",
+                    self.channels
+                ),
             });
         }
         if self.family != 0 {
@@ -263,6 +303,16 @@ pub fn parse_opus_tags_packet(packet: &[u8]) -> Result<OpusTags> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn opus_packet_duration_limits_and_variable_frames() {
+        assert_eq!(opus_packet_frames(&[0x80]).unwrap(), 120);
+        assert_eq!(opus_packet_frames(&[0x98]).unwrap(), 960);
+        assert_eq!(opus_packet_frames(&[0x18]).unwrap(), 2880);
+        assert_eq!(opus_packet_frames(&[0x1b, 2]).unwrap(), 5760);
+        for invalid in [&[][..], &[3][..], &[3, 0][..], &[0x1b, 3][..]] {
+            assert_eq!(opus_packet_frames(invalid).unwrap_err().kind(), "corrupt");
+        }
+    }
 
     #[test]
     fn rejects_non_opus_pages() {
@@ -288,8 +338,14 @@ mod tests {
 
     #[test]
     fn sniffs_module_magics() {
-        assert_eq!(sniff_module_family(b"THX rest"), Some(ModuleFamily::Hively(HivelyKind::Ahx)));
-        assert_eq!(sniff_module_family(b"HVL rest"), Some(ModuleFamily::Hively(HivelyKind::Hvl)));
+        assert_eq!(
+            sniff_module_family(b"THX rest"),
+            Some(ModuleFamily::Hively(HivelyKind::Ahx))
+        );
+        assert_eq!(
+            sniff_module_family(b"HVL rest"),
+            Some(ModuleFamily::Hively(HivelyKind::Hvl))
+        );
         assert_eq!(
             sniff_module_family(b"Extended Module: title"),
             Some(ModuleFamily::Openmpt)

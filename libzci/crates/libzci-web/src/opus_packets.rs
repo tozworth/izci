@@ -20,6 +20,7 @@ pub struct WebOpusPackets {
 }
 #[wasm_bindgen]
 impl WebOpusPackets {
+    pub fn duration(packet:&[u8])->std::result::Result<u32,JsValue> { libzci::format::opus_packet_frames(packet).map_err(js) }
     #[wasm_bindgen(constructor)]
     pub fn new(id: u32, len: f64) -> std::result::Result<Self, JsValue> {
         let source: Arc<dyn RuntimeSource> = Arc::new(FileSource {

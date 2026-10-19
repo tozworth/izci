@@ -18,6 +18,7 @@ let failedTag: Tag | null = null;
 let outstanding = false;
 let dirty = true;
 let acknowledgedGeneration = -1;
+let anchoredGeneration = -1;
 let pendingJob: Record<string,unknown> | null = null;
 function launch(): void {
   if (pendingJob && acknowledgedGeneration === generation) {
@@ -38,6 +39,7 @@ function settings(): void {
   const s = snapshot();
   if (generation !== s.generation) {
     generation = s.generation;
+    anchoredGeneration=-1;
     decoder.postMessage({type:'invalidate'});
     output.postMessage({type:'reset',generation,position:s.position_frames});
   }
@@ -92,7 +94,7 @@ self.onmessage = async e => {
         const o = event.data;
         if (o.type === 'report') {
           outputStats = o;
-          if (!disposed && o.generation === snapshot().generation) {
+          if (!disposed && o.generation === snapshot().generation && anchoredGeneration===o.generation) {
             web.consumed(o.generation,o.position,o.finished);
             if (o.finished) settings();
             publish();
@@ -101,7 +103,7 @@ self.onmessage = async e => {
         } else if (o.type === 'reset-ack') {
           if (o.generation === generation) {acknowledgedGeneration = o.generation; launch();}
         } else if(o.type==='anchor-ack') {
-          if(o.generation===snapshot().generation)decoder.postMessage({type:'anchored',tag:snapshot().tag});
+          if(o.generation===snapshot().generation){anchoredGeneration=o.generation;decoder.postMessage({type:'anchored',tag:snapshot().tag});}
         } else if (o.type === 'failed') fail(snapshot().tag,'device-unavailable',o.detail);
       };
       decoder.postMessage({type:'init',rate:m.rate,output:m.decode,transport:true},[m.decode]);

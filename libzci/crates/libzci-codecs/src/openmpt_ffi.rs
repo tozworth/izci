@@ -48,11 +48,14 @@ pub struct InteractiveInterface {
     pub get_global_volume: Option<extern "C" fn(*mut openmpt_module_ext) -> c_double>,
     pub set_channel_volume: Option<extern "C" fn(*mut openmpt_module_ext, i32, c_double) -> c_int>,
     pub get_channel_volume: Option<extern "C" fn(*mut openmpt_module_ext, i32) -> c_double>,
-    pub set_channel_mute_status: Option<extern "C" fn(*mut openmpt_module_ext, i32, c_int) -> c_int>,
+    pub set_channel_mute_status:
+        Option<extern "C" fn(*mut openmpt_module_ext, i32, c_int) -> c_int>,
     pub get_channel_mute_status: Option<extern "C" fn(*mut openmpt_module_ext, i32) -> c_int>,
-    pub set_instrument_mute_status: Option<extern "C" fn(*mut openmpt_module_ext, i32, c_int) -> c_int>,
+    pub set_instrument_mute_status:
+        Option<extern "C" fn(*mut openmpt_module_ext, i32, c_int) -> c_int>,
     pub get_instrument_mute_status: Option<extern "C" fn(*mut openmpt_module_ext, i32) -> c_int>,
-    pub play_note: Option<extern "C" fn(*mut openmpt_module_ext, i32, i32, c_double, c_double) -> i32>,
+    pub play_note:
+        Option<extern "C" fn(*mut openmpt_module_ext, i32, i32, c_double, c_double) -> i32>,
     pub stop_note: Option<extern "C" fn(*mut openmpt_module_ext, i32) -> c_int>,
 }
 
@@ -97,7 +100,10 @@ extern "C" {
     /// Current position in seconds.
     pub fn openmpt_module_get_position_seconds(mod_: *mut openmpt_module) -> c_double;
     /// Seek; returns the landed position in seconds.
-    pub fn openmpt_module_set_position_seconds(mod_: *mut openmpt_module, seconds: c_double) -> c_double;
+    pub fn openmpt_module_set_position_seconds(
+        mod_: *mut openmpt_module,
+        seconds: c_double,
+    ) -> c_double;
     /// Total duration in seconds (may be infinite for looping content).
     pub fn openmpt_module_get_duration_seconds(mod_: *mut openmpt_module) -> c_double;
     /// Channel count.
@@ -106,18 +112,34 @@ extern "C" {
     pub fn openmpt_module_get_current_pattern(mod_: *mut openmpt_module) -> i32;
     pub fn openmpt_module_get_current_row(mod_: *mut openmpt_module) -> i32;
     pub fn openmpt_module_get_pattern_num_rows(mod_: *mut openmpt_module, pattern: i32) -> i32;
-    pub fn openmpt_module_get_pattern_row_channel_command(mod_: *mut openmpt_module, pattern: i32, row: i32, channel: i32, command: i32) -> u8;
+    pub fn openmpt_module_get_pattern_row_channel_command(
+        mod_: *mut openmpt_module,
+        pattern: i32,
+        row: i32,
+        channel: i32,
+        command: i32,
+    ) -> u8;
     /// Subsong facts.
     pub fn openmpt_module_get_num_subsongs(mod_: *mut openmpt_module) -> i32;
     pub fn openmpt_module_get_selected_subsong(mod_: *mut openmpt_module) -> i32;
     pub fn openmpt_module_select_subsong(mod_: *mut openmpt_module, subsong: i32) -> i32;
-    pub fn openmpt_module_get_subsong_name(mod_: *mut openmpt_module, subsong: i32) -> *const c_char;
+    pub fn openmpt_module_get_subsong_name(
+        mod_: *mut openmpt_module,
+        subsong: i32,
+    ) -> *const c_char;
     /// Repeat count (0 = play once, then EOF).
     pub fn openmpt_module_set_repeat_count(mod_: *mut openmpt_module, repeat_count: i32) -> i32;
     /// Render parameter (interpolation filter length, ...).
-    pub fn openmpt_module_set_render_param(mod_: *mut openmpt_module, param: c_int, value: i32) -> c_int;
+    pub fn openmpt_module_set_render_param(
+        mod_: *mut openmpt_module,
+        param: c_int,
+        value: i32,
+    ) -> c_int;
     /// Metadata value for a key (module-owned, no free).
-    pub fn openmpt_module_get_metadata(mod_: *mut openmpt_module, key: *const c_char) -> *const c_char;
+    pub fn openmpt_module_get_metadata(
+        mod_: *mut openmpt_module,
+        key: *const c_char,
+    ) -> *const c_char;
 }
 
 /// Error message from a failed create (takes ownership of the pointer).

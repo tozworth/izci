@@ -39,7 +39,13 @@ extern "C" {
     pub fn lz_hively_order(ctx: *const lz_hively_ctx) -> u32;
     pub fn lz_hively_row(ctx: *const lz_hively_ctx) -> u32;
     pub fn lz_hively_pattern_rows(ctx: *const lz_hively_ctx) -> u32;
-    pub fn lz_hively_pattern_cell(ctx: *const lz_hively_ctx, order: u32, row: u32, channel: u32, out: *mut u8) -> c_int;
+    pub fn lz_hively_pattern_cell(
+        ctx: *const lz_hively_ctx,
+        order: u32,
+        row: u32,
+        channel: u32,
+        out: *mut u8,
+    ) -> c_int;
     pub fn lz_hively_subsong(ctx: *const lz_hively_ctx) -> u32;
     pub fn lz_hively_channel_mute(ctx: *const lz_hively_ctx, channel: u32) -> c_int;
     /// Select a subsong (resets position and duration probe).
@@ -71,7 +77,8 @@ extern "C" {
     /// Probed finite duration in samples (0 when unknown).
     pub fn lz_hively_duration_samples(ctx: *const lz_hively_ctx) -> u32;
     /// Per-instance mute (1 = muted).
-    pub fn lz_hively_set_channel_mute(ctx: *mut lz_hively_ctx, channel: u32, muted: c_int) -> c_int;
+    pub fn lz_hively_set_channel_mute(ctx: *mut lz_hively_ctx, channel: u32, muted: c_int)
+        -> c_int;
     /// Interpolation taps (2/4/8, else stock).
     pub fn lz_hively_set_interpolation(ctx: *mut lz_hively_ctx, taps: u32);
 }

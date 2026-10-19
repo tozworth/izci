@@ -24,3 +24,7 @@ modules = []
 [[example]]
 name = "mod-dump"
 required-features = ["modules"]
+
+[[test]]
+name = "modules_m1"
+required-features = ["modules"]

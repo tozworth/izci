@@ -69,7 +69,7 @@ HIVELY_DIGEST="$(read_pin hivelytracker-replay digest)"; HIVELY_DIGEST="${HIVELY
 
 echo "==> libopenmpt $OPENMPT_RELEASE"
 OPENMPT_SRC="$(fetch_source libopenmpt "$OPENMPT_RELEASE" "$OPENMPT_ARCHIVE" "$OPENMPT_DIGEST" "openmpt-libopenmpt-$OPENMPT_RELEASE")"
-OPENMPT_PREFIX="$VENDOR_ROOT/libopenmpt/$OPENMPT_RELEASE/build-native"
+OPENMPT_PREFIX="$VENDOR_ROOT/libopenmpt/$OPENMPT_RELEASE/$NATIVE_BUILD"
 if [[ "$CHECK_ONLY" == "--check-only" ]]; then
   echo "    check-only: sources verified, native build skipped"
 else
@@ -99,7 +99,7 @@ fi
 
 echo "==> hivelytracker-replay $HIVELY_RELEASE"
 HIVELY_SRC="$(fetch_source hivelytracker-replay "$HIVELY_RELEASE" "$HIVELY_ARCHIVE" "$HIVELY_DIGEST" "hivelytracker-$HIVELY_RELEASE")"
-HIVELY_PREFIX="$VENDOR_ROOT/hivelytracker-replay/$HIVELY_RELEASE/build-native"
+HIVELY_PREFIX="$VENDOR_ROOT/hivelytracker-replay/$HIVELY_RELEASE/$NATIVE_BUILD"
 if [[ "$CHECK_ONLY" == "--check-only" ]]; then
   echo "    check-only: sources verified, native build skipped"
 else
@@ -136,5 +136,5 @@ else
   fi
 fi
 
-echo "wasm: pending (no Emscripten toolchain in this environment; build-wasm/ intentionally absent)"
+echo "Browser modules: python libzci/scripts/build-browser-modules.py (pinned Emscripten 4.0.10)"
 echo "done: $VENDOR_ROOT"

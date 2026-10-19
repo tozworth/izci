@@ -288,7 +288,9 @@ impl Session {
         self.landed(tag, position)
     }
     pub fn observed(&mut self, tag: JobTag, observation: Option<crate::ModuleObservation>) {
-        if self.accepts(tag) { self.snapshot.module = observation.map(std::sync::Arc::new); }
+        if self.accepts(tag) {
+            self.snapshot.module = observation.map(std::sync::Arc::new);
+        }
     }
     pub fn landed(&mut self, tag: JobTag, position: u64) -> bool {
         if !self.accepts(tag) {

@@ -176,7 +176,11 @@ impl ModuleControl {
             Self::LoopLimit(n) => n <= 16,
             Self::ChannelMute { channel, .. } => channel < caps.channels.min(256),
         };
-        if !valid { return Err(crate::LibzciError::InvalidArgument { detail: "module parameter out of range".into() }); }
+        if !valid {
+            return Err(crate::LibzciError::InvalidArgument {
+                detail: "module parameter out of range".into(),
+            });
+        }
         let supported = match self {
             Self::Subsong(_) => caps.subsongs > 0,
             Self::Interpolation(_) => caps.interpolation,
@@ -186,11 +190,17 @@ impl ModuleControl {
             Self::LoopLimit(_) => caps.loop_limit,
             Self::ChannelMute { .. } => caps.channel_mute,
         };
-        if supported { Ok(()) } else { Err(crate::LibzciError::Unsupported { detail: "module control unavailable from this provider".into() }) }
+        if supported {
+            Ok(())
+        } else {
+            Err(crate::LibzciError::Unsupported {
+                detail: "module control unavailable from this provider".into(),
+            })
+        }
     }
     pub fn same_parameter(self, other: Self) -> bool {
         match (self, other) {
-            (Self::ChannelMute {channel:a,..}, Self::ChannelMute {channel:b,..}) => a == b,
+            (Self::ChannelMute { channel: a, .. }, Self::ChannelMute { channel: b, .. }) => a == b,
             _ => std::mem::discriminant(&self) == std::mem::discriminant(&other),
         }
     }

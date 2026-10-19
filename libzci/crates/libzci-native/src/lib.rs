@@ -8,8 +8,8 @@
 pub mod audio;
 pub mod pcm_transport;
 pub mod playback;
-pub mod render;
 pub mod probe;
+pub mod render;
 pub mod runtime;
 mod session_jobs;
 pub mod source;

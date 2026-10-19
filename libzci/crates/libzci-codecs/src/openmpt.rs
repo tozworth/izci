@@ -78,7 +78,12 @@ impl ProviderFactory for OpenmptFactory {
     fn probe(&self, input: &ProbeInput<'_>) -> ProbeScore {
         match sniff_module_family(input.header) {
             Some(libzci::ModuleFamily::Openmpt) => ProbeScore::Magic,
-            _ if input.extension_hint.is_some_and(libzci::is_module_extension_hint) => ProbeScore::Hint,
+            _ if input
+                .extension_hint
+                .is_some_and(libzci::is_module_extension_hint) =>
+            {
+                ProbeScore::Hint
+            }
             _ => ProbeScore::No,
         }
     }
@@ -222,7 +227,12 @@ impl OpenmptInstance {
         let total_frames = if duration.is_finite() && duration > 0.0 && duration < 3600.0 * 12.0 {
             Some((duration * 48000.0).round() as u64)
         } else {
-            None
+            unsafe {
+                openmpt_ffi::openmpt_module_ext_destroy(ext);
+            }
+            return Err(LibzciError::ResourceExhausted {
+                detail: "module duration must be finite and under 12 hours".into(),
+            });
         };
         Ok(Self {
             info: provider_info(),
@@ -408,14 +418,31 @@ impl DecoderInstance for OpenmptInstance {
             let pattern = openmpt_ffi::openmpt_module_get_current_pattern(self.mod_).max(0);
             let row = openmpt_ffi::openmpt_module_get_current_row(self.mod_).max(0) as u32;
             let first = row.saturating_sub(4);
-            let rows = (openmpt_ffi::openmpt_module_get_pattern_num_rows(self.mod_, pattern).max(0) as u32).saturating_sub(first).min(16);
+            let rows = (openmpt_ffi::openmpt_module_get_pattern_num_rows(self.mod_, pattern).max(0)
+                as u32)
+                .saturating_sub(first)
+                .min(16);
             let channels = self.channels.min(32);
             let mut cells = Vec::with_capacity((rows * channels) as usize);
-            for r in first..first+rows { for c in 0..channels {
-                cells.push(std::array::from_fn(|cmd| openmpt_ffi::openmpt_module_get_pattern_row_channel_command(self.mod_,pattern,r as i32,c as i32,cmd as i32)));
-            }}
-            Some(libzci::ModuleObservation { selected_subsong: self.selected_subsong(), order: openmpt_ffi::openmpt_module_get_current_order(self.mod_).max(0) as u32,
-                pattern: pattern as u32, row, first_row: first, rows, channels, cells })
+            for r in first..first + rows {
+                for c in 0..channels {
+                    cells.push(std::array::from_fn(|cmd| {
+                        openmpt_ffi::openmpt_module_get_pattern_row_channel_command(
+                            self.mod_, pattern, r as i32, c as i32, cmd as i32,
+                        )
+                    }));
+                }
+            }
+            Some(libzci::ModuleObservation {
+                selected_subsong: self.selected_subsong(),
+                order: openmpt_ffi::openmpt_module_get_current_order(self.mod_).max(0) as u32,
+                pattern: pattern as u32,
+                row,
+                first_row: first,
+                rows,
+                channels,
+                cells,
+            })
         }
     }
     fn module_control(
@@ -440,20 +467,41 @@ impl DecoderInstance for OpenmptInstance {
                 self.set_channel_mute(channel, mute)?
             }
             libzci::ModuleControl::Ramping(n) => {
-                if unsafe { openmpt_ffi::openmpt_module_set_render_param(self.mod_, openmpt_ffi::RENDER_VOLUMERAMPING_STRENGTH, n) } != 1 {
-                    return Err(LibzciError::DecoderFailure { detail: "ramping rejected".into() });
+                if unsafe {
+                    openmpt_ffi::openmpt_module_set_render_param(
+                        self.mod_,
+                        openmpt_ffi::RENDER_VOLUMERAMPING_STRENGTH,
+                        n,
+                    )
+                } != 1
+                {
+                    return Err(LibzciError::DecoderFailure {
+                        detail: "ramping rejected".into(),
+                    });
                 }
             }
             libzci::ModuleControl::Speed(n) => {
-                if self.iface.set_tempo_factor.unwrap()(self.ext,n) != 1 { return Err(LibzciError::DecoderFailure { detail: "tempo rejected".into() }); }
-                self.speed = n; self.refresh_duration();
+                if self.iface.set_tempo_factor.unwrap()(self.ext, n) != 1 {
+                    return Err(LibzciError::DecoderFailure {
+                        detail: "tempo rejected".into(),
+                    });
+                }
+                self.speed = n;
+                self.refresh_duration();
             }
             libzci::ModuleControl::Pitch(n) => {
-                if self.iface.set_pitch_factor.unwrap()(self.ext,n) != 1 { return Err(LibzciError::DecoderFailure { detail: "pitch rejected".into() }); }
+                if self.iface.set_pitch_factor.unwrap()(self.ext, n) != 1 {
+                    return Err(LibzciError::DecoderFailure {
+                        detail: "pitch rejected".into(),
+                    });
+                }
             }
             libzci::ModuleControl::LoopLimit(n) => {
-                unsafe { openmpt_ffi::openmpt_module_set_repeat_count(self.mod_,n as i32); }
-                self.repeats = n; self.refresh_duration();
+                unsafe {
+                    openmpt_ffi::openmpt_module_set_repeat_count(self.mod_, n as i32);
+                }
+                self.repeats = n;
+                self.refresh_duration();
             }
         }
         Ok(())
@@ -538,7 +586,10 @@ impl DecoderInstance for OpenmptInstance {
         };
         // SAFETY: owned handle.
         let landed = unsafe {
-            openmpt_ffi::openmpt_module_set_position_seconds(self.mod_, clamped as f64 * self.speed / 48000.0)
+            openmpt_ffi::openmpt_module_set_position_seconds(
+                self.mod_,
+                clamped as f64 * self.speed / 48000.0,
+            )
         };
         self.reapply_mutes();
         self.position_frames = if landed.is_finite() && landed >= 0.0 {
@@ -556,10 +607,24 @@ impl DecoderInstance for OpenmptInstance {
             total_frames: self.total_frames,
             applied: AppliedAdjustments::default(),
             declared_channels: self.channels as u16,
-            comments: ["title", "type", "tracker", "artist", "message"].iter().map(|key| {
-                let c = CString::new(*key).unwrap();
-                (key.to_string(), unsafe { openmpt_ffi::borrowed_string(openmpt_ffi::openmpt_module_get_metadata(self.mod_,c.as_ptr())) }.chars().take(4096).collect())
-            }).collect(),
+            comments: ["title", "type", "tracker", "artist", "message"]
+                .iter()
+                .map(|key| {
+                    let c = CString::new(*key).unwrap();
+                    (
+                        key.to_string(),
+                        unsafe {
+                            openmpt_ffi::borrowed_string(openmpt_ffi::openmpt_module_get_metadata(
+                                self.mod_,
+                                c.as_ptr(),
+                            ))
+                        }
+                        .chars()
+                        .take(4096)
+                        .collect(),
+                    )
+                })
+                .collect(),
         }
     }
 }
@@ -573,7 +638,11 @@ mod tests {
     fn fixture_bytes(id: &str) -> Vec<u8> {
         let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../../.local/libzci/media")
-            .join(if id.ends_with(".mod") { "m1/tone.mod" } else { "r3/stereo.opus" });
+            .join(if id.ends_with(".mod") {
+                "m1/tone.mod"
+            } else {
+                "r3/stereo.opus"
+            });
         std::fs::read(&path).unwrap_or_else(|_| {
             panic!(
                 "missing fixture {} — run `node fixtures/generate.mjs` first",

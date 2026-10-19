@@ -4,8 +4,8 @@
 //! `src/lib/services/openmpt/test-fixtures.ts` byte-for-byte;
 //! `blank_ahx`/`blank_hvl` port the blank-tune construction from
 //! `src/lib/services/ahx-worklet.test.ts`. Blank Hively tunes prove
-//! lifecycle only; audible AHX/HVL plus XM/S3M/IT/MO3 corpus inputs
-//! remain explicit acquisition work.
+//! lifecycle only; audible M1 AHX/HVL and XM/S3M/IT/MO3 inputs are generated
+//! separately by `tests/generate-m1-media.py`.
 
 /// Minimal ProTracker MOD: 1 pattern (or 2 disconnected orders for the
 /// two-subsong variant) plus a 1 KiB sine sample.

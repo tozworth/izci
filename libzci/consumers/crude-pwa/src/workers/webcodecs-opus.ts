@@ -28,7 +28,8 @@ export async function openWebCodecs(id:number,file:File,total:number,yieldTask:(
         decoded=samples;
         delivered?.();delivered=null;failed=null;
       }catch(e){error=e;failed?.(e);failed=null;delivered=null;}finally{frame.close();}
-    },error:e=>{error=e;failed?.(e);failed=null;delivered=null;}});d.configure(config);return d;
+    },error:e=>{error=e;failed?.(e);failed=null;delivered=null;}});
+    try{d.configure(config);}catch(e){d.close();throw e;}return d;
   };
   let decoder:PlatformDecoder;
   try {decoder=create();}catch(e){packets.free();timeline.free();throw e;}
@@ -41,7 +42,8 @@ export async function openWebCodecs(id:number,file:File,total:number,yieldTask:(
       }
       decoded=null;
       const output=new Promise<void>((resolve,reject)=>{delivered=resolve;failed=reject;});
-      decoder.decode(new api.EncodedAudioChunk({type:'key',timestamp:sequence++*20000,data:packet}));
+      const timestamp=Math.round(sequence*1000000/48000);sequence+=WebOpusPackets.duration(packet);
+      decoder.decode(new api.EncodedAudioChunk({type:'key',timestamp,data:packet}));
       await output;check();if(error)throw error;
       pending=timeline.accept(decoded??new Float32Array(0));offset=0;
       await yieldTask();
@@ -59,5 +61,6 @@ export async function openWebCodecs(id:number,file:File,total:number,yieldTask:(
     },
     control:async()=>{throw {kind:'unsupported',detail:'Opus has no module controls'};},
     close:()=>{if(decoder.state!=='closed')decoder.close();packets.free();timeline.free();},
+    interrupt:()=>{const reject=failed;failed=null;delivered=null;reject?.({kind:'cancelled',detail:'platform decode superseded'});},
   };
 }
