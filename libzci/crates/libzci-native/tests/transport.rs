@@ -77,6 +77,8 @@ impl DecoderInstance for Decoder {
             subsongs: 2,
             interpolation: true,
             channel_mute: true,
+            channels: 4,
+            ..Default::default()
         }
     }
     fn module_control(&mut self, control: ModuleControl, cancel: &CancelFlag) -> Result<()> {
@@ -359,7 +361,7 @@ fn public_load_options_module_capabilities_and_controls() {
         rt.wait_ready(session, &cancel).unwrap();
     }
     assert_eq!(rt.snapshot(session).unwrap().position_frames, 0);
-    rt.submit(
+    let error = rt.submit(
         &Command::Module {
             session,
             request_id: RequestId::fresh(),
@@ -367,11 +369,9 @@ fn public_load_options_module_capabilities_and_controls() {
         },
         &cancel,
     )
-    .unwrap();
-    assert!(matches!(
-        rt.wait_ready(session, &cancel),
-        Err(LibzciError::InvalidArgument { .. })
-    ));
+    .unwrap_err();
+    assert!(matches!(error, LibzciError::InvalidArgument { .. }));
+    assert!(rt.snapshot(session).unwrap().error.is_none());
 }
 #[test]
 fn bounded_event_overflow_is_visible_and_recovers_with_snapshot() {

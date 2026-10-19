@@ -41,6 +41,7 @@ pub struct Snapshot {
     pub decoding_eof: bool,
     pub pending_operation: bool,
     pub capabilities: crate::ModuleCapabilities,
+    pub module: Option<std::sync::Arc<crate::ModuleObservation>>,
 }
 
 /// A bounded event drain includes loss counters and a recovery snapshot.

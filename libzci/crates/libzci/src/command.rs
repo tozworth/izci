@@ -159,5 +159,39 @@ pub struct LoadOptions {
 pub enum ModuleControl {
     Subsong(u32),
     Interpolation(u32),
+    Ramping(i32),
+    Speed(f64),
+    Pitch(f64),
+    LoopLimit(u32),
     ChannelMute { channel: u32, mute: bool },
+}
+impl ModuleControl {
+    /// Validate before changing a generation or scheduling work.
+    pub fn validate(self, caps: crate::ModuleCapabilities) -> crate::Result<()> {
+        let valid = match self {
+            Self::Subsong(n) => n < caps.subsongs,
+            Self::Interpolation(n) => matches!(n, 1 | 2 | 4 | 8),
+            Self::Ramping(n) => (-1..=10).contains(&n),
+            Self::Speed(n) | Self::Pitch(n) => n.is_finite() && (0.25..=4.0).contains(&n),
+            Self::LoopLimit(n) => n <= 16,
+            Self::ChannelMute { channel, .. } => channel < caps.channels.min(256),
+        };
+        if !valid { return Err(crate::LibzciError::InvalidArgument { detail: "module parameter out of range".into() }); }
+        let supported = match self {
+            Self::Subsong(_) => caps.subsongs > 0,
+            Self::Interpolation(_) => caps.interpolation,
+            Self::Ramping(_) => caps.ramping,
+            Self::Speed(_) => caps.speed,
+            Self::Pitch(_) => caps.pitch,
+            Self::LoopLimit(_) => caps.loop_limit,
+            Self::ChannelMute { .. } => caps.channel_mute,
+        };
+        if supported { Ok(()) } else { Err(crate::LibzciError::Unsupported { detail: "module control unavailable from this provider".into() }) }
+    }
+    pub fn same_parameter(self, other: Self) -> bool {
+        match (self, other) {
+            (Self::ChannelMute {channel:a,..}, Self::ChannelMute {channel:b,..}) => a == b,
+            _ => std::mem::discriminant(&self) == std::mem::discriminant(&other),
+        }
+    }
 }

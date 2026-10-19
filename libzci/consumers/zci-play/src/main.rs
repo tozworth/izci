@@ -181,6 +181,7 @@ fn main() {
 fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
     let runtime = NativeRuntime::new();
     runtime.register_provider(Arc::new(OpusFactory::default()))?;
+    runtime.register_provider(Arc::new(libzci_symphonia::SymphoniaFactory))?;
     #[cfg(feature = "modules")]
     {
         runtime.register_provider(Arc::new(libzci_codecs::OpenmptFactory::default()))?;

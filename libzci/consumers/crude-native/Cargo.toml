@@ -1,0 +1,13 @@
+[package]
+name = "crude-native"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Minimal egui consumer of the public libzci native runtime"
+[dependencies]
+libzci = { path = "../../crates/libzci" }
+libzci-native = { path = "../../crates/libzci-native" }
+libzci-codecs = { path = "../../crates/libzci-codecs", features = ["modules"] }
+libzci-symphonia = { path = "../../crates/libzci-symphonia" }
+eframe = { version = "=0.32.3", default-features = false, features = ["default_fonts", "glow", "x11", "wayland"] }
+rfd = "=0.15.4"

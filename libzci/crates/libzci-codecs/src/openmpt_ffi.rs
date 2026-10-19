@@ -102,6 +102,11 @@ extern "C" {
     pub fn openmpt_module_get_duration_seconds(mod_: *mut openmpt_module) -> c_double;
     /// Channel count.
     pub fn openmpt_module_get_num_channels(mod_: *mut openmpt_module) -> i32;
+    pub fn openmpt_module_get_current_order(mod_: *mut openmpt_module) -> i32;
+    pub fn openmpt_module_get_current_pattern(mod_: *mut openmpt_module) -> i32;
+    pub fn openmpt_module_get_current_row(mod_: *mut openmpt_module) -> i32;
+    pub fn openmpt_module_get_pattern_num_rows(mod_: *mut openmpt_module, pattern: i32) -> i32;
+    pub fn openmpt_module_get_pattern_row_channel_command(mod_: *mut openmpt_module, pattern: i32, row: i32, channel: i32, command: i32) -> u8;
     /// Subsong facts.
     pub fn openmpt_module_get_num_subsongs(mod_: *mut openmpt_module) -> i32;
     pub fn openmpt_module_get_selected_subsong(mod_: *mut openmpt_module) -> i32;
@@ -125,10 +130,12 @@ pub fn take_error_message(ptr: *const c_char) -> String {
     message
 }
 
-/// Module-owned string (no free; empty on null).
+/// Copy and free an allocated library string (empty on null).
 pub fn borrowed_string(ptr: *const c_char) -> String {
     if ptr.is_null() {
         return String::new();
     }
-    unsafe { CStr::from_ptr(ptr).to_string_lossy().into_owned() }
+    let value = unsafe { CStr::from_ptr(ptr).to_string_lossy().into_owned() };
+    unsafe { openmpt_free_string(ptr) };
+    value
 }

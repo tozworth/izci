@@ -1,0 +1,10 @@
+[package]
+name = "libzci-symphonia"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Shared native/WASM ordinary-audio provider with bounded source reads"
+
+[dependencies]
+libzci = { path = "../libzci" }
+symphonia = { version = "=0.5.5", default-features = false, features = ["wav", "pcm", "mp3", "flac", "ogg", "vorbis"] }

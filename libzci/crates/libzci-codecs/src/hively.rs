@@ -343,11 +343,27 @@ impl Drop for HivelyInstance {
 }
 
 impl DecoderInstance for HivelyInstance {
+    fn module_observation(&self) -> Option<libzci::ModuleObservation> {
+        let (order,row) = self.order_row();
+        let first = row.saturating_sub(4);
+        let rows = unsafe { hively_ffi::lz_hively_pattern_rows(self.ctx) }.saturating_sub(first).min(16);
+        let channels = self.channels.min(32);
+        let mut cells = Vec::with_capacity((rows*channels) as usize);
+        for r in first..first+rows { for c in 0..channels {
+            let mut cell = [0;6];
+            unsafe { hively_ffi::lz_hively_pattern_cell(self.ctx,order,r,c,cell.as_mut_ptr()); }
+            cells.push(cell);
+        }}
+        Some(libzci::ModuleObservation { selected_subsong:self.selected_subsong(),order,pattern:order,row,first_row:first,rows,channels,cells })
+    }
     fn capabilities(&self) -> libzci::ModuleCapabilities {
         libzci::ModuleCapabilities {
             subsongs: self.subsong_count(),
             interpolation: true,
             channel_mute: true,
+            channels: self.channels,
+            patterns: true,
+            ..Default::default()
         }
     }
     fn module_control(
@@ -356,6 +372,7 @@ impl DecoderInstance for HivelyInstance {
         cancel: &CancelFlag,
     ) -> Result<()> {
         cancel.check()?;
+        control.validate(self.capabilities())?;
         match control {
             libzci::ModuleControl::Subsong(n) => {
                 self.select_subsong(n, cancel)?;
@@ -366,6 +383,7 @@ impl DecoderInstance for HivelyInstance {
             libzci::ModuleControl::ChannelMute { channel, mute } => {
                 self.set_channel_mute(channel, mute)?
             }
+            _ => return Err(LibzciError::Unsupported { detail: "Hively has no speed, pitch, ramping or repeat control".into() }),
         }
         Ok(())
     }
@@ -469,7 +487,7 @@ impl DecoderInstance for HivelyInstance {
             total_frames: self.total_frames,
             applied: AppliedAdjustments::default(),
             declared_channels: self.channels as u16,
-            comments: Vec::new(),
+            comments: vec![("title".into(), self.title.clone()), ("type".into(), format!("{:?}",self.kind))],
         }
     }
 }

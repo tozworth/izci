@@ -199,6 +199,7 @@ impl SessionEntry {
                             d.capabilities(),
                             d.position_frames(),
                         );
+                        c.owner.observed(plan.tag, d.module_observation());
                         Event::Completed {
                             session: plan.tag.session,
                             request_id: plan.tag.operation,
@@ -272,6 +273,7 @@ impl SessionEntry {
                 }
                 _ => (),
             }
+            if let Some(d) = &decoder { c.owner.observed(plan.tag, d.module_observation()); }
             c.result = Some(result);
             c.demand = false;
             c.refresh_output();

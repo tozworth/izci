@@ -38,6 +38,8 @@ extern "C" {
     pub fn lz_hively_title(ctx: *const lz_hively_ctx, len: *mut u32) -> *const c_char;
     pub fn lz_hively_order(ctx: *const lz_hively_ctx) -> u32;
     pub fn lz_hively_row(ctx: *const lz_hively_ctx) -> u32;
+    pub fn lz_hively_pattern_rows(ctx: *const lz_hively_ctx) -> u32;
+    pub fn lz_hively_pattern_cell(ctx: *const lz_hively_ctx, order: u32, row: u32, channel: u32, out: *mut u8) -> c_int;
     pub fn lz_hively_subsong(ctx: *const lz_hively_ctx) -> u32;
     pub fn lz_hively_channel_mute(ctx: *const lz_hively_ctx, channel: u32) -> c_int;
     /// Select a subsong (resets position and duration probe).
