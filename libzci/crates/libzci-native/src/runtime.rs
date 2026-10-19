@@ -22,7 +22,9 @@ impl NativeRuntime {
     pub fn provider_ids(&self) -> Vec<ProviderId> {
         self.registry.lock().unwrap().provider_ids()
     }
-    pub(crate) fn registry_snapshot(&self) -> ProviderRegistry { self.registry.lock().unwrap().clone() }
+    pub(crate) fn registry_snapshot(&self) -> ProviderRegistry {
+        self.registry.lock().unwrap().clone()
+    }
     pub fn insert_source(&self, source: Arc<dyn RuntimeSource>) -> SourceId {
         let id = source.id();
         self.sources.lock().unwrap().insert(id, source);

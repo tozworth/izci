@@ -11,6 +11,7 @@ export interface Backend {
   facts():Facts;position():number;read():Float32Array|Promise<Float32Array>;seek(target:number):Promise<void>;
   control(kind:string,value:number):Promise<void>;close():void;
   retainedBytes?():number;
+  interrupt?():void;
 }
 export async function openProvider(kind:string,id:number,file:File,read:(offset:number,length:number)=>Uint8Array,yieldTask:()=>Promise<void>,check:()=>void):Promise<Backend> {
   if(kind==='ordinary') {

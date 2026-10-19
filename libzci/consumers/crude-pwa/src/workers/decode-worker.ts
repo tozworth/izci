@@ -212,7 +212,7 @@ self.onmessage = event => {
   const m = event.data;
   if(m.type==='anchored') {if(active&&sameTag(active.tag,m.tag)){awaitingAnchor=false;void drive();}return;}
   if (m.type === 'stats-ack') {statsPending = false;return;}
-  if (m.type === 'invalidate') {if (active) active.cancelled = true; latest = null; return;}
+  if (m.type === 'invalidate') {if (active) active.cancelled = true;backend?.interrupt?.(); latest = null; return;}
   if (m.type === 'init') {
     initialized = (async () => {
       rate = m.rate; output = m.output;
@@ -233,6 +233,7 @@ self.onmessage = event => {
     initialized.catch(e => post({type:'failed',tag:active?.tag,...failure(e)}));
   } else if (m.type === 'open' || m.type === 'seek' || m.type==='module') {
     if (active) active.cancelled = true;
+    backend?.interrupt?.();
     if (m.type === 'open') requestedFile = m.file;
     wantClose = false;
     latest = m;
@@ -240,6 +241,7 @@ self.onmessage = event => {
     void initialized?.then(drive);
   } else if (m.type === 'cancel' || m.type === 'close') {
     if (active) active.cancelled = true;
+    backend?.interrupt?.();
     latest = null;
     // drive's finally runs only after Asyncify has fully rewound. New work
     // supersedes a pending close, so release cannot close a replacement load.

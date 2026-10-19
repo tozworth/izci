@@ -273,7 +273,9 @@ impl SessionEntry {
                 }
                 _ => (),
             }
-            if let Some(d) = &decoder { c.owner.observed(plan.tag, d.module_observation()); }
+            if let Some(d) = &decoder {
+                c.owner.observed(plan.tag, d.module_observation());
+            }
             c.result = Some(result);
             c.demand = false;
             c.refresh_output();

@@ -8,9 +8,8 @@
 //!
 //! Duration discovery and seeks are bounded cancellable steps on
 //! decode jobs — never one uncancellable call and never on audio
-//! callbacks. Output is float stereo at 48 kHz. Blank AHX/HVL tunes
-//! prove lifecycle (open/seek/select/mute/dispose/EOF); audible DSP
-//! and mute verification need real fixtures (named gap, not claimed).
+//! callbacks. Output is float stereo at 48 kHz. Blank AHX/HVL tunes prove
+//! lifecycle; M1's separately generated audible tunes verify PCM and mutes.
 
 use std::sync::Arc;
 
@@ -237,9 +236,9 @@ impl HivelyInstance {
                 return Ok(());
             }
             if duration >= hively_ffi::MAX_DURATION_FRAMES {
-                // Looping/unbounded content: finite EOF unknown.
-                self.total_frames = None;
-                return Ok(());
+                return Err(LibzciError::ResourceExhausted {
+                    detail: "Hively duration exceeds the 30-minute scan limit".into(),
+                });
             }
         }
     }
@@ -344,17 +343,32 @@ impl Drop for HivelyInstance {
 
 impl DecoderInstance for HivelyInstance {
     fn module_observation(&self) -> Option<libzci::ModuleObservation> {
-        let (order,row) = self.order_row();
+        let (order, row) = self.order_row();
         let first = row.saturating_sub(4);
-        let rows = unsafe { hively_ffi::lz_hively_pattern_rows(self.ctx) }.saturating_sub(first).min(16);
+        let rows = unsafe { hively_ffi::lz_hively_pattern_rows(self.ctx) }
+            .saturating_sub(first)
+            .min(16);
         let channels = self.channels.min(32);
-        let mut cells = Vec::with_capacity((rows*channels) as usize);
-        for r in first..first+rows { for c in 0..channels {
-            let mut cell = [0;6];
-            unsafe { hively_ffi::lz_hively_pattern_cell(self.ctx,order,r,c,cell.as_mut_ptr()); }
-            cells.push(cell);
-        }}
-        Some(libzci::ModuleObservation { selected_subsong:self.selected_subsong(),order,pattern:order,row,first_row:first,rows,channels,cells })
+        let mut cells = Vec::with_capacity((rows * channels) as usize);
+        for r in first..first + rows {
+            for c in 0..channels {
+                let mut cell = [0; 6];
+                unsafe {
+                    hively_ffi::lz_hively_pattern_cell(self.ctx, order, r, c, cell.as_mut_ptr());
+                }
+                cells.push(cell);
+            }
+        }
+        Some(libzci::ModuleObservation {
+            selected_subsong: self.selected_subsong(),
+            order,
+            pattern: order,
+            row,
+            first_row: first,
+            rows,
+            channels,
+            cells,
+        })
     }
     fn capabilities(&self) -> libzci::ModuleCapabilities {
         libzci::ModuleCapabilities {
@@ -383,7 +397,11 @@ impl DecoderInstance for HivelyInstance {
             libzci::ModuleControl::ChannelMute { channel, mute } => {
                 self.set_channel_mute(channel, mute)?
             }
-            _ => return Err(LibzciError::Unsupported { detail: "Hively has no speed, pitch, ramping or repeat control".into() }),
+            _ => {
+                return Err(LibzciError::Unsupported {
+                    detail: "Hively has no speed, pitch, ramping or repeat control".into(),
+                })
+            }
         }
         Ok(())
     }
@@ -487,7 +505,10 @@ impl DecoderInstance for HivelyInstance {
             total_frames: self.total_frames,
             applied: AppliedAdjustments::default(),
             declared_channels: self.channels as u16,
-            comments: vec![("title".into(), self.title.clone()), ("type".into(), format!("{:?}",self.kind))],
+            comments: vec![
+                ("title".into(), self.title.clone()),
+                ("type".into(), format!("{:?}", self.kind)),
+            ],
         }
     }
 }

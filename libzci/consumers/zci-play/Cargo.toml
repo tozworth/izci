@@ -17,4 +17,5 @@ libzci-symphonia = { path = "../../crates/libzci-symphonia" }
 ctrlc = "3"
 
 [features]
+default = ["modules"]
 modules = ["libzci-codecs/modules"]

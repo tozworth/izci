@@ -1,9 +1,9 @@
 //! Codec providers over compiled reference media libraries.
 //!
 //! - `opus`: reference libopusfile callbacks, trim/gain, float decode and seek.
-//! - `openmpt`: tracker modules over libopenmpt 0.8.4 (Phase 1.4).
+//! - `openmpt`: tracker modules over libopenmpt 0.8.4, with M1 jobs/controls.
 //! - `hively`: AHX/HVL over the instance-safe context wrapper in `c/`
-//!   (Phase 1.4; lifecycle now, audible fixtures later).
+//!   (M1 audible AHX/HVL fixtures, stepped jobs and bounded inspection).
 
 #[cfg(feature = "modules")]
 pub mod hively;

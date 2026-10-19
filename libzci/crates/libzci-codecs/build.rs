@@ -72,16 +72,13 @@ fn main() {
         }
     }
     if std::env::var_os("CARGO_FEATURE_MODULES").is_some() {
-        link_prestatic(
-            "libopenmpt",
-            "openmpt",
-            "libzci/scripts/acquire-module-deps.sh",
-        );
-        link_prestatic(
-            "hivelytracker-replay",
-            "hivelycontext",
-            "libzci/scripts/acquire-module-deps.sh",
-        );
+        let module_recipe = if target.ends_with("msvc") {
+            "python libzci/scripts/build-module-deps.py (in an MSVC environment)"
+        } else {
+            "libzci/scripts/acquire-module-deps.sh"
+        };
+        link_prestatic("libopenmpt", "openmpt", module_recipe);
+        link_prestatic("hivelytracker-replay", "hivelycontext", module_recipe);
         if target.contains("linux") || target.ends_with("windows-gnu") {
             println!("cargo:rustc-link-lib=stdc++");
         } else if target.contains("apple") {

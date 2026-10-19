@@ -28,5 +28,16 @@ try {
   }
   await run('mono');await run('stereo');await run('gain');await run('stereo',0.625);await run('stereo',1.250125);await run('chain');
   await run('mono',0,true);
+  const player=await browser.newPage();await player.goto('http://localhost:5197');
+  await player.locator('#prefer-webcodecs').check();await player.locator('#file').setInputFiles(path.join(root,'.local/libzci/media/r3/long.opus'));await player.locator('#open').click();
+  await player.waitForFunction(()=>window.libzci.snapshot()?.snapshot.provider?.id==='browser.webcodecs.opus'&&!window.libzci.snapshot()?.snapshot.pending_operation);
+  await player.locator('#play').click();await player.waitForFunction(()=>window.libzci.snapshot()?.snapshot.position_frames>1000);
+  await player.evaluate(async()=>{await window.libzci.command('seek',20);await window.libzci.command('seek',0.1);await window.libzci.command('stop');});
+  await player.waitForFunction(()=>window.libzci.snapshot()?.snapshot.position_frames===0&&window.libzci.snapshot()?.snapshot.requested==='Held'&&!window.libzci.snapshot()?.snapshot.pending_operation);
+  await player.evaluate(()=>window.libzci.command('seek',30.000125));await player.waitForFunction(()=>!window.libzci.snapshot()?.snapshot.pending_operation&&window.libzci.snapshot()?.snapshot.position_frames===1440006);
+  await player.locator('#play').click();await player.waitForFunction(()=>window.libzci.snapshot()?.snapshot.state==='Ended');
+  const transport=await player.evaluate(()=>window.libzci.snapshot());assert.equal(transport.snapshot.error,null);assert.equal(transport.snapshot.position_frames,1440006);
+  results.push({test:'optional provider real output / rapid seek / stop / EOF',...transport});
+  await player.locator('#dispose').click();await player.waitForFunction(()=>window.libzci.snapshot()?.disposed);
   await writeFile(path.join(root,'.local/libzci/m1-webcodecs-evidence.json'),JSON.stringify(results,null,2));
 }finally{await browser?.close();await server.close();}

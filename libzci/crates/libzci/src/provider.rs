@@ -129,7 +129,9 @@ pub trait DecoderInstance: Send {
         ModuleCapabilities::default()
     }
     /// Bounded transient pattern window; never part of durable metadata.
-    fn module_observation(&self) -> Option<ModuleObservation> { None }
+    fn module_observation(&self) -> Option<ModuleObservation> {
+        None
+    }
     fn module_control(
         &mut self,
         _control: crate::command::ModuleControl,
@@ -217,22 +219,39 @@ impl ProviderRegistry {
     }
     /// Independent inspection. Unknown-extension verification is explicit and
     /// never constructs a device/output/session.
-    pub fn inspect(&self, source: Arc<dyn RuntimeSource>, hint: Option<&str>, verify_unknown: bool, cancel: &CancelFlag) -> Result<Inspection> {
+    pub fn inspect(
+        &self,
+        source: Arc<dyn RuntimeSource>,
+        hint: Option<&str>,
+        verify_unknown: bool,
+        cancel: &CancelFlag,
+    ) -> Result<Inspection> {
         let known = hint.is_some_and(crate::format::known_audio_extension);
         if !known && !verify_unknown {
-            return Err(LibzciError::Unsupported { detail: "unknown-extension verification is disabled".into() });
+            return Err(LibzciError::Unsupported {
+                detail: "unknown-extension verification is disabled".into(),
+            });
         }
         let instance = match self.open_best(source.clone(), hint, cancel) {
             Ok((_, d)) => d,
             Err(LibzciError::Unsupported { .. }) if !known && verify_unknown => {
-                let factory = self.factories.iter().find(|f| f.info().id == ProviderId::OPENMPT)
-                    .ok_or_else(|| LibzciError::Unsupported { detail: "module verification provider unavailable".into() })?;
-                factory.open(source,cancel)?
+                let factory = self
+                    .factories
+                    .iter()
+                    .find(|f| f.info().id == ProviderId::OPENMPT)
+                    .ok_or_else(|| LibzciError::Unsupported {
+                        detail: "module verification provider unavailable".into(),
+                    })?;
+                factory.open(source, cancel)?
             }
             Err(e) => return Err(e),
         };
         cancel.check()?;
-        Ok(Inspection { metadata: instance.metadata(), capabilities: instance.capabilities(), module: instance.module_observation() })
+        Ok(Inspection {
+            metadata: instance.metadata(),
+            capabilities: instance.capabilities(),
+            module: instance.module_observation(),
+        })
     }
 
     /// Probe all factories and open the winner.

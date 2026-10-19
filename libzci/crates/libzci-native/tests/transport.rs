@@ -361,15 +361,16 @@ fn public_load_options_module_capabilities_and_controls() {
         rt.wait_ready(session, &cancel).unwrap();
     }
     assert_eq!(rt.snapshot(session).unwrap().position_frames, 0);
-    let error = rt.submit(
-        &Command::Module {
-            session,
-            request_id: RequestId::fresh(),
-            control: ModuleControl::Interpolation(99),
-        },
-        &cancel,
-    )
-    .unwrap_err();
+    let error = rt
+        .submit(
+            &Command::Module {
+                session,
+                request_id: RequestId::fresh(),
+                control: ModuleControl::Interpolation(99),
+            },
+            &cancel,
+        )
+        .unwrap_err();
     assert!(matches!(error, LibzciError::InvalidArgument { .. }));
     assert!(rt.snapshot(session).unwrap().error.is_none());
 }

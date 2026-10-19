@@ -2,7 +2,7 @@
 Requires FFmpeg 8.1.1. Synthetic tracker byte layouts are generated here; no
 third-party music is downloaded. MO3 acquisition is recorded separately.
 """
-import hashlib,json,math,struct,subprocess
+import hashlib,json,math,struct,subprocess,shutil,sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'.local/libzci/media/m1';OUT.mkdir(parents=True,exist_ok=True)
 version=subprocess.check_output(['ffmpeg','-version'],text=True).splitlines()[0]
@@ -57,6 +57,7 @@ for hvl in [False,True]:
     data=header+positions+track+ins+perf
     struct.pack_into('>H',data,4,len(data));data+=b'M1 audible square\0Square\0'
     (OUT/('tone.hvl' if hvl else 'tone.ahx')).write_bytes(data)
-files={p.name:{'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in OUT.iterdir() if p.suffix!='.json'}
-(OUT/'provenance.json').write_text(json.dumps({'license':'CC0-1.0','recipe':'libzci/tests/generate-m1-media.py','ffmpeg':version,'commands':commands,'files':files},indent=2)+'\n')
+names=[f'{rate}-{channels}.{ext}' for rate,channels in [(44100,1),(48000,2)] for ext in ['wav','mp3','flac','ogg']]+[f'tone.{ext}' for ext in ['mod','xm','s3m','it','mo3','ahx','hvl']]
+files={name:{'bytes':(OUT/name).stat().st_size,'sha256':hashlib.sha256((OUT/name).read_bytes()).hexdigest()} for name in names}
+(OUT/'provenance.json').write_text(json.dumps({'license':'CC0-1.0','recipe':'libzci/tests/generate-m1-media.py','recipe_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'python':sys.version,'ffmpeg':version,'ffmpeg_binary_sha256':hashlib.sha256(Path(shutil.which('ffmpeg')).read_bytes()).hexdigest(),'commands':commands,'files':files},indent=2)+'\n')
 print(OUT)

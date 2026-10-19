@@ -13,6 +13,11 @@ target = 'emscripten-4.0.10' if args.browser else subprocess.check_output(['rust
 if not args.browser and target != 'x86_64-pc-windows-msvc': raise SystemExit('Use acquire-module-deps.sh for GNU/Linux.')
 em = Path(env.get('EMSDK', ROOT/'.local/libzci/emsdk'))/'upstream/emscripten'
 if args.browser: env['PATH'] = str(em)+os.pathsep+env['PATH']
+if args.browser:
+    version=subprocess.check_output([__import__('sys').executable,str(em/'emcc.py'),'--version'],env=env,text=True)
+    if ' 4.0.10 ' not in version: raise SystemExit('Requires pinned Emscripten 4.0.10')
+else:
+    version=subprocess.run(['cl'],capture_output=True,text=True).stderr.splitlines()[0]
 def run(*a): subprocess.run([str(x) for x in a], check=True, env=env)
 for name in ['libopenmpt','hivelytracker-replay']:
     src,dest,pin = acq.acquire(name)
@@ -44,4 +49,4 @@ for name in ['libopenmpt','hivelytracker-replay']:
     flags = [f'-DCMAKE_TOOLCHAIN_FILE={em}/cmake/Modules/Platform/Emscripten.cmake'] if args.browser else []
     run('cmake','-S',project,'-B',build,'-G','Ninja',f'-DCMAKE_INSTALL_PREFIX={prefix}','-DCMAKE_BUILD_TYPE=Release',*flags)
     run('cmake','--build',build,'--parallel','4'); run('cmake','--install',build)
-    (prefix/'BUILD-RECORD.txt').write_text(json.dumps({'target':target,'pin':pin,'recipe':'build-module-deps.py','sourceFiles':[str(p.relative_to(src)) if p.is_relative_to(src) else str(p.relative_to(ROOT)) for p in files]},indent=2)+'\n')
+    (prefix/'BUILD-RECORD.txt').write_text(json.dumps({'target':target,'compiler':version,'runtime':'/MD' if not args.browser else 'Emscripten','pin':pin,'recipe':'build-module-deps.py','sourceFiles':[str(p.relative_to(src)) if p.is_relative_to(src) else str(p.relative_to(ROOT)) for p in files]},indent=2)+'\n')

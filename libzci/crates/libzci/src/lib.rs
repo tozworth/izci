@@ -60,9 +60,9 @@ pub use ogg_reader::{
 };
 #[cfg(feature = "control")]
 pub use provider::{
-    decode_chunk, AppliedAdjustments, DecodeStatus, DecoderInstance, ModuleCapabilities, ModuleObservation,
-    ProbeInput, ProbeScore, ProviderFactory, ProviderId, ProviderInfo, ProviderMetadata, Inspection,
-    ProviderRegistry, PROBE_BYTES,
+    decode_chunk, AppliedAdjustments, DecodeStatus, DecoderInstance, Inspection,
+    ModuleCapabilities, ModuleObservation, ProbeInput, ProbeScore, ProviderFactory, ProviderId,
+    ProviderInfo, ProviderMetadata, ProviderRegistry, PROBE_BYTES,
 };
 #[cfg(feature = "control")]
 pub use session::{JobTag, Session, SessionAction, TransportState};

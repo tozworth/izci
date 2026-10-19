@@ -1,13 +1,44 @@
 mod controller;
+mod smoke;
 use controller::Controller;
 use eframe::egui;
 use libzci::*;
-use std::{path::Path,time::Duration};
-struct App {controller:Controller,path:String,seek:f64,subsong:u32,interpolation:u32,ramping:i32,speed:f64,pitch:f64,loops:u32,channel:u32,verify_unknown:bool}
-impl Default for App {fn default()->Self {Self {controller:Controller::new(),path:String::new(),seek:0.,subsong:0,interpolation:4,ramping:-1,speed:1.,pitch:1.,loops:0,channel:0,verify_unknown:false}}}
-impl eframe::App for App {
-    fn update(&mut self,ctx:&egui::Context,_frame:&mut eframe::Frame) {
-        self.controller.tick();let s=self.controller.snapshot();
+use std::{path::Path, time::Duration};
+struct App {
+    controller: Controller,
+    path: String,
+    seek: f64,
+    subsong: u32,
+    interpolation: u32,
+    ramping: i32,
+    speed: f64,
+    pitch: f64,
+    loops: u32,
+    channel: u32,
+    verify_unknown: bool,
+    smoke: Option<smoke::Smoke>,
+}
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            controller: Controller::new(),
+            path: String::new(),
+            seek: 0.,
+            subsong: 0,
+            interpolation: 4,
+            ramping: -1,
+            speed: 1.,
+            pitch: 1.,
+            loops: 0,
+            channel: 0,
+            verify_unknown: false,
+            smoke: None,
+        }
+    }
+}
+impl App {
+    fn draw(&mut self, ctx: &egui::Context) {
+        let s = self.controller.snapshot();
         egui::CentralPanel::default().show(ctx,|ui| {
             ui.heading("libzci file player");
             ui.horizontal(|ui| {ui.text_edit_singleline(&mut self.path);
@@ -64,7 +95,112 @@ impl eframe::App for App {
                 if !self.controller.error.is_empty() {ui.colored_label(egui::Color32::RED,&self.controller.error);}
                 if let Some(error)=s.error {ui.colored_label(egui::Color32::RED,error.to_string());}
             });
-        });ctx.request_repaint_after(Duration::from_millis(50));
+        });
+        ctx.request_repaint_after(Duration::from_millis(50));
     }
 }
-fn main()->eframe::Result {eframe::run_native("libzci crude",eframe::NativeOptions {viewport:egui::ViewportBuilder::default().with_inner_size([1050.,650.]),..Default::default()},Box::new(|_|Ok(Box::<App>::default())))}
+impl eframe::App for App {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.controller.tick();
+        self.draw(ctx);
+        if self
+            .smoke
+            .as_mut()
+            .is_some_and(|s| s.step(&mut self.controller))
+        {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+    }
+}
+fn main() -> eframe::Result {
+    let args: Vec<String> = std::env::args().collect();
+    let input = if args.get(1).is_some_and(|a| a == "--headless-test") {
+        Some(
+            args.get(2)
+                .expect("--headless-test requires a media path")
+                .clone(),
+        )
+    } else {
+        None
+    };
+    let hidden = input.is_some();
+    let outcome: smoke::Outcome = Default::default();
+    let observed = outcome.clone();
+    eframe::run_native(
+        "libzci crude",
+        eframe::NativeOptions {
+            viewport: egui::ViewportBuilder::default()
+                .with_inner_size([1050., 650.])
+                .with_visible(!hidden),
+            ..Default::default()
+        },
+        Box::new(move |_| {
+            let mut app = App::default();
+            if let Some(path) = input {
+                app.path = path;
+                app.controller.open(Path::new(&app.path));
+                app.smoke = Some(smoke::Smoke::new(outcome));
+            }
+            Ok(Box::new(app))
+        }),
+    )?;
+    if hidden {
+        match observed.lock().unwrap().take() {Some(Ok(()))=>println!("passed: hidden egui window / muted native output / play / pause / seek / module control / probe / stop / dispose"),result=>{eprintln!("failed: {result:?}");std::process::exit(2);}}
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn headless_egui_draw_and_public_controller_jobs() {
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../.local/libzci/media/m1");
+        let mut app = App::default();
+        app.controller.open(&root.join("tone.hvl"));
+        app.controller
+            .runtime
+            .wait_ready(app.controller.session, &CancelFlag::default())
+            .unwrap();
+        let ctx = egui::Context::default();
+        let frame = ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(1050., 650.),
+                )),
+                ..Default::default()
+            },
+            |ctx| app.draw(ctx),
+        );
+        assert!(!ctx
+            .tessellate(frame.shapes, frame.pixels_per_point)
+            .is_empty());
+        let before = app.controller.snapshot();
+        assert!(before.capabilities.patterns);
+        app.controller.module(ModuleControl::Interpolation(2));
+        app.controller
+            .runtime
+            .wait_ready(app.controller.session, &CancelFlag::default())
+            .unwrap();
+        let generation = app.controller.snapshot().generation;
+        app.controller.inspect(false);
+        let p = app.controller.probe.as_ref().unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(3);
+        loop {
+            if let Some(r) = p.poll() {
+                assert_eq!(r.unwrap().metadata.info.id, ProviderId::HIVELY);
+                break;
+            }
+            assert!(std::time::Instant::now() < deadline);
+            std::thread::yield_now();
+        }
+        app.controller.render(&root.join("native-gui.f32"));
+        let (_, rx) = app.controller.render.as_ref().unwrap();
+        assert!(rx.recv_timeout(Duration::from_secs(3)).unwrap().unwrap() > 0);
+        assert_eq!(app.controller.snapshot().generation, generation);
+        app.controller.dispose();
+        assert_eq!(app.controller.snapshot().state, TransportState::Idle);
+    }
+}
