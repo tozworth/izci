@@ -10,7 +10,7 @@ are all open. No build, test, listening, or browser result was newly produced by
 this documentation revision. Append future results under the new milestone IDs.
 The old phase labels and next-step statements below do not direct current work.
 
-## Recovery R4: reference browser player — implemented; extended checks pending
+## Recovery R4: reference browser player — implemented; checks pending
 
 2026-10-19, Windows x64. Baseline `3b5fc39b`; initial dirty files: none.
 Builds and headless tests explicitly authorized. Profile: none.
@@ -24,13 +24,80 @@ uses shared processing/clock code. Eight transferable PCM blocks (262,144 bytes)
 travel directly from decoder to worklet, with recycle credits and explicit
 consumer generation acknowledgment. No PCM traverses the document.
 
-Initial validation: reference C build; Rust web/audio tests (3 passed); both
-Rust WASM builds; TypeScript check; production Vite build; fresh Chromium page
-with AudioDecoder disabled. The real stereo File produced nonzero worklet
-samples, paused, sought to 14,400 frames and drained at exactly 60,006 frames.
-Extended callback, memory, long-output, lifecycle and regression checks follow.
-This result does not establish hardware listening, screen-off or physical Android.
-No ordinary izci assets, profiles, databases or grants changed.
+Implementation milestone: `5caa0a7c` ("Play reference Opus through shared Rust
+browser transport and worklet"); followed by the browser verification/recovery
+commit in this session. Public seek seconds are converted in Rust. The C wrapper
+matches native's explicit seek-to-trimmed-EOF behavior. Decoder jobs use a
+MessageChannel task yield rather than timers, preserving cancellation delivery
+without depending on background timer budgets. Missing codec assets and live
+File access loss resolve Loading/Playing as typed failures.
+
+Toolchain: Rust 1.98.1 / Cargo 1.98.1, wasm-bindgen-cli 0.2.129, Emscripten
+4.0.10, Python 3.13, Node 24.16.0, Playwright 1.61.1,
+Chromium 149.0.7827.55 headless, Windows x64. Profile: none.
+
+Validation (passed unless explicitly noted):
+
+- `python libzci/scripts/build-browser-codecs.py`: digest-verified pinned static
+  libraries and reference browser module; separate ignored target outputs.
+- `python libzci/consumers/crude-pwa/scripts/build-wasm.py`: separate release
+  Rust control and audio-only builds, locked dependencies and matching CLI.
+- `cargo test --locked --manifest-path libzci/Cargo.toml --workspace
+  --features libzci-native/provider-tests`: **70 passed, 0 failed**, two explicit
+  hardware tests ignored. Native output/transport and reference provider tests
+  remain working. No new native hardware/listening claim.
+- `npm run typecheck`, `npm test`, `npm run build` in the crude: passed. Two raw
+  WASM tests establish no JS imports/control/catalog exports and exact marked
+  samples over more than twelve pool capacities, variable/full/empty schedules,
+  final tail/latency drain, pause/starvation/reset, and unchanged heap length.
+- `python libzci/tests/generate-r4-media.py`: native CLI reference renders,
+  including each tested seek, derived from R3's CC0 inputs. R4 provenance records
+  native executable/media hashes, -6 dB header-gain and distinct-serial mixed
+  chains, a 1,000-link scan source and corrupt/truncated/channel-map cases.
+- `npm run test:callbacks`: **15 real-browser cases**. Mono/stereo/long/gain/chain
+  PCM and seek tails match native sample by sample; maximum absolute error
+  **7.450580596923828e-8** (asserted tolerance 3e-5). Seek comparison uses native
+  seek renders rather than slices, preserving Opus preroll semantics. The full
+  long source produces **1,440,006 frames in 1,501 blocks** under delayed recycle,
+  with eight outstanding buffers maximum. 44.1 kHz conversion drains **55,131**
+  frames for the short source. Independent workers remain isolated. A posted
+  replacement/seek during a real 1,000-link C scan lands at frame 2,400 and closes
+  in **12.6 ms** on the recorded run; corrupt inputs fail explicitly.
+- `npm run test:browser`: **five production-bundle scenarios** with AudioDecoder
+  removed and normal user activation (no autoplay override). Real File/worklet
+  playback covers pause, rapid seeks, Stop, volume/mute, suspension/resume,
+  full-pool disposal/reopen, mono trim, corrupt/recover, File snapshot invalidation
+  and missing codec WASM. A CDP-paused production decoder drains to Pending
+  silence without EOF/media-time advance and recovers after resume. A 750 ms
+  stalled document leaves audio progression independent. The full long run
+  consumes **1,440,006 frames exactly**, ends at the same source position and
+  has output energy **26577.508522098527** vs native **26577.508491770233**;
+  peak agrees at **0.15791523456573486**.
+
+Bounds observed: C heap **33,554,432 bytes**, audio-only WASM heap **1,572,864
+bytes**, transferable pool **262,144 bytes** (plus the worklet's fixed Rust pool),
+48 kHz preparation/scratch **98,304 bytes**; largest actual File read **2,048
+bytes**, below the hard 32 KiB callback bound. All active/pending PCM queues and
+UI/worker telemetry have fixed credits or one-in-flight acknowledgment.
+
+Limits / acceptance still open:
+
+- Headless tab switching (including disabling focus emulation/background timer
+  overrides) kept `document.visibilityState` **visible**. This is not actual
+  hidden-tab/background evidence. Hidden desktop tabs and physical screen-off
+  playback/OS control exposure require a real-device check; none is claimed.
+- No physical Android Chrome device was available in this session. Hardware
+  listening and physical Android/screen-off remain unverified. Media Session
+  actions/position are wired; an anchor prototype awaits demonstrated need.
+- GNU/Linux build/run recovery was not re-run. Installed/offline launch belongs
+  to M2 and is not claimed. Optional WebCodecs and additional formats remain M1.
+
+R4 is **implemented; checks pending**, not fully verified. Ordinary izci assets,
+profiles, databases and grants were preserved. All temporary test servers and
+browser profiles were closed. Local raw evidence: `.local/libzci/r4-regressions.log`,
+`r4-browser.log`, `r4-callbacks.log`, `r4-browser-evidence.json`,
+`r4-callback-evidence.json`, and `media/r4/provenance.json`. Reproduction commands
+are in the crude README.
 
 ## Recovery R1: bounded, lossless output — verified
 

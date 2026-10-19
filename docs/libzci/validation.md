@@ -3,7 +3,8 @@
 [Overview](README.md) · [Roadmap](phases.md) · [Review](review.md)
 
 Pure tests, builds, devices, browser pages, and installed PWAs prove different
-things. Follow AGENTS.md for authorization. Current R1/R2 and Windows R3 results are recorded in the
+things. Follow AGENTS.md for authorization. Current R1/R2, Windows R3, and R4
+headless results (with physical/background limits) are recorded in the
 [implementation log](implementation-log.md); the original phase reports remain historical.
 
 ## Recovery checks

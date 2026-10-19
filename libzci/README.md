@@ -6,7 +6,8 @@ frontend, Tauri/Android shells, assets and profiles remain independent.
 R1 and R2 are verified; R3's native reference Opus CLI is verified on
 `x86_64-pc-windows-msvc`, including real device transport, a full 30-second run
 and user-confirmed clean listening. See the [evidence](../docs/libzci/implementation-log.md).
-R4 browser output and M1's additional formats/module recovery remain separate work.
+R4 now has working reference browser output and headless end-to-end checks;
+hidden-tab/screen-off and physical-device checks remain pending. M1 is separate.
 
 - `libzci`: control-only session action machine, source/provider contracts,
   generation-tagged jobs, media consumption clock, bounded PCM preparation.
@@ -15,8 +16,9 @@ R4 browser output and M1's additional formats/module recovery remain separate wo
 - `libzci-codecs`: reference libopusfile/Opus provider by default; optional
   libopenmpt/Hively providers behind `modules`. The historical packet decoder
   exists only in comparison tests.
-- `libzci-web`: shared control-machine driver and existing silent browser proof.
-  Host tests pass; this is not reference browser audio or an installed PWA.
+- `libzci-web`: shared Session bindings and bounded output preparation for workers.
+- `libzci-audio-web`: import-free, audio-only shared Rust worklet renderer.
+- `consumers/crude-pwa`: reference File Opus playback; [build/run/checks](consumers/crude-pwa/README.md).
 - `consumers/zci-play`: direct native embedding, without a JS/webview/WASM runtime.
 
 ## Native build
@@ -81,8 +83,7 @@ python libzci/tests/check-cli.py
 
 The last two checks require authorized hardware access. Device absence fails the
 explicit hardware check; it is not reported as success. `ZCI_PLAY` can select a
-release executable for the process-level CLI check. Real browser/installed-PWA
-checks remain R4. Follow [AGENTS.md](../AGENTS.md) for build/runtime authorization.
+release executable for the process-level CLI check. Browser checks are documented in the crude README. Installed-PWA checks begin in M2. Follow [AGENTS.md](../AGENTS.md) for build/runtime authorization.
 
 No SQL/profile, installed PWA, native GUI or FFI implementation exists yet.
 Generated outputs stay in `target/` and `.local/libzci/`; ordinary player data and

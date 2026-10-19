@@ -1,13 +1,21 @@
 {
   "schemaVersion": 1,
-  "note": "Pinned native media sources for libzci. R3 reference Opus uses libopusfile callbacks; the ordinary izci frontend/server assets are independent.",
+  "note": "Pinned reference media sources for native and isolated browser libzci builds. Ordinary izci frontend/server assets are independent.",
   "toolchain": {
     "rustc": "1.98.1 (48a229cea 2026-09-01)",
     "cargo": "1.98.1 (797e8a9bc 2026-08-05)",
     "verifiedTarget": "x86_64-pc-windows-msvc",
     "cCompiler": "MSVC 19.44.35229, /MD",
-    "policy": "Use an installed real Rust release and the committed lockfile. Windows R2/R3 was verified with the project-local toolchain above. GNU/Linux recovery builds and browser codec builds are not verified by the Windows result.",
-    "lockfile": "libzci/Cargo.lock (committed)"
+    "policy": "Use an installed real Rust release and the committed lockfile. Windows native R2/R3 and browser R4 builds use the recorded toolchains; GNU/Linux recovery remains unverified.",
+    "lockfile": "libzci/Cargo.lock (committed)",
+    "browser": {
+      "emscripten": "4.0.10",
+      "emsdkCommit": "62a853cd3b3134398ce85cde8bb5cbb2ef0194cb",
+      "wasmBindgenCli": "0.2.129 (must match Cargo.lock)",
+      "verifiedHost": "Windows x64; headless Chromium",
+      "recipe": "libzci/scripts/build-browser-codecs.py; libzci/consumers/crude-pwa/scripts/build-wasm.py",
+      "assembly": "separate Rust control and import-free audio WASM; reference Emscripten codec with Asyncify File callbacks; no WebCodecs dependency"
+    }
   },
   "libraries": [
     {
@@ -23,7 +31,7 @@
     },
     {
       "id": "libopus",
-      "role": "Reference Opus decoder behind the native provider (statically linked 1.5.2) and the future Emscripten browser module.",
+      "role": "Reference Opus decoder behind native and Emscripten browser libopusfile providers.",
       "status": "pinned-release",
       "pinnedRelease": "1.5.2",
       "archive": "https://downloads.xiph.org/releases/opus/opus-1.5.2.tar.gz",
@@ -34,7 +42,7 @@
     },
     {
       "id": "libopusfile",
-      "role": "Production reference native Opus provider: owned source callbacks, float decode, PCM seek, per-link comments, pre-skip/end trim, OP_HEADER_GAIN with zero additional offset. ReplayGain/R128 tags are reported without applying them.",
+      "role": "Production reference native/browser Opus provider: owned source callbacks, float decode, PCM seek, per-link comments, pre-skip/end trim, OP_HEADER_GAIN with zero additional offset. ReplayGain/R128 tags are reported without applying them.",
       "status": "pinned-release",
       "pinnedRelease": "0.12",
       "archive": "https://downloads.xiph.org/releases/opus/opusfile-0.12.tar.gz",
@@ -98,5 +106,21 @@
       "Media defaults to reference Opus only. Module archives are required only for the modules feature.",
       "Windows media archives use .lib and /MD; GNU/Linux uses .a plus the appropriate native C++ runtime for optional modules."
     ]
+  },
+  "browserAcquisition": {
+    "command": "python libzci/scripts/build-browser-codecs.py",
+    "requires": "Python 3.12+, CMake, Ninja, Emscripten 4.0.10 (EMSDK or .local/libzci/emsdk)",
+    "outputs": [
+      ".local/libzci/vendor/<library>/<release>/build-emscripten-4.0.10/",
+      "libzci/consumers/crude-pwa/src/generated/opus-reference.{js,wasm}"
+    ],
+    "limits": {
+      "sourceBytes": 1073741824,
+      "singleReadBytes": 32768,
+      "links": 1024,
+      "commentBytes": 65536,
+      "heapBytes": 33554432
+    },
+    "status": "Build and real browser reference/output verified on Windows headless Chromium; hidden-tab/screen-off/physical Android pending."
   }
 }

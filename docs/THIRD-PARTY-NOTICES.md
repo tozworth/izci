@@ -494,6 +494,8 @@ Source: https://downloads.xiph.org/releases/ogg/libogg-1.3.5.tar.gz ; https://do
 
 Pinned by libzci/vendor/dependencies.json and acquired/built by libzci/scripts/acquire-media-deps.sh (GNU/Linux) or acquire-media-deps.ps1 (Windows MSVC) into ignored, target-specific .local/libzci/vendor/ locations; never overwriting the frontend/server assets above. libzci-codecs statically links libopusfile 0.12, libopus 1.5.2 and libogg 1.3.5 for its reference Opus provider; libopusfile applies the header gain and container trims. HTTP/TLS support is disabled. Copyrights are held by the Xiph.Org Foundation and the contributors identified in each source tree.
 
+The R4 browser recipe (`libzci/scripts/build-browser-codecs.py`) builds the same digest-verified libraries using Emscripten 4.0.10 into separate ignored target paths. The emitted reference codec includes Emscripten Asyncify/runtime and applicable musl/LLVM support covered by the runtime notices below. It does not reuse or replace ordinary izci codec assets.
+
 Full license/notice texts: L042 (COPYING.Xiph).
 
 ### libzci native PCM queue (rtrb 0.4.0)

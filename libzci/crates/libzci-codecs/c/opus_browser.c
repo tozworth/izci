@@ -11,6 +11,7 @@ typedef struct {
   int64_t position, length;
   OggOpusFile *file;
   int error;
+  int at_eof;
 } ZciOpus;
 
 EM_ASYNC_JS(int, source_read, (int id, double position, unsigned char *out, int length), {
@@ -59,11 +60,19 @@ EMSCRIPTEN_KEEPALIVE int zci_open(ZciOpus *c) {
   return op_set_gain_offset(c->file, OP_HEADER_GAIN, 0);
 }
 EMSCRIPTEN_KEEPALIVE double zci_total(ZciOpus *c) { return (double)op_pcm_total(c->file, -1); }
-EMSCRIPTEN_KEEPALIVE double zci_position(ZciOpus *c) { return (double)op_pcm_tell(c->file); }
+EMSCRIPTEN_KEEPALIVE double zci_position(ZciOpus *c) { return c->at_eof ? (double)op_pcm_total(c->file, -1) : (double)op_pcm_tell(c->file); }
 EMSCRIPTEN_KEEPALIVE int zci_read(ZciOpus *c, float *out, int samples) {
-  return op_read_float_stereo(c->file, out, samples);
+  if (c->at_eof) return 0;
+  int result = op_read_float_stereo(c->file, out, samples);
+  if (result == 0) c->at_eof = 1;
+  return result;
 }
-EMSCRIPTEN_KEEPALIVE int zci_seek(ZciOpus *c, double frame) { return op_pcm_seek(c->file, (opus_int64)frame); }
+EMSCRIPTEN_KEEPALIVE int zci_seek(ZciOpus *c, double frame) {
+  /* Match the native provider's explicit EOF seek: opusfile rejects exactly
+   * total on some trimmed files, but the public timeline includes that point. */
+  c->at_eof = frame >= (double)op_pcm_total(c->file, -1);
+  return c->at_eof ? 0 : op_pcm_seek(c->file, (opus_int64)frame);
+}
 EMSCRIPTEN_KEEPALIVE void zci_close(ZciOpus *c) {
   if (!c) return;
   if (c->file) op_free(c->file);

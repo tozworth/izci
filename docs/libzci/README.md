@@ -12,7 +12,9 @@ historical reports, not a declaration that recovery is complete. All milestones
 in this replacement roadmap started open. R1 and R2 are verified, and R3 now has
 a working reference Opus CLI on Windows MSVC, including hardware/listening checks.
 See the [implementation log](implementation-log.md) for target-specific evidence;
-R4 browser output is next. GNU/Linux recovery remains unverified target work.
+R4 reference browser output and headless checks are implemented; actual hidden-tab,
+screen-off and physical Android checks remain pending. GNU/Linux recovery remains
+unverified target work.
 
 ## Start here
 

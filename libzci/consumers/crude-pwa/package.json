@@ -10,15 +10,15 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "node --test test/audio-wasm.test.mjs",
     "build:wasm": "python scripts/build-wasm.py",
     "build:codecs": "python ../../scripts/build-browser-codecs.py",
-    "test:browser": "node test/browser.mjs"
+    "test:browser": "node test/browser.mjs",
+    "test:callbacks": "node test/callbacks.mjs"
   },
   "devDependencies": {
     "typescript": "5.6.3",
     "vite": "5.4.11",
-    "vitest": "2.1.8",
     "playwright": "1.61.1"
   }
 }

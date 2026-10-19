@@ -7,7 +7,9 @@ Start at `168874dd` with recoverable code, not an empty workspace. The old log's
 Phase 2.2 is not this roadmap's starting gate. R1 is verified by the device-free
 checks recorded in the [implementation log](implementation-log.md#recovery-r1-bounded-lossless-output--verified).
 R2 and native reference Opus R3 are verified on Windows MSVC (2026-10-18);
-R4 and M1-M6 remain open. GNU/Linux R3 recovery remains unverified target work. Execute in order; numbered items within a milestone are commit-sized
+R4 is implemented with headless end-to-end evidence; hidden-tab/screen-off and
+physical-device validation keep its acceptance open. M1-M6 remain open.
+GNU/Linux R3 recovery remains unverified target work. Execute in order; numbered items within a milestone are commit-sized
 units where coherent. A milestone closes when its deliverable works and the
 listed checks pass, not when its file list exists. Pending verification is a
 real dependency, not a pass. See the build/runtime rule in [README](README.md).
@@ -130,6 +132,12 @@ shows no JS/webview/WASM runtime. Listen on hardware and retain quantitative
 evidence separately. Reproduce the clean-checkout recipe on each declared target.
 
 ## R4: the same reference Opus player works in the browser
+
+Status: **implemented; checks pending** (2026-10-19). Windows headless Chromium
+passes real File/reference/output, native sample comparisons, starvation,
+backpressure, transport and failure checks. True background/screen-off, hardware
+listening and physical Android remain unverified; headless tabs remained visible.
+See [R4 evidence](implementation-log.md#recovery-r4-reference-browser-player--implemented-checks-pending).
 
 **Deliverable:** the existing crude page opens a real File and audibly plays,
 pauses, seeks, stops, and renders diagnostics through the repaired core API.

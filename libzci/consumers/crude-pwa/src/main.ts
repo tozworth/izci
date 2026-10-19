@@ -22,6 +22,7 @@ function create():void {
     latest=o;disposed=o.disposed;
     const s=o.snapshot;
     table('snapshot',[
+      ['source',o.sourceName],['source bytes',o.sourceBytes],
       ['session / generation',`${s.session} / ${s.generation}`],['state',s.state],['requested / output',`${s.requested} / ${s.running}`],
       ['provider',s.provider?`${s.provider.name} · ${s.provider.version}`:null],
       ['audible frames',s.position_frames],['audible seconds',s.sample_rate?(s.position_frames/s.sample_rate).toFixed(3):null],

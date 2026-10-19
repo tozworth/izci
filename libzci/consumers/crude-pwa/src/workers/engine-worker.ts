@@ -3,6 +3,7 @@ import { failure, sameTag, type Snapshot, type Tag } from '../protocol.js';
 
 const decoder = new Worker(new URL('./decode-worker.ts', import.meta.url), {type:'module'});
 const ready = init().then(() => new WebEngine());
+ready.catch(e => self.postMessage({type:'error',kind:'unavailable',detail:`control WASM initialization: ${String(e)}`}));
 let web: WebEngine;
 let output: MessagePort;
 let file: File | undefined;
@@ -29,7 +30,7 @@ function publish(): void {
   // One UI update in flight: a stalled document never grows a message queue.
   if (outstanding) return;
   outstanding = true; dirty = false;
-  self.postMessage({type:'snapshot',snapshot:snapshot(),stats,output:outputStats,disposed});
+  self.postMessage({type:'snapshot',snapshot:snapshot(),stats,output:outputStats,disposed,sourceName:file?.name,sourceBytes:file?.size});
 }
 function settings(): void {
   const s = snapshot();
@@ -46,7 +47,7 @@ function command(kind: string, value = 0): void {
   settings();
   for (const a of result.actions) {
     if (a.kind === 'open') pendingJob = {type:'open',tag:a.tag,file};
-    if (a.kind === 'seek') pendingJob = {type:'seek',tag:a.tag,seconds:a.seconds,file};
+    if (a.kind === 'seek') pendingJob = {type:'seek',tag:a.tag,frame:a.frame,file};
     if (a.kind === 'close') { pendingJob = null; decoder.postMessage({type:'close'}); output.postMessage({type:'close'}); }
   }
   launch();
@@ -63,6 +64,7 @@ decoder.onmessage = e => {
   if (!web) return;
   const m = e.data;
   if (m.type === 'released') {self.postMessage({type:'released'});return;}
+  if (m.type === 'failed' && !m.tag) {fail(snapshot().tag,m.kind,m.detail);return;}
   if (m.type === 'progress') decoder.postMessage({type:'stats-ack'});
   if (!m.tag || !sameTag(m.tag,snapshot().tag) || disposed || failedTag) return;
   if (m.stats) stats = m.stats;
@@ -97,7 +99,7 @@ self.onmessage = async e => {
       decoder.postMessage({type:'init',rate:m.rate,output:m.decode},[m.decode]);
       self.postMessage({type:'ready'});
     } else if (m.type === 'load') {
-      if (disposed) {web.free(); web = new WebEngine(); disposed = false; generation = -1;}
+      if (disposed) throw new Error('Disposed output requires a new runtime');
       file = m.file; command('load');
     } else if (m.type === 'command') command(m.kind,m.value);
     else if (m.type === 'context') {
