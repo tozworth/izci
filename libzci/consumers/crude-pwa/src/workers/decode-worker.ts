@@ -1,8 +1,10 @@
 /// <reference lib="webworker" />
-import init, { WebPreparation } from '../generated/libzci_web.js';
+import init, { WebPreparation, classify, known_extension } from '../generated/libzci_web.js';
+import { openProvider, type Backend, type Facts } from './browser-providers.js';
+import { openWebCodecs } from './webcodecs-opus.js';
 import createCodec from '../generated/opus-reference.js';
 import codecWasm from '../generated/opus-reference.wasm?url';
-import { BLOCK_FRAMES, POOL_SIZE, failure, type DecodeJob, type Tag } from '../protocol.js';
+import { BLOCK_FRAMES, POOL_SIZE, failure, sameTag, type DecodeJob, type Tag } from '../protocol.js';
 
 let output: MessagePort;
 let codec: any;
@@ -12,6 +14,8 @@ let active: {tag: Tag; cancelled: boolean} | null = null;
 let running = false;
 let handle = 0;
 let handleInstance = 0;
+let backend:Backend|null=null;
+let facts:Facts|null=null;
 let requestedFile: File | null = null;
 let wantClose = false;
 let source: {file: File; id: number; error: unknown; reads: number} | null = null;
@@ -25,6 +29,9 @@ let bytesRead = 0, maxRead = 0, callbackYields = 0, decodedFrames = 0, poolHighW
 let peak = 0, sumSquares = 0, sampleCount = 0;
 let statsPending = false;
 let decodedBlocks = 0;
+let probing=false;
+let requireAnchor=false,awaitingAnchor=false;
+let rustHeapBytes=()=>0;
 // Task yielding must not depend on background timer budgets. There is one
 // sequential C job, so a single reusable task channel/continuation suffices.
 const tasks = new MessageChannel();
@@ -35,6 +42,23 @@ const yieldTask = (): Promise<void> => new Promise(resolve => {
   continuation = resolve; tasks.port2.postMessage(null);
 });
 const post = (message: unknown): void => self.postMessage(message);
+function check():void {if(active?.cancelled)throw {kind:'cancelled',detail:'operation superseded'};}
+function readBytes(position:number,length:number):Uint8Array {
+  check();if(!source)throw {kind:'source-access',detail:'File unavailable'};
+  try {const data=new Uint8Array(reader.readAsArrayBuffer(source.file.slice(position,position+length)));
+    bytesRead+=data.byteLength;maxRead=Math.max(maxRead,data.byteLength);return data;
+  }catch(e){throw {kind:'source-access',detail:String(e)};}
+}
+Object.assign(globalThis,{libzciRead:(id:number,position:number,length:number)=>{
+  if(id!==source?.id)throw new Error('stale File identity');return readBytes(position,length);
+}});
+const position=():number=>backend?.position()??(handle?codec._zci_position(handle):0);
+const total=():number=>facts?.total??(handle?codec._zci_total(handle):0);
+function currentFacts():Facts {
+  if(backend)return backend.facts();
+  return {provider:{id:'org.xiph.opus',name:'Reference Opus (libopusfile)',version:'libopusfile-0.12/libopus-1.5.2/r4'},rate:48000,channels:2,total:codec._zci_total(handle),comments:[],capabilities:{subsongs:0,channels:0},module:null,
+    applied:{trimmed_preskip:true,trimmed_end:true,applied_header_gain:true}};
+}
 
 // This callback is awaited by Asyncify. It never calls back into the C module.
 // All C entry points are serialized by drive(); cancellation only changes flags.
@@ -56,9 +80,10 @@ async function readSource(id: number, position: number, pointer: number, length:
 }
 function stats(): Record<string, number> {
   return {bytesRead, maxRead, callbackYields, decodedFrames, poolHighWater,
-    decodedPosition: handle ? codec._zci_position(handle) : 0,
+    decodedPosition: position(),
     poolBytes: POOL_SIZE * BLOCK_FRAMES * 2 * 4, freeBlocks: free.size,
     preparationBytes: preparation?.retained_bytes() ?? 0, codecHeapBytes: codec.HEAPU8.byteLength,
+    providerHeapBytes:backend?.retainedBytes?.()??0,rustHeapBytes:rustHeapBytes(),
     peak, sumSquares, sampleCount};
 }
 async function call(name: string, args: number[]): Promise<number> {
@@ -71,35 +96,53 @@ async function call(name: string, args: number[]): Promise<number> {
 }
 function close(): void {
   if (handle) codec._zci_close(handle);
+  backend?.close();backend=null;facts=null;
   handle = 0; handleInstance = 0; source = null; preparation?.free(); preparation = null;
 }
 async function perform(job: DecodeJob): Promise<void> {
   active = {tag: job.tag, cancelled: false};
+  awaitingAnchor=requireAnchor;
   sourceEof = false; eofSent = false;
   decodedFrames=peak=sumSquares=sampleCount=0;
-  const didOpen = job.type === 'open' || !handle || handleInstance !== job.tag.instance;
+  const didOpen = job.type === 'open' || (!handle&&!backend) || handleInstance !== job.tag.instance;
   if (didOpen) {
     close();
     const file = job.file ?? requestedFile;
     if (!file || file.size > 1073741824) throw {kind: 'resource-exhausted', detail: 'File exceeds 1 GiB'};
     source = {file, id: nextSource++, error: null, reads: 0};
     bytesRead = maxRead = callbackYields = 0;
-    handle = codec._zci_create(source.id, file.size);
-    if (!handle) throw {kind: 'resource-exhausted', detail: 'codec context allocation failed'};
-    await call('zci_open', [handle]);
+    const hint=file.name.split('.').pop()?.toLowerCase()??'';
+    if(job.mode==='probe'&&!known_extension(hint)&&!job.verifyUnknown)throw {kind:'unsupported',detail:'Unknown-extension verification is disabled'};
+    let kind=classify(readBytes(0,8192),hint);
+    if(kind==='unsupported'&&job.mode==='probe'&&job.verifyUnknown)kind='module';
+    if(kind==='unsupported')throw {kind:'unsupported',detail:'No provider claimed this File'};
+    if(kind==='opus') {
+      handle = codec._zci_create(source.id, file.size);
+      if (!handle) throw {kind: 'resource-exhausted', detail: 'codec context allocation failed'};
+      await call('zci_open', [handle]);
+      if(job.preferWebCodecs&&codec._zci_links(handle)===1) {
+        try {backend=await openWebCodecs(source.id,file,codec._zci_total(handle),yieldTask,check);}
+        catch(e){check();post({type:'capability',detail:`Optional WebCodecs declined; using reference: ${failure(e).detail}`});}
+      }
+    } else backend=await openProvider(kind,source.id,file,readBytes,yieldTask,check);
+    facts=currentFacts();
     handleInstance = job.tag.instance;
-    const total = codec._zci_total(handle);
-    if (total < 0) throw {kind: 'decoder-failure', detail: 'invalid reference duration'};
-    if (job.type === 'open') post({type: 'opened', tag: job.tag, total, position: codec._zci_position(handle), stats: stats()});
+    if (total() < 0) throw {kind: 'decoder-failure', detail: 'invalid reference duration'};
+    if (job.type === 'open') post({type: 'opened', tag: job.tag, total:total(), position:position(), facts, stats: stats()});
+    if(job.mode==='probe') {probing=true;post({type:'probe-complete',facts,stats:stats()});close();active=null;return;}
   }
-  if (job.type === 'seek') {
-    if (!handle) throw {kind: 'cancelled', detail: 'source not opened'};
-    const total = codec._zci_total(handle);
-    const target = Math.min(total, job.frame ?? 0);
-    await call('zci_seek', [handle, target]);
-    post({type: didOpen ? 'opened' : 'landed', tag: job.tag, total, position: codec._zci_position(handle), stats: stats()});
+  if(job.type==='module') {
+    if(!backend||!job.control)throw {kind:'unsupported',detail:'Module controls unavailable'};
+    await backend.control(job.control.kind,job.control.value);facts=currentFacts();
   }
-  preparation?.free(); preparation = new WebPreparation(rate, job.tag.generation);
+  if (job.type === 'seek'||job.type==='module') {
+    if (!handle&&!backend) throw {kind: 'cancelled', detail: 'source not opened'};
+    const target = Math.min(total(),job.control?.kind==='subsong'?0:(job.frame ?? 0));
+    if(backend)await backend.seek(target);else await call('zci_seek', [handle, target]);
+    facts=currentFacts();
+    post({type: didOpen||job.type==='module' ? 'opened' : 'landed', tag: job.tag, total:total(), position:position(), facts, stats: stats()});
+  }
+  preparation?.free(); preparation = WebPreparation.for_layout(facts!.rate,facts!.channels,rate,job.tag.generation);
 }
 async function drive(): Promise<void> {
   if (running || !codec || !output) return;
@@ -118,23 +161,24 @@ async function drive(): Promise<void> {
           continue;
         }
       }
-      if (!active || active.cancelled || !preparation || eofSent || free.size === 0) break;
+      if (awaitingAnchor||probing||!active || active.cancelled || !preparation || eofSent || free.size === 0) break;
       const job = active;
       if (preparation.needs_input() && !sourceEof) {
-        const pointer = codec._malloc(BLOCK_FRAMES * 2 * 4);
-        if (!pointer) throw {kind: 'resource-exhausted', detail: 'decode buffer allocation failed'};
+        const pointer = backend?0:codec._malloc(BLOCK_FRAMES * 2 * 4);
+        if (!backend&&!pointer) throw {kind: 'resource-exhausted', detail: 'decode buffer allocation failed'};
         try {
-          const position = codec._zci_position(handle);
-          const frames = await call('zci_read', [handle, pointer, BLOCK_FRAMES * 2]);
+          const start = position();
+          const decoded=backend?await backend.read():null;
+          const frames = decoded?decoded.length/facts!.channels:await call('zci_read', [handle, pointer, BLOCK_FRAMES * 2]);
           if (job !== active || job.cancelled) continue;
           if (frames === 0) { sourceEof = true; preparation.finish(); }
           else {
-            const samples = codec.HEAPF32.subarray(pointer / 4, pointer / 4 + frames * 2) as Float32Array;
+            const samples = decoded??codec.HEAPF32.subarray(pointer / 4, pointer / 4 + frames * 2) as Float32Array;
             for (const n of samples) { peak = Math.max(peak, Math.abs(n)); sumSquares += n*n; }
             sampleCount += samples.length; decodedFrames += frames;
-            preparation.accept(position, samples);
+            preparation.accept(start, samples);
           }
-        } finally { codec._free(pointer); }
+        } finally { if(pointer)codec._free(pointer); }
       }
       if (job.cancelled) continue;
       const samples = preparation.pull();
@@ -144,7 +188,7 @@ async function drive(): Promise<void> {
         output.postMessage({type: 'block', id, pcm: buffer, descriptor: JSON.parse(preparation.descriptor())}, [buffer]);
         poolHighWater = Math.max(poolHighWater, POOL_SIZE - free.size);
         if (++decodedBlocks % 16 === 0 && !statsPending) {
-          statsPending = true;post({type:'progress',tag:job.tag,stats:stats()});
+          statsPending = true;post({type:'progress',tag:job.tag,stats:stats(),module:backend?.facts().module??null});
         }
       }
       if (preparation.drained()) {
@@ -166,11 +210,13 @@ async function drive(): Promise<void> {
 let initialized: Promise<void> | null = null;
 self.onmessage = event => {
   const m = event.data;
+  if(m.type==='anchored') {if(active&&sameTag(active.tag,m.tag)){awaitingAnchor=false;void drive();}return;}
   if (m.type === 'stats-ack') {statsPending = false;return;}
   if (m.type === 'invalidate') {if (active) active.cancelled = true; latest = null; return;}
   if (m.type === 'init') {
     initialized = (async () => {
       rate = m.rate; output = m.output;
+      requireAnchor=!!m.transport;
       for (let i = 0; i < POOL_SIZE; i++) free.set(i, new ArrayBuffer(BLOCK_FRAMES * 2 * 4));
       output.onmessage = e => {
         const r = e.data;
@@ -180,15 +226,17 @@ self.onmessage = event => {
         }
         free.set(r.id, r.pcm); void drive();
       };
-      await init(); codec = await createCodec({locateFile: () => codecWasm, readSource});
+      const wasm=await init();rustHeapBytes=()=>wasm.memory.buffer.byteLength;
+      codec = await createCodec({locateFile: () => new URL(codecWasm,import.meta.url).href, readSource});
       post({type:'ready'}); void drive();
     })();
     initialized.catch(e => post({type:'failed',tag:active?.tag,...failure(e)}));
-  } else if (m.type === 'open' || m.type === 'seek') {
+  } else if (m.type === 'open' || m.type === 'seek' || m.type==='module') {
     if (active) active.cancelled = true;
     if (m.type === 'open') requestedFile = m.file;
     wantClose = false;
     latest = m;
+    probing=false;
     void initialized?.then(drive);
   } else if (m.type === 'cancel' || m.type === 'close') {
     if (active) active.cancelled = true;

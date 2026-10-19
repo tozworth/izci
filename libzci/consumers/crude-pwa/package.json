@@ -14,7 +14,10 @@
     "build:wasm": "python scripts/build-wasm.py",
     "build:codecs": "python ../../scripts/build-browser-codecs.py",
     "test:browser": "node test/browser.mjs",
-    "test:callbacks": "node test/callbacks.mjs"
+    "test:callbacks": "node test/callbacks.mjs",
+    "test:m1": "node test/m1.mjs",
+    "test:webcodecs": "node test/webcodecs.mjs",
+    "build:modules": "python ../../scripts/build-browser-modules.py"
   },
   "devDependencies": {
     "typescript": "5.6.3",

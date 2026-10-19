@@ -1,11 +1,14 @@
 import workletUrl from './workers/output-worklet.ts?worker&url';
 import audioWasm from './generated/libzci_audio_web.wasm?url';
 import type { CommandKind, Snapshot } from './protocol.js';
+import { FileJob } from './file-job.js';
 
 export interface Observation {snapshot:Snapshot; stats:Record<string,number>; output:Record<string,number>; disposed:boolean; sourceName?:string; sourceBytes?:number}
 /** Document adapter: activation/AudioContext/MediaSession and worker assembly.
  * No PCM traverses the document. Closing presentation does not drive transport. */
 export class BrowserRuntime {
+  private file:File|null=null;
+  private jobs=new Set<FileJob>();
   private engine = new Worker(new URL('./workers/engine-worker.ts',import.meta.url),{type:'module'});
   private context:AudioContext | null = null;
   private node:AudioWorkletNode | null = null;
@@ -55,13 +58,21 @@ export class BrowserRuntime {
     })();
     return this.setup;
   }
-  async load(file:File):Promise<void> {
+  async load(file:File,preferWebCodecs=false):Promise<void> {
     await this.ensureOutput();
     if(this.observation?.disposed) throw new Error('Create a new runtime after Dispose');
     if('mediaSession' in navigator) navigator.mediaSession.metadata=new MediaMetadata({title:file.name,artist:'libzci reference player'});
-    this.engine.postMessage({type:'load',file});
+    this.engine.postMessage({type:'load',file,preferWebCodecs});
+    this.file=file;
   }
+  startJob(mode:'probe'|'render',verifyUnknown=false,sink?:(bytes:ArrayBuffer)=>Promise<void>):FileJob {
+    if(!this.file)throw new Error('Select a source first');
+    const job=new FileJob(this.file,mode,verifyUnknown,sink);this.jobs.add(job);
+    void job.result.then(()=>this.jobs.delete(job),()=>this.jobs.delete(job));return job;
+  }
+  cancelJobs():void {for(const job of this.jobs)job.cancel();this.jobs.clear();}
   async command(kind:CommandKind,value=0):Promise<void> {
+    if(kind==='dispose')this.cancelJobs();
     if(kind==='play') {
       const output=this.ensureOutput();
       const resumed=this.context!.resume();
@@ -78,6 +89,7 @@ export class BrowserRuntime {
   async suspend():Promise<void> {await this.context?.suspend();}
   async resume():Promise<void> {await this.context?.resume();}
   async close():Promise<void> {
+    this.cancelJobs();
     if(this.context?.state!=='closed') await this.context?.close();
     this.node?.disconnect();this.engine.terminate();
   }

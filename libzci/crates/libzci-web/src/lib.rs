@@ -4,9 +4,14 @@
 //! in the worklet. FileReaderSync, codec calls, ports and AudioContext are adapter
 //! mechanisms in consumers/crude-pwa. Demux helpers remain available for later
 //! optional packet providers, outside the production reference timeline.
+#[cfg(target_arch = "wasm32")]
+pub mod audio_decoder;
+#[cfg(target_arch = "wasm32")]
+pub mod bindings;
 pub mod demux;
 pub mod engine;
 #[cfg(target_arch = "wasm32")]
-pub mod bindings;
+pub mod opus_packets;
+pub mod wire;
 pub use demux::OggDemux;
 pub use engine::Engine;

@@ -1,9 +1,12 @@
-# Reference Opus browser player
+# libzci browser file player
 
 The crude opens real Files and plays through pinned libopusfile/Opus, the shared
 Rust Session and shared Rust audio processing. WebCodecs is not required.
-Controls: Open, Play/Pause, Stop (also cancels work), seek in seconds, volume,
-mute and Dispose. A new Open after Dispose creates a fresh runtime.
+It also plays WAV/MP3/FLAC/Vorbis through the same native/WASM Symphonia provider,
+and MOD/XM/S3M/IT/MO3/AHX/HVL through pinned OpenMPT/Hively. Controls include
+Open, Play/Pause, Stop, seek seconds, volume/mute, supported module parameters,
+metadata and a bounded decoder pattern window, independent probe/raw render,
+job cancellation and Dispose. A new Open after Dispose creates a fresh runtime.
 
 ## Build and run
 
@@ -19,6 +22,7 @@ python .local/libzci/emsdk/emsdk.py activate 4.0.10
 rustup target add wasm32-unknown-unknown
 cargo install wasm-bindgen-cli --version 0.2.129 --locked
 python libzci/scripts/build-browser-codecs.py
+python libzci/scripts/build-browser-modules.py
 python libzci/consumers/crude-pwa/scripts/build-wasm.py
 npm ci --prefix libzci/consumers/crude-pwa
 npm run build --prefix libzci/consumers/crude-pwa
@@ -42,7 +46,8 @@ use FileReaderSync Blob slices capped at 32 KiB. Asyncify yields through a task
 MessageChannel every 16 reads, and decode yields between blocks, allowing
 cancellation during actual scan/seek work without background timer scheduling.
 Stop/Seek/Load invalidate immediately; new PCM waits for worklet generation ack.
-Late blocks are recycled. The same libopusfile policies apply trim and mandatory
+The landed position is acknowledged by the worklet before PCM begins, including
+seeks producing no PCM at EOF. Late blocks are recycled. The same libopusfile policies apply trim and mandatory
 header gain once; seek to the exact trimmed end uses native's explicit EOF rule.
 
 Eight 4,096-frame stereo transferable buffers occupy 262,144 bytes. The worklet
@@ -53,6 +58,35 @@ source size is capped at 1 GiB, chains at 1,024 links, comments at 64 KiB.
 No queue scales with file duration. Decoder PCM goes directly to the worklet,
 never through document state. UI and output reports use one in-flight message
 and acknowledgment; terminal failures also travel as explicit outcomes.
+
+Symphonia supports mono/stereo at 8–192 kHz and reads at most 32 KiB. Exact
+restart/discard seeks yield every bounded chunk; they trade seek speed for
+deterministic codec priming. Modules require a declared full-buffer copy capped
+at 64 MiB. OpenMPT's source duration must be finite and under 12 hours; Hively's
+duration scan yields every 256 ticks and refuses songs exceeding 30 minutes.
+The module heap starts at 128 MiB and is capped at 256 MiB. Diagnostics report
+the reference heap, provider heap and Rust memory separately.
+
+Module subsongs/interpolation/channel mutes are available for both providers.
+OpenMPT additionally exposes ramping, independent speed/pitch and a finite
+0–16 repeat limit. Hively declines those controls with visible capability state;
+its current song ends once. Pattern observations are at most 16 rows × 32
+channels and follow decoder position. They are transient.
+
+Independent probes create no AudioContext and never decode into playback.
+Unknown-extension verification defaults off, applies only to probe jobs, and
+may open the background module provider when enabled. Normal playback still
+classifies bytes. Independent raw renders use bounded output chunks; the UI
+offers a File System Access export (stereo f32 LE / 48 kHz) when available and
+otherwise displays render analysis. Job cancellation/disposal releases workers.
+
+Optional WebCodecs Opus is off by default, for single-link mapping-family-0
+mono/stereo only. It uses the shared Rust Ogg CRC/lacing/header reader and Rust
+pre-skip/end-trim/header-gain timeline. Configure without an OpusHead description
+to avoid applying those adjustments twice. Seeks restart/discard and match a
+sequential reference suffix; optimized opusfile seek can have a short preroll
+transient. Unavailable configurations/chains use reference Opus. No ordinary
+audio or module support depends on WebCodecs.
 
 Output consumption spans and latency estimates drive position; starvation is
 silence/Pending, not EOF. Ended requires decoder EOF and final audible drain.
@@ -68,11 +102,14 @@ first (workspace README), then:
 
 ```sh
 python libzci/tests/generate-r4-media.py
+python libzci/tests/generate-m1-media.py
 npm exec --prefix libzci/consumers/crude-pwa -- playwright install chromium
 npm run typecheck --prefix libzci/consumers/crude-pwa
 npm test --prefix libzci/consumers/crude-pwa
 npm run test:callbacks --prefix libzci/consumers/crude-pwa
 npm run test:browser --prefix libzci/consumers/crude-pwa
+npm run test:m1 --prefix libzci/consumers/crude-pwa
+npm run test:webcodecs --prefix libzci/consumers/crude-pwa
 ```
 
 Callback tests start a temporary development server; browser tests use the

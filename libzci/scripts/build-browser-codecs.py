@@ -70,7 +70,7 @@ for name, folder in [('libogg', 'libogg-1.3.5'), ('libopus', 'opus-1.5.2'), ('li
 out = ROOT / 'libzci/consumers/crude-pwa/src/generated'
 out.mkdir(parents=True, exist_ok=True)
 src = sources['libopusfile']
-exports = ['_zci_' + s for s in ['create', 'open', 'total', 'position', 'read', 'seek', 'close']] + ['_malloc', '_free']
+exports = ['_zci_' + s for s in ['create', 'open', 'total', 'position', 'read', 'seek', 'close', 'links']] + ['_malloc', '_free']
 run(sys.executable, emcc, '-O3', '-DOP_DISABLE_HTTP',
     f'-I{src}/include', f'-I{prefixes["libogg"]}/include', f'-I{prefixes["libopus"]}/include/opus',
     ROOT / 'libzci/crates/libzci-codecs/c/opus_browser.c',

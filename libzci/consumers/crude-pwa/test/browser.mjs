@@ -134,7 +134,7 @@ try {
   await page.locator('#file').setInputFiles(path.join(root,'.local/libzci/media/r4/corrupt.opus'));
   await page.locator('#open').click();
   await wait(()=>window.libzci.snapshot()?.snapshot.state==='Failed');
-  const corrupt=await snap();assert(corrupt.snapshot.error.includes('opusfile'));
+  const corrupt=await snap();assert(/unsupported|corrupt|decoder failure/.test(corrupt.snapshot.error));
   const access=path.join(root,'.local/libzci/media/r4/access.opus');
   await copyFile(path.join(root,'.local/libzci/media/r3/long.opus'),access);
   await page.locator('#file').setInputFiles(access);await page.locator('#open').click();

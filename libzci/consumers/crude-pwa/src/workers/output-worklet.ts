@@ -76,12 +76,12 @@ class Output extends AudioWorkletProcessor {
       this.wasm.renderer_free(this.pointer); this.closed=true; return;
     }
     if (this.closed) return;
-    if (m.type==='reset') {
+    if (m.type==='reset'||m.type==='anchor'&&m.generation===this.generation) {
       this.generation=m.generation;this.reportedFinished=false;
       this.peak=0;this.energy=0;this.intervalPeak=0;this.highWater=0;
       for (const id of this.buffers.keys()) this.recycle(id);
       this.wasm.renderer_reset(this.pointer,m.generation,m.position);
-      this.control.postMessage({type:'reset-ack',generation:m.generation});
+      this.control.postMessage({type:m.type==='anchor'?'anchor-ack':'reset-ack',generation:m.generation});
     } else if (m.type==='settings' && m.generation===this.generation) {
       this.wasm.renderer_settings(this.pointer,Number(m.running),m.volume,Number(m.mute),m.latency);
     }

@@ -10,6 +10,7 @@ android/local.properties
 src-tauri/target/
 src-tauri/gen/
 libzci/target/
+libzci/scripts/__pycache__/
 libzci/consumers/crude-pwa/src/generated/
 .codex
 .vite
