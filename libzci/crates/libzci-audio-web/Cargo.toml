@@ -1,0 +1,12 @@
+[package]
+name = "libzci-audio-web"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Audio-only fixed-storage worklet renderer over shared libzci processing"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+libzci = { path = "../libzci", default-features = false }

@@ -15,13 +15,9 @@
 
 pub mod demux;
 pub mod engine;
-mod session_driver;
 
 #[cfg(target_arch = "wasm32")]
 pub mod bindings;
 
 pub use demux::OggDemux;
-pub use engine::{
-    plan_opus_seek, BrowserHivelyFactory, BrowserModuleFactory, BrowserOpusFactory, Engine,
-    EngineCommand, HostDecoder, HostShared, SeekPlan, BROWSER_OPUS_VERSION,
-};
+pub use engine::Engine;
