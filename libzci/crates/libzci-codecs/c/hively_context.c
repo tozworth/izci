@@ -45,6 +45,18 @@ struct lz_hively_ctx {
 };
 
 extern void hvl_play_irq(struct hvl_tune *tune);
+uint32_t lz_hively_pattern_rows(const lz_hively_ctx *ctx) {
+  return ctx && ctx->tune ? ctx->tune->ht_TrackLength : 0;
+}
+int lz_hively_pattern_cell(const lz_hively_ctx *ctx, uint32_t order, uint32_t row, uint32_t channel, uint8_t *out) {
+  const struct hvl_step *s;
+  uint32_t track;
+  if (!ctx || !ctx->tune || !out || order >= ctx->tune->ht_PositionNr || row >= ctx->tune->ht_TrackLength || row >= 64 || channel >= ctx->tune->ht_Channels) return 0;
+  track = ctx->tune->ht_Positions[order].pos_Track[channel];
+  s = &ctx->tune->ht_Tracks[track][row];
+  out[0]=s->stp_Note; out[1]=s->stp_Instrument; out[2]=s->stp_FX; out[3]=s->stp_FXParam; out[4]=s->stp_FXb; out[5]=s->stp_FXbParam;
+  return 1;
+}
 extern void hvl_mixchunk(struct hvl_tune *tune, uint32_t samples,
                          int8_t *left, int8_t *right, int32_t stride);
 

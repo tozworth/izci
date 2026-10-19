@@ -60,8 +60,8 @@ pub use ogg_reader::{
 };
 #[cfg(feature = "control")]
 pub use provider::{
-    decode_chunk, AppliedAdjustments, DecodeStatus, DecoderInstance, ModuleCapabilities,
-    ProbeInput, ProbeScore, ProviderFactory, ProviderId, ProviderInfo, ProviderMetadata,
+    decode_chunk, AppliedAdjustments, DecodeStatus, DecoderInstance, ModuleCapabilities, ModuleObservation,
+    ProbeInput, ProbeScore, ProviderFactory, ProviderId, ProviderInfo, ProviderMetadata, Inspection,
     ProviderRegistry, PROBE_BYTES,
 };
 #[cfg(feature = "control")]

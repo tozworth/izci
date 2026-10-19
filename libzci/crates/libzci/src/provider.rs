@@ -128,6 +128,8 @@ pub trait DecoderInstance: Send {
     fn capabilities(&self) -> ModuleCapabilities {
         ModuleCapabilities::default()
     }
+    /// Bounded transient pattern window; never part of durable metadata.
+    fn module_observation(&self) -> Option<ModuleObservation> { None }
     fn module_control(
         &mut self,
         _control: crate::command::ModuleControl,
@@ -213,6 +215,25 @@ impl ProviderRegistry {
     pub fn provider_ids(&self) -> Vec<ProviderId> {
         self.factories.iter().map(|f| f.info().id).collect()
     }
+    /// Independent inspection. Unknown-extension verification is explicit and
+    /// never constructs a device/output/session.
+    pub fn inspect(&self, source: Arc<dyn RuntimeSource>, hint: Option<&str>, verify_unknown: bool, cancel: &CancelFlag) -> Result<Inspection> {
+        let known = hint.is_some_and(crate::format::known_audio_extension);
+        if !known && !verify_unknown {
+            return Err(LibzciError::Unsupported { detail: "unknown-extension verification is disabled".into() });
+        }
+        let instance = match self.open_best(source.clone(), hint, cancel) {
+            Ok((_, d)) => d,
+            Err(LibzciError::Unsupported { .. }) if !known && verify_unknown => {
+                let factory = self.factories.iter().find(|f| f.info().id == ProviderId::OPENMPT)
+                    .ok_or_else(|| LibzciError::Unsupported { detail: "module verification provider unavailable".into() })?;
+                factory.open(source,cancel)?
+            }
+            Err(e) => return Err(e),
+        };
+        cancel.check()?;
+        Ok(Inspection { metadata: instance.metadata(), capabilities: instance.capabilities(), module: instance.module_observation() })
+    }
 
     /// Probe all factories and open the winner.
     ///
@@ -265,6 +286,13 @@ impl ProviderRegistry {
 
 /// Maximum header bytes offered to `probe`.
 pub const PROBE_BYTES: usize = 8192;
+
+#[derive(Clone, Debug)]
+pub struct Inspection {
+    pub metadata: ProviderMetadata,
+    pub capabilities: ModuleCapabilities,
+    pub module: Option<ModuleObservation>,
+}
 
 /// Upper bound for one `decode_into` call in the device-free
 /// collector and tests (1M samples ≈ 10s stereo at 48kHz).
@@ -571,6 +599,26 @@ pub enum DecodeStatus {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ModuleCapabilities {
     pub subsongs: u32,
+    pub channels: u32,
     pub interpolation: bool,
     pub channel_mute: bool,
+    pub ramping: bool,
+    pub speed: bool,
+    pub pitch: bool,
+    pub loop_limit: bool,
+    pub patterns: bool,
+}
+
+/// Up to 16 rows by 32 channels around the decoder's current row.
+/// This is a decoder observation, not the audible output position.
+#[derive(Clone, Debug, Default)]
+pub struct ModuleObservation {
+    pub selected_subsong: u32,
+    pub order: u32,
+    pub pattern: u32,
+    pub row: u32,
+    pub first_row: u32,
+    pub rows: u32,
+    pub channels: u32,
+    pub cells: Vec<[u8; 6]>,
 }

@@ -13,6 +13,7 @@ path = "src/main.rs"
 libzci = { path = "../../crates/libzci" }
 libzci-native = { path = "../../crates/libzci-native" }
 libzci-codecs = { path = "../../crates/libzci-codecs" }
+libzci-symphonia = { path = "../../crates/libzci-symphonia" }
 ctrlc = "3"
 
 [features]

@@ -69,6 +69,7 @@ impl Session {
                 decoding_eof: false,
                 pending_operation: false,
                 capabilities: ModuleCapabilities::default(),
+                module: None,
             },
             instance: RequestId(0),
             operation: RequestId(0),
@@ -149,6 +150,8 @@ impl Session {
                 self.snapshot.provider = None;
                 self.snapshot.layout = None;
                 self.snapshot.metadata = None;
+                self.snapshot.module = None;
+                self.snapshot.capabilities = ModuleCapabilities::default();
                 self.snapshot.total_frames = None;
                 self.snapshot.position_frames = 0;
                 self.snapshot.error = None;
@@ -237,21 +240,7 @@ impl Session {
                 if self.snapshot.layout.is_none() {
                     return Err(invalid("module is not loaded"));
                 }
-                if matches!(control, ModuleControl::ChannelMute { channel, .. } if *channel >= 256)
-                {
-                    return Err(invalid("module channel exceeds control budget"));
-                }
-                let caps = self.snapshot.capabilities;
-                let supported = match control {
-                    ModuleControl::Subsong(_) => caps.subsongs > 0,
-                    ModuleControl::Interpolation(_) => caps.interpolation,
-                    ModuleControl::ChannelMute { .. } => caps.channel_mute,
-                };
-                if !supported {
-                    return Err(LibzciError::Unsupported {
-                        detail: "module control unavailable".into(),
-                    });
-                }
+                control.validate(self.snapshot.capabilities)?;
                 self.invalidate(request);
                 actions.push(SessionAction::Module {
                     tag: self.tag(),
@@ -297,6 +286,9 @@ impl Session {
         self.snapshot.capabilities = capabilities;
         self.snapshot.metadata = Some(std::sync::Arc::new(metadata));
         self.landed(tag, position)
+    }
+    pub fn observed(&mut self, tag: JobTag, observation: Option<crate::ModuleObservation>) {
+        if self.accepts(tag) { self.snapshot.module = observation.map(std::sync::Arc::new); }
     }
     pub fn landed(&mut self, tag: JobTag, position: u64) -> bool {
         if !self.accepts(tag) {

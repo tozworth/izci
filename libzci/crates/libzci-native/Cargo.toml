@@ -16,7 +16,14 @@ rtrb = "=0.4.0"
 libzci-codecs = { path = "../libzci-codecs", optional = true }
 
 [features]
-provider-tests = ["dep:libzci-codecs"]
+provider-tests = ["dep:libzci-codecs", "libzci-codecs/modules"]
+
+[dev-dependencies]
+libzci-symphonia = { path = "../libzci-symphonia" }
+
+[[test]]
+name = "m1"
+required-features = ["provider-tests"]
 
 [[test]]
 name = "providers_render"

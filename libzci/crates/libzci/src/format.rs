@@ -7,6 +7,18 @@
 
 use crate::error::{LibzciError, Result};
 
+pub const AUDIO_EXTENSIONS: &[&str] = &["wav", "wave", "mp3", "flac", "ogg", "oga", "opus"];
+pub fn known_audio_extension(ext: &str) -> bool {
+    AUDIO_EXTENSIONS.contains(&ext) || MODULE_EXTENSIONS.contains(&ext) || HIVELY_EXTENSIONS.contains(&ext)
+}
+/// Bounded shared classification. Opus is reserved for the reference provider.
+pub fn sniff_ordinary_audio(h: &[u8]) -> bool {
+    (h.starts_with(b"RIFF") && h.get(8..12) == Some(b"WAVE"))
+        || h.starts_with(b"fLaC") || h.starts_with(b"ID3")
+        || (h.len() >= 2 && h[0] == 0xff && h[1] & 0xe0 == 0xe0 && h[1] & 0x06 != 0)
+        || (h.starts_with(b"OggS") && h.windows(7).take(300).any(|w| w == b"\x01vorbis"))
+}
+
 /// Extensions that suggest (never prove) Ogg Opus content.
 pub const OPUS_EXTENSIONS: &[&str] = &["opus", "ogg", "oga"];
 

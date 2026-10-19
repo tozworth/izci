@@ -22,6 +22,7 @@ impl NativeRuntime {
     pub fn provider_ids(&self) -> Vec<ProviderId> {
         self.registry.lock().unwrap().provider_ids()
     }
+    pub(crate) fn registry_snapshot(&self) -> ProviderRegistry { self.registry.lock().unwrap().clone() }
     pub fn insert_source(&self, source: Arc<dyn RuntimeSource>) -> SourceId {
         let id = source.id();
         self.sources.lock().unwrap().insert(id, source);
@@ -151,7 +152,7 @@ impl NativeRuntime {
                             }
                             _ => {
                                 // Coalesce controls by parameter, bounded by module channels.
-                                p.controls.retain(|v| !same_parameter(*v, control));
+                                p.controls.retain(|v| !v.same_parameter(control));
                                 p.controls.push(control);
                             }
                         }
@@ -250,16 +251,6 @@ impl NativeRuntime {
             entry.close();
         }
         self.stop_session_outputs(id);
-    }
-}
-fn same_parameter(a: ModuleControl, b: ModuleControl) -> bool {
-    match (a, b) {
-        (ModuleControl::Interpolation(_), ModuleControl::Interpolation(_)) => true,
-        (
-            ModuleControl::ChannelMute { channel: a, .. },
-            ModuleControl::ChannelMute { channel: b, .. },
-        ) => a == b,
-        _ => false,
     }
 }
 impl Drop for NativeRuntime {

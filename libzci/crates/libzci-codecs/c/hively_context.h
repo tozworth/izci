@@ -62,6 +62,8 @@ const char *lz_hively_title(const lz_hively_ctx *ctx, uint32_t *len);
 /* Current order/row position (pattern display, Phase 4 use). */
 uint32_t lz_hively_order(const lz_hively_ctx *ctx);
 uint32_t lz_hively_row(const lz_hively_ctx *ctx);
+uint32_t lz_hively_pattern_rows(const lz_hively_ctx *ctx);
+int lz_hively_pattern_cell(const lz_hively_ctx *ctx, uint32_t order, uint32_t row, uint32_t channel, uint8_t *out);
 
 /*
  * Select a subsong: re-initializes the live tune, resets the position,
