@@ -2,7 +2,7 @@
 name = "libzci-web"
 version = "0.1.0"
 edition = "2021"
-description = "libzci browser adapter core: WASM engine facade and shared Ogg demux for workers (no DOM access here)."
+description = "Shared libzci Session and bounded PCM preparation bindings for browser workers."
 license = "MIT"
 
 [lib]

@@ -25,7 +25,15 @@ let bytesRead = 0, maxRead = 0, callbackYields = 0, decodedFrames = 0, poolHighW
 let peak = 0, sumSquares = 0, sampleCount = 0;
 let statsPending = false;
 let decodedBlocks = 0;
-const yieldTask = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
+// Task yielding must not depend on background timer budgets. There is one
+// sequential C job, so a single reusable task channel/continuation suffices.
+const tasks = new MessageChannel();
+let continuation: (() => void) | null = null;
+tasks.port1.onmessage = () => {const resume = continuation; continuation = null; resume?.();};
+const yieldTask = (): Promise<void> => new Promise(resolve => {
+  if (continuation) throw new Error('reentrant decoder task');
+  continuation = resolve; tasks.port2.postMessage(null);
+});
 const post = (message: unknown): void => self.postMessage(message);
 
 // This callback is awaited by Asyncify. It never calls back into the C module.
@@ -48,6 +56,7 @@ async function readSource(id: number, position: number, pointer: number, length:
 }
 function stats(): Record<string, number> {
   return {bytesRead, maxRead, callbackYields, decodedFrames, poolHighWater,
+    decodedPosition: handle ? codec._zci_position(handle) : 0,
     poolBytes: POOL_SIZE * BLOCK_FRAMES * 2 * 4, freeBlocks: free.size,
     preparationBytes: preparation?.retained_bytes() ?? 0, codecHeapBytes: codec.HEAPU8.byteLength,
     peak, sumSquares, sampleCount};
@@ -86,7 +95,7 @@ async function perform(job: DecodeJob): Promise<void> {
   if (job.type === 'seek') {
     if (!handle) throw {kind: 'cancelled', detail: 'source not opened'};
     const total = codec._zci_total(handle);
-    const target = Math.min(total, Math.round((job.seconds ?? 0) * 48000));
+    const target = Math.min(total, job.frame ?? 0);
     await call('zci_seek', [handle, target]);
     post({type: didOpen ? 'opened' : 'landed', tag: job.tag, total, position: codec._zci_position(handle), stats: stats()});
   }

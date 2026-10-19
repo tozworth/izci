@@ -8,10 +8,13 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tarfile
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
+if sys.version_info < (3, 12):
+    raise SystemExit('Requires Python 3.12+ for filtered source-archive extraction.')
 PINS = json.loads((ROOT / 'libzci/vendor/dependencies.json').read_text())
 SDK = Path(os.environ.get('EMSDK', ROOT / '.local/libzci/emsdk'))
 EM = SDK / 'upstream/emscripten'
@@ -23,7 +26,12 @@ def run(*args):
     subprocess.run([str(a) for a in args], check=True, env=env)
 
 emcc = EM / 'emcc.py'
-version = subprocess.check_output(['python', str(emcc), '--version'], env=env, text=True)
+if not emcc.exists():
+    raise SystemExit('Missing Emscripten 4.0.10. Install/activate .local/libzci/emsdk or set EMSDK; see consumers/crude-pwa/README.md.')
+for tool in ['cmake', 'ninja']:
+    if not shutil.which(tool):
+        raise SystemExit(f'Missing {tool}. Install CMake and Ninja and add them to PATH.')
+version = subprocess.check_output([sys.executable, str(emcc), '--version'], env=env, text=True)
 if ' 4.0.10 ' not in version:
     raise SystemExit('Requires Emscripten 4.0.10: emsdk install 4.0.10 && emsdk activate 4.0.10')
 prefixes = {}
@@ -63,7 +71,7 @@ out = ROOT / 'libzci/consumers/crude-pwa/src/generated'
 out.mkdir(parents=True, exist_ok=True)
 src = sources['libopusfile']
 exports = ['_zci_' + s for s in ['create', 'open', 'total', 'position', 'read', 'seek', 'close']] + ['_malloc', '_free']
-run('python', emcc, '-O3', '-DOP_DISABLE_HTTP',
+run(sys.executable, emcc, '-O3', '-DOP_DISABLE_HTTP',
     f'-I{src}/include', f'-I{prefixes["libogg"]}/include', f'-I{prefixes["libopus"]}/include/opus',
     ROOT / 'libzci/crates/libzci-codecs/c/opus_browser.c',
     *[src / 'src' / f'{s}.c' for s in ['info', 'internal', 'opusfile', 'stream']],

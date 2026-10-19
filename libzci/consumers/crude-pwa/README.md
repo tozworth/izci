@@ -1,49 +1,92 @@
-# crude PWA (Phase 1.3 proof page)
+# Reference Opus browser player
 
-Browser consumer over the WASM engine: one engine worker (selection,
-sessions, generations) plus one decode worker (File bytes, shared Ogg
-demux, WebCodecs Opus). Plain HTML controls and diagnostic tables; no
-design or UX budget spent here.
+The crude opens real Files and plays through pinned libopusfile/Opus, the shared
+Rust Session and shared Rust audio processing. WebCodecs is not required.
+Controls: Open, Play/Pause, Stop (also cancels work), seek in seconds, volume,
+mute and Dispose. A new Open after Dispose creates a fresh runtime.
 
-## Run
+## Build and run
+
+Requires Python 3.12+, CMake, Ninja, Rust 1.98.1 (or a compatible release),
+`wasm32-unknown-unknown`, and wasm-bindgen-cli **0.2.129**, matching Cargo.lock.
+Use Emscripten **4.0.10**; install the SDK inside the ignored local directory:
 
 ```sh
-# from this directory
-./scripts/build-wasm.sh   # compile libzci-web -> src/generated/ (ignored)
-npm install
-npm run dev               # serves on http://localhost:5197
+# Repository root; activate without permanent/global environment changes.
+git clone --depth 1 --branch 4.0.10 https://github.com/emscripten-core/emsdk.git .local/libzci/emsdk
+python .local/libzci/emsdk/emsdk.py install 4.0.10
+python .local/libzci/emsdk/emsdk.py activate 4.0.10
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --version 0.2.129 --locked
+python libzci/scripts/build-browser-codecs.py
+python libzci/consumers/crude-pwa/scripts/build-wasm.py
+npm ci --prefix libzci/consumers/crude-pwa
+npm run build --prefix libzci/consumers/crude-pwa
+npm run preview --prefix libzci/consumers/crude-pwa
 ```
 
-`npm run build` emits the production bundle into `dist/` (own build
-directory; never the root `dist/`). `npm test` runs the generation
-protocol unit tests (node, no browser). `npm run typecheck` runs `tsc`.
+`EMSDK` may select another SDK directory containing the pinned release.
+Rust/Cargo/wasm-bindgen must be on PATH. Windows native reference builds also
+need the MSVC environment described in the workspace README; WASM builds do not.
+The shell `scripts/build-wasm.sh` delegates to the same Python recipe.
+Use localhost:5197 and click Open/Play to activate audio. Suspended audio resumes
+on Play. Failures appear in the snapshot/diagnostics. No manifest, service worker,
+SQL, install or offline-launch claim is made before M2. Follow AGENTS.md for
+build/server/browser authorization outside an authorized debugging session.
 
-## What the page does
+## Runtime and bounds
 
-File picker (real `File`, stays in the decode worker) → header handoff
-→ engine `open` (real core provider selection) → bounded page-index
-scan (synchronous `FileReaderSync` slices, one page body at a time) →
-engine `commit-index` (shared validation, audible total) → engine
-seek-plan → platform Opus decode with generation-tagged PCM →
-engine ingest (stale generations refused) → snapshots and PCM stats.
+The engine worker owns commands, generation invalidation and snapshots. A
+sequential decode worker owns File snapshots and reference C handles. C reads
+use FileReaderSync Blob slices capped at 32 KiB. Asyncify yields through a task
+MessageChannel every 16 reads, and decode yields between blocks, allowing
+cancellation during actual scan/seek work without background timer scheduling.
+Stop/Seek/Load invalidate immediately; new PCM waits for worklet generation ack.
+Late blocks are recycled. The same libopusfile policies apply trim and mandatory
+header gain once; seek to the exact trimmed end uses native's explicit EOF rule.
 
-Controls: open, play/pause/stop, seek (frames), dispose. The decode
-table proves decode (frames, peak, RMS, read bounds); audible output
-arrives in Phase 2.4 — this page stays silent by design.
+Eight 4,096-frame stereo transferable buffers occupy 262,144 bytes. The worklet
+also has eight fixed Rust PCM slots, a fixed clock-span table and fixed scratch;
+its complete WASM heap is reported as audioHeapBytes. Decode preparation reports
+its fixed staging/converter storage separately. The C heap is fixed at 32 MiB;
+source size is capped at 1 GiB, chains at 1,024 links, comments at 64 KiB.
+No queue scales with file duration. Decoder PCM goes directly to the worklet,
+never through document state. UI and output reports use one in-flight message
+and acknowledgment; terminal failures also travel as explicit outcomes.
 
-## Independent identity
+Output consumption spans and latency estimates drive position; starvation is
+silence/Pending, not EOF. Ended requires decoder EOF and final audible drain.
+The audio-only WASM is built separately with no JS imports, control machine,
+codec or database. Document Media Session actions issue commands and positions
+come from snapshots. OS action exposure and physical background survival require
+separate device checks; the document contains no silent transport anchor yet.
 
-Dedicated port 5197, own Vite config and build directory, no shared
-scope with the main izci app. No manifest, service worker, or install
-support in this phase (those land in 3.4); do not register this page's
-worker or scope from the main app or vice versa.
+## Validation
 
-## Verification status (1.3)
+Generate R3 inputs with pinned FFmpeg 8.1.1 and build the native reference CLI
+first (workspace README), then:
 
-- Host: `cargo test -p libzci-web` (engine generation fence, index
-  commit, seek plans, demux splits); `npm test` (protocol helpers);
-  `tsc`; `vite build`; `cargo check --target wasm32-unknown-unknown`.
-- Browser execution (real File decode/seek vs native timing, bounded
-  reads on the 30 s synth, worker error/cancel/reopen, Opus
-  `AudioDecoder` description shape): pending — requires explicit
-  browser-inspection authorization per the repo operating guide.
+```sh
+python libzci/tests/generate-r4-media.py
+npm exec --prefix libzci/consumers/crude-pwa -- playwright install chromium
+npm run typecheck --prefix libzci/consumers/crude-pwa
+npm test --prefix libzci/consumers/crude-pwa
+npm run test:callbacks --prefix libzci/consumers/crude-pwa
+npm run test:browser --prefix libzci/consumers/crude-pwa
+```
+
+Callback tests start a temporary development server; browser tests use the
+production build on a temporary preview server. Both close their server/browser.
+Fresh profiles, dedicated port 5197 and ignored fixture/output paths preserve
+ordinary izci data/grants. Native reference renders include seeks (Opus preroll
+can differ from slicing a continuous render). Tests compare every decoded sample,
+exercise long backpressure, 44.1 kHz tails, gain/chain/corrupt cases, cancel a
+1,000-link scan, and use actual AudioContext/worklet output with AudioDecoder
+disabled. Production tests cover full 30-second output, pause/seek/stop/mute,
+source access loss, missing codec assets, suspension, a debugger-paused decoder,
+and a stalled UI. Raw WASM tests verify exact marked samples and fixed memory.
+
+Evidence lives in `.local/libzci/r4-*-evidence.json` and the implementation log.
+Headless foreground/output success does not establish hidden-tab, screen-off,
+physical Android, hardware listening or installed/offline behavior. Record each
+of those separately; no physical device result is inferred from emulation.

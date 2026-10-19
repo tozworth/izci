@@ -2,7 +2,7 @@ import workletUrl from './workers/output-worklet.ts?worker&url';
 import audioWasm from './generated/libzci_audio_web.wasm?url';
 import type { CommandKind, Snapshot } from './protocol.js';
 
-export interface Observation {snapshot:Snapshot; stats:Record<string,number>; output:Record<string,number>; disposed:boolean}
+export interface Observation {snapshot:Snapshot; stats:Record<string,number>; output:Record<string,number>; disposed:boolean; sourceName?:string; sourceBytes?:number}
 /** Document adapter: activation/AudioContext/MediaSession and worker assembly.
  * No PCM traverses the document. Closing presentation does not drive transport. */
 export class BrowserRuntime {
@@ -10,10 +10,6 @@ export class BrowserRuntime {
   private context:AudioContext | null = null;
   private node:AudioWorkletNode | null = null;
   private setup:Promise<void> | null = null;
-  private module:Promise<WebAssembly.Module> = fetch(audioWasm).then(r => {
-    if (!r.ok) throw new Error(`audio WASM HTTP ${r.status}`);
-    return WebAssembly.compileStreaming(r);
-  });
   private observation:Observation | null = null;
   onObservation:(o:Observation)=>void=()=>{};
   onError:(message:string)=>void=()=>{};
@@ -46,7 +42,9 @@ export class BrowserRuntime {
     this.setup=(async()=>{
       await resumed;
       await this.context!.audioWorklet.addModule(workletUrl);
-      const module=await this.module;
+      const response=await fetch(audioWasm);
+      if(!response.ok) throw new Error(`audio WASM HTTP ${response.status}`);
+      const module=await WebAssembly.compileStreaming(response);
       this.node=new AudioWorkletNode(this.context!,'libzci-output',{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[2],processorOptions:{module}});
       this.node.onprocessorerror=()=>this.engine.postMessage({type:'output-error',detail:'AudioWorklet processor failed'});
       const control=new MessageChannel(), decode=new MessageChannel();

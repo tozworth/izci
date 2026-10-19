@@ -12,7 +12,7 @@ export interface Descriptor {
   output_start: number; rate: number; frames: number;
 }
 export interface Block { type: 'block'; id: number; pcm: ArrayBuffer; descriptor: Descriptor }
-export interface DecodeJob { type: 'open' | 'seek'; tag: Tag; file?: File; seconds?: number }
+export interface DecodeJob { type: 'open' | 'seek'; tag: Tag; file?: File; frame?: number }
 export type CommandKind = 'play' | 'pause' | 'stop' | 'seek' | 'volume' | 'mute' | 'dispose';
 export const sameTag = (a: Tag, b: Tag): boolean => a.session === b.session && a.instance === b.instance && a.operation === b.operation && a.generation === b.generation;
 export function failure(error: unknown): { kind: string; detail: string } {

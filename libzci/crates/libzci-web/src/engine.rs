@@ -18,6 +18,11 @@ fn tag(t: JobTag) -> Value {
 }
 impl Engine {
     pub fn command(&mut self, kind: &str, value: f64) -> Result<Value> {
+        // The registered reference provider's normalized rate is 48 kHz.
+        // Keep public seconds -> provider frames conversion in shared Rust.
+        if kind == "seek" {
+            MediaTime(value).frames(48_000)?;
+        }
         let session = self.session.id();
         let request_id = RequestId::fresh();
         let command = match kind {
@@ -71,7 +76,7 @@ impl Engine {
             .map(|a| match a {
                 SessionAction::Open { tag: t, .. } => json!({"kind":"open","tag":tag(t)}),
                 SessionAction::Seek { tag: t, time } => {
-                    json!({"kind":"seek","tag":tag(t),"seconds":time.0})
+                    json!({"kind":"seek","tag":tag(t),"frame":time.frames(48_000).expect("validated seek")})
                 }
                 SessionAction::Close => json!({"kind":"close"}),
                 SessionAction::Output => json!({"kind":"output"}),

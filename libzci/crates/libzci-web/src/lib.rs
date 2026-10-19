@@ -1,23 +1,12 @@
-//! Browser adapter core for libzci (`libzci-web`).
-//!
-//! - [`engine`]: the WASM engine facade — core provider selection,
-//!   sessions, generation fencing, and snapshots over a feed-driven
-//!   host decoder. File bytes and platform decode stay in the decode
-//!   worker; only bounded header/index/PCM messages cross.
-//! - [`demux`]: the shared Ogg demuxer for the decode worker (same
-//!   core reader the native provider uses).
-//! - [`bindings`]: wasm-bindgen surface (compiled for
-//!   `wasm32-unknown-unknown`; host tests exercise `engine`/`demux`
-//!   directly).
-//!
-//! No DOM, `File`, `AudioDecoder`, or `AudioContext` access here —
-//! those are JS-glue concerns in `consumers/crude-pwa/src/`.
-
+//! Browser control bindings for libzci. The engine worker owns the same Session
+//! as native; decoder workers report tagged facts and use shared bounded output
+//! preparation. An independent libzci-audio-web WASM runs processing/clock code
+//! in the worklet. FileReaderSync, codec calls, ports and AudioContext are adapter
+//! mechanisms in consumers/crude-pwa. Demux helpers remain available for later
+//! optional packet providers, outside the production reference timeline.
 pub mod demux;
 pub mod engine;
-
 #[cfg(target_arch = "wasm32")]
 pub mod bindings;
-
 pub use demux::OggDemux;
 pub use engine::Engine;

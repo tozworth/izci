@@ -102,7 +102,8 @@ class Output extends AudioWorkletProcessor {
       this.reportPending=true;this.reportedFinished=finished;
       this.control.postMessage({type:'report',generation:this.generation,position:this.wasm.renderer_position(this.pointer),
         media:this.wasm.renderer_media(this.pointer),silence:this.wasm.renderer_silence(this.pointer),finished,
-        queuedBlocks:this.buffers.size,highWater:this.highWater,peak:this.peak,intervalPeak:this.intervalPeak,energy:this.energy,rate:sampleRate});
+        queuedBlocks:this.buffers.size,highWater:this.highWater,peak:this.peak,intervalPeak:this.intervalPeak,energy:this.energy,rate:sampleRate,
+        audioHeapBytes:this.wasm.memory.buffer.byteLength});
       this.intervalPeak=0;
     }
     return true;
