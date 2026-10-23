@@ -34,9 +34,62 @@ Rust/Cargo/wasm-bindgen must be on PATH. Windows native reference builds also
 need the MSVC environment described in the workspace README; WASM builds do not.
 The shell `scripts/build-wasm.sh` delegates to the same Python recipe.
 Use localhost:5197 and click Open/Play to activate audio. Suspended audio resumes
-on Play. Failures appear in the snapshot/diagnostics. No manifest, service worker,
-SQL, install or offline-launch claim is made before M2. Follow AGENTS.md for
+on Play. Failures appear in the snapshot/diagnostics. M2's manifest, service worker,
+SQL and offline assets are independent of the ordinary izci PWA. Follow AGENTS.md for
 build/server/browser authorization outside an authorized debugging session.
+
+## Durable queue and offline installation (M2)
+
+Open profile selects a named namespace (also `?profile=NAME`; default `default`).
+Shared Rust owns occurrence IDs, duplicate append/order/remove/play, up-next,
+shuffle cycles/history, repeat, previous restart threshold, settings and SQL.
+Native SQLite and official SQLite WASM 3.54.1-build1 execute those same bound
+statements. Browser SQL uses `opfs-sahpool` at `/libzci-crude-v1/NAME/` with
+`preserveOnInitFailure: true`; no initialization/reset path deletes domain data.
+Schema mismatch, quota/busy/commit failures publish no durable success.
+
+Open restorable files uses the genuine FSA picker. Real handles are kept in IDB
+`libzci-crude-capabilities-v1-NAME`, separate from SQL. The pending → SQL commit →
+completion protocol recovers referenced pending entries and removes orphaned
+registry entries. It preserves entries involved in concurrent imports. Startup
+only queries permission; Grant access and retry is an explicit user action.
+Plain File inputs are labeled non-restorable and never store media bytes in SQL,
+IDB or OPFS. All sources stay queued when access is denied or a file disappears.
+
+Web Locks enclose storage, decoder/output and Media Session ownership. Other
+windows attach over BroadcastChannel and create no player/SQL worker. Snapshots
+use per-client acknowledgments; request/result budgets and durable hashed
+receipts suppress duplicate mutations across owner loss. Expired requests fail
+instead of replaying. Re-election restores paused and can interrupt audio.
+Play still requires browser audio activation. Position checkpoints every two
+seconds and on Pause/Stop/Seek; no UI timer drives playback progression.
+
+Production builds emit a separate manifest, icons, asset/API identity and SW.
+The inventory includes HTML, nested workers, audio/control/provider/SQL WASM and
+loaders. Install verifies every local response/size before completion. Updates
+wait for Restart with update; active and old documents retain coherent caches,
+and obsolete caches are reclaimed when all remaining clients identify their
+version. The SW owns neither SQL nor playback. Install appears when Chromium
+offers `beforeinstallprompt`; browser installation UI also works.
+
+After the build, run these sequentially (they share port 5197):
+
+```sh
+npm run test:storage --prefix libzci/consumers/crude-pwa
+npm run test:m2 --prefix libzci/consumers/crude-pwa
+npm run test:update --prefix libzci/consumers/crude-pwa
+npm run test:installed --prefix libzci/consumers/crude-pwa
+python libzci/tests/check-m2-cli.py
+```
+
+The storage check uses real OPFS SQLite, injected busy/commit faults and a real
+SQLite page quota. Capability/reopen checks use real OPFS file handles, not
+synthetic FSA objects; external picker permission denial/regrant remains an
+interactive check. Installed tests use a temporary persistent Chromium profile,
+install/launch the app in standalone mode offline, then uninstall it. Set
+`ZCI_PWA_HEADED=1` to repeat with a real offscreen browser window. Minimized
+windows here still reported `visible`; background/screen-off/OS media controls
+and physical Android are explicitly pending, not inferred from these checks.
 
 ## Runtime and bounds
 

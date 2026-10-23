@@ -1,7 +1,8 @@
 # Native crude
 
 Dense egui/eframe file player, using `NativeRuntime` public commands, snapshots,
-independent probe and streaming raw render jobs. No database, webview or JS.
+independent probe and streaming raw render jobs. M2 adds the shared Rust queue
+and native SQLite profile, without a webview or JS runtime.
 
 Windows (configured Rust/MSVC environment):
 
@@ -21,6 +22,17 @@ pattern window follows the decoder position, which can lead audible output.
 Independent probe/render never changes playback. Raw render exports stereo
 float32 little-endian at 48000 Hz. Cancel jobs and Dispose release their work.
 Unknown-extension verification defaults off and affects only independent probing.
+
+The default profile is `.local/libzci/profiles/crude-native/` relative to the
+launch directory. `--profile DIR` selects another independent libzci profile.
+The file lock is acquired before SQL/output ownership; a second process using
+the same profile fails visibly. Queue duplicates, moves, remove/play, up-next,
+next/previous, shuffle/repeat, previous restart seconds, master settings and
+position/subsong survive reopen. Restore never autoplays. Append files adds a
+batch without selecting it; queue Play selects an occurrence. Unavailable paths
+preserve the saved queue and resume position. Playback checkpoints at two-second
+intervals and on orderly close; abrupt termination can lose the last interval.
+The hidden test uses a transient profile.
 
 Headless checks (after generating M1 fixtures):
 

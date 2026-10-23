@@ -22,6 +22,12 @@ The [2026-10-23 validation pass](implementation-log.md#2026-10-23-m1-validation-
 adds Android emulator Chrome coverage and fixes transport/source/job regressions.
 Its target-specific evidence and limits are in the implementation log.
 
+M2 now implements the persistent queue/settings API, shared Rust SQL on native
+SQLite and browser OPFS, capability registry recovery, browser owner attachment,
+and independent offline PWA installation/updates. Windows and installed Chromium
+checks pass. External picker grants and physical/background lifecycle acceptance
+remain open; see the [M2 evidence](implementation-log.md#2026-10-23-m2-persistent-queue-and-installed-pwa).
+
 ## Start here
 
 1. Read [the review](review.md) for the actual starting code.

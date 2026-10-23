@@ -9,7 +9,9 @@ checks recorded in the [implementation log](implementation-log.md#recovery-r1-bo
 R2 and native reference Opus R3 are verified on Windows MSVC (2026-10-18);
 R4 is implemented with headless end-to-end evidence; hidden-tab/screen-off and
 physical-device validation keep its acceptance open. M1 has Windows native and
-headless Chromium and Android emulator Chrome evidence; M2-M6 remain open.
+headless Chromium and Android emulator Chrome evidence. M2 is implemented with
+Windows native, OPFS, multi-window, installed/offline and update evidence;
+physical-device lifecycle/grant checks remain pending. M3-M6 remain open.
 GNU/Linux R3 recovery remains unverified target work. Execute in order; numbered items within a milestone are commit-sized
 units where coherent. A milestone closes when its deliverable works and the
 listed checks pass, not when its file list exists. Pending verification is a
@@ -210,6 +212,14 @@ fixtures establish audible behavior. Unsupported cases remain named rather than
 being counted as a passed format. No database is necessary yet.
 
 ## M2: persistent queue and an installed offline PWA
+
+Status: **implemented; physical lifecycle checks pending** (2026-10-23).
+Windows native/SQLite, real browser SQLite/OPFS, two-window ownership/re-election,
+capability crash recovery, installed Chromium cold offline launch and controlled
+updates have automated evidence. External picker grant/denial, actual hidden-tab/
+screen-off continuity, OS media actions and physical Android remain unverified.
+Headless and headed minimization still reported `visible`; neither is counted as
+a hidden-document pass. See [M2 evidence](implementation-log.md#2026-10-23-m2-persistent-queue-and-installed-pwa).
 
 **Deliverable:** both crudes reopen the same kind of durable queue/settings state;
 the installed PWA launches offline, restores access references, and has one owner.

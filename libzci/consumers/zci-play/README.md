@@ -3,7 +3,8 @@
 Native file player and streaming PCM renderer over libzci: WAV, MP3, FLAC,
 Vorbis, reference Opus, OpenMPT modules (MOD/XM/S3M/IT/MO3) and AHX/HVL. It opens
 bounded native file ranges and embeds Rust and the pinned media libraries directly.
-No database/profile, browser, webview, JS engine or WASM interpreter is involved.
+The default invocation opens no database/profile. No browser, webview, JS engine
+or WASM interpreter is involved.
 
 Build prerequisites and acquisition commands are in the [workspace README](../../README.md).
 Windows x64 MSVC is verified through real hardware and clean listening. The
@@ -18,6 +19,10 @@ GNU/Linux recipe is retained; its recovery runtime has not been reproduced here.
 On GNU/Linux use `libzci/target/release/zci-play` with the same flags.
 
 - `--device NAME`: output-device name substring; defaults to the system device.
+- `--profile DIR`: explicitly open/lock a fresh libzci SQLite profile; append the
+  supplied path as a new queue occurrence and persist its selection/options.
+  Saved volume/mute apply unless volume is explicitly overridden. Reusing a
+  path appends a duplicate occurrence. The ordinary izci profile is untouched.
 - `--volume V`: linear master volume, finite 0.0 through 1.0; default 1.0.
 - `--start SECONDS`: finite nonnegative media time; converted by the core.
 - `--subsong N`: module subsong index; modules are enabled by default.

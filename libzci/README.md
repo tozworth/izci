@@ -99,6 +99,12 @@ output, preserving actual device transport without audible playback. Device abse
 explicit hardware check; it is not reported as success. `ZCI_PLAY` can select a
 release executable for the process-level CLI check. Browser checks are documented in the crude README. Installed-PWA checks begin in M2. Follow [AGENTS.md](../AGENTS.md) for build/runtime authorization.
 
-No SQL/profile, installed PWA or FFI implementation exists yet.
+M2 adds shared Rust occurrence navigation and transactional SQL, native profiles
+and browser OPFS SQLite, genuine capability references, one browser owner per
+profile, and an independently installable offline PWA. Both crudes restore paused;
+CLI persistence is explicit with `--profile DIR`. Installed Chromium cold offline
+launch and updates are verified; external FSA grant/denial, real background/
+screen-off/OS actions and physical Android remain pending. FFI remains later work.
+See [M2 evidence](../docs/libzci/implementation-log.md#2026-10-23-m2-persistent-queue-and-installed-pwa).
 Generated outputs stay in `target/` and `.local/libzci/`; ordinary player data and
 grants are preserved. The [roadmap](../docs/libzci/phases.md) owns later work.

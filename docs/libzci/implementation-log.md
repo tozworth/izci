@@ -10,6 +10,110 @@ are all open. No build, test, listening, or browser result was newly produced by
 this documentation revision. Append future results under the new milestone IDs.
 The old phase labels and next-step statements below do not direct current work.
 
+## 2026-10-23: M2 persistent queue and installed PWA
+
+Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to
+end and authorized builds and isolated runtime checks. Implementation milestones:
+`ef2bb476` (shared queue/SQL and native profiles), `2c098558` (browser OPFS,
+capability recovery, ownership and offline lifecycle), and `77f7a583` (failure,
+concurrency and controlled-update verification/fixes). Existing izci stores, profiles,
+grants, backends, APK/Tauri/server code and manually curated Askew text are untouched.
+
+Implemented behavior:
+
+- Shared Rust occurrence queue: duplicates with stable occurrence IDs, append,
+  move/remove/play, next/previous, previous restart seconds, up-next, repeat and
+  shuffle cycles with backward/forward history. Existing navigation outcomes
+  inform single-item stepping, natural EOF, repeat and history regressions.
+  Final natural consumption remains Ended when there is no next occurrence.
+- Shared bound SQL owns schema/init, source references, ordered occurrences,
+  session/navigation/resume options, playback settings and revision transactions.
+  Native uses rusqlite 0.32.1 with bundled SQLite; browser uses official
+  `@sqlite.org/sqlite-wasm` 3.54.1-build1 and `opfs-sahpool` in the engine worker.
+  Initialization preserves data on failure; incompatible schemas are refused.
+  Failed begin/write/commit never publishes a new durable revision. Position
+  and setting changes avoid rewriting unchanged queue/source rows.
+- Native GUI locks `.local/libzci/profiles/crude-native/` before opening SQL or
+  output, supports an explicit `--profile DIR`, restores paused, and preserves
+  missing references/resume position. The CLI remains transient by default;
+  `--profile DIR` appends the given path and reopens settings, including mute.
+  Both use the same core queue and storage API; no consumer domain SQL.
+- Browser profile lock encloses the only engine/SQL/decoder/output owner.
+  Attached windows create no player worker. Revisioned full snapshots are
+  acknowledged/coalesced; requests/results are bounded and deduplicated. Durable
+  SHA-256 request receipts survive re-election, reject payload reuse and expire
+  visibly rather than replaying evicted mutations. Re-election restores paused.
+- Genuine FSA picker handles live in separate profile-scoped IDB. Pending → SQL
+  commit → completion and startup orphan recovery survive either crash boundary;
+  concurrent staged imports are protected. Startup queries permission without
+  prompting; explicit Grant access retries it. Plain Files remain explicitly
+  non-restorable; media bytes never enter domain storage.
+- Independent manifest/icons/SW/API+asset identity. A post-HTML Vite inventory
+  covers 15 runtime/public assets in this build, including all five WASM payloads
+  and nested SQL/decode workers. Precache checks local responses and exact sizes.
+  Updates identify a genuinely different waiting version, require explicit
+  restart, retain old documents' coherent assets and preserve candidate caches
+  during install/wait. Obsolete caches are reclaimed after client version reports.
+  Media Session play/pause/stop/seek/next/previous dispatch the same commands.
+
+Bounds: 10,000 occurrences/sources/up-next entries, 8 MiB source-reference text,
+1,024 entries per history direction, 16 attached clients, 32 pending/in-flight
+requests, 64 in-memory results and 128 durable receipts. Browser command JSON is
+capped at 16 MiB. Position checkpoints every two seconds; orderly native close
+and browser pause/stop/seek also save state. Abrupt owner loss can lose the last
+checkpoint interval; it never causes autoplay or a permission prompt.
+
+Windows x64 MSVC / Chromium evidence (synthetic R3/M1 corpus; muted output):
+
+- `cargo test --locked --manifest-path libzci/Cargo.toml --workspace --features
+  libzci-native/provider-tests`: passes. Five new native profile/navigation
+  tests cover reopen, identity/order/settings, lock exclusion, rollback,
+  schema preservation, durable receipt bounds/expiry and shuffle history.
+  The native crude's two tests include real controller paused resume and a
+  disappeared source without resetting saved state.
+- Native and wasm32 Clippy with warnings denied, Rust formatting, TypeScript
+  checking, audio-only WASM import/pool/clock tests and native/WASM/PWA builds pass.
+- `crude-native --headless-test .local/libzci/media/m1/tone.hvl`: hidden native
+  eframe window with real muted CPAL transport, pause/seek/module/probe/teardown.
+- `python libzci/tests/check-m2-cli.py`: actual process-level transient default,
+  explicit profile reopen, duplicate occurrences, saved volume and silent render
+  from saved mute. Evidence: `.local/libzci/m2-cli-evidence.json`.
+- `test:storage`: one setting committed/reopened by real OPFS SQLite through
+  Rust; duplicate queue rows; injected busy/write/commit faults; real SQLite
+  page-quota exhaustion; preserved rows on schema refusal; durable retry receipt.
+  A SQLite page quota is not a claim of exhausting physical browser disk quota.
+- `test:m2`: real OPFS SQLite + worklet output, attached command execution with
+  exactly one Web Lock and zero attached player workers, owner loss/re-election,
+  duplicate delivery across reopen, pending/orphan recovery with genuine OPFS
+  handles, up-next advancement at final consumption, cold offline launch of all
+  assets, plain File restore status, SQL initialization failure/recovery and
+  simultaneous staged-handle import/plain File append/removal without losing
+  capabilities or the live File registry.
+- `test:installed`: temporary persistent Chromium profile, actual CDP PWA
+  install, standalone launch offline, paused queue/handle restore, local media
+  consumption, then uninstall. Headless and offscreen headed runs both work.
+- `test:update`: failed precache preserves old output/cache; a complete candidate
+  waits during playback; explicit activation/reload preserves queue/grants paused;
+  old assets remain until the last old document closes.
+- Existing M1 ordinary/module output and sample comparisons, optional WebCodecs
+  reference comparisons and R4 long transport/output regressions are retained.
+  R4's network-failure test uses an isolated SW-blocked context so production
+  offline caching cannot mask the deliberately aborted codec request.
+
+Browser evidence files are `.local/libzci/m2-{browser,storage,installed,update}-evidence.json`.
+Recipes and controls are documented in the consumer READMEs. Tests run sequentially
+on port 5197 and close their servers/browsers; outputs remain ignored.
+
+Acceptance limits remain explicit: genuine OPFS handles prove IDB capability
+serialization/recovery, not external picker denial/regrant. External FSA grant
+interaction, OS Media Session actions/interruption, actual hidden-document or
+screen-off continuity and physical Android are pending. Both minimized/headless
+and offscreen headed observations still reported `visible` (about 144,000 frames
+consumed in three seconds), so they do not count as hidden output evidence.
+`adb devices` had no connected target. GNU/Linux and APK integration are not
+inferred. M2 implementation is present; these physical/lifecycle checks keep its
+full acceptance open independently of the verified Windows/offline behavior.
+
 ## 2026-10-23: M1 validation and cleanup
 
 Baseline `1de4e2e6` on `libzci-codex`, initially clean. User authorized review,
