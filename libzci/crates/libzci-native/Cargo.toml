@@ -13,6 +13,8 @@ path = "src/lib.rs"
 libzci = { path = "../libzci" }
 cpal = "0.18"
 rtrb = "=0.4.0"
+rusqlite = { version = "=0.32.1", features = ["bundled"] }
+serde_json = "1"
 libzci-codecs = { path = "../libzci-codecs", optional = true }
 
 [features]

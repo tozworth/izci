@@ -1,5 +1,6 @@
 mod controller;
 mod smoke;
+mod queue_view;
 use controller::Controller;
 use eframe::egui;
 use libzci::*;
@@ -56,6 +57,7 @@ impl App {
                 let mut mute=s.mute;if ui.checkbox(&mut mute,"Mute").changed() {self.controller.command(|session,request_id|Command::SetMute {session,request_id,mute});}
             });
             ui.label(format!("Session {} / generation {}   {:?}   requested {:?} / output {:?}",s.session.0,s.generation.0,s.state,s.requested,s.running));
+            queue_view::draw(ui,&mut self.controller);
             ui.label(format!("Provider: {:?}   audible {:.3} s / {:?} frames   pending {} / EOF {}",s.provider,MediaTime::from_frames(s.position_frames,s.layout.map_or(1,|l|l.sample_rate)).0,s.total_frames,s.pending_operation,s.decoding_eof));
             if let Some(o)=self.controller.output() {ui.label(format!("Decoded {} / consumed {} / queued {} / underruns {} · {}",o.decoded_position,o.consumed_frames,o.ring_fill_frames,o.hungry_pops,o.device_label));}
             let c=s.capabilities;
@@ -124,6 +126,8 @@ fn main() -> eframe::Result {
         None
     };
     let hidden = input.is_some();
+    let profile_path=args.iter().position(|s|s=="--profile").map(|i|args.get(i+1).expect("--profile requires a directory").clone()).unwrap_or_else(||".local/libzci/profiles/crude-native".into());
+    let persistent=if hidden {None}else{Some(Controller::with_profile(Path::new(&profile_path)).unwrap_or_else(|e|{eprintln!("{e}");std::process::exit(2)}))};
     let outcome: smoke::Outcome = Default::default();
     let observed = outcome.clone();
     eframe::run_native(
@@ -136,6 +140,7 @@ fn main() -> eframe::Result {
         },
         Box::new(move |_| {
             let mut app = App::default();
+            if let Some(controller)=persistent {app.controller=controller;}
             if let Some(path) = input {
                 app.path = path;
                 app.controller.open(Path::new(&app.path));

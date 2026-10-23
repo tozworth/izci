@@ -10,6 +10,8 @@ use std::fmt;
 /// All fallible core/adapter operations report one of these.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum LibzciError {
+    /// Durable state failed; no successful revision has been published.
+    StorageFailure { code: String, detail: String },
     /// Source exists but the caller currently lacks permission.
     /// Startup scans must surface this without prompting; an explicit
     /// open/regrant gesture may retry the same command.
@@ -40,6 +42,7 @@ impl LibzciError {
     /// Short stable kind label for diagnostics/telemetry grouping.
     pub fn kind(&self) -> &'static str {
         match self {
+            Self::StorageFailure { .. } => "storage-failure",
             Self::AccessRequired { .. } => "access-required",
             Self::Unavailable { .. } => "unavailable",
             Self::Unsupported { .. } => "unsupported",
@@ -62,6 +65,7 @@ impl LibzciError {
 impl fmt::Display for LibzciError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::StorageFailure { code, detail } => write!(f, "storage {code}: {detail}"),
             Self::AccessRequired { detail } => write!(f, "access required: {detail}"),
             Self::Unavailable { detail } => write!(f, "unavailable: {detail}"),
             Self::Unsupported { detail } => write!(f, "unsupported: {detail}"),

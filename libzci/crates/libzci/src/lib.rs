@@ -30,11 +30,17 @@ pub mod ids;
 #[cfg(feature = "control")]
 pub mod ogg_reader;
 #[cfg(feature = "control")]
+pub mod profile;
+#[cfg(feature = "control")]
 pub mod provider;
+#[cfg(feature = "control")]
+pub mod queue;
 #[cfg(feature = "control")]
 pub mod session;
 #[cfg(feature = "control")]
 pub mod source;
+#[cfg(feature = "control")]
+pub mod storage;
 
 pub use audio::pcm::{ChannelLayout, PcmChunk, PcmLayout};
 pub use audio::{

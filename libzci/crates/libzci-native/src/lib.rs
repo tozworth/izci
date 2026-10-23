@@ -9,6 +9,7 @@ pub mod audio;
 pub mod pcm_transport;
 pub mod playback;
 pub mod probe;
+pub mod profile;
 pub mod render;
 pub mod runtime;
 mod session_jobs;

@@ -13,6 +13,9 @@ use std::{
     },
 };
 pub struct Controller {
+    pub profile: libzci_native::profile::NativeProfile,
+    ended_generation: Option<Generation>,
+    checkpoint: std::time::Instant,
     pub runtime: Arc<NativeRuntime>,
     pub session: SessionId,
     pub source: Option<SourceId>,
@@ -26,6 +29,18 @@ pub struct Controller {
 }
 impl Controller {
     pub fn new() -> Self {
+        Self::assemble(libzci_native::profile::NativeProfile::transient())
+    }
+    pub fn with_profile(path: &Path) -> Result<Self> {
+        let profile = libzci_native::profile::NativeProfile::open(path)?;
+        let mut controller = Self::assemble(profile);
+        if let Some(load) = controller.profile.core.snapshot().restore() {
+            let result = controller.load_occurrence(load);
+            controller.record(result);
+        }
+        Ok(controller)
+    }
+    fn assemble(profile: libzci_native::profile::NativeProfile) -> Self {
         let runtime = NativeRuntime::new();
         runtime
             .register_provider(Arc::new(libzci_codecs::OpusFactory::default()))
@@ -41,6 +56,9 @@ impl Controller {
             .unwrap();
         let session = runtime.create_session();
         Self {
+            profile,
+            ended_generation: None,
+            checkpoint: std::time::Instant::now(),
             runtime,
             session,
             source: None,
@@ -55,38 +73,107 @@ impl Controller {
     }
     pub fn open(&mut self, path: &Path) {
         let result = (|| -> Result<()> {
-            let source = self
-                .runtime
-                .insert_source(Arc::new(NativeFileSource::open(path)?));
-            let hint = path
-                .extension()
-                .and_then(|s| s.to_str())
-                .map(str::to_ascii_lowercase);
+            self.profile.append_paths(&[path.to_path_buf()])?;
+            let id = self.profile.core.snapshot().queue.items.last().unwrap().id;
+            let outcome = self
+                .profile
+                .command(libzci::queue::QueueCommand::Play { id })?;
+            let mut load=outcome.load.unwrap();load.autoplay=false;
+            self.load_occurrence(load)
+        })();
+        self.record(result);
+    }
+    fn load_occurrence(&mut self, load: libzci::profile::QueueLoad) -> Result<()> {
+        let path = Path::new(&load.source.locator);
+        let source = self
+            .runtime
+            .insert_source(Arc::new(NativeFileSource::open(path)?));
+        let hint = path
+            .extension()
+            .and_then(|s| s.to_str())
+            .map(str::to_ascii_lowercase);
+        self.runtime.submit(
+            &Command::Load {
+                session: self.session,
+                request_id: RequestId::fresh(),
+                source,
+                extension_hint: hint.clone(),
+                options: LoadOptions {
+                    start_time: MediaTime(load.position_seconds),
+                    subsong: load.subsong,
+                },
+            },
+            &CancelFlag::default(),
+        )?;
+        if let Some(old) = self.source.replace(source) {
+            self.runtime.release_source(old);
+        }
+        self.hint = hint;
+        let settings = self.profile.core.snapshot().settings.clone();
+        for command in [
+            Command::SetVolume {
+                session: self.session,
+                request_id: RequestId::fresh(),
+                volume: settings.volume,
+            },
+            Command::SetMute {
+                session: self.session,
+                request_id: RequestId::fresh(),
+                mute: settings.mute,
+            },
+        ] {
+            self.runtime.submit(&command, &CancelFlag::default())?;
+        }
+        if load.autoplay {
             self.runtime.submit(
-                &Command::Load {
+                &Command::Play {
                     session: self.session,
                     request_id: RequestId::fresh(),
-                    source,
-                    extension_hint: hint.clone(),
-                    options: LoadOptions::default(),
                 },
                 &CancelFlag::default(),
             )?;
-            if let Some(old) = self.source.replace(source) {
-                self.runtime.release_source(old);
+        }
+        Ok(())
+    }
+    pub fn queue_command(&mut self, command: libzci::queue::QueueCommand) {
+        let result = (|| -> Result<()> {
+            let outcome = self.profile.command(command)?;
+            if outcome.stop {
+                self.runtime.submit(
+                    &Command::Stop {
+                        session: self.session,
+                        request_id: RequestId::fresh(),
+                    },
+                    &CancelFlag::default(),
+                )?;
             }
-            self.hint = hint;
+            if let Some(load) = outcome.load {
+                self.load_occurrence(load)?;
+            }
             Ok(())
         })();
         self.record(result);
     }
     pub fn command(&mut self, make: impl FnOnce(SessionId, RequestId) -> Command) {
+        let command = make(self.session, RequestId::fresh());
+        let mut settings = self.profile.core.snapshot().settings.clone();
+        match &command {
+            Command::SetVolume { volume, .. } => settings.volume = *volume,
+            Command::SetMute { mute, .. } => settings.mute = *mute,
+            _ => {}
+        }
+        if settings != self.profile.core.snapshot().settings {
+            if let Err(e) = self
+                .profile
+                .command(libzci::queue::QueueCommand::Settings { settings })
+            {
+                self.record(Err(e));
+                return;
+            }
+        }
         let result = self
             .runtime
-            .submit(
-                &make(self.session, RequestId::fresh()),
-                &CancelFlag::default(),
-            )
+            .submit(&command, &CancelFlag::default())
             .map(|_| ());
         self.record(result);
     }
@@ -108,6 +195,14 @@ impl Controller {
     }
     pub fn tick(&mut self) {
         let s = self.snapshot();
+        if s.state == TransportState::Ended && self.ended_generation != Some(s.generation) {
+            self.ended_generation = Some(s.generation);
+            self.queue_command(libzci::queue::QueueCommand::Next { ended: true });
+        }
+        if self.checkpoint.elapsed() > std::time::Duration::from_secs(2) {
+            self.checkpoint = std::time::Instant::now();
+            self.save_position();
+        }
         if self.output.is_none() && s.layout.is_some() && !s.pending_operation && s.error.is_none()
         {
             match self
@@ -213,9 +308,32 @@ impl Controller {
     pub fn output(&self) -> Option<OutputObservation> {
         self.output.and_then(|id| self.runtime.output_state(id))
     }
+    fn save_position(&mut self) {
+        let s = self.snapshot();
+        if self.profile.core.snapshot().queue.current.is_some()
+            && !s.pending_operation
+            && s.error.is_none()
+        {
+            let result = self
+                .profile
+                .command(libzci::queue::QueueCommand::Checkpoint {
+                    position_seconds: MediaTime::from_frames(
+                        s.position_frames,
+                        s.layout.map_or(1, |l| l.sample_rate),
+                    )
+                    .0,
+                    subsong: s.module.as_ref().map(|m| m.selected_subsong),
+                })
+                .map(|_| ());
+            if let Err(e) = result {
+                self.error = e.to_string();
+            }
+        }
+    }
 }
 impl Drop for Controller {
     fn drop(&mut self) {
+        self.save_position();
         self.cancel_jobs();
         self.runtime.dispose_session(self.session);
     }
