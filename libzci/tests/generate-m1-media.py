@@ -8,10 +8,19 @@ ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'.local/libzci/media/m1';OUT.m
 version=subprocess.check_output(['ffmpeg','-version'],text=True).splitlines()[0]
 assert version.startswith('ffmpeg version 8.1.1'),version
 commands=[]
+extra_names=[]
 for rate,channels in [(44100,1),(48000,2)]:
     for ext,codec in [('wav','pcm_s16le'),('mp3','libmp3lame'),('flac','flac'),('ogg','libvorbis')]:
         cmd=['ffmpeg','-hide_banner','-loglevel','error','-y','-f','lavfi','-i',f'aevalsrc=0.15*sin(2*PI*(220*t+11*t*t))|0.12*sin(2*PI*(660*t+7*t*t)):s={rate}:d=2.500125','-ac',str(channels),'-map_metadata','-1','-c:a',codec,'-metadata','title=M1 marked tone',str(OUT/f'{rate}-{channels}.{ext}')]
         subprocess.run(cmd,check=True);commands.append(cmd)
+for rate,channels in [(96000,2),(192000,1)]:
+    name=f'{rate}-{channels}.wav'
+    cmd=['ffmpeg','-hide_banner','-loglevel','error','-y','-f','lavfi','-i',f'sine=frequency=440:sample_rate={rate}:duration=0.500125','-ac',str(channels),'-c:a','pcm_s16le',str(OUT/name)]
+    subprocess.run(cmd,check=True);commands.append(cmd);extra_names.append(name)
+name='no-duration.flac'
+flac=bytearray((OUT/'48000-2.flac').read_bytes())
+flac[18:26]=(int.from_bytes(flac[18:26],'big')&~((1<<36)-1)).to_bytes(8,'big')
+(OUT/name).write_bytes(flac);extra_names.append(name)
 
 sample=bytes(round(math.sin(i*math.pi/16)*96)&255 for i in range(1024))
 # MOD: one order, 64 rows, instrument 1 on channel 0, looped sine sample.
@@ -57,7 +66,7 @@ for hvl in [False,True]:
     data=header+positions+track+ins+perf
     struct.pack_into('>H',data,4,len(data));data+=b'M1 audible square\0Square\0'
     (OUT/('tone.hvl' if hvl else 'tone.ahx')).write_bytes(data)
-names=[f'{rate}-{channels}.{ext}' for rate,channels in [(44100,1),(48000,2)] for ext in ['wav','mp3','flac','ogg']]+[f'tone.{ext}' for ext in ['mod','xm','s3m','it','mo3','ahx','hvl']]
+names=[f'{rate}-{channels}.{ext}' for rate,channels in [(44100,1),(48000,2)] for ext in ['wav','mp3','flac','ogg']]+[f'tone.{ext}' for ext in ['mod','xm','s3m','it','mo3','ahx','hvl']]+extra_names
 files={name:{'bytes':(OUT/name).stat().st_size,'sha256':hashlib.sha256((OUT/name).read_bytes()).hexdigest()} for name in names}
 (OUT/'provenance.json').write_text(json.dumps({'license':'CC0-1.0','recipe':'libzci/tests/generate-m1-media.py','recipe_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'python':sys.version,'ffmpeg':version,'ffmpeg_binary_sha256':hashlib.sha256(Path(shutil.which('ffmpeg')).read_bytes()).hexdigest(),'commands':commands,'files':files},indent=2)+'\n')
 print(OUT)

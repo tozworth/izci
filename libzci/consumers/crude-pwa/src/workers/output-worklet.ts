@@ -9,7 +9,7 @@ type AudioWasm = WebAssembly.Exports & {
   renderer_input(p:number):number; renderer_output(p:number):number;
   renderer_reset(p:number,g:number,position:number):void;
   renderer_settings(p:number,r:number,v:number,m:number,l:number):void;
-  renderer_enqueue(p:number,id:number,g:number,start:number,end:number,output:number,rate:number,frames:number):number;
+  renderer_enqueue(p:number,id:number,g:number,start:number,end:number,output:number,sourceRate:number,rate:number,frames:number):number;
   renderer_eof(p:number,g:number):void; renderer_process(p:number):void;
   renderer_recycled_count(p:number):number; renderer_recycled(p:number,n:number):number;
   renderer_position(p:number):number; renderer_media(p:number):number;
@@ -64,7 +64,7 @@ class Output extends AudioWorkletProcessor {
       this.recycle(m.id);this.control.postMessage({type:'failed',detail:'invalid output block'});return;
     }
     this.input.set(new Float32Array(m.pcm,0,d.frames*2));
-    if (!this.wasm.renderer_enqueue(this.pointer,m.id,d.generation,d.source_start,d.source_end,d.output_start,d.rate,d.frames)) {
+    if (!this.wasm.renderer_enqueue(this.pointer,m.id,d.generation,d.source_start,d.source_end,d.output_start,d.source_rate,d.rate,d.frames)) {
       this.recycle(m.id);this.control.postMessage({type:'failed',detail:'worklet capacity exceeded'});return;
     }
     this.highWater = Math.max(this.highWater,this.buffers.size);

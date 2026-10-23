@@ -53,7 +53,7 @@ Object.assign(globalThis,{libzciRead:(id:number,position:number,length:number)=>
   if(id!==source?.id)throw new Error('stale File identity');return readBytes(position,length);
 }});
 const position=():number=>backend?.position()??(handle?codec._zci_position(handle):0);
-const total=():number=>facts?.total??(handle?codec._zci_total(handle):0);
+const total=():number|null=>facts?facts.total:handle?codec._zci_total(handle):null;
 function currentFacts():Facts {
   if(backend)return backend.facts();
   return {provider:{id:'org.xiph.opus',name:'Reference Opus (libopusfile)',version:'libopusfile-0.12/libopus-1.5.2/r4'},rate:48000,channels:2,total:codec._zci_total(handle),comments:[],capabilities:{subsongs:0,channels:0},module:null,
@@ -127,7 +127,8 @@ async function perform(job: DecodeJob): Promise<void> {
     } else backend=await openProvider(kind,source.id,file,readBytes,yieldTask,check);
     facts=currentFacts();
     handleInstance = job.tag.instance;
-    if (total() < 0) throw {kind: 'decoder-failure', detail: 'invalid reference duration'};
+    const duration=total();
+    if (duration!==null&&duration<0) throw {kind: 'decoder-failure', detail: 'invalid reference duration'};
     if (job.type === 'open') post({type: 'opened', tag: job.tag, total:total(), position:position(), facts, stats: stats()});
     if(job.mode==='probe') {probing=true;post({type:'probe-complete',facts,stats:stats()});close();active=null;return;}
   }
@@ -137,7 +138,8 @@ async function perform(job: DecodeJob): Promise<void> {
   }
   if (job.type === 'seek'||job.type==='module') {
     if (!handle&&!backend) throw {kind: 'cancelled', detail: 'source not opened'};
-    const target = Math.min(total(),job.control?.kind==='subsong'?0:(job.frame ?? 0));
+    const requested=job.control?.kind==='subsong'?0:(job.frame ?? 0);
+    const target = Math.min(total()??requested,requested);
     if(backend)await backend.seek(target);else await call('zci_seek', [handle, target]);
     facts=currentFacts();
     post({type: didOpen||job.type==='module' ? 'opened' : 'landed', tag: job.tag, total:total(), position:position(), facts, stats: stats()});

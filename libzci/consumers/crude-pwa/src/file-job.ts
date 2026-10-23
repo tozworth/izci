@@ -29,6 +29,7 @@ export class FileJob {
         if(m.type==='eof'){void chain.then(()=>this.finish(),this.finish);return;}
         if(m.type!=='block')return;
         chain=chain.then(async()=>{
+          if(done)return;
           const pcm=new Float32Array(m.pcm,0,m.descriptor.frames*2);
           for(const sample of pcm)peak=Math.max(peak,Math.abs(sample));frames+=m.descriptor.frames;
           if(sink)await sink(m.pcm.slice(0,pcm.byteLength));

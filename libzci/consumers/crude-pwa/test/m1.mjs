@@ -8,7 +8,8 @@ import {readFile,writeFile,copyFile} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 const root=fileURLToPath(new URL('../../../../',import.meta.url));
 const media=path.join(root,'.local/libzci/media/m1');
-const cli=process.env.ZCI_PLAY??path.join(root,'libzci/target/debug/zci-play.exe');
+const cli=process.env.ZCI_PLAY??path.join(root,'libzci/target/debug',process.platform==='win32'?'zci-play.exe':'zci-play');
+const names=['44100-1.wav','44100-1.mp3','44100-1.flac','44100-1.ogg','48000-2.wav','48000-2.mp3','48000-2.flac','48000-2.ogg','tone.mod','tone.xm','tone.s3m','tone.it','tone.mo3','tone.ahx','tone.hvl','96000-2.wav','192000-1.wav'];
 const server=await createServer({root:path.join(root,'libzci/consumers/crude-pwa'),server:{port:5197,strictPort:true}});await server.listen();
 const results=[];let browser;
 try {
@@ -23,7 +24,7 @@ try {
     await page.evaluate(([k,v])=>window.libzci.command(k,v),[kind,value]);
     await page.waitForFunction(r=>window.libzci.snapshot()?.snapshot.revision>r&&!window.libzci.snapshot()?.snapshot.pending_operation,before,{timeout:15000});
   };
-  for(const name of ['44100-1.wav','44100-1.mp3','44100-1.flac','44100-1.ogg','48000-2.wav','48000-2.mp3','48000-2.flac','48000-2.ogg','tone.mod','tone.xm','tone.s3m','tone.it','tone.mo3','tone.ahx','tone.hvl']) {
+  for(const name of names) {
     await page.locator('#file').setInputFiles(path.join(media,name));await page.locator('#open').click();
     await page.waitForFunction(name=>window.libzci.snapshot()?.sourceName===name&&window.libzci.snapshot()?.snapshot.state==='Ready',name,{timeout:15000});const opened=await snap();
     assert.equal(opened.snapshot.error,null);assert(opened.snapshot.total_frames>0,name);
@@ -51,6 +52,14 @@ try {
     results.push({name,test:'real output / pause / seek / controls / EOF',provider:opened.snapshot.provider,frames:ended.position_frames});
     console.log('passed output:',name);
   }
+  await page.locator('#file').setInputFiles(path.join(media,'no-duration.flac'));await page.locator('#open').click();
+  await page.waitForFunction(()=>window.libzci.snapshot()?.sourceName==='no-duration.flac'&&window.libzci.snapshot()?.snapshot.state==='Ready');
+  assert.equal((await snap()).snapshot.total_frames,null);
+  await command('seek',0.5);
+  assert.equal((await snap()).snapshot.position_frames,24000,'unknown duration does not clamp seeks to zero');
+  await command('play');await wait(()=>window.libzci.snapshot()?.snapshot.state==='Ended');
+  assert((await snap()).snapshot.position_frames>120000);
+  results.push({test:'unknown-duration FLAC seek and final drain',snapshot:(await snap()).snapshot});
   assert.deepEqual(errors,[]);
   await page.locator('#file').setInputFiles({name:'tone.unknown',mimeType:'application/octet-stream',buffer:await readFile(path.join(media,'tone.mod'))});
   await page.locator('#open').click();await page.waitForFunction(()=>window.libzci.snapshot()?.sourceName==='tone.unknown'&&window.libzci.snapshot()?.snapshot.state==='Ready');
@@ -58,6 +67,19 @@ try {
   const verified=await page.evaluate(()=>window.libzci.job('probe',true));assert.equal(verified.facts.provider.id,'org.openmpt.libopenmpt');
   const cancelled=await page.evaluate(async()=>{const p=window.libzci.job('render');window.libzci.cancelJobs();try{await p;return '';}catch(e){return String(e);}});assert(cancelled.includes('cancelled'));
   results.push({test:'unknown verification off/on and independent cancellation',declined,verified,cancelled});
+  const exportCancelled=await page.evaluate(async()=>{
+    const {FileJob}=await import('/src/file-job.ts');
+    let release,started;
+    const gate=new Promise(resolve=>release=resolve),first=new Promise(resolve=>started=resolve);
+    let writes=0;
+    const job=new FileJob(document.querySelector('#file').files[0],'render',false,async()=>{writes++;started();await gate;});
+    const result=job.result.catch(String);
+    await first;await new Promise(resolve=>setTimeout(resolve,50));job.cancel();release();
+    await new Promise(resolve=>setTimeout(resolve,100));
+    return {writes,error:await result};
+  });
+  assert.equal(exportCancelled.writes,1,'cancelled exports do not write queued blocks');assert(exportCancelled.error.includes('cancelled'));
+  results.push({test:'cancel export while sink is blocked',...exportCancelled});
   const access=path.join(media,'access.wav');await copyFile(path.join(media,'48000-2.wav'),access);
   await page.locator('#file').setInputFiles(access);await page.locator('#open').click();
   await page.waitForFunction(()=>window.libzci.snapshot()?.sourceName==='access.wav'&&window.libzci.snapshot()?.output.highWater===8);
@@ -65,11 +87,11 @@ try {
   await wait(()=>window.libzci.snapshot()?.snapshot.state==='Failed');assert((await snap()).snapshot.error.includes('unavailable'));
   results.push({test:'Symphonia live File access loss stays typed',snapshot:(await snap()).snapshot});
   const reference=await browser.newPage();await reference.goto('http://localhost:5197/test/reference.html');await reference.waitForFunction(()=>!!window.referenceHarness);
-  for(const name of ['44100-1.wav','44100-1.mp3','44100-1.flac','44100-1.ogg','48000-2.wav','48000-2.mp3','48000-2.flac','48000-2.ogg','tone.mod','tone.xm','tone.s3m','tone.it','tone.mo3','tone.ahx','tone.hvl']) {
+  for(const name of [...names,'no-duration.flac']) {
     const rendered=path.join(media,name+'.native.f32');const run=spawnSync(cli,[path.join(media,name),'--render-pcm',rendered],{encoding:'utf8'});assert.equal(run.status,0,run.stderr);
     const bytes=await readFile(path.join(media,name));const pcm=await readFile(rendered);
     const expected=Array.from(new Float32Array(pcm.buffer,pcm.byteOffset,pcm.byteLength/4));
-    const report=await reference.evaluate(async({name,bytes,expected,sourceRate})=>window.referenceHarness.run(new File([new Uint8Array(bytes)],name),new Float32Array(expected),0,3,48000,sourceRate),{name,bytes:Array.from(bytes),expected,sourceRate:name.startsWith('44100')?44100:48000});
+    const report=await reference.evaluate(async({name,bytes,expected,sourceRate})=>window.referenceHarness.run(new File([new Uint8Array(bytes)],name),new Float32Array(expected),0,3,48000,sourceRate),{name,bytes:Array.from(bytes),expected,sourceRate:Number(name.split('-')[0])||48000});
     assert.equal(report.frames,pcm.length/8,`${name} native/browser frame equality`);assert(report.maxError<0.00003,`${name} max error ${report.maxError}`);assert(report.highWater<=8);
     results.push({name,test:'all samples versus native with delayed recycling',...report});console.log('passed samples:',name,report.frames,report.maxError);
   }

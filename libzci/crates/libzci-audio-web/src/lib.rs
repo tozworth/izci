@@ -130,22 +130,32 @@ pub extern "C" fn renderer_new() -> *mut Renderer {
     Box::into_raw(Box::new(Renderer::new()))
 }
 #[no_mangle]
+/// # Safety
+/// `p` must be a live renderer_new handle, released exactly once.
 pub unsafe extern "C" fn renderer_free(p: *mut Renderer) {
     drop(Box::from_raw(p));
 }
 #[no_mangle]
+/// # Safety
+/// `p` must be live and exclusive; its input view expires when the handle is freed.
 pub unsafe extern "C" fn renderer_input(p: *mut Renderer) -> *mut f32 {
     (*p).input.as_mut_ptr()
 }
 #[no_mangle]
+/// # Safety
+/// `p` must be live; its output view must not alias renderer mutations or outlive it.
 pub unsafe extern "C" fn renderer_output(p: *mut Renderer) -> *const f32 {
     (*p).output.as_ptr()
 }
 #[no_mangle]
+/// # Safety
+/// `p` must be a live renderer handle exclusively owned by this caller.
 pub unsafe extern "C" fn renderer_reset(p: *mut Renderer, g: f64, position: f64) {
     (*p).reset(Generation(g as u64), position as u64);
 }
 #[no_mangle]
+/// # Safety
+/// `p` must be a live renderer handle exclusively owned by this caller.
 pub unsafe extern "C" fn renderer_settings(
     p: *mut Renderer,
     running: i32,
@@ -159,6 +169,8 @@ pub unsafe extern "C" fn renderer_settings(
     (*p).latency = latency as u64;
 }
 #[no_mangle]
+/// # Safety
+/// `p` must be live and exclusive, with `frames` initialized stereo input frames.
 pub unsafe extern "C" fn renderer_enqueue(
     p: *mut Renderer,
     id: i32,
@@ -166,6 +178,7 @@ pub unsafe extern "C" fn renderer_enqueue(
     start: f64,
     end: f64,
     output_start: f64,
+    source_rate: u32,
     rate: u32,
     frames: usize,
 ) -> i32 {
@@ -175,7 +188,7 @@ pub unsafe extern "C" fn renderer_enqueue(
             generation: Generation(g as u64),
             source_start: start as u64,
             source_end: end as u64,
-            source_rate: 48000,
+            source_rate,
             output_start: output_start as u64,
             layout: PcmLayout {
                 layout: ChannelLayout::Stereo,
@@ -186,36 +199,52 @@ pub unsafe extern "C" fn renderer_enqueue(
     ) as i32
 }
 #[no_mangle]
+/// # Safety
+/// `p` must be a live renderer handle exclusively owned by this caller.
 pub unsafe extern "C" fn renderer_eof(p: *mut Renderer, g: f64) {
     if (*p).generation == Generation(g as u64) {
         (*p).eof = true;
     }
 }
 #[no_mangle]
+/// # Safety
+/// `p` must be a live renderer handle exclusively owned by this caller.
 pub unsafe extern "C" fn renderer_process(p: *mut Renderer) {
     (*p).process();
 }
 #[no_mangle]
+/// # Safety
+/// `p` must be live and must not be concurrently mutated.
 pub unsafe extern "C" fn renderer_recycled_count(p: *mut Renderer) -> usize {
     (*p).recycled_len
 }
 #[no_mangle]
+/// # Safety
+/// `p` must be live and unmodified since renderer_recycled_count; `n` is below that count.
 pub unsafe extern "C" fn renderer_recycled(p: *mut Renderer, n: usize) -> i32 {
     (&(*p).recycled)[n]
 }
 #[no_mangle]
+/// # Safety
+/// `p` must be live and must not be concurrently mutated.
 pub unsafe extern "C" fn renderer_position(p: *mut Renderer) -> f64 {
     (*p).position as f64
 }
 #[no_mangle]
+/// # Safety
+/// `p` must be live and must not be concurrently mutated.
 pub unsafe extern "C" fn renderer_media(p: *mut Renderer) -> f64 {
     (*p).media as f64
 }
 #[no_mangle]
+/// # Safety
+/// `p` must be live and must not be concurrently mutated.
 pub unsafe extern "C" fn renderer_silence(p: *mut Renderer) -> f64 {
     (*p).silence as f64
 }
 #[no_mangle]
+/// # Safety
+/// `p` must be live and must not be concurrently mutated.
 pub unsafe extern "C" fn renderer_finished(p: *mut Renderer) -> i32 {
     (*p).finished as i32
 }

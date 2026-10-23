@@ -9,7 +9,7 @@
 //! fencing.
 //!
 //! Production commands never report success using the test-only
-//! [`FakeProvider`]; it exists so session/generation logic can be
+//! [`FakeFactory`]; it exists so session/generation logic can be
 //! exercised before the first real codec lands in Phase 1.2.
 
 use std::collections::HashMap;
@@ -178,21 +178,9 @@ pub trait ProviderFactory: Send + Sync {
 /// Selection prefers the highest probe score in registration order;
 /// ties keep the earlier registration. Extension hints never
 /// outrank sniffed magic.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ProviderRegistry {
     factories: Vec<Arc<dyn ProviderFactory>>,
-    /// Observable budget: maximum simultaneous open instances the
-    /// tests may assert against.
-    pub max_open_instances: usize,
-}
-
-impl Default for ProviderRegistry {
-    fn default() -> Self {
-        Self {
-            factories: Vec::new(),
-            max_open_instances: 16,
-        }
-    }
 }
 
 impl ProviderRegistry {
@@ -269,12 +257,16 @@ impl ProviderRegistry {
     ) -> Result<(ProviderInfo, Box<dyn DecoderInstance>)> {
         cancel.check()?;
         let mut header = vec![0u8; PROBE_BYTES];
-        let n = match source.read_at(0, &mut header, cancel) {
-            Ok(n) => n,
-            Err(LibzciError::Cancelled) => return Err(LibzciError::Cancelled),
-            Err(e) => return Err(e),
-        };
-        header.truncate(n);
+        let mut filled = 0;
+        while filled < header.len() {
+            cancel.check()?;
+            let read = source.read_at(filled as u64, &mut header[filled..], cancel)?;
+            if read == 0 {
+                break;
+            }
+            filled += read;
+        }
+        header.truncate(filled);
         let input = ProbeInput {
             header: &header,
             extension_hint,
@@ -488,11 +480,9 @@ pub struct HintOnlyFactory {
 impl HintOnlyFactory {
     /// Create with a distinct ID so registry tests can register both.
     pub fn new(id: &'static str) -> Self {
-        // Leak is acceptable in tests; IDs must be 'static.
-        let leaked: &'static str = Box::leak(id.to_string().into_boxed_str());
         Self {
             info: ProviderInfo {
-                id: ProviderId(leaked),
+                id: ProviderId(id),
                 version: "test-1",
                 display_name: "hint-only",
             },
@@ -535,7 +525,6 @@ impl std::fmt::Debug for ProviderRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ProviderRegistry")
             .field("providers", &self.provider_ids())
-            .field("max_open_instances", &self.max_open_instances)
             .finish()
     }
 }
@@ -555,6 +544,42 @@ mod tests {
 
     fn mem(bytes: &[u8]) -> Arc<dyn RuntimeSource> {
         Arc::new(MemSource::new(bytes.to_vec()))
+    }
+
+    #[derive(Debug)]
+    struct ShortReads(MemSource);
+
+    impl RuntimeSource for ShortReads {
+        fn id(&self) -> crate::SourceId {
+            self.0.id()
+        }
+        fn revision(&self) -> u64 {
+            self.0.revision()
+        }
+        fn caps(&self) -> crate::SourceCaps {
+            self.0.caps()
+        }
+        fn read_at(&self, offset: u64, out: &mut [u8], cancel: &CancelFlag) -> Result<usize> {
+            let length = out.len().min(2);
+            self.0.read_at(offset, &mut out[..length], cancel)
+        }
+    }
+
+    #[test]
+    fn short_source_reads_do_not_change_provider_selection() {
+        let mut registry = ProviderRegistry::new();
+        registry
+            .register(Arc::new(FakeFactory::new(16, PcmLayout::mono48k())))
+            .unwrap();
+        let source = Arc::new(ShortReads(MemSource::new(b"FAKExyz".to_vec())));
+        assert_eq!(
+            registry
+                .open_best(source, None, &CancelFlag::default())
+                .unwrap()
+                .0
+                .id,
+            ProviderId::FAKE
+        );
     }
 
     #[test]

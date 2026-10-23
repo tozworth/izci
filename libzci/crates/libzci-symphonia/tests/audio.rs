@@ -125,3 +125,26 @@ fn formats_seek_trim_eof_instances_and_bounded_reads() {
         }
     }
 }
+
+#[test]
+fn high_rates_and_unknown_duration_keep_exact_seek_suffixes() {
+    for (name, rate, channels) in [
+        ("96000-2.wav", 96000, 2),
+        ("192000-1.wav", 192000, 1),
+        ("no-duration.flac", 48000, 2),
+    ] {
+        let cancel = CancelFlag::default();
+        let mut decoder = SymphoniaFactory.open(source(name), &cancel).unwrap();
+        assert_eq!(decoder.layout().sample_rate, rate);
+        if name == "no-duration.flac" {
+            assert_eq!(decoder.total_frames(), None);
+        }
+        let full = decode(decoder.as_mut(), &cancel);
+        let target = rate as u64 / 4;
+        assert_eq!(decoder.seek_to_frame(target, &cancel).unwrap(), target);
+        assert_eq!(
+            decode(decoder.as_mut(), &cancel),
+            full[target as usize * channels..]
+        );
+    }
+}

@@ -7,6 +7,26 @@ test('audio-only WASM has no host imports or transport/catalog entry points',()=
   assert.deepEqual(WebAssembly.Module.imports(module),[]);
   assert(!WebAssembly.Module.exports(module).some(e=>/session|command|sqlite|decoder/i.test(e.name)));
 });
+
+test('worklet ABI preserves source-rate positions within blocks and at final drain', () => {
+  for (const sourceRate of [44100, 96000, 192000]) {
+    const wasm = new WebAssembly.Instance(module, {}).exports;
+    const pointer = wasm.renderer_new();
+    try {
+      wasm.renderer_reset(pointer, 1, 0);
+      wasm.renderer_settings(pointer, 1, 1, 0, 0);
+      assert.equal(wasm.renderer_enqueue(pointer, 0, 1, 0, Math.floor(4096 * sourceRate / 48000), 0, sourceRate, 48000, 4096), 1);
+      wasm.renderer_eof(pointer, 1);
+      for (let quantum = 1; quantum <= 32; quantum++) {
+        wasm.renderer_process(pointer);
+        assert.equal(wasm.renderer_position(pointer), Math.floor(quantum * 128 * sourceRate / 48000), `${sourceRate} Hz quantum ${quantum}`);
+      }
+      assert.equal(wasm.renderer_finished(pointer), 1);
+    } finally {
+      wasm.renderer_free(pointer);
+    }
+  }
+});
 test('fixed audio pool retains long marked output, tails and generations without heap growth',()=>{
   const w=new WebAssembly.Instance(module,{}).exports;
   const p=w.renderer_new();
@@ -23,10 +43,10 @@ test('fixed audio pool retains long marked output, tails and generations without
       const frames=Math.min([4096,13,1024,4095][blocks%4],total-submitted);
       const id=free.values().next().value;
       for(let i=0;i<frames*2;i++)input[i]=(submitted*2+i)%65521;
-      assert.equal(w.renderer_enqueue(p,id,1,submitted,submitted+frames,submitted,48000,frames),1);
+      assert.equal(w.renderer_enqueue(p,id,1,submitted,submitted+frames,submitted,48000,48000,frames),1);
       free.delete(id);submitted+=frames;blocks++;
     }
-    if(!free.size)assert.equal(w.renderer_enqueue(p,99,1,submitted,submitted+1,submitted,48000,1),0);
+    if(!free.size)assert.equal(w.renderer_enqueue(p,99,1,submitted,submitted+1,submitted,48000,48000,1),0);
     if(submitted===total)w.renderer_eof(p,1);
     const before=w.renderer_media(p);w.renderer_process(p);
     const count=w.renderer_media(p)-before;
@@ -41,7 +61,7 @@ test('fixed audio pool retains long marked output, tails and generations without
   }
   assert.equal(received,total);assert.equal(w.renderer_position(p),total);assert.equal(free.size,8);
   w.renderer_reset(p,2,5000);
-  assert.equal(w.renderer_enqueue(p,0,1,0,1,0,48000,1),0);
+  assert.equal(w.renderer_enqueue(p,0,1,0,1,0,48000,48000,1),0);
   for(let i=0;i<100;i++)w.renderer_process(p);
   assert.equal(w.renderer_position(p),5000);assert.equal(w.renderer_finished(p),0);
   assert(output.every(n=>n===0));
