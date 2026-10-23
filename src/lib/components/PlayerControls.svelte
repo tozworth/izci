@@ -634,6 +634,11 @@
             <span class="player-artwork-fullscreen material-symbols-outlined">fullscreen</span>
           {/if}
         </div>
+        {#if presentation !== 'now-playing'}
+          <HoverTooltip placement="above" align="left" nowrap>
+            {$t('main.player.enterNowPlaying', { default: 'Enter Now Playing' })}
+          </HoverTooltip>
+        {/if}
       </button>
     {/if}
     <slot name="artwork-controls" />

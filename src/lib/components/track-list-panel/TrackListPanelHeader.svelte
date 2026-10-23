@@ -35,6 +35,11 @@
     dispatch('cycleRepeat');
   }
 
+  function runtimeDoesNotFit(anchor: HTMLElement): boolean {
+    const runtime = anchor.querySelector<HTMLElement>('.panel-summary-runtime');
+    return !!runtime && (runtime.offsetWidth === 0 || anchor.scrollWidth > anchor.clientWidth);
+  }
+
   $: [trackCountSummary = '', trackRuntimeSummary = ''] = trackSummary.split(' · ', 2);
 </script>
 
@@ -43,10 +48,11 @@
     {#if !hideEyebrow}
       <p class="eyebrow">{panelTitle}</p>
     {/if}
-    <p class="panel-summary" title={trackSummary}>
+    <p class="panel-summary">
       <span class="panel-summary-count">{trackCountSummary}</span>
       {#if trackRuntimeSummary}
         <span class="panel-summary-runtime"> · {trackRuntimeSummary}</span>
+        <HoverTooltip align="left" nowrap showWhen={runtimeDoesNotFit}>{trackRuntimeSummary}</HoverTooltip>
       {/if}
     </p>
   </div>

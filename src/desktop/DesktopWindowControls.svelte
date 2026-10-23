@@ -15,15 +15,15 @@
 
 <div class="desktop-window-controls" data-menu-interactive="true" use:fitDesktopTitlebar>
   {#if miniPlayerSupported}
-    <button class="mini-player-control" title={$t('main.menu.miniPlayer')} aria-label={$t('main.menu.miniPlayer')}
+    <button class="mini-player-control" aria-label={$t('main.menu.miniPlayer')}
       aria-pressed={miniPlayerActive} on:click={() => dispatch('miniplayer')}>
       <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="9" /><path d="M8 8h4v3H8z" fill="currentColor" stroke="none" /></svg>
     </button>
   {/if}
-  <button title={$t('main.windowControls.minimize')} aria-label={$t('main.windowControls.minimize')} on:click={minimizeDesktopWindow}>
+  <button aria-label={$t('main.windowControls.minimize')} on:click={minimizeDesktopWindow}>
     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5h10" /></svg>
   </button>
-  <button title={maximizeLabel} aria-label={maximizeLabel} on:click={toggleDesktopMaximize}>
+  <button aria-label={maximizeLabel} on:click={toggleDesktopMaximize}>
     <svg viewBox="0 0 16 16" aria-hidden="true">
       {#if $desktopWindowState.maximized}
         <path d="M5.5 5.5v-2h7v7h-2" /><rect x="3.5" y="5.5" width="7" height="7" />
@@ -32,7 +32,7 @@
       {/if}
     </svg>
   </button>
-  <button class="close-control" title={$t('main.windowControls.close')} aria-label={$t('main.windowControls.close')} on:click={closeDesktopWindow}>
+  <button class="close-control" aria-label={$t('main.windowControls.close')} on:click={closeDesktopWindow}>
     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 3.5 9 9m0-9-9 9" /></svg>
   </button>
 </div>

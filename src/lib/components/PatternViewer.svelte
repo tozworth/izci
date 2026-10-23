@@ -260,7 +260,7 @@
           >
             <span
               class="pattern-channel-label"
-              title={channel.name || $t('main.patterns.channelLabel', {
+              aria-label={channel.name || $t('main.patterns.channelLabel', {
                 default: 'Channel {number}',
                 values: { number: channel.index + 1 }
               })}
@@ -321,7 +321,7 @@
                 class:empty={isPatternCellEmpty(cell)}
                 class:muted={channelStates[channel.index]?.effectiveMuted}
                 role="cell"
-                title={$t('main.patterns.cellDescription', {
+                aria-label={$t('main.patterns.cellDescription', {
                   default: 'Channel {number}: {value}',
                   values: {
                     number: channel.index + 1,

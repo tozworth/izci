@@ -775,7 +775,7 @@
           class="clv-column-sort-button"
           class:is-sorted={sorted}
           class:is-right-aligned={column.rightAligned}
-          title={$t('library.columns.sortBy', { default: 'Sort by {column}', values: { column: column.label } })}
+          aria-label={$t('library.columns.sortBy', { default: 'Sort by {column}', values: { column: column.label } })}
           on:click={() => handleColumnSort(column.id as LibraryColumnId)}
         >
           <span class="clv-column-sort-content" class:is-right-aligned={column.rightAligned}>

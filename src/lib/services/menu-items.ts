@@ -441,12 +441,14 @@ function buildPlaybackMenuItems(
       checked: deps.abLoop.active,
       disabled: !deps.playingTrack
     },
-    {
-      id: 'raf',
-      label: deps.translate('options.views.raf', { default: 'Raf' }),
-      icon: 'tune',
-      children: rafMenuItems
-    }
+    ...(deps.playbackSettings.enableRaf
+      ? [{
+          id: 'raf',
+          label: deps.translate('options.views.raf', { default: 'Raf' }),
+          icon: 'tune',
+          children: rafMenuItems
+        } satisfies MenuActionItem]
+      : [])
   ] satisfies MenuActionItem[];
 }
 
