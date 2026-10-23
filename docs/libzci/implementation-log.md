@@ -10,6 +10,97 @@ are all open. No build, test, listening, or browser result was newly produced by
 this documentation revision. Append future results under the new milestone IDs.
 The old phase labels and next-step statements below do not direct current work.
 
+## 2026-10-23: M1 validation and cleanup
+
+Baseline `1de4e2e6` on `libzci-codex`, initially clean. User authorized review,
+fixes, builds and headless/emulator tests. No library/profile/grant changes.
+This pass covers R1-R4 and M1; it adds no M2 domain/storage behavior.
+
+Review fixes (each reproduced by a failing regression before correction):
+
+- Worklet ABI discarded the descriptor's source rate and reconstructed every
+  block as 48 kHz. A 44.1 kHz source reported 128 instead of 117 frames after
+  one output quantum; high-rate sources could also end short. Pass the actual
+  source rate into the shared renderer; test each quantum and final drain at
+  44.1/96/192 kHz and actual browser output at 96/192 kHz.
+- A FLAC STREAMINFO with an unspecified sample count was accepted but browser
+  seek clamped every target to zero. Preserve null duration and seek to the
+  requested frame when no finite total is known. A new CC0 FLAC variant proves
+  native/browser exact suffixes, a 24,000-frame seek, and final consumption.
+- Provider selection treated the first short source read as the complete
+  header. Fill the bounded probe prefix through partial reads until EOF or the
+  byte budget; a two-byte-at-a-time source now selects the same provider.
+- Cancelling an export with a blocked sink still wrote all eight queued chunks
+  after cancellation. Queued continuations now check job completion before
+  touching the sink. The blocked-sink regression now observes one write.
+
+Validation cleanup:
+
+- Main Vitest discovery now stays inside the main application's source/test
+  trees. It previously collected libzci's Node test and downloaded Emscripten's
+  tests, producing false failures. Windows path assertions normalize paths;
+  architecture checks cache parsed imports instead of repeatedly timing out.
+- The formerly skipped corpus integration now runs on Windows with separately
+  pinned Gyan FFmpeg/FFprobe 8.1.1 versions, byte counts and SHA-256 values.
+  Both complete generations match and pass the existing media-fact checks.
+  Ubuntu 6.1.1 pins remain separate; neither toolchain check was weakened.
+- `libzci-codecs --no-default-features` previously linked unrequested Opus and
+  failed on `opus.lib`. Gate raw FFI, examples and integration tests on their
+  actual features. Codec-free and module-only checks now pass independently.
+- OpenMPT allocated-string helpers now require unsafe callers and document
+  ownership correctly. Remove an unenforced instance-budget field and an
+  unnecessary leaked static string. Name render stepping `next_step` and Opus
+  packet reads `next_packet`. Native and WASM Clippy both pass with warnings
+  denied; workspace formatting and Rust documentation also pass.
+- Browser launches mute host audio. Explicit hardware transport/CLI tests use
+  silent master output; native GUI validation stays in hidden eframe windows.
+- Add the repeatable `test:android` runner using the dedicated headless AVD,
+  Android Chrome, ADB reverse and host-supplied File bytes. It closes its Chrome
+  context/server/forward afterward and preserves the APK's profile and grants.
+
+Results (Windows x64 MSVC; Rust/Cargo 1.98.1; FFmpeg 8.1.1; Chromium 149;
+Android 16/API 36 `izci_android16`, Google APIs x86_64, Chrome 133):
+
+| Check | Result |
+| --- | --- |
+| Main `npm test -- --maxWorkers=4 --reporter=dot` | 221 files, **1,339 passed, zero failed/skipped** |
+| `npm run check` | Zero errors/warnings |
+| Windows fixture integration | Five passed, including two complete deterministic generations |
+| Rust workspace + `libzci-native/provider-tests` | **91 passed**, zero failed; two opt-in hardware tests run separately and both passed silently |
+| Native/WASM `cargo clippy ... -- -D warnings`, `cargo fmt --check`, `cargo doc --no-deps` | Passed |
+| Codec-free / module-only feature tests; minimal CLI check | Passed |
+| Audio-only WASM Node tests | Three passed, including source-rate ABI regression |
+| PWA `typecheck`, WASM builds, production build | Passed |
+| PWA `test:m1` | **46 scenarios passed**, 18 every-sample comparisons |
+| PWA `test:webcodecs`, `test:callbacks`, `test:browser` | **8 / 15 / 5 scenarios passed**, including 30-second production drain/starvation/suspension |
+| `test:android` | **44 scenarios passed**: 21 transports/probes, unknown-duration seek/drain, 22 every-sample comparisons |
+| Hidden native release GUI | HVL, MOD, 192 kHz WAV and unknown-duration FLAC transport/control/probe/disposal passed |
+| Release CLI process checks | Eight passed, including silent playback interruption and render cancellation |
+| Android Kotlin `testDebugUnitTest --rerun-tasks` | Six passed, zero failed/skipped; all 27 Gradle tasks executed |
+| Android CDP/transport Node tests | Five passed |
+| Main PWA production build | Passed, 166 precache entries; existing chunk-size warning remains |
+| Native release CLI/crude builds | Passed |
+
+Maximum native/browser sample error on desktop and Android: **1.4901161e-7**,
+against **3e-5** acceptance. Recycling high-water remains **8**. The seven module
+families match native samples exactly. Added media remains ignored and records
+recipe/tool/file hashes in M1 provenance; no third-party music was added.
+
+Milestones: `4a4ef6ce` test isolation/Windows fixtures; `dee99a66` runtime/source/job
+fixes; `bbf6b1a6` codec feature gates and API/lint cleanup. Evidence is in ignored
+`.local/libzci/review-*.log`, `review-android-evidence.json`,
+`m1-browser-evidence.json`, `m1-webcodecs-evidence.json`, and
+`r4-{callback,browser}-evidence.json`. Reproduction commands are in the workspace
+and crude-PWA READMEs. The dedicated emulator is stopped after validation.
+
+Limits remain explicit: emulator Chrome is not physical-device, installed-PWA,
+screen-off/background or OEM SAF acceptance. Optional WebCodecs is verified on
+desktop Chromium; Android coverage uses the reference path. Libzci is not yet
+adopted by the separate APK. Linux recovery remains unverified. No installed/
+offline-libzci behavior is claimed before M2; the ordinary izci PWA build does
+not establish that later milestone. Existing packaged M1 artifact manifests
+remain historical; current review builds live in the usual ignored outputs.
+
 ## M1: file players, modules and both crudes
 
 2026-10-19, Windows x64 MSVC and headless Chromium. User authorized builds and

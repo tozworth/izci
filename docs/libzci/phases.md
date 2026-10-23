@@ -9,7 +9,7 @@ checks recorded in the [implementation log](implementation-log.md#recovery-r1-bo
 R2 and native reference Opus R3 are verified on Windows MSVC (2026-10-18);
 R4 is implemented with headless end-to-end evidence; hidden-tab/screen-off and
 physical-device validation keep its acceptance open. M1 has Windows native and
-headless Chromium evidence; M2-M6 remain open.
+headless Chromium and Android emulator Chrome evidence; M2-M6 remain open.
 GNU/Linux R3 recovery remains unverified target work. Execute in order; numbered items within a milestone are commit-sized
 units where coherent. A milestone closes when its deliverable works and the
 listed checks pass, not when its file list exists. Pending verification is a
@@ -175,6 +175,8 @@ Installed/offline behavior is added in M2, not claimed here.
 ## M1: useful file players, modules, and both crude UIs
 
 Status: **verified for Windows x64 native and headless Chromium** (2026-10-19).
+The [2026-10-23 validation pass](implementation-log.md#2026-10-23-m1-validation-and-cleanup)
+adds Android 16 emulator Chrome, high-rate/unknown-duration inputs, and regression fixes.
 Both crudes, the CLI, declared synthetic ordinary/module inputs, independent
 jobs and optional single-link WebCodecs Opus are covered. Native GUI checks
 include a hidden eframe window with muted real CPAL output. Linux, physical

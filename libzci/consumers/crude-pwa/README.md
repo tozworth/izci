@@ -112,6 +112,25 @@ npm run test:m1 --prefix libzci/consumers/crude-pwa
 npm run test:webcodecs --prefix libzci/consumers/crude-pwa
 ```
 
+Android Chrome checks use the dedicated Android 16 emulator, started without
+a window or host audio. Generate R3/R4/M1 media and build the native CLI/WASM
+as above, then run these sequentially (the browser suites share port 5197):
+
+```sh
+npm run android:emulator -- start
+npm run test:android --prefix libzci/consumers/crude-pwa
+npm run android:emulator -- stop
+```
+
+The Android runner verifies the AVD identity, uses ADB reverse for a temporary
+loopback server, sends File bytes over the debugging connection, and closes
+Chrome/server/forwarding afterward. It tests actual worklet transport, pause,
+seek, independent probes, module controls, unknown-duration FLAC and final
+drain; every sample is compared with the native renderer under delayed buffer
+recycling. Inputs include Opus header gain/chains, all M1 formats and 96/192 kHz
+WAV. Evidence is `.local/libzci/review-android-evidence.json`. This validates
+Chrome in the emulator; libzci is not integrated into the separate APK yet.
+
 Callback tests start a temporary development server; browser tests use the
 production build on a temporary preview server. Both close their server/browser.
 Fresh profiles, dedicated port 5197 and ignored fixture/output paths preserve

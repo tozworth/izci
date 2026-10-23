@@ -18,6 +18,8 @@ unverified target work.
 
 M1 now implements ordinary audio, modules, both crude UIs, independent probe/render
 jobs and optional WebCodecs Opus, verified on Windows native/headless Chromium.
+The [2026-10-23 validation pass](implementation-log.md#2026-10-23-m1-validation-and-cleanup)
+adds Android emulator Chrome coverage and fixes transport/source/job regressions.
 Its target-specific evidence and limits are in the implementation log.
 
 ## Start here

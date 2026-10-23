@@ -9,6 +9,9 @@ and user-confirmed clean listening. See the [evidence](../docs/libzci/implementa
 R4 now has working reference browser output and headless end-to-end checks;
 hidden-tab/screen-off and physical-device checks remain pending. M1 adds ordinary
 audio, modules, inspection/jobs and both crudes on Windows/headless Chromium.
+The M1 validation pass also verifies Android 16 emulator Chrome and fixes source
+rate clocks, unknown-duration seeks, short reads and export cancellation; see
+the [review evidence](../docs/libzci/implementation-log.md#2026-10-23-m1-validation-and-cleanup).
 
 - `libzci`: control-only session action machine, source/provider contracts,
   generation-tagged jobs, media consumption clock, bounded PCM preparation.
@@ -91,7 +94,8 @@ cargo test --locked --manifest-path libzci/Cargo.toml -p libzci-native --feature
 python libzci/tests/check-cli.py
 ```
 
-The last two checks require authorized hardware access. Device absence fails the
+The last two checks require authorized hardware access and use silent master
+output, preserving actual device transport without audible playback. Device absence fails the
 explicit hardware check; it is not reported as success. `ZCI_PLAY` can select a
 release executable for the process-level CLI check. Browser checks are documented in the crude README. Installed-PWA checks begin in M2. Follow [AGENTS.md](../AGENTS.md) for build/runtime authorization.
 
