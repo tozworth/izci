@@ -25,6 +25,14 @@ modules = []
 name = "mod-dump"
 required-features = ["modules"]
 
+[[example]]
+name = "opus-dump"
+required-features = ["opus"]
+
+[[test]]
+name = "opusfile"
+required-features = ["opus"]
+
 [[test]]
 name = "modules_m1"
 required-features = ["modules"]

@@ -223,7 +223,12 @@ fn map_samples<T: cpal::SizedSample + cpal::FromSample<f32>>(
     output: &mut [T],
     channels: usize,
 ) {
-    for (stereo, frame) in input.chunks_exact(2).zip(output.chunks_exact_mut(channels)) {
+    for (stereo, frame) in input
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .zip(output.chunks_exact_mut(channels))
+    {
         for (channel, sample) in frame.iter_mut().enumerate() {
             let value = if channels == 1 {
                 (stereo[0] + stereo[1]) * 0.5

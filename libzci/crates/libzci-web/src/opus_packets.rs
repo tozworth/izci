@@ -20,7 +20,9 @@ pub struct WebOpusPackets {
 }
 #[wasm_bindgen]
 impl WebOpusPackets {
-    pub fn duration(packet:&[u8])->std::result::Result<u32,JsValue> { libzci::format::opus_packet_frames(packet).map_err(js) }
+    pub fn duration(packet: &[u8]) -> std::result::Result<u32, JsValue> {
+        libzci::format::opus_packet_frames(packet).map_err(js)
+    }
     #[wasm_bindgen(constructor)]
     pub fn new(id: u32, len: f64) -> std::result::Result<Self, JsValue> {
         let source: Arc<dyn RuntimeSource> = Arc::new(FileSource {
@@ -53,7 +55,7 @@ impl WebOpusPackets {
     pub fn facts(&self) -> String {
         serde_json::json!({"channels":self.params.channels,"preskip":self.params.preskip,"gain":self.params.gain_linear().unwrap_or(1.0)}).to_string()
     }
-    pub fn next(&mut self) -> std::result::Result<js_sys::Uint8Array, JsValue> {
+    pub fn next_packet(&mut self) -> std::result::Result<js_sys::Uint8Array, JsValue> {
         loop {
             if let Some(packet) = self.packets.pop_front() {
                 if packet.starts_with(b"OpusTags") {
@@ -144,8 +146,7 @@ impl WebOpusTimeline {
         gain: f32,
         target: f64,
     ) -> std::result::Result<Self, JsValue> {
-        if channels < 1
-            || channels > 2
+        if !(1..=2).contains(&channels)
             || !gain.is_finite()
             || gain < 0.0
             || !target.is_finite()
@@ -168,7 +169,7 @@ impl WebOpusTimeline {
         self.position as f64
     }
     pub fn accept(&mut self, samples: &[f32]) -> std::result::Result<Vec<f32>, JsValue> {
-        if samples.len() % self.channels != 0
+        if !samples.len().is_multiple_of(self.channels)
             || samples.len() > 11520
             || samples.iter().any(|s| !s.is_finite())
         {

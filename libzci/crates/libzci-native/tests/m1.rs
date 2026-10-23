@@ -55,7 +55,7 @@ fn render(r: &Arc<NativeRuntime>, source: SourceId, hint: &str, start: f64) -> V
         .unwrap();
     let mut all = Vec::new();
     loop {
-        match job.next().unwrap() {
+        match job.next_step().unwrap() {
             RenderStep::Data { samples, .. } => all.extend(samples),
             RenderStep::Pending => (),
             RenderStep::Complete(n) => {
@@ -206,7 +206,7 @@ fn unknown_verification_policy_is_separate_from_playback_and_cancel_is_typed() {
         .start_render(src, Some("mod"), RenderOptions::default(), &cancel)
         .unwrap();
     render.cancel();
-    assert_eq!(render.next().err().unwrap(), LibzciError::Cancelled);
+    assert_eq!(render.next_step().err().unwrap(), LibzciError::Cancelled);
     assert_eq!(
         r.start_probe(SourceId(0), None, true, &cancel)
             .err()

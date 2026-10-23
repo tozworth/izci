@@ -506,7 +506,7 @@ mod tests {
             .unwrap();
         let mut expected = Vec::new();
         loop {
-            match reference.next().unwrap() {
+            match reference.next_step().unwrap() {
                 RenderStep::Data { samples, .. } => expected.extend(samples),
                 RenderStep::Pending => (),
                 RenderStep::Complete(_) => break,

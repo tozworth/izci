@@ -21,7 +21,7 @@ fn render(total: u64, rate: u32, mode: ProcessingMode) -> (Vec<f32>, RenderProgr
         .unwrap();
     let mut out = Vec::new();
     loop {
-        match job.next().unwrap() {
+        match job.next_step().unwrap() {
             RenderStep::Data { samples, .. } => out.extend(samples),
             RenderStep::Pending => (),
             RenderStep::Complete(r) => {
@@ -46,7 +46,11 @@ fn render_counts_mapping_conversion_and_fixed_memory() {
         );
         assert_eq!(a.retained_bytes, b.retained_bytes);
         assert!(long.iter().all(|s| s.is_finite()));
-        assert!(long.chunks_exact(2).all(|p| p[0] == p[1]));
+        assert!(long
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .all(|pair| pair[0] == pair[1]));
     }
 }
 #[test]
@@ -82,9 +86,9 @@ fn cancellation_is_connected_to_streaming_job_and_releases_runtime() {
     let mut job = rt
         .start_render(source, None, RenderOptions::default(), &cancel)
         .unwrap();
-    assert!(matches!(job.next().unwrap(), RenderStep::Data { .. }));
+    assert!(matches!(job.next_step().unwrap(), RenderStep::Data { .. }));
     cancel.cancel();
-    assert!(matches!(job.next(), Err(LibzciError::Cancelled)));
+    assert!(matches!(job.next_step(), Err(LibzciError::Cancelled)));
     drop(rt);
     drop(job);
     assert!(weak.upgrade().is_none());

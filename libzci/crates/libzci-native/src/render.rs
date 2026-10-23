@@ -123,7 +123,7 @@ impl RenderJob {
     pub fn progress(&self) -> RenderProgress {
         self.progress
     }
-    pub fn next(&mut self) -> Result<RenderStep> {
+    pub fn next_step(&mut self) -> Result<RenderStep> {
         self.cancel.check()?;
         if self.complete {
             return Ok(RenderStep::Complete(RenderResult {

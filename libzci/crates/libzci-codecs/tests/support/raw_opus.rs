@@ -64,17 +64,9 @@ impl Default for OpusLimits {
 }
 
 /// Reference Opus factory.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct OpusFactory {
     limits: OpusLimits,
-}
-
-impl Default for OpusFactory {
-    fn default() -> Self {
-        Self {
-            limits: OpusLimits::default(),
-        }
-    }
 }
 
 impl OpusFactory {

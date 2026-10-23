@@ -1,7 +1,7 @@
 //! Debug helper: dump module duration estimate vs actual render.
-use std::sync::Arc;
 use libzci::{CancelFlag, DecoderInstance, MemSource};
 use libzci_codecs::{OpenmptInstance, OpenmptLimits};
+use std::sync::Arc;
 
 fn main() {
     let path = std::env::args().nth(1).expect("usage: mod-dump <file>");
@@ -14,7 +14,10 @@ fn main() {
     )
     .expect("open");
     let info = inst.inspect();
-    println!("type={} title={:?} channels={} subsongs={}", info.tracker_type, info.title, info.channels, info.subsongs);
+    println!(
+        "type={} title={:?} channels={} subsongs={}",
+        info.tracker_type, info.title, info.channels, info.subsongs
+    );
     println!("total_estimate={:?}", inst.total_frames());
     let mut buf = vec![0.0f32; 8192];
     let mut total = 0u64;
@@ -32,5 +35,8 @@ fn main() {
     for s in tail_buf.iter().rev().take(9600) {
         peak_tail = peak_tail.max(s.abs());
     }
-    println!("rendered_frames={total} position={} tail_peak_last_9600={peak_tail}", inst.position_frames());
+    println!(
+        "rendered_frames={total} position={} tail_peak_last_9600={peak_tail}",
+        inst.position_frames()
+    );
 }

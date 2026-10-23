@@ -54,8 +54,10 @@ fn exact_trim_timeline_real_long_reference_and_seek_tails() {
             }
         );
         let reference: Vec<f32> = media(&format!("{name}.f32"))
-            .chunks_exact(4)
-            .map(|v| f32::from_le_bytes(v.try_into().unwrap()))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|bytes| f32::from_le_bytes(*bytes))
             .collect();
         assert_eq!(reference.len(), pcm.len());
         let error = pcm

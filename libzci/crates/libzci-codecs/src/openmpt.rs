@@ -182,7 +182,7 @@ impl OpenmptInstance {
             )
         };
         if ext.is_null() {
-            let detail = openmpt_ffi::take_error_message(error_message);
+            let detail = unsafe { openmpt_ffi::take_error_message(error_message) };
             if error == openmpt_ffi::ERROR_OUT_OF_MEMORY {
                 return Err(LibzciError::ResourceExhausted { detail });
             }
@@ -255,7 +255,7 @@ impl OpenmptInstance {
     pub fn inspect(&self) -> ModuleInfo {
         let title_key = CString::new("title").unwrap();
         let type_key = CString::new("type").unwrap();
-        // SAFETY: keys valid; returned strings module-owned.
+        // SAFETY: keys valid; returned strings are copied and freed.
         let (title, tracker_type) = unsafe {
             (
                 openmpt_ffi::borrowed_string(openmpt_ffi::openmpt_module_get_metadata(

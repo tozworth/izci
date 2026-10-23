@@ -95,11 +95,7 @@ impl PcmChunk {
     /// Number of frames (per channel).
     pub fn frame_count(&self) -> usize {
         let ch = self.layout.layout.channels() as usize;
-        if ch == 0 {
-            0
-        } else {
-            self.frames.len() / ch
-        }
+        self.frames.len().checked_div(ch).unwrap_or(0)
     }
 
     /// Duration in seconds at the chunk layout rate.
@@ -112,7 +108,7 @@ impl PcmChunk {
     /// publishing PCM to any observer.
     pub fn validate(&self) -> Result<()> {
         let ch = self.layout.layout.channels() as usize;
-        if self.frames.len() % ch != 0 {
+        if !self.frames.len().is_multiple_of(ch) {
             return Err(LibzciError::DecoderFailure {
                 detail: "pcm length not a multiple of channel count".into(),
             });

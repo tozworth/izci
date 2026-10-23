@@ -110,7 +110,7 @@ impl AudioProcessor {
     /// the raw tap peak, then applies the smoothed master gain/mute.
     pub fn process_stereo(&mut self, input: &[f32], output: &mut [f32]) {
         debug_assert_eq!(input.len(), output.len());
-        debug_assert!(input.len() % 2 == 0);
+        debug_assert!(input.len().is_multiple_of(2));
         let mut peak = 0.0f32;
         for (index, sample) in input.iter().enumerate() {
             peak = peak.max(sample.abs());
@@ -134,7 +134,7 @@ impl AudioProcessor {
     /// allocation. Preserve the existing gain/mute ramp semantics.
     pub fn process_stereo_in_place(&mut self, samples: &mut [f32]) {
         let mut peak = 0.0f32;
-        for frame in samples.chunks_exact_mut(2) {
+        for frame in samples.as_chunks_mut::<2>().0 {
             let input = [frame[0], frame[1]];
             peak = peak.max(input[0].abs()).max(input[1].abs());
             self.process_stereo(&input, frame);

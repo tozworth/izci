@@ -81,7 +81,7 @@ impl OutputMonitor {
     /// Zero queued media observed across a completed callback boundary.
     pub fn is_drained(&self) -> bool {
         let epoch = self.render_epoch.load(Ordering::Acquire);
-        epoch % 2 == 0
+        epoch.is_multiple_of(2)
             && self.len_frames() == 0
             && self.clock_drained.load(Ordering::Acquire)
             && self.render_epoch.load(Ordering::Acquire) == epoch
@@ -89,7 +89,7 @@ impl OutputMonitor {
     /// A coherent callback observation; no source progress during underruns.
     pub fn media_position(&self) -> Option<(Generation, u64)> {
         let epoch = self.render_epoch.load(Ordering::Acquire);
-        if epoch % 2 != 0 || !self.media_valid.load(Ordering::Acquire) {
+        if !epoch.is_multiple_of(2) || !self.media_valid.load(Ordering::Acquire) {
             return None;
         }
         let value = (
@@ -103,7 +103,10 @@ impl OutputMonitor {
     /// next callback and finalize with an older snapshot.
     pub fn completed_position(&self) -> Option<(Generation, Option<u64>)> {
         let epoch = self.render_epoch.load(Ordering::Acquire);
-        if epoch % 2 != 0 || self.len_frames() != 0 || !self.clock_drained.load(Ordering::Acquire) {
+        if !epoch.is_multiple_of(2)
+            || self.len_frames() != 0
+            || !self.clock_drained.load(Ordering::Acquire)
+        {
             return None;
         }
         let generation = self.acknowledged_generation();

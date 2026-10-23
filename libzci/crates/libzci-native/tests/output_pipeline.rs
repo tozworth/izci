@@ -104,8 +104,8 @@ fn concurrent_producer_consumer_preserve_every_marked_sample() {
     let mut offset = 0;
     while expected_block < 20_000 {
         let got = rx.render(&mut scratch);
-        for frame in scratch[..got * 2].chunks_exact(2) {
-            assert_eq!(frame, [expected_block as f32 + 1.0; 2]);
+        for frame in scratch[..got * 2].as_chunks::<2>().0 {
+            assert_eq!(*frame, [expected_block as f32 + 1.0; 2]);
             offset += 1;
             if offset == 1 + expected_block % BLOCK_FRAMES {
                 expected_block += 1;
@@ -185,7 +185,7 @@ fn concurrent_generation_requests_acknowledge_without_mixing_epochs() {
     let mut last = 0.0;
     while !monitor.is_stopped() {
         let got = rx.render(&mut out);
-        for pair in out[..got * 2].chunks_exact(2) {
+        for pair in out[..got * 2].as_chunks::<2>().0 {
             assert_eq!(pair[0], pair[1]);
             assert!(pair[0] >= last);
             last = pair[0];

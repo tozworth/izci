@@ -61,7 +61,12 @@ impl OggDemux {
     /// Split one page body into packets, threading continued-packet
     /// carry. Returns owned packets; the bindings transfer their
     /// buffers without copying through JSON.
-    pub fn split_page(&mut self, body: &[u8], lacing: &[u8], header_type: u8) -> Result<Vec<Vec<u8>>> {
+    pub fn split_page(
+        &mut self,
+        body: &[u8],
+        lacing: &[u8],
+        header_type: u8,
+    ) -> Result<Vec<Vec<u8>>> {
         libzci::split_packets_with_carry(body, lacing, &mut self.carry, header_type)
     }
 

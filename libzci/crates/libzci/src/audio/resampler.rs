@@ -40,7 +40,7 @@ impl RateConverter {
                 detail: format!("resampler channels {channels}"),
             });
         }
-        if from_rate < 8000 || from_rate > 192000 || to_rate < 8000 || to_rate > 192000 {
+        if !(8000..=192000).contains(&from_rate) || !(8000..=192000).contains(&to_rate) {
             return Err(crate::LibzciError::InvalidArgument {
                 detail: format!("resampler rates {from_rate}->{to_rate}"),
             });
@@ -97,7 +97,7 @@ impl RateConverter {
 
     /// Feed a bounded input block after draining the previous output.
     pub fn push(&mut self, samples: &[f32]) -> crate::Result<()> {
-        if samples.len() % self.channels != 0
+        if !samples.len().is_multiple_of(self.channels)
             || samples.len() / self.channels > Self::MAX_INPUT_FRAMES
             || !self.fifo.is_empty()
             || self.flushed

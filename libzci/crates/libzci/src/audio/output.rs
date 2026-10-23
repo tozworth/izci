@@ -102,7 +102,7 @@ impl OutputPreparation {
             && self
                 .converter
                 .as_ref()
-                .map_or(true, |c| c.buffered_samples() == 0)
+                .is_none_or(|c| c.buffered_samples() == 0)
     }
 
     /// Reject oversized/nonfinite/noncontiguous blocks before changing state.
@@ -112,7 +112,7 @@ impl OutputPreparation {
         if !self.needs_input()
             || frames == 0
             || frames > self.max_input_frames
-            || samples.len() % channels != 0
+            || !samples.len().is_multiple_of(channels)
             || samples.iter().any(|s| !s.is_finite())
             || self.source_origin.is_some() && source_start != self.source_end
         {
@@ -193,7 +193,7 @@ impl OutputPreparation {
             && self
                 .converter
                 .as_ref()
-                .map_or(true, |c| c.buffered_samples() == 0)
+                .is_none_or(|c| c.buffered_samples() == 0)
     }
 
     /// Retained sample-storage bytes (including empty reserved staging/tails).

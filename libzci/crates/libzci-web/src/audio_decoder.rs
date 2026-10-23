@@ -51,9 +51,9 @@ pub struct WebAudioDecoder {
     cancel: CancelFlag,
 }
 fn js(e: LibzciError) -> JsValue {
-    let value=js_sys::Object::new();
-    let _=js_sys::Reflect::set(&value,&"kind".into(),&e.kind().into());
-    let _=js_sys::Reflect::set(&value,&"detail".into(),&e.to_string().into());
+    let value = js_sys::Object::new();
+    let _ = js_sys::Reflect::set(&value, &"kind".into(), &e.kind().into());
+    let _ = js_sys::Reflect::set(&value, &"detail".into(), &e.to_string().into());
     value.into()
 }
 #[wasm_bindgen]

@@ -135,7 +135,7 @@ extern "C" {
         param: c_int,
         value: i32,
     ) -> c_int;
-    /// Metadata value for a key (module-owned, no free).
+    /// Allocated metadata value for a key; release with openmpt_free_string.
     pub fn openmpt_module_get_metadata(
         mod_: *mut openmpt_module,
         key: *const c_char,
@@ -143,7 +143,10 @@ extern "C" {
 }
 
 /// Error message from a failed create (takes ownership of the pointer).
-pub fn take_error_message(ptr: *const c_char) -> String {
+///
+/// # Safety
+/// The pointer must be null or an unreleased string allocated by libopenmpt.
+pub unsafe fn take_error_message(ptr: *const c_char) -> String {
     if ptr.is_null() {
         return "libopenmpt load failed".into();
     }
@@ -153,7 +156,10 @@ pub fn take_error_message(ptr: *const c_char) -> String {
 }
 
 /// Copy and free an allocated library string (empty on null).
-pub fn borrowed_string(ptr: *const c_char) -> String {
+///
+/// # Safety
+/// The pointer must be null or an unreleased string allocated by libopenmpt.
+pub unsafe fn borrowed_string(ptr: *const c_char) -> String {
     if ptr.is_null() {
         return String::new();
     }

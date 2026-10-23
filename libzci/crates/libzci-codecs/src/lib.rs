@@ -15,6 +15,7 @@ pub mod openmpt;
 pub mod openmpt_ffi;
 #[cfg(feature = "opus")]
 pub mod opus;
+#[cfg(feature = "opus")]
 pub mod opus_ffi;
 #[cfg(feature = "opus")]
 mod opusfile_ffi;

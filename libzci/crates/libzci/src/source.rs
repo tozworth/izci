@@ -116,6 +116,9 @@ pub trait RuntimeSource: Send + Sync + std::fmt::Debug {
     fn len(&self) -> Option<u64> {
         self.caps().len
     }
+    fn is_empty(&self) -> Option<bool> {
+        self.len().map(|length| length == 0)
+    }
 
     /// Read exactly `buf.len()` bytes unless EOF or cancellation.
     /// Providers needing a complete bounded buffer use this after
@@ -197,7 +200,7 @@ impl RuntimeSource for MemSource {
             len: Some(self.data.len() as u64),
             seekable: true,
             requires_full_buffer: self.requires_full_buffer,
-            max_buffer_bytes: self.requires_full_buffer.then(|| self.data.len() as u64),
+            max_buffer_bytes: self.requires_full_buffer.then_some(self.data.len() as u64),
         }
     }
 

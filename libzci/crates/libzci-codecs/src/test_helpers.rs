@@ -31,7 +31,11 @@ pub fn tone_module(two_subsongs: bool) -> Vec<u8> {
             bytes[base + 16..base + 20].copy_from_slice(&[0, 0, 0x0b, pattern as u8]);
         }
     }
-    for (index, slot) in bytes[1084 + patterns * 1024..].iter_mut().enumerate().take(1024) {
+    for (index, slot) in bytes[1084 + patterns * 1024..]
+        .iter_mut()
+        .enumerate()
+        .take(1024)
+    {
         let sample = ((index as f64 * std::f64::consts::PI / 16.0).sin() * 96.0).round() as i32;
         *slot = (sample & 0xff) as u8;
     }

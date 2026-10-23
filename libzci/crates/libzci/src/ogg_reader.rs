@@ -45,8 +45,8 @@ fn ogg_crc_table() -> &'static [u32; 256] {
     static TABLE: std::sync::OnceLock<[u32; 256]> = std::sync::OnceLock::new();
     TABLE.get_or_init(|| {
         let mut table = [0u32; 256];
-        for i in 0..256 {
-            let mut r = (i as u32) << 24;
+        for (index, entry) in table.iter_mut().enumerate() {
+            let mut r = (index as u32) << 24;
             for _ in 0..8 {
                 r = if r & 0x8000_0000 != 0 {
                     (r << 1) ^ 0x04C1_1DB7
@@ -54,7 +54,7 @@ fn ogg_crc_table() -> &'static [u32; 256] {
                     r << 1
                 };
             }
-            table[i] = r;
+            *entry = r;
         }
         table
     })
@@ -158,7 +158,9 @@ pub fn validate_ogg_index(pages: &[PageEntry]) -> Result<IndexFacts> {
             });
         }
     }
-    Ok(IndexFacts { serial: first.serial })
+    Ok(IndexFacts {
+        serial: first.serial,
+    })
 }
 
 /// Bounded random-access page scanner over any [`RuntimeSource`].
@@ -192,7 +194,9 @@ impl<'a> PageScanner<'a> {
         let mut buf = vec![0u8; len];
         let mut filled = 0;
         while filled < len {
-            let n = self.source.read_at(offset + filled as u64, &mut buf[filled..], self.cancel)?;
+            let n = self
+                .source
+                .read_at(offset + filled as u64, &mut buf[filled..], self.cancel)?;
             if n == 0 {
                 break;
             }
@@ -276,7 +280,9 @@ mod tests {
         let first = scanner.read_page_entry(0).unwrap().unwrap();
         assert_eq!(first.granule, 0);
         assert_eq!(first.body_len, 11);
-        let body_bytes = scanner.read_at(first.offset + first.header_len, 11).unwrap();
+        let body_bytes = scanner
+            .read_at(first.offset + first.header_len, 11)
+            .unwrap();
         let fixed = scanner.read_at(0, first.header_len as usize).unwrap();
         let stored = u32::from_le_bytes(fixed[22..26].try_into().unwrap());
         assert_eq!(ogg_crc(&fixed, &body_bytes, 22), stored);

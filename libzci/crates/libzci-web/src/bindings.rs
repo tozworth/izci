@@ -6,10 +6,10 @@ use wasm_bindgen::prelude::*;
 fn js(e: impl ToString) -> JsValue {
     JsValue::from_str(&e.to_string())
 }
-fn typed_js(e:LibzciError)->JsValue {
-    let value=js_sys::Object::new();
-    let _=js_sys::Reflect::set(&value,&"kind".into(),&e.kind().into());
-    let _=js_sys::Reflect::set(&value,&"detail".into(),&e.to_string().into());
+fn typed_js(e: LibzciError) -> JsValue {
+    let value = js_sys::Object::new();
+    let _ = js_sys::Reflect::set(&value, &"kind".into(), &e.kind().into());
+    let _ = js_sys::Reflect::set(&value, &"detail".into(), &e.to_string().into());
     value.into()
 }
 #[derive(Deserialize)]
@@ -29,6 +29,7 @@ fn parse_tag(s: &str) -> std::result::Result<JobTag, JsValue> {
     })
 }
 #[wasm_bindgen]
+#[derive(Default)]
 pub struct WebEngine {
     inner: Engine,
 }
@@ -36,12 +37,14 @@ pub struct WebEngine {
 impl WebEngine {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        Self {
-            inner: Engine::default(),
-        }
+        Self::default()
     }
     pub fn command(&mut self, kind: &str, value: f64) -> std::result::Result<String, JsValue> {
-        Ok(self.inner.command(kind, value).map_err(typed_js)?.to_string())
+        Ok(self
+            .inner
+            .command(kind, value)
+            .map_err(typed_js)?
+            .to_string())
     }
     pub fn snapshot(&self) -> String {
         self.inner.snapshot().to_string()

@@ -176,7 +176,7 @@ impl Controller {
                         detail: e.to_string(),
                     })?;
                 loop {
-                    match job.next()? {
+                    match job.next_step()? {
                         RenderStep::Data { samples, .. } => {
                             for sample in samples {
                                 file.write_all(&sample.to_le_bytes()).map_err(|e| {

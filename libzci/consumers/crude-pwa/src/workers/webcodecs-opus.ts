@@ -36,7 +36,7 @@ export async function openWebCodecs(id:number,file:File,total:number,yieldTask:(
   const read=async():Promise<Float32Array>=>{
     while(offset===pending.length) {
       check();if(audible>=total)return new Float32Array(0);
-      const packet=packets.next();if(!packet.length) {
+      const packet=packets.next_packet();if(!packet.length) {
         if(audible<total)throw {kind:'decoder-failure',detail:'WebCodecs EOF before audible total'};
         return new Float32Array(0);
       }

@@ -1,10 +1,12 @@
 //! Debug helper: dump Opus page index and per-packet decode counts.
-use std::sync::Arc;
 use libzci::{CancelFlag, MemSource, ProviderFactory};
 use libzci_codecs::OpusFactory;
+use std::sync::Arc;
 
 fn main() {
-    let path = std::env::args().nth(1).expect("usage: opus-dump <file.opus>");
+    let path = std::env::args()
+        .nth(1)
+        .expect("usage: opus-dump <file.opus>");
     let bytes = std::fs::read(&path).expect("read file");
     println!("file bytes: {}", bytes.len());
     // Raw page scan.
@@ -19,7 +21,10 @@ fn main() {
         let htype = bytes[off + 5];
         let seq = u32::from_le_bytes(bytes[off + 18..off + 22].try_into().unwrap());
         let nseg = bytes[off + 26] as usize;
-        let body: usize = bytes[off + 27..off + 27 + nseg].iter().map(|&s| s as usize).sum();
+        let body: usize = bytes[off + 27..off + 27 + nseg]
+            .iter()
+            .map(|&s| s as usize)
+            .sum();
         let first_packet: Vec<u8> = {
             let mut len = 0;
             for &s in &bytes[off + 27..off + 27 + nseg] {
@@ -60,8 +65,14 @@ fn main() {
     // Provider decode accounting.
     let factory = OpusFactory::default();
     let cancel = CancelFlag::default();
-    let mut inst = factory.open(Arc::new(MemSource::new(bytes)), &cancel).expect("open");
-    println!("total_frames={:?} layout={:?}", inst.total_frames(), inst.layout());
+    let mut inst = factory
+        .open(Arc::new(MemSource::new(bytes)), &cancel)
+        .expect("open");
+    println!(
+        "total_frames={:?} layout={:?}",
+        inst.total_frames(),
+        inst.layout()
+    );
     let mut buf = vec![0.0f32; 480];
     let mut total = 0u64;
     let mut calls = 0;
@@ -73,5 +84,8 @@ fn main() {
         total += n as u64;
         calls += 1;
     }
-    println!("decoded={total} calls={calls} position={}", inst.position_frames());
+    println!(
+        "decoded={total} calls={calls} position={}",
+        inst.position_frames()
+    );
 }

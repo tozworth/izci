@@ -40,7 +40,7 @@ fn opus_streams_exact_long_timeline_start_tails_and_converted_output() {
         let mut frames = 0;
         let mut max = 0;
         loop {
-            match job.next().unwrap() {
+            match job.next_step().unwrap() {
                 RenderStep::Data { block, samples } => {
                     assert!(samples.len() <= 8192);
                     assert!(samples.iter().all(|v| v.is_finite()));

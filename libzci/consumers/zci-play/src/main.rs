@@ -221,7 +221,7 @@ fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
         let mut bytes = Vec::with_capacity(4096 * 8);
         loop {
             cancel.check()?;
-            match job.next()? {
+            match job.next_step()? {
                 RenderStep::Data { samples, .. } => {
                     bytes.clear();
                     for sample in samples {

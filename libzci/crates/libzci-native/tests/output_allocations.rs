@@ -92,7 +92,12 @@ fn measure_pipeline(frames: usize, rate: u32) -> Metrics {
                 prepare.finish().unwrap();
             } else {
                 let count = (frames - position).min(257);
-                for (offset, frame) in input[..count * 2].chunks_exact_mut(2).enumerate() {
+                for (offset, frame) in input[..count * 2]
+                    .as_chunks_mut::<2>()
+                    .0
+                    .iter_mut()
+                    .enumerate()
+                {
                     frame.fill(((position + offset) % 16384) as f32);
                 }
                 prepare

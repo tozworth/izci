@@ -240,7 +240,7 @@ fn held_decode_cancels_render_promptly_and_drops_late_pcm() {
         .unwrap();
     let (done_tx, done_rx) = mpsc::channel();
     let handle = std::thread::spawn(move || {
-        let r = job.next();
+        let r = job.next_step();
         drop(job);
         done_tx
             .send(matches!(r, Err(LibzciError::Cancelled)))
@@ -268,14 +268,14 @@ fn starvation_is_pending_then_data_and_final_completion() {
         .start_render(source, None, Default::default(), &CancelFlag::default())
         .unwrap();
     assert!(matches!(
-        job.next().unwrap(),
+        job.next_step().unwrap(),
         libzci_native::render::RenderStep::Pending
     ));
     assert_eq!(job.progress().output_frames, 0);
     pending.store(false, Ordering::Release);
     let mut frames = 0;
     loop {
-        match job.next().unwrap() {
+        match job.next_step().unwrap() {
             libzci_native::render::RenderStep::Data { block, .. } => frames += block.valid_frames,
             libzci_native::render::RenderStep::Pending => (),
             libzci_native::render::RenderStep::Complete(_) => break,
