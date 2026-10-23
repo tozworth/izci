@@ -429,8 +429,21 @@ async function materializeFile(file, outputDirectory, ffmpeg) {
   return { id: file.id, path: file.path, bytes: bytes.byteLength, sha256: sha256(bytes) };
 }
 
-export async function loadManifest() {
-  return JSON.parse(await readFile(MANIFEST_PATH, 'utf8'));
+export async function loadManifest({ platform = process.platform } = {}) {
+  const manifest = JSON.parse(await readFile(MANIFEST_PATH, 'utf8'));
+  if (platform === 'win32') {
+    const target = JSON.parse(await readFile(join(FIXTURE_DIRECTORY, 'windows.json'), 'utf8'));
+    manifest.defaultOutputDirectory += '/windows';
+    manifest.toolchain.ffmpeg.version = target.ffmpegVersion;
+    manifest.toolchain.ffprobe.version = target.ffprobeVersion;
+    for (const file of manifest.files) {
+      const expected = target.files[file.id];
+      if (!expected) throw new Error(`Missing pinned Windows digest for ${file.id}`);
+      file.sha256 = expected.sha256;
+      file.expected.bytes = expected.bytes;
+    }
+  }
+  return manifest;
 }
 
 export async function generateCorpus({

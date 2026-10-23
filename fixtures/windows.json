@@ -1,0 +1,90 @@
+{
+  "ffmpegVersion": "ffmpeg version 8.1.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers",
+  "ffprobeVersion": "ffprobe version 8.1.1-full_build-www.gyan.dev Copyright (c) 2007-2026 the FFmpeg developers",
+  "files": {
+    "audio-wav": {
+      "bytes": 24044,
+      "sha256": "a9f6c7036ac5467f36cff5c07ea4f1afc80c71942f01560891f6269a048b58ed"
+    },
+    "audio-mp3": {
+      "bytes": 1728,
+      "sha256": "fc547282498accd22bf703d88ad2aac71f6eb1233fb69939dade5dd7a1d772fc"
+    },
+    "audio-flac": {
+      "bytes": 11590,
+      "sha256": "ec3f4bb1f090100e104c75d259689fdaf135fba47d540614954edab717d393b1"
+    },
+    "audio-ogg-vorbis": {
+      "bytes": 3969,
+      "sha256": "9519ba30e696596ee0a7db8e9fe78193221d6fe0785c252268815388f3423204"
+    },
+    "audio-opus": {
+      "bytes": 1201,
+      "sha256": "d6a58836458861276a2669be59cba98653f369a3ee50a8f1de05d1b578020317"
+    },
+    "audio-tagged-artwork": {
+      "bytes": 2036,
+      "sha256": "ce76fd1d8715b9d1f274db152b97fb61c5e6eef5ba174b4539089c70ed22a4c4"
+    },
+    "module-mod": {
+      "bytes": 3132,
+      "sha256": "bbfc0a2234b047f6eff2797f1721de0aef959161660aecd1b5568dda6fedc433"
+    },
+    "unknown-valid-module": {
+      "bytes": 3132,
+      "sha256": "bbfc0a2234b047f6eff2797f1721de0aef959161660aecd1b5568dda6fedc433"
+    },
+    "unknown-unsupported": {
+      "bytes": 17,
+      "sha256": "82e5de89b3f539d1f7f316353045eed6f1f1f057d2ff3255587b46f0a70e2fa3"
+    },
+    "corrupt-truncated-mp3": {
+      "bytes": 37,
+      "sha256": "e7e9c9e6c797e9d3bab9bb301176214a9e4e758e3cd3ff2200cd85510f869961"
+    },
+    "revision-wav-v1": {
+      "bytes": 24044,
+      "sha256": "a9f6c7036ac5467f36cff5c07ea4f1afc80c71942f01560891f6269a048b58ed"
+    },
+    "revision-wav-v2": {
+      "bytes": 24044,
+      "sha256": "774b6043e7b524052077f5f7db45f58e3c4cb233625412092ad37ca2ad60bdde"
+    },
+    "lyrics-plain": {
+      "bytes": 27,
+      "sha256": "7df3561446aa2850b2852a8babc57272c331acfa42bb5718b657e89e60ad671d"
+    },
+    "lyrics-timestamped": {
+      "bytes": 47,
+      "sha256": "f752f58276a6a7eaab4f000cb57d437eec4c98caf9e6316ced05172038e0c6eb"
+    },
+    "video-mp4": {
+      "bytes": 3562,
+      "sha256": "10d81c706cdbebd41141510028ad2391d2e53876e3b197842a147e53ae446ff8"
+    },
+    "video-webm": {
+      "bytes": 2117,
+      "sha256": "46d70ae56cf11d0527d7166d97342d70364a581ba789c804d0bb0b13b21d2337"
+    },
+    "video-mkv": {
+      "bytes": 4782,
+      "sha256": "d68500dea5136349379cf7df2eaed1429d4a5cf53f2ebe874f04a7a1d533a754"
+    },
+    "tree-original": {
+      "bytes": 24044,
+      "sha256": "a9f6c7036ac5467f36cff5c07ea4f1afc80c71942f01560891f6269a048b58ed"
+    },
+    "tree-duplicate-sibling": {
+      "bytes": 24044,
+      "sha256": "a9f6c7036ac5467f36cff5c07ea4f1afc80c71942f01560891f6269a048b58ed"
+    },
+    "tree-duplicate-nested": {
+      "bytes": 24044,
+      "sha256": "a9f6c7036ac5467f36cff5c07ea4f1afc80c71942f01560891f6269a048b58ed"
+    },
+    "tree-stable-path": {
+      "bytes": 24044,
+      "sha256": "a9f6c7036ac5467f36cff5c07ea4f1afc80c71942f01560891f6269a048b58ed"
+    }
+  }
+}

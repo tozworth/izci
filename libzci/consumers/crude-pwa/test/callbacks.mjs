@@ -10,7 +10,7 @@ await server.listen();
 const results=[];
 let browser;
 try {
-  browser=await chromium.launch({headless:true});
+  browser=await chromium.launch({headless:true,args:['--mute-audio']});
   const page=await browser.newPage();page.on('pageerror',e=>console.error(e));
   await page.goto('http://localhost:5197/test/reference.html');
   await page.waitForFunction(()=>!!window.referenceHarness);

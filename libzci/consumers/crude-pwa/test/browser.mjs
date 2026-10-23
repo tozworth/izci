@@ -12,7 +12,7 @@ const server=await preview({root:consumer,preview:{port:5197,strictPort:true}});
 const results=[];
 let browser;
 try {
-  browser=await chromium.launch({headless:true,ignoreDefaultArgs:['--disable-background-timer-throttling','--disable-backgrounding-occluded-windows','--disable-renderer-backgrounding']});
+  browser=await chromium.launch({headless:true,args:['--mute-audio'],ignoreDefaultArgs:['--disable-background-timer-throttling','--disable-backgrounding-occluded-windows','--disable-renderer-backgrounding']});
   const context=await browser.newContext();
   const page=await context.newPage();
   const errors=[];

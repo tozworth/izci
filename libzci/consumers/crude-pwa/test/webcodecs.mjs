@@ -8,7 +8,7 @@ const root=fileURLToPath(new URL('../../../../',import.meta.url));
 const server=await createServer({root:path.join(root,'libzci/consumers/crude-pwa'),server:{port:5197,strictPort:true}});await server.listen();
 let browser;const results=[];
 try {
-  browser=await chromium.launch({headless:true});
+  browser=await chromium.launch({headless:true,args:['--mute-audio']});
   const page=await browser.newPage();page.on('pageerror',e=>console.error(e));await page.goto('http://localhost:5197/test/reference.html');await page.waitForFunction(()=>!!window.referenceHarness);
   async function run(name,start=0,unavailable=false) {
     const dir=['mono','stereo'].includes(name)?'r3':'r4';

@@ -35,7 +35,7 @@ fn audible_api_play_pause_seek_stop_resume_and_final_drain() {
     submit(Command::SetVolume {
         session,
         request_id: RequestId::fresh(),
-        volume: 0.08,
+        volume: 0.0,
     });
     let output = rt
         .start_output(session, &OutputSpec::default())

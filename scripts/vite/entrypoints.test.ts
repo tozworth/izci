@@ -34,15 +34,15 @@ describe('HTML entrypoint layout', () => {
         expect(inputs.map((path) => relative(config.root, path)).sort()).toEqual(
           [...sharedPages, ...(windows ? windowsPages : [])].sort()
         );
-        expect(config.publicDir).toBe(resolve(projectRoot, 'public'));
-        expect(config.build.outDir).toBe(resolve(projectRoot, output));
+        expect(resolve(config.publicDir)).toBe(resolve(projectRoot, 'public'));
+        expect(resolve(config.build.outDir)).toBe(resolve(projectRoot, output));
         expect(config.plugins.some((plugin) => plugin.name === 'vite-plugin-pwa')).toBe(mode === 'production');
         for (const input of inputs) {
           const html = readFileSync(input, 'utf8');
           const entry = html.match(/<script type="module" src="([^"]+)"/);
           expect(entry, input).not.toBeNull();
           const resolvedEntry = await config.createResolver()(entry![1], input);
-          expect(resolvedEntry, input).toBe(resolve(projectRoot, entry![1].slice(1)));
+          expect(resolve(resolvedEntry!), input).toBe(resolve(projectRoot, entry![1].slice(1)));
           expect(existsSync(resolvedEntry!), input).toBe(true);
           expect(html).not.toContain('href="../public/');
         }

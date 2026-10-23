@@ -67,7 +67,7 @@ run('corrupt', [root / 'AGENTS.md'])
 run('unknown_device', ['--device', 'no-such-device', media / 'mono.opus'])
 run('start_render', ['--start', '15.5', '--volume', '.5', '--render-pcm', media / 'start.f32', media / 'long.opus'])
 assert (media / 'start.f32').stat().st_size == 696006 * 8
-run('play_interrupt', ['--volume', '.04', media / 'long.opus'], interrupt=True)
+run('play_interrupt', ['--volume', '0', media / 'long.opus'], interrupt=True)
 partial = media / 'cancel.f32'
 partial.unlink(missing_ok=True)
 run('render_interrupt', ['--render-pcm', partial, media / 'interruption.opus'], interrupt=True, ready_file=partial)

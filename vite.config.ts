@@ -23,7 +23,8 @@ export default defineConfig(({ mode }) => {
     publicDir: fileURLToPath(new URL('./public', import.meta.url)),
     cacheDir: fileURLToPath(new URL('./node_modules/.vite', import.meta.url)),
     test: {
-      root: fileURLToPath(new URL('.', import.meta.url))
+      root: fileURLToPath(new URL('.', import.meta.url)),
+      include: ['src/**/*.test.{ts,mjs}', 'scripts/**/*.test.{ts,mjs}', 'tests/**/*.test.{ts,mjs}']
     },
     server: {
       host: '0.0.0.0',

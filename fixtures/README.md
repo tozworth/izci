@@ -25,6 +25,13 @@ use a container/image that installs that exact Noble package rather than
 accepting new digests from a different codec build. `IZCI_FIXTURE_FFMPEG` and
 `IZCI_FIXTURE_FFPROBE` may point to the matching binaries.
 
+Windows uses the paired Gyan FFmpeg/FFprobe **8.1.1 full build**. Exact version
+lines and every output's byte count/SHA-256 are pinned separately in
+`windows.json`; `loadManifest()` selects these on Windows. The recipes and
+semantic checks stay shared. Windows output lives under the separate
+`.local/verification-fixtures/v1/windows/` directory. Changing either build
+requires reviewing and reproducing its own digests; neither pin is relaxed.
+
 Manifest-shape and logical-fixture tests do not need FFmpeg. The integration
 case runs only when the complete pinned toolchain is detected and otherwise
 appears as an intentional Vitest skip with the mismatch reason. This skip does

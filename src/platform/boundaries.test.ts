@@ -10,6 +10,8 @@ const targets = {
   desktop: 'src/desktop/platform.ts',
   android: 'src/android/platform.ts'
 } as const;
+const scripts = new Map<string, ts.SourceFile>();
+const importedModules = new Map<string, string[]>();
 
 function files(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
@@ -20,13 +22,19 @@ function files(directory: string): string[] {
 }
 
 function script(path: string): ts.SourceFile {
+  const cached = scripts.get(path);
+  if (cached) return cached;
   const text = readFileSync(path, 'utf8');
   const code = path.endsWith('.svelte')
     ? Array.from(text.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g), match => match[1]).join('\n') : text;
-  return ts.createSourceFile(path, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const source = ts.createSourceFile(path, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  scripts.set(path, source);
+  return source;
 }
 
 function imports(path: string): string[] {
+  const cached = importedModules.get(path);
+  if (cached) return cached;
   const result: string[] = [];
   function visit(node: ts.Node): void {
     if (ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly && ts.isStringLiteral(node.moduleSpecifier)) {
@@ -43,6 +51,7 @@ function imports(path: string): string[] {
     ts.forEachChild(node, visit);
   }
   visit(script(path));
+  importedModules.set(path, result);
   return result;
 }
 

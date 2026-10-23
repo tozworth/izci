@@ -20,6 +20,18 @@ afterAll(async () => {
 });
 
 describe('verification fixture manifest', () => {
+  it('keeps Windows and Ubuntu toolchain pins and output digests separate', async () => {
+    const windows = await loadManifest({ platform: 'win32' });
+    const linux = await loadManifest({ platform: 'linux' });
+    expect(windows.toolchain.ffmpeg.version).toContain('8.1.1-full_build-www.gyan.dev');
+    expect(linux.toolchain.ffmpeg.version).toContain('6.1.1-3ubuntu5');
+    expect(windows.defaultOutputDirectory).not.toBe(linux.defaultOutputDirectory);
+    expect(windows.files.map(file => file.id)).toEqual(linux.files.map(file => file.id));
+    expect(windows.files.find(file => file.id === 'audio-wav').sha256).not.toBe(
+      linux.files.find(file => file.id === 'audio-wav').sha256
+    );
+  });
+
   it('records provenance, licensing, generation, digests, and expected facts for every file', async () => {
     const manifest = await loadManifest();
     expect(manifest.schemaVersion).toBe(1);

@@ -12,7 +12,7 @@ const cli=process.env.ZCI_PLAY??path.join(root,'libzci/target/debug/zci-play.exe
 const server=await createServer({root:path.join(root,'libzci/consumers/crude-pwa'),server:{port:5197,strictPort:true}});await server.listen();
 const results=[];let browser;
 try {
-  browser=await chromium.launch({headless:true});const page=await browser.newPage();const errors=[];
+  browser=await chromium.launch({headless:true,args:['--mute-audio']});const page=await browser.newPage();const errors=[];
   page.on('pageerror',e=>errors.push(String(e)));
   await page.addInitScript(()=>Object.defineProperty(globalThis,'AudioDecoder',{value:undefined,configurable:true}));
   await page.goto('http://localhost:5197');
