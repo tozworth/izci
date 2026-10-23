@@ -22,11 +22,15 @@ export class Capabilities {
   }
   async complete(key:string):Promise<void> {const entry=await this.get(key);if(!entry)throw new Error('Capability missing after SQL commit');await this.run('readwrite',s=>s.put({...entry,pending:false}));}
   get(key:string):Promise<Entry|undefined> {return this.run('readonly',s=>s.get(key));}
-  async recover(live:Set<string>):Promise<void> {
+  async recover(live:Set<string>|(()=>Set<string>),staging=new Set<string>()):Promise<void> {
     const entries:Entry[]=await this.run('readonly',s=>s.getAll());
     // Pending+referenced means SQL committed before a crash. Unreferenced entries
     // (pending or complete) are safe orphans; deleting a handle never revokes grants.
-    for(const entry of entries) {if(!live.has(entry.key))await this.run('readwrite',s=>s.delete(entry.key));else if(entry.pending)await this.complete(entry.key);}
+    for(const entry of entries) {
+      if(staging.has(entry.key))continue;
+      const references=typeof live==='function'?live():live;
+      if(!references.has(entry.key))await this.run('readwrite',s=>s.delete(entry.key));else if(entry.pending)await this.complete(entry.key);
+    }
   }
   async resolve(key:string):Promise<File> {
     const entry=await this.get(key);

@@ -2,6 +2,7 @@ import type {Observation} from './runtime.js';
 import type {BrowserRuntime} from './browser-runtime.js';
 import type {QueueCommand,RealFileHandle} from './profile-types.js';
 let revision=-1;
+let rendered='';
 const el=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
 export function queueView(o:Observation,runtime:BrowserRuntime,log:(s:string)=>void):void {
   const send=(command:QueueCommand)=>void runtime.queue(command).catch(e=>log(String(e)));
@@ -19,6 +20,7 @@ export function queueView(o:Observation,runtime:BrowserRuntime,log:(s:string)=>v
   el('clear-up-next').onclick=()=>send({kind:'clear_up_next'});
   const settings=()=>send({kind:'settings',settings:{...s.settings,shuffle:el<HTMLInputElement>('shuffle').checked,repeat:el<HTMLSelectElement>('repeat').value as 'off'|'all'|'one',previous_restart_seconds:Number(el<HTMLInputElement>('restart-threshold').value)}});
   if(revision===s.revision)return;revision=s.revision;
+  const key=JSON.stringify([s.queue.items,s.queue.current,s.queue.up_next,s.sources,s.settings]);if(key===rendered)return;rendered=key;
   el<HTMLInputElement>('shuffle').checked=s.settings.shuffle;el<HTMLSelectElement>('repeat').value=s.settings.repeat;el<HTMLInputElement>('restart-threshold').value=String(s.settings.previous_restart_seconds);
   el<HTMLInputElement>('volume').value=String(s.settings.volume);el<HTMLInputElement>('mute').checked=s.settings.mute;
   for(const id of ['shuffle','repeat','restart-threshold'])el(id).onchange=settings;

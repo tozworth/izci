@@ -5,6 +5,7 @@ import type {WebProfile} from '../generated/libzci_web.js';
 export class ProfileController {
   private cached:ProfileState|undefined;
   private files=new Map<string,File>();
+  private staging=new Set<string>();
   private epoch=0;
   access='';
   private constructor(private core:WebProfile,private handles:Capabilities,private load:(file:File,options:QueueLoad)=>void,private stop:()=>void,private settings:(volume:number,mute:boolean)=>void,private publish:()=>void) {}
@@ -35,17 +36,20 @@ export class ProfileController {
     if(!s.queue.current)this.access='no selected source';
     if(outcome.load)await this.materialize(outcome.load);
     if(command.kind==='remove') {
-      await this.handles.recover(new Set(s.sources.filter(r=>r.kind==='browser_handle').map(r=>r.locator)));
-      for(const key of this.files.keys())if(!s.sources.some(r=>r.key===key))this.files.delete(key);
+      await this.handles.recover(()=>new Set(this.snapshot().sources.filter(r=>r.kind==='browser_handle').map(r=>r.locator)),this.staging);
+      const live=this.snapshot().sources;
+      for(const key of this.files.keys())if(!live.some(r=>r.key===key))this.files.delete(key);
     }
     return outcome;
   }
   async ingest(files:File[],handles:RealFileHandle[]=[],open=true,request=crypto.randomUUID()):Promise<void> {
     if(!files.length||files.length>10000||handles.length&&handles.length!==files.length)throw new Error('Invalid source batch');
     const sources:SourceReference[]=[];
+    try {
     for(const file of files) {
-      const handle=handles[sources.length];const key=`${request}/${sources.length}`;if(handle)await this.handles.stage(handle,key);
+      const handle=handles[sources.length];const key=`${request}/${sources.length}`;
       sources.push({key,kind:handle?'browser_handle':'ephemeral',locator:key,display_path:file.name});
+      this.staging.add(key);if(handle)await this.handles.stage(handle,key);
     }
     // Files become reachable only after the durable SQL reference commit.
     const append=await this.command({kind:'append',sources},`${request}/append`);
@@ -57,5 +61,6 @@ export class ProfileController {
       if(outcome.load){outcome.load.autoplay=false;await this.materialize(outcome.load);}
     }
     this.publish();
+    }finally{for(const source of sources)this.staging.delete(source.key);}
   }
 }

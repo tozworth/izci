@@ -3,8 +3,7 @@
 //! Opens one media source, plays it through the shared
 //! decode/process/resample/feed pipeline, and terminates cleanly on
 //! EOF or interruption. Transient by default: no database, no profile
-//! (`--profile` arrives with storage in Phase 3.2; the ordinary
-//! player's profile is never touched).
+//! unless `--profile DIR` explicitly selects independent libzci SQL state.
 //!
 //! Argument parsing only converts CLI inputs to core commands —
 //! selection, transport, and DSP policy live in libzci. Diagnostics go
@@ -46,7 +45,7 @@ fn usage() -> String {
     [
         "usage: zci-play [options] <path>",
         "",
-        "Play one media file through the libzci engine (transient, no profile).",
+        "Play one media file through the libzci engine (transient unless --profile is supplied).",
         "",
         "options:",
         "  --device NAME     output device name substring (default: system default)",
@@ -200,8 +199,11 @@ fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
             .as_ref()
             .map_or(args.volume, |p| p.core.snapshot().settings.volume)
     };
+    let mute = profile
+        .as_ref()
+        .is_some_and(|p| p.core.snapshot().settings.mute);
     if let Some(p) = &mut profile {
-        p.append_paths(&[args.path.clone()])?;
+        p.append_paths(std::slice::from_ref(&args.path))?;
         let id = p.core.snapshot().queue.items.last().unwrap().id;
         p.command(QueueCommand::Play { id })?;
         let mut settings = p.core.snapshot().settings.clone();
@@ -238,10 +240,7 @@ fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
             hint.as_deref(),
             RenderOptions {
                 load: options,
-                processing: ProcessingMode::Master {
-                    volume,
-                    mute: false,
-                },
+                processing: ProcessingMode::Master { volume, mute },
                 ..Default::default()
             },
             cancel,
@@ -301,6 +300,14 @@ fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
             request_id: RequestId::fresh(),
             session,
             volume,
+        },
+        cancel,
+    )?;
+    runtime.submit(
+        &Command::SetMute {
+            session,
+            request_id: RequestId::fresh(),
+            mute,
         },
         cancel,
     )?;

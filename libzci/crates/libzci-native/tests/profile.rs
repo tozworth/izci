@@ -196,14 +196,14 @@ fn durable_request_retries_do_not_append_or_publish_twice_after_reopen() {
         let mut db = NativeDatabase::open(&path).unwrap();
         let mut p = Profile::open(&mut db).unwrap();
         let a = p
-            .request(command.clone(), Some("request-1"), Some(&mut db))
+            .request(command.clone(), Some("0:request-1"), Some(&mut db))
             .unwrap();
         assert_eq!(a.appended, vec![1]);
     }
     let mut db = NativeDatabase::open(&path).unwrap();
     let mut p = Profile::open(&mut db).unwrap();
     let a = p
-        .request(command, Some("request-1"), Some(&mut db))
+        .request(command.clone(), Some("0:request-1"), Some(&mut db))
         .unwrap();
     assert!(a.duplicate);
     assert_eq!(a.appended, vec![1]);
@@ -212,7 +212,7 @@ fn durable_request_retries_do_not_append_or_publish_twice_after_reopen() {
     assert!(p
         .request(
             QueueCommand::Remove { id: 1 },
-            Some("request-1"),
+            Some("0:request-1"),
             Some(&mut db)
         )
         .is_err());
@@ -229,6 +229,10 @@ fn durable_request_retries_do_not_append_or_publish_twice_after_reopen() {
             .unwrap(),
         vec![vec![json!(128)]]
     );
+    assert!(p
+        .request(command, Some("0:request-1"), Some(&mut db))
+        .is_err());
+    assert_eq!(p.snapshot().queue.items.len(), 1);
     drop(db);
     std::fs::remove_dir_all(path).unwrap();
 }

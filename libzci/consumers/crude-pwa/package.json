@@ -19,6 +19,7 @@
     "test:m2": "node test/m2.mjs",
     "test:storage": "node test/storage.mjs",
     "test:installed": "node test/installed.mjs",
+    "test:update": "node test/update.mjs",
     "test:webcodecs": "node test/webcodecs.mjs",
     "test:android": "node test/android.mjs",
     "build:modules": "python ../../scripts/build-browser-modules.py"

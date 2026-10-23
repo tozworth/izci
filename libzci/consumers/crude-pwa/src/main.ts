@@ -52,8 +52,7 @@ installPwa(log);
 function run(p:Promise<unknown>):void {void p.catch(e=>log(String(e)));}
 byId('open').onclick=()=>{
   const file=byId<HTMLInputElement>('file').files?.[0];if(!file) {log('Select a media File');return;}
-  if(disposed) {run(runtime.close());create();}
-  run(runtime.load(file,byId<HTMLInputElement>('prefer-webcodecs').checked));
+  run((async()=>{if(disposed){await runtime.close();latest=null;create();}await runtime.load(file,byId<HTMLInputElement>('prefer-webcodecs').checked);})());
 };
 for(const kind of ['play','pause','stop','dispose'] as CommandKind[]) byId(kind).onclick=()=>{
   if(kind==='dispose')for(const job of jobs)job.cancel();run(runtime.command(kind));

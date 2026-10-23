@@ -145,7 +145,10 @@ try {
   await wait(()=>window.libzci.snapshot()?.snapshot.state==='Failed');
   const accessLost=await snap();assert(accessLost.snapshot.error.includes('unavailable'));
   results.push({test:'typed corrupt File failure / recover / live source access loss',result:'passed',corrupt,accessLost});
-  const missing=await browser.newPage();
+  // Production M2 precaches codecs. Bypass the SW only in this isolated fault
+  // context so the aborted network request still tests real initialization.
+  const failureContext=await browser.newContext({serviceWorkers:'block'});
+  const missing=await failureContext.newPage();
   await missing.route('**/opus-reference-*.wasm',route=>route.abort());
   await missing.goto('http://localhost:5197');
   await missing.locator('#file').setInputFiles(path.join(root,'.local/libzci/media/r3/mono.opus'));
@@ -153,6 +156,7 @@ try {
   await missing.waitForFunction(()=>window.libzci.snapshot()?.snapshot.state==='Failed');
   results.push({test:'codec initialization failure resolves Loading with a typed error',result:'passed',snapshot:await missing.evaluate(()=>window.libzci.snapshot())});
   await missing.close();
+  await failureContext.close();
   assert.equal(errors.length,0);
   console.log(results.map(r=>`${r.result}: ${r.test}`).join('\n'));
   await mkdir(path.join(root,'.local/libzci'),{recursive:true});

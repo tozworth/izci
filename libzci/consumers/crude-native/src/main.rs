@@ -195,7 +195,7 @@ mod tests {
             c.runtime
                 .wait_ready(c.session, &CancelFlag::default())
                 .unwrap();
-            c.append(&[source.clone()]);
+            c.append(std::slice::from_ref(&source));
             c.command(|session, request_id| Command::SetVolume {
                 session,
                 request_id,

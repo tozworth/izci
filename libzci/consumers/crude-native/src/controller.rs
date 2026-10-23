@@ -156,6 +156,28 @@ impl Controller {
     pub fn queue_command(&mut self, command: libzci::queue::QueueCommand) {
         let result = (|| -> Result<()> {
             let outcome = self.profile.command(command)?;
+            let settings = self.profile.core.snapshot().settings.clone();
+            let observed = self.snapshot();
+            if observed.volume != settings.volume {
+                self.runtime.submit(
+                    &Command::SetVolume {
+                        session: self.session,
+                        request_id: RequestId::fresh(),
+                        volume: settings.volume,
+                    },
+                    &CancelFlag::default(),
+                )?;
+            }
+            if observed.mute != settings.mute {
+                self.runtime.submit(
+                    &Command::SetMute {
+                        session: self.session,
+                        request_id: RequestId::fresh(),
+                        mute: settings.mute,
+                    },
+                    &CancelFlag::default(),
+                )?;
+            }
             if outcome.stop {
                 self.runtime.submit(
                     &Command::Stop {

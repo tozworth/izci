@@ -78,7 +78,7 @@ export class LocalRuntime {
     await this.request({type:'load',file,preferWebCodecs},request);
     this.file=file;
   }
-  private async request(message:Record<string,unknown>,request:string=crypto.randomUUID()):Promise<void> {
+  private async request(message:Record<string,unknown>,request:string=`${this.observation?.profile?.revision??0}:${crypto.randomUUID()}`):Promise<void> {
     await this.initialized;if(this.pending.size>=32)throw new Error('Too many pending runtime commands');
     await new Promise<void>((resolve,reject)=>{this.pending.set(request,{resolve,reject});this.engine.postMessage({...message,request});});
   }

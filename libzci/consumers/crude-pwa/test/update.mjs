@@ -19,7 +19,8 @@ const server=await preview({root:path.dirname(dist),preview:{port:5197,strictPor
 });}}]});
 const browser=await chromium.launch({headless:true,args:['--mute-audio']});const context=await browser.newContext();const results=[];
 try {
-  const owner=await context.newPage();await owner.goto('http://localhost:5197/?profile=update-test');await owner.waitForFunction(()=>window.libzci?.snapshot()?.profile);await owner.evaluate(()=>navigator.serviceWorker.ready);await owner.waitForFunction(()=>!!navigator.serviceWorker.controller);
+  const owner=await context.newPage();
+  await owner.goto('http://localhost:5197/?profile=update-test');await owner.waitForFunction(()=>window.libzci?.snapshot()?.profile);await owner.evaluate(()=>navigator.serviceWorker.ready);await owner.waitForFunction(()=>!!navigator.serviceWorker.controller);
   const bytes=Array.from(await readFile(path.join(root,'.local/libzci/media/r3/long.opus')));
   await owner.evaluate(async bytes=>{const root=await navigator.storage.getDirectory();const h=await root.getFileHandle('update.opus',{create:true});const writer=await h.createWritable();await writer.write(new Uint8Array(bytes));await writer.close();await window.libzci.ingest([await h.getFile()],[h]);await window.libzci.command('play');},bytes);
   await owner.waitForFunction(()=>window.libzci.snapshot()?.snapshot.position_frames>1000);
@@ -29,7 +30,8 @@ try {
   assert(await owner.evaluate(version=>caches.has(`libzci-crude-v1-${version}`),identity.version));
   const before=await owner.evaluate(()=>window.libzci.snapshot().snapshot.position_frames);
   phase='next';await owner.evaluate(async()=>{await (await navigator.serviceWorker.getRegistration()).update();});
-  await owner.waitForFunction(async()=>!!(await navigator.serviceWorker.getRegistration()).waiting);
+  await owner.waitForFunction(async expected=>{const worker=(await navigator.serviceWorker.getRegistration()).waiting;if(!worker)return false;return new Promise(resolve=>{const channel=new MessageChannel();const timer=setTimeout(()=>{channel.port1.close();resolve(false);},1000);channel.port1.onmessage=e=>{clearTimeout(timer);channel.port1.close();resolve(e.data.version===expected);};worker.postMessage({type:'identify'},[channel.port2]);});},next);
+  assert(await owner.evaluate(next=>caches.has(`libzci-crude-v1-${next}`),next),'waiting worker retains its complete candidate cache');
   await owner.waitForFunction(before=>window.libzci.snapshot()?.snapshot.position_frames>before+4800,before);
   results.push({test:'failed precache leaves old runtime/cache usable; complete update waits during playback'});
   await owner.locator('#update').click();await owner.waitForFunction(next=>document.querySelector('meta[name="libzci-version"]')?.content===next,next);

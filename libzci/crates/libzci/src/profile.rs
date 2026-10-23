@@ -287,6 +287,17 @@ impl Profile {
                     return Ok(outcome);
                 }
             }
+            // Browser envelopes retain the sender's observed revision across
+            // reconnects. An evicted receipt is never permission to replay an
+            // old mutation: fail visibly and require a fresh snapshot/request.
+            if let Some((base, _)) = request.split_once(':') {
+                let base = base
+                    .parse::<u64>()
+                    .map_err(|_| invalid("invalid request revision"))?;
+                if base > self.state.revision || self.state.revision - base > 128 {
+                    return Err(storage::failure("request-expired","request outcome expired; refresh the snapshot before issuing a new request"));
+                }
+            }
         }
         let mut next = self.state.clone();
         let outcome = next.apply(command)?;

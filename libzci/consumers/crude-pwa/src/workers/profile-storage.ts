@@ -14,7 +14,9 @@ export async function openDatabase(name:string) {
   return {db,statement,pool};
 }
 export async function openProfile(name:string):Promise<WebProfile> {
-  const {db,statement}=await openDatabase(name);
+  let database:Awaited<ReturnType<typeof openDatabase>>;
+  try {database=await openDatabase(name);}catch(e){throw {kind:'storage-failure',code:'init',detail:`OPFS SQLite initialization failed: ${String(e)}`};}
+  const {db,statement}=database;
   try {
     return new WebProfile(statement);
   }catch(e){db.close();throw e;}

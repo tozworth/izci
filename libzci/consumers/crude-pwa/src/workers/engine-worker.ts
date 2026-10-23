@@ -161,5 +161,5 @@ self.onmessage = async e => {
     } else if (m.type === 'output-error') fail(snapshot().tag,'device-unavailable',m.detail);
     else if (m.type === 'ack') {outstanding = false; if (dirty) publish();}
     if(m.request)self.postMessage({type:'result',request:m.request});
-  } catch (error) {self.postMessage({type:'error',...failure(error)});if(request)self.postMessage({type:'result',request,error:String(error)});else if(e.data.type==='profile-init')self.postMessage({type:'profile-failed',error:String(error)});}
+  } catch (error) {const detail=failure(error);self.postMessage({type:'error',...detail});if(request)self.postMessage({type:'result',request,error:detail.detail});else if(e.data.type==='profile-init')self.postMessage({type:'profile-failed',error:detail.detail});}
 };

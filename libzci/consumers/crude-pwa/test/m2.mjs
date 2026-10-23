@@ -81,6 +81,30 @@ try {
   await owner.reload();await wait(owner,()=>window.libzci.snapshot()?.access?.startsWith('non-restorable'));
   assert.equal((await owner.evaluate(()=>window.libzci.snapshot().profile)).queue.items.length,1);
   results.push({test:'plain File rows survive reload with explicit non-restorable status'});
+  const faults=await browser.newContext({serviceWorkers:'block'}),failed=await faults.newPage();
+  await failed.goto('http://localhost:5197/?profile=m2-init-failure');await wait(failed,()=>window.libzci?.snapshot()?.profile);
+  await failed.evaluate(()=>window.libzci.command('volume',0.45));
+  await failed.route('**/sqlite3-*.wasm',route=>route.abort());await failed.reload();
+  await wait(failed,()=>document.querySelector('#diagnostics')?.textContent?.includes('storage-failure'));
+  await failed.unroute('**/sqlite3-*.wasm');await failed.reload();await wait(failed,()=>window.libzci?.snapshot()?.profile?.settings.volume===0.45);
+  await faults.close();results.push({test:'real SQL WASM initialization failure is typed and preserves the prior OPFS profile'});
+  await owner.close();owner=await context.newPage();await owner.goto('http://localhost:5197/?profile=m2-import-race');await wait(owner,()=>window.libzci?.snapshot()?.profile);
+  await owner.evaluate(async bytes=>{
+    const root=await navigator.storage.getDirectory(),handle=await root.getFileHandle('race.opus',{create:true}),writer=await handle.createWritable();await writer.write(new Uint8Array(bytes));await writer.close();const file=await handle.getFile();
+    await window.libzci.ingest([file],[handle],false);
+    const batch=window.libzci.ingest(Array(8).fill(file),Array(8).fill(handle),false);
+    const request=indexedDB.open('libzci-crude-capabilities-v1-m2-import-race',1),db=await new Promise(resolve=>request.onsuccess=()=>resolve(request.result));
+    const deadline=Date.now()+5000;
+    for(;;){const staged=await new Promise(resolve=>{const all=db.transaction('handles').objectStore('handles').getAll();all.onsuccess=()=>resolve(all.result.some(r=>r.pending));});if(staged)break;if(Date.now()>deadline)throw new Error('Staged import was not observed');await new Promise(resolve=>setTimeout(resolve,0));}
+    await Promise.all([window.libzci.queue({kind:'remove',id:1}),window.libzci.ingest([new File([file],'race-plain.opus')],[],false),batch]);db.close();
+  },bytes);
+  await wait(owner,()=>window.libzci.snapshot()?.profile?.queue.items.length===9);
+  await owner.evaluate(async()=>{const s=window.libzci.snapshot().profile,source=s.sources.find(r=>r.display_path==='race-plain.opus');await window.libzci.queue({kind:'play',id:s.queue.items.find(i=>i.source_key===source.key).id});});
+  await wait(owner,()=>window.libzci.snapshot()?.sourceName==='race-plain.opus'&&window.libzci.snapshot()?.output.energy>0);
+  await owner.reload();await wait(owner,()=>window.libzci.snapshot()?.profile?.queue.items.length===9);
+  await owner.evaluate(()=>window.libzci.queue({kind:'play',id:window.libzci.snapshot().profile.queue.items.find(i=>window.libzci.snapshot().profile.sources.find(r=>r.key===i.source_key)?.kind==='browser_handle').id}));
+  await wait(owner,()=>window.libzci.snapshot()?.access==='granted'&&window.libzci.snapshot()?.output.energy>0);
+  results.push({test:'concurrent staged-handle import, plain File append and removal preserve capabilities and live Files'});
   assert.deepEqual(errors,[]);
 } finally {
   await mkdir(path.join(root,'.local/libzci'),{recursive:true});await writeFile(path.join(root,'.local/libzci/m2-browser-evidence.json'),JSON.stringify({results,errors},null,2));
