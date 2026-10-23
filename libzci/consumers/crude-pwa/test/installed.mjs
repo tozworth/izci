@@ -1,0 +1,48 @@
+import {chromium} from 'playwright';
+import {preview} from 'vite';
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+const root=fileURLToPath(new URL('../../../../',import.meta.url));
+const profile=path.join(root,'.local/libzci',`installed-m2-${Date.now()}`);await mkdir(profile,{recursive:true});
+const server=await preview({root:path.join(root,'libzci/consumers/crude-pwa'),preview:{port:5197,strictPort:true}});
+const headed=process.env.ZCI_PWA_HEADED==='1';
+const context=await chromium.launchPersistentContext(profile,{channel:'chromium',headless:!headed,ignoreDefaultArgs:['--disable-background-timer-throttling','--disable-backgrounding-occluded-windows','--disable-renderer-backgrounding'],args:['--mute-audio',...(headed?['--window-position=-16000,-16000']:[])]});
+const cdp=await context.browser().newBrowserCDPSession();
+const manifestId='http://localhost:5197/libzci-crude-v1';const results=[];let installed=false;
+try {
+  let page=context.pages()[0]??await context.newPage();await page.goto('http://localhost:5197/?profile=installed-test');
+  await page.waitForFunction(()=>window.libzci?.snapshot()?.profile);await page.evaluate(()=>navigator.serviceWorker.ready);
+  await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
+  const bytes=Array.from(await readFile(path.join(root,'.local/libzci/media/r3/long.opus')));
+  await page.evaluate(async bytes=>{const root=await navigator.storage.getDirectory();const handle=await root.getFileHandle('installed.opus',{create:true});const writer=await handle.createWritable();await writer.write(new Uint8Array(bytes));await writer.close();await window.libzci.ingest([await handle.getFile()],[handle]);await window.libzci.command('mute',true);},bytes);
+  await page.waitForFunction(()=>window.libzci.snapshot()?.snapshot.state==='Ready');
+  await cdp.send('PWA.install',{manifestId,installUrlOrBundleUrl:'http://localhost:5197/'});installed=true;
+  await cdp.send('PWA.changeAppUserSettings',{manifestId,displayMode:'standalone'});
+  results.push({test:'Chromium installs independent manifest',osState:await cdp.send('PWA.getOsAppState',{manifestId})});
+  const guard=await context.newPage();await page.close();await context.setOffline(true);
+  const opened=context.waitForEvent('page');const {targetId}=await cdp.send('PWA.launch',{manifestId,url:'http://localhost:5197/?profile=installed-test'});page=await opened;
+  await guard.close();
+  await page.waitForFunction(()=>window.libzci?.snapshot()?.profile?.queue.items.length===1,{},{timeout:30000});
+  assert(await page.evaluate(()=>matchMedia('(display-mode: standalone)').matches));
+  assert.equal((await page.evaluate(()=>window.libzci.snapshot())).snapshot.requested,'Held');
+  await page.locator('#play').click();await page.waitForFunction(()=>window.libzci.snapshot()?.snapshot.position_frames>2000);
+  results.push({test:'installed standalone app cold-launches offline, restores paused and consumes local media',snapshot:await page.evaluate(()=>window.libzci.snapshot())});
+  const {windowId}=await cdp.send('Browser.getWindowForTarget',{targetId});
+  await cdp.send('Browser.setWindowBounds',{windowId,bounds:{windowState:'minimized'}});
+  await page.waitForFunction(()=>document.visibilityState==='hidden',undefined,{timeout:3000}).catch(()=>{});
+  const visibility=await page.evaluate(()=>document.visibilityState);
+  const before=await page.evaluate(()=>window.libzci.snapshot().snapshot.position_frames);
+  await new Promise(resolve=>setTimeout(resolve,3000));
+  const after=await page.evaluate(()=>window.libzci.snapshot().snapshot.position_frames);
+  if(visibility==='hidden')assert(after-before>48000*2,'hidden installed output must continue');
+  results.push({test:'installed minimized visibility observation',visibility,consumed:after-before,elapsedSeconds:3});
+  await cdp.send('Browser.setWindowBounds',{windowId,bounds:{windowState:'normal'}});
+  await page.locator('#pause').click();
+} finally {
+  if(installed)await cdp.send('PWA.uninstall',{manifestId});
+  await writeFile(path.join(root,'.local/libzci/m2-installed-evidence.json'),JSON.stringify({results},null,2));
+  await context.close();await new Promise(resolve=>server.httpServer.close(resolve));
+}
+console.log(JSON.stringify(results.map(r=>({test:r.test,osState:r.osState})),null,2));

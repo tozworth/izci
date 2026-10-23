@@ -12,6 +12,8 @@ pub mod demux;
 pub mod engine;
 #[cfg(target_arch = "wasm32")]
 pub mod opus_packets;
+#[cfg(target_arch = "wasm32")]
+pub mod profile;
 pub mod wire;
 pub use demux::OggDemux;
 pub use engine::Engine;

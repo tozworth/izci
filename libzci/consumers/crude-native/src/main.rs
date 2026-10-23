@@ -1,6 +1,6 @@
 mod controller;
-mod smoke;
 mod queue_view;
+mod smoke;
 use controller::Controller;
 use eframe::egui;
 use libzci::*;
@@ -45,6 +45,7 @@ impl App {
             ui.horizontal(|ui| {ui.text_edit_singleline(&mut self.path);
                 if ui.button("Browse…").clicked() {if let Some(p)=rfd::FileDialog::new().pick_file() {self.path=p.display().to_string();}}
                 if ui.button("Open").clicked() {self.controller.open(Path::new(&self.path));}
+                if ui.button("Append files…").clicked() {if let Some(paths)=rfd::FileDialog::new().pick_files(){self.controller.append(&paths);}}
                 if ui.button("Dispose").clicked() {self.controller.dispose();}
             });
             ui.horizontal(|ui| {
@@ -126,8 +127,25 @@ fn main() -> eframe::Result {
         None
     };
     let hidden = input.is_some();
-    let profile_path=args.iter().position(|s|s=="--profile").map(|i|args.get(i+1).expect("--profile requires a directory").clone()).unwrap_or_else(||".local/libzci/profiles/crude-native".into());
-    let persistent=if hidden {None}else{Some(Controller::with_profile(Path::new(&profile_path)).unwrap_or_else(|e|{eprintln!("{e}");std::process::exit(2)}))};
+    let profile_path = args
+        .iter()
+        .position(|s| s == "--profile")
+        .map(|i| {
+            args.get(i + 1)
+                .expect("--profile requires a directory")
+                .clone()
+        })
+        .unwrap_or_else(|| ".local/libzci/profiles/crude-native".into());
+    let persistent = if hidden {
+        None
+    } else {
+        Some(
+            Controller::with_profile(Path::new(&profile_path)).unwrap_or_else(|e| {
+                eprintln!("{e}");
+                std::process::exit(2)
+            }),
+        )
+    };
     let outcome: smoke::Outcome = Default::default();
     let observed = outcome.clone();
     eframe::run_native(
@@ -140,7 +158,9 @@ fn main() -> eframe::Result {
         },
         Box::new(move |_| {
             let mut app = App::default();
-            if let Some(controller)=persistent {app.controller=controller;}
+            if let Some(controller) = persistent {
+                app.controller = controller;
+            }
             if let Some(path) = input {
                 app.path = path;
                 app.controller.open(Path::new(&app.path));
@@ -158,6 +178,58 @@ fn main() -> eframe::Result {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn durable_controller_reopens_paused_and_missing_sources_preserve_resume_state() {
+        let dir =
+            std::env::temp_dir().join(format!("libzci-controller-m2-{}", RequestId::fresh().0));
+        std::fs::create_dir_all(&dir).unwrap();
+        let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../.local/libzci/media/m1/tone.hvl");
+        let source = dir.join("tone.hvl");
+        std::fs::copy(fixture, &source).unwrap();
+        let profile = dir.join("profile");
+        {
+            let mut c = Controller::with_profile(&profile).unwrap();
+            assert!(Controller::with_profile(&profile).is_err());
+            c.open(&source);
+            c.runtime
+                .wait_ready(c.session, &CancelFlag::default())
+                .unwrap();
+            c.append(&[source.clone()]);
+            c.command(|session, request_id| Command::SetVolume {
+                session,
+                request_id,
+                volume: 0.24,
+            });
+            c.command(|session, request_id| Command::Seek {
+                session,
+                request_id,
+                time: MediaTime(0.125),
+            });
+            c.runtime
+                .wait_ready(c.session, &CancelFlag::default())
+                .unwrap();
+        }
+        {
+            let c = Controller::with_profile(&profile).unwrap();
+            let s = c
+                .runtime
+                .wait_ready(c.session, &CancelFlag::default())
+                .unwrap();
+            assert_eq!(s.requested, RequestedState::Held);
+            assert_eq!(s.position_frames, 6000);
+            assert_eq!(s.volume, 0.24);
+            assert_eq!(c.profile.core.snapshot().queue.items.len(), 2);
+        }
+        std::fs::remove_file(source).unwrap();
+        {
+            let c = Controller::with_profile(&profile).unwrap();
+            assert!(c.error.contains("unavailable"));
+            assert_eq!(c.profile.core.snapshot().position_seconds, 0.125);
+            assert_eq!(c.profile.core.snapshot().queue.items.len(), 2);
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
     #[test]
     fn headless_egui_draw_and_public_controller_jobs() {
         let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))

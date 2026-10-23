@@ -24,8 +24,8 @@ use libzci_native::{NativeFileSource, NativeRuntime, OutputSpec};
 
 /// Parsed CLI inputs (units documented in `usage`).
 struct Args {
-    profile:Option<PathBuf>,
-    volume_explicit:bool,
+    profile: Option<PathBuf>,
+    volume_explicit: bool,
     /// Media path to play.
     path: PathBuf,
     /// Output device name substring (default device when absent).
@@ -68,7 +68,8 @@ struct UsageError(String);
 
 fn parse_args(argv: &[String]) -> Result<Args, UsageError> {
     let mut args = Args {
-        profile:None,volume_explicit:false,
+        profile: None,
+        volume_explicit: false,
         path: PathBuf::new(),
         device: None,
         volume: 1.0,
@@ -90,9 +91,9 @@ fn parse_args(argv: &[String]) -> Result<Args, UsageError> {
         match arg {
             "--help" => return Err(UsageError("help".into())),
             "--device" => args.device = Some(value_of(&mut i)?),
-            "--profile"=>args.profile=Some(PathBuf::from(value_of(&mut i)?)),
+            "--profile" => args.profile = Some(PathBuf::from(value_of(&mut i)?)),
             "--volume" => {
-                args.volume_explicit=true;
+                args.volume_explicit = true;
                 args.volume = value_of(&mut i)?
                     .parse::<f32>()
                     .map_err(|_| UsageError("--volume needs a number 0.0..=1.0".into()))?;
@@ -187,14 +188,29 @@ fn main() {
 }
 fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
     use libzci::queue::QueueCommand;
-    let mut profile=args.profile.as_ref().map(|p|libzci_native::profile::NativeProfile::open(p)).transpose()?;
-    let volume=if args.volume_explicit {args.volume}else{profile.as_ref().map_or(args.volume,|p|p.core.snapshot().settings.volume)};
-    if let Some(p)=&mut profile {
+    let mut profile = args
+        .profile
+        .as_ref()
+        .map(|p| libzci_native::profile::NativeProfile::open(p))
+        .transpose()?;
+    let volume = if args.volume_explicit {
+        args.volume
+    } else {
+        profile
+            .as_ref()
+            .map_or(args.volume, |p| p.core.snapshot().settings.volume)
+    };
+    if let Some(p) = &mut profile {
         p.append_paths(&[args.path.clone()])?;
-        let id=p.core.snapshot().queue.items.last().unwrap().id;
-        p.command(QueueCommand::Play {id})?;
-        let mut settings=p.core.snapshot().settings.clone();settings.volume=volume;p.command(QueueCommand::Settings {settings})?;
-        p.command(QueueCommand::Checkpoint {position_seconds:args.start_secs,subsong:args.subsong})?;
+        let id = p.core.snapshot().queue.items.last().unwrap().id;
+        p.command(QueueCommand::Play { id })?;
+        let mut settings = p.core.snapshot().settings.clone();
+        settings.volume = volume;
+        p.command(QueueCommand::Settings { settings })?;
+        p.command(QueueCommand::Checkpoint {
+            position_seconds: args.start_secs,
+            subsong: args.subsong,
+        })?;
     }
     let runtime = NativeRuntime::new();
     runtime.register_provider(Arc::new(OpusFactory::default()))?;
@@ -319,10 +335,20 @@ fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
     }
     loop {
         let snapshot = runtime.snapshot(session)?;
-        if let Some(p)=&mut profile {
-            let seconds=MediaTime::from_frames(snapshot.position_frames,snapshot.layout.map_or(1,|l|l.sample_rate)).0;
-            if (seconds-p.core.snapshot().position_seconds).abs()>=2.0 || cancel.is_cancelled() || snapshot.state==TransportState::Ended {
-                p.command(QueueCommand::Checkpoint {position_seconds:seconds,subsong:snapshot.module.as_ref().map(|m|m.selected_subsong)})?;
+        if let Some(p) = &mut profile {
+            let seconds = MediaTime::from_frames(
+                snapshot.position_frames,
+                snapshot.layout.map_or(1, |l| l.sample_rate),
+            )
+            .0;
+            if (seconds - p.core.snapshot().position_seconds).abs() >= 2.0
+                || cancel.is_cancelled()
+                || snapshot.state == TransportState::Ended
+            {
+                p.command(QueueCommand::Checkpoint {
+                    position_seconds: seconds,
+                    subsong: snapshot.module.as_ref().map(|m| m.selected_subsong),
+                })?;
             }
         }
         cancel.check()?;

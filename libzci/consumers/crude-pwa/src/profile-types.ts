@@ -1,0 +1,6 @@
+export interface SourceReference {key:string;kind:'native_path'|'browser_handle'|'ephemeral';locator:string;display_path:string}
+export interface QueueSettings {shuffle:boolean;repeat:'off'|'all'|'one';previous_restart_seconds:number;volume:number;mute:boolean}
+export interface ProfileState {revision:number;sources:SourceReference[];queue:{items:{id:number;source_key:string;subsong:number|null}[];current:number|null;up_next:number[]};settings:QueueSettings;position_seconds:number}
+export interface QueueLoad {occurrence:number;source:SourceReference;position_seconds:number;subsong:number|null;autoplay:boolean}
+export type QueueCommand={kind:'volume';volume:number}|{kind:'mute';mute:boolean}|{kind:'append';sources:SourceReference[]}|{kind:'remove'|'play'|'up_next';id:number}|{kind:'move';id:number;index:number}|{kind:'next';ended:boolean}|{kind:'previous';position_seconds:number}|{kind:'clear_up_next'}|{kind:'settings';settings:QueueSettings}|{kind:'checkpoint';position_seconds:number;subsong:number|null};
+export interface RealFileHandle extends FileSystemFileHandle {queryPermission(options:{mode:'read'}):Promise<PermissionState>;requestPermission(options:{mode:'read'}):Promise<PermissionState>}

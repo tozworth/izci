@@ -16,6 +16,7 @@ pub struct Controller {
     pub profile: libzci_native::profile::NativeProfile,
     ended_generation: Option<Generation>,
     checkpoint: std::time::Instant,
+    active_occurrence: Option<u64>,
     pub runtime: Arc<NativeRuntime>,
     pub session: SessionId,
     pub source: Option<SourceId>,
@@ -59,6 +60,7 @@ impl Controller {
             profile,
             ended_generation: None,
             checkpoint: std::time::Instant::now(),
+            active_occurrence: None,
             runtime,
             session,
             source: None,
@@ -78,12 +80,27 @@ impl Controller {
             let outcome = self
                 .profile
                 .command(libzci::queue::QueueCommand::Play { id })?;
-            let mut load=outcome.load.unwrap();load.autoplay=false;
+            let mut load = outcome.load.unwrap();
+            load.autoplay = false;
             self.load_occurrence(load)
         })();
         self.record(result);
     }
+    pub fn append(&mut self, paths: &[std::path::PathBuf]) {
+        let result = self.profile.append_paths(paths).map(|_| ());
+        self.record(result);
+    }
     fn load_occurrence(&mut self, load: libzci::profile::QueueLoad) -> Result<()> {
+        self.active_occurrence = None;
+        if self.snapshot().state != TransportState::Idle {
+            self.runtime.submit(
+                &Command::Stop {
+                    session: self.session,
+                    request_id: RequestId::fresh(),
+                },
+                &CancelFlag::default(),
+            )?;
+        }
         let path = Path::new(&load.source.locator);
         let source = self
             .runtime
@@ -109,6 +126,7 @@ impl Controller {
             self.runtime.release_source(old);
         }
         self.hint = hint;
+        self.active_occurrence = Some(load.occurrence);
         let settings = self.profile.core.snapshot().settings.clone();
         for command in [
             Command::SetVolume {
@@ -156,6 +174,26 @@ impl Controller {
     }
     pub fn command(&mut self, make: impl FnOnce(SessionId, RequestId) -> Command) {
         let command = make(self.session, RequestId::fresh());
+        if matches!(command, Command::Play { .. })
+            && self.profile.core.snapshot().queue.current.is_none()
+        {
+            self.queue_command(libzci::queue::QueueCommand::Next { ended: false });
+            return;
+        }
+        if matches!(command, Command::Play { .. })
+            && self.active_occurrence != self.profile.core.snapshot().queue.current
+        {
+            if let Some(load) = self.profile.core.snapshot().restore() {
+                if let Err(e) = self.load_occurrence(load) {
+                    self.record(Err(e));
+                    return;
+                }
+            }
+        }
+        if matches!(command, Command::Play { .. }) && self.active_occurrence.is_none() {
+            self.queue_command(libzci::queue::QueueCommand::Next { ended: false });
+            return;
+        }
         let mut settings = self.profile.core.snapshot().settings.clone();
         match &command {
             Command::SetVolume { volume, .. } => settings.volume = *volume,
@@ -196,6 +234,7 @@ impl Controller {
     pub fn tick(&mut self) {
         let s = self.snapshot();
         if s.state == TransportState::Ended && self.ended_generation != Some(s.generation) {
+            self.save_position();
             self.ended_generation = Some(s.generation);
             self.queue_command(libzci::queue::QueueCommand::Next { ended: true });
         }
@@ -297,6 +336,7 @@ impl Controller {
         }
     }
     pub fn dispose(&mut self) {
+        self.active_occurrence = None;
         self.cancel_jobs();
         self.runtime.dispose_session(self.session);
         self.output = None;
@@ -310,7 +350,8 @@ impl Controller {
     }
     fn save_position(&mut self) {
         let s = self.snapshot();
-        if self.profile.core.snapshot().queue.current.is_some()
+        if self.active_occurrence.is_some()
+            && self.active_occurrence == self.profile.core.snapshot().queue.current
             && !s.pending_operation
             && s.error.is_none()
         {

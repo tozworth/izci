@@ -126,6 +126,11 @@ async function perform(job: DecodeJob): Promise<void> {
       }
     } else backend=await openProvider(kind,source.id,file,readBytes,yieldTask,check);
     facts=currentFacts();
+    if(job.type==='open') {
+      if(job.subsong!=null) {if(!backend)throw {kind:'unsupported',detail:'Subsong unavailable'};await backend.control('subsong',job.subsong);}
+      if(job.start_seconds) {const target=Math.min(total()??Infinity,Math.round(job.start_seconds*facts.rate));if(backend)await backend.seek(target);else await call('zci_seek',[handle,target]);}
+      facts=currentFacts();
+    }
     handleInstance = job.tag.instance;
     const duration=total();
     if (duration!==null&&duration<0) throw {kind: 'decoder-failure', detail: 'invalid reference duration'};

@@ -29,3 +29,13 @@ The M1 native and browser consumers include:
 
 No third-party music is bundled. M1 audio and tracker fixtures are synthesized
 by `tests/generate-m1-media.py` and dedicated to the public domain under CC0-1.0.
+
+M2 persistence adds:
+
+- rusqlite 0.32.1 / libsqlite3-sys 0.30.1: **MIT** bindings to bundled,
+  public-domain SQLite. Exact sources and checksums are in `Cargo.lock`.
+- `@sqlite.org/sqlite-wasm` 3.54.1-build1: **Apache-2.0** packaging of the
+  official, unmodified SQLite WASM distribution, whose SQLite code is public
+  domain. Source: <https://github.com/sqlite/sqlite-wasm>; preserve the package's
+  LICENSE and distribution notices. Exact archive integrity is in the crude
+  PWA's `package-lock.json`. The SAH-pool files are separate from media/grants.

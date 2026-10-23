@@ -63,8 +63,15 @@ pub fn open(db: &mut dyn SqlBridge) -> Result<ProfileState> {
             return Err(failure("schema", "unrecognized nonempty database"));
         }
         transaction(db, |db| {
-            for sql in ["CREATE TABLE source_references (key TEXT PRIMARY KEY, reference TEXT NOT NULL)","CREATE TABLE queue_occurrences (id INTEGER PRIMARY KEY, ordinal INTEGER NOT NULL UNIQUE, source_key TEXT NOT NULL REFERENCES source_references(key), subsong INTEGER)","CREATE TABLE sessions (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, navigation TEXT NOT NULL, position_seconds REAL NOT NULL)","CREATE TABLE domain_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)","PRAGMA user_version=1"] {exec(db,sql,&[])?;}
-            write(db, &ProfileState::default())
+            for sql in [
+                "CREATE TABLE source_references (key TEXT PRIMARY KEY, reference TEXT NOT NULL)",
+                "CREATE TABLE queue_occurrences (id INTEGER PRIMARY KEY, ordinal INTEGER NOT NULL UNIQUE, source_key TEXT NOT NULL REFERENCES source_references(key), subsong INTEGER)",
+                "CREATE TABLE sessions (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, navigation TEXT NOT NULL, position_seconds REAL NOT NULL)",
+                "CREATE TABLE domain_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+                "CREATE TABLE request_receipts (request TEXT PRIMARY KEY, revision INTEGER NOT NULL, payload TEXT NOT NULL, outcome TEXT NOT NULL)",
+                "PRAGMA user_version=1",
+            ] {exec(db,sql,&[])?;}
+            write(db, &ProfileState::default(), None)
         })?;
     }
     // Reopen consistently even if an adapter is used without the profile lock.
@@ -128,22 +135,28 @@ pub fn open(db: &mut dyn SqlBridge) -> Result<ProfileState> {
         Ok(state)
     })
 }
-fn write(db: &mut dyn SqlBridge, state: &ProfileState) -> Result<()> {
-    exec(db, "DELETE FROM queue_occurrences", &[])?;
-    exec(db, "DELETE FROM source_references", &[])?;
-    for s in &state.sources {
-        exec(
-            db,
-            "INSERT INTO source_references(key,reference) VALUES(?,?)",
-            &[json!(s.key), json!(serde_json::to_string(s).unwrap())],
-        )?;
-    }
-    for (n, i) in state.queue.items.iter().enumerate() {
-        exec(
-            db,
-            "INSERT INTO queue_occurrences(id,ordinal,source_key,subsong) VALUES(?,?,?,?)",
-            &[json!(i.id), json!(n), json!(i.source_key), json!(i.subsong)],
-        )?;
+fn write(
+    db: &mut dyn SqlBridge,
+    state: &ProfileState,
+    previous: Option<&ProfileState>,
+) -> Result<()> {
+    if previous.is_none_or(|p| p.queue.items != state.queue.items || p.sources != state.sources) {
+        exec(db, "DELETE FROM queue_occurrences", &[])?;
+        exec(db, "DELETE FROM source_references", &[])?;
+        for s in &state.sources {
+            exec(
+                db,
+                "INSERT INTO source_references(key,reference) VALUES(?,?)",
+                &[json!(s.key), json!(serde_json::to_string(s).unwrap())],
+            )?;
+        }
+        for (n, i) in state.queue.items.iter().enumerate() {
+            exec(
+                db,
+                "INSERT INTO queue_occurrences(id,ordinal,source_key,subsong) VALUES(?,?,?,?)",
+                &[json!(i.id), json!(n), json!(i.source_key), json!(i.subsong)],
+            )?;
+        }
     }
     let navigation = Queue {
         items: vec![],
@@ -164,15 +177,55 @@ fn write(db: &mut dyn SqlBridge, state: &ProfileState) -> Result<()> {
         &[json!(serde_json::to_string(&state.settings).unwrap())],
     )
 }
-pub fn commit(db: &mut dyn SqlBridge, state: &ProfileState, previous: u64) -> Result<()> {
+pub fn receipt(
+    db: &mut dyn SqlBridge,
+    request: &str,
+    payload: &str,
+) -> Result<Option<crate::profile::ProfileOutcome>> {
+    let rows = db.statement(
+        "SELECT payload,outcome FROM request_receipts WHERE request=?",
+        &[json!(request)],
+    )?;
+    if let Some(row) = rows.first() {
+        if row[0].as_str() != Some(payload) {
+            return Err(failure(
+                "request",
+                "request identity reused with different payload",
+            ));
+        }
+        Ok(Some(decode(&row[1])?))
+    } else {
+        Ok(None)
+    }
+}
+pub fn commit(
+    db: &mut dyn SqlBridge,
+    state: &ProfileState,
+    previous: &ProfileState,
+    request: Option<(&str, &str, &crate::profile::ProfileOutcome)>,
+) -> Result<()> {
     transaction(db, |db| {
         let row = db.statement("SELECT revision FROM sessions WHERE id=1", &[])?;
-        if row.first().and_then(|r| r.first()).and_then(Value::as_u64) != Some(previous) {
+        if row.first().and_then(|r| r.first()).and_then(Value::as_u64) != Some(previous.revision) {
             return Err(failure(
                 "busy",
                 "profile revision changed; reopen before retrying",
             ));
         }
-        write(db, state)
+        write(db, state, Some(previous))?;
+        if let Some((id, payload, outcome)) = request {
+            exec(
+                db,
+                "INSERT INTO request_receipts(request,revision,payload,outcome) VALUES(?,?,?,?)",
+                &[
+                    json!(id),
+                    json!(state.revision),
+                    json!(payload),
+                    json!(serde_json::to_string(outcome).unwrap()),
+                ],
+            )?;
+            exec(db,"DELETE FROM request_receipts WHERE request NOT IN (SELECT request FROM request_receipts ORDER BY revision DESC LIMIT 128)",&[])?;
+        }
+        Ok(())
     })
 }

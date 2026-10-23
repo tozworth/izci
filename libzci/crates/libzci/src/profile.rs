@@ -24,18 +24,31 @@ pub struct QueueLoad {
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ProfileOutcome {
+    pub duplicate: bool,
+    pub appended: Vec<u64>,
     pub revision: u64,
     pub load: Option<QueueLoad>,
     pub stop: bool,
 }
 impl ProfileState {
     pub fn validate(&self) -> Result<()> {
+        if self.revision > 9_007_199_254_740_991
+            || self
+                .sources
+                .iter()
+                .map(|s| s.key.len() + s.locator.len() + s.display_path.len())
+                .sum::<usize>()
+                > 8 * 1024 * 1024
+        {
+            return Err(invalid("profile reference/revision budget exceeded"));
+        }
         self.settings.validate()?;
         crate::MediaTime(self.position_seconds).validate()?;
         if self.queue.items.len() > MAX_QUEUE
             || self.sources.len() > MAX_QUEUE
             || self.queue.up_next.len() > MAX_QUEUE
             || self.queue.history.len() > MAX_HISTORY
+            || self.queue.forward.len() > MAX_HISTORY
             || self.queue.shuffle_remaining.len() > MAX_QUEUE
         {
             return Err(invalid("profile budget exceeded"));
@@ -66,6 +79,7 @@ impl ProfileState {
             .iter()
             .chain(&self.queue.up_next)
             .chain(&self.queue.history)
+            .chain(&self.queue.forward)
             .chain(&self.queue.shuffle_remaining)
         {
             self.queue.require(*id)?;
@@ -94,9 +108,15 @@ impl ProfileState {
         })
     }
     fn apply(&mut self, command: QueueCommand) -> Result<ProfileOutcome> {
+        let mut appended = vec![];
         let mut load = false;
         let mut stop = false;
         match command {
+            QueueCommand::Volume { volume } => {
+                self.settings.volume = volume;
+                self.settings.validate()?;
+            }
+            QueueCommand::Mute { mute } => self.settings.mute = mute,
             QueueCommand::Append { sources } => {
                 if self.queue.items.len() + sources.len() > MAX_QUEUE {
                     return Err(invalid("queue full"));
@@ -115,6 +135,7 @@ impl ProfileState {
                         source_key: source.key,
                         subsong: None,
                     });
+                    appended.push(self.queue.next_id);
                     if self.settings.shuffle {
                         self.queue.shuffle_remaining.push(self.queue.next_id);
                     }
@@ -125,6 +146,7 @@ impl ProfileState {
                 self.queue.require(id)?;
                 self.queue.items.retain(|i| i.id != id);
                 self.queue.history.retain(|v| *v != id);
+                self.queue.forward.retain(|v| *v != id);
                 self.queue.up_next.retain(|v| *v != id);
                 self.queue.shuffle_remaining.retain(|v| *v != id);
                 if self.queue.current == Some(id) {
@@ -145,6 +167,7 @@ impl ProfileState {
                 self.queue.items.insert(index, item);
             }
             QueueCommand::Play { id } => {
+                self.queue.forward.clear();
                 self.queue.activate(id)?;
                 self.position_seconds = 0.;
                 load = true;
@@ -155,7 +178,7 @@ impl ProfileState {
                     self.position_seconds = 0.;
                     load = true;
                 } else {
-                    stop = true;
+                    stop = !ended;
                 }
             }
             QueueCommand::Previous { position_seconds } => {
@@ -176,6 +199,7 @@ impl ProfileState {
             QueueCommand::Settings { settings } => {
                 settings.validate()?;
                 if settings.shuffle != self.settings.shuffle {
+                    self.queue.forward.clear();
                     self.queue.shuffle_remaining = self
                         .queue
                         .items
@@ -208,6 +232,8 @@ impl ProfileState {
             .ok_or_else(|| invalid("revision exhausted"))?;
         self.validate()?;
         Ok(ProfileOutcome {
+            duplicate: false,
+            appended,
             revision: self.revision,
             load: if load { self.load(true) } else { None },
             stop,
@@ -236,10 +262,41 @@ impl Profile {
         command: QueueCommand,
         db: Option<&mut dyn SqlBridge>,
     ) -> Result<ProfileOutcome> {
+        self.request(command, None, db)
+    }
+    pub fn request(
+        &mut self,
+        command: QueueCommand,
+        request: Option<&str>,
+        mut db: Option<&mut dyn SqlBridge>,
+    ) -> Result<ProfileOutcome> {
+        use sha2::{Digest, Sha256};
+        let payload = format!(
+            "{:x}",
+            Sha256::digest(serde_json::to_vec(&command).unwrap())
+        );
+        if let Some(request) = request {
+            if request.is_empty() || request.len() > 256 {
+                return Err(invalid("invalid durable request identity"));
+            }
+            if let Some(db) = db.as_mut() {
+                if let Some(mut outcome) = storage::receipt(*db, request, &payload)? {
+                    outcome.duplicate = true;
+                    outcome.load = None;
+                    outcome.stop = false;
+                    return Ok(outcome);
+                }
+            }
+        }
         let mut next = self.state.clone();
         let outcome = next.apply(command)?;
         if let Some(db) = db {
-            storage::commit(db, &next, self.state.revision)?;
+            storage::commit(
+                db,
+                &next,
+                &self.state,
+                request.map(|id| (id, payload.as_str(), &outcome)),
+            )?;
         }
         self.state = next;
         Ok(outcome)

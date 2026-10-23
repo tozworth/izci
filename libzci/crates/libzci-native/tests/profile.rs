@@ -180,7 +180,155 @@ fn transient_navigation_handles_duplicate_identity_history_up_next_and_shuffle_c
     }
     seen.sort();
     assert_eq!(seen, vec![1, 2, 3, 4]);
-    assert!(run(&mut p, QueueCommand::Next { ended: true }).stop);
+    let end = run(&mut p, QueueCommand::Next { ended: true });
+    assert!(!end.stop && end.load.is_none());
     run(&mut p, QueueCommand::Remove { id: 2 });
     assert_eq!(p.snapshot().queue.items.len(), 3);
+}
+
+#[test]
+fn durable_request_retries_do_not_append_or_publish_twice_after_reopen() {
+    let path = dir();
+    let command = QueueCommand::Append {
+        sources: vec![source()],
+    };
+    {
+        let mut db = NativeDatabase::open(&path).unwrap();
+        let mut p = Profile::open(&mut db).unwrap();
+        let a = p
+            .request(command.clone(), Some("request-1"), Some(&mut db))
+            .unwrap();
+        assert_eq!(a.appended, vec![1]);
+    }
+    let mut db = NativeDatabase::open(&path).unwrap();
+    let mut p = Profile::open(&mut db).unwrap();
+    let a = p
+        .request(command, Some("request-1"), Some(&mut db))
+        .unwrap();
+    assert!(a.duplicate);
+    assert_eq!(a.appended, vec![1]);
+    assert_eq!(p.snapshot().revision, 1);
+    assert_eq!(p.snapshot().queue.items.len(), 1);
+    assert!(p
+        .request(
+            QueueCommand::Remove { id: 1 },
+            Some("request-1"),
+            Some(&mut db)
+        )
+        .is_err());
+    for n in 0..160 {
+        p.request(
+            QueueCommand::Mute { mute: n % 2 == 0 },
+            Some(&format!("mute-{n}")),
+            Some(&mut db),
+        )
+        .unwrap();
+    }
+    assert_eq!(
+        db.statement("SELECT count(*) FROM request_receipts", &[])
+            .unwrap(),
+        vec![vec![json!(128)]]
+    );
+    drop(db);
+    std::fs::remove_dir_all(path).unwrap();
+}
+
+#[test]
+fn navigation_preserves_existing_one_item_repeat_and_shuffle_history_outcomes() {
+    let mut p = Profile::transient();
+    let run = |p: &mut Profile, c| p.command(c, None).unwrap();
+    run(
+        &mut p,
+        QueueCommand::Append {
+            sources: vec![source()],
+        },
+    );
+    run(&mut p, QueueCommand::Play { id: 1 });
+    assert_eq!(
+        run(&mut p, QueueCommand::Next { ended: false })
+            .load
+            .unwrap()
+            .occurrence,
+        1
+    );
+    assert!(run(&mut p, QueueCommand::Next { ended: true })
+        .load
+        .is_none());
+    run(
+        &mut p,
+        QueueCommand::Settings {
+            settings: QueueSettings {
+                repeat: Repeat::One,
+                ..Default::default()
+            },
+        },
+    );
+    assert_eq!(
+        run(&mut p, QueueCommand::Next { ended: true })
+            .load
+            .unwrap()
+            .occurrence,
+        1
+    );
+    run(
+        &mut p,
+        QueueCommand::Append {
+            sources: vec![source(); 2],
+        },
+    );
+    run(
+        &mut p,
+        QueueCommand::Settings {
+            settings: QueueSettings {
+                shuffle: true,
+                ..Default::default()
+            },
+        },
+    );
+    let second = run(&mut p, QueueCommand::Next { ended: false })
+        .load
+        .unwrap()
+        .occurrence;
+    let third = run(&mut p, QueueCommand::Next { ended: false })
+        .load
+        .unwrap()
+        .occurrence;
+    assert_eq!(
+        run(
+            &mut p,
+            QueueCommand::Previous {
+                position_seconds: 0.
+            }
+        )
+        .load
+        .unwrap()
+        .occurrence,
+        second
+    );
+    assert_eq!(
+        run(
+            &mut p,
+            QueueCommand::Previous {
+                position_seconds: 0.
+            }
+        )
+        .load
+        .unwrap()
+        .occurrence,
+        1
+    );
+    assert_eq!(
+        run(&mut p, QueueCommand::Next { ended: false })
+            .load
+            .unwrap()
+            .occurrence,
+        second
+    );
+    assert_eq!(
+        run(&mut p, QueueCommand::Next { ended: false })
+            .load
+            .unwrap()
+            .occurrence,
+        third
+    );
 }

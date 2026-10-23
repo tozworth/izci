@@ -49,6 +49,18 @@ impl WebEngine {
     pub fn snapshot(&self) -> String {
         self.inner.snapshot().to_string()
     }
+    pub fn load_options(
+        &mut self,
+        seconds: f64,
+        subsong: Option<u32>,
+    ) -> std::result::Result<(), JsValue> {
+        MediaTime(seconds).validate().map_err(typed_js)?;
+        self.inner.load_options = LoadOptions {
+            start_time: MediaTime(seconds),
+            subsong,
+        };
+        Ok(())
+    }
     pub fn opened_facts(
         &mut self,
         tag: &str,

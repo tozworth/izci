@@ -1,8 +1,11 @@
-import { BrowserRuntime, type Observation } from './runtime.js';
+import { BrowserRuntime } from './browser-runtime.js';
+import type {Observation} from './runtime.js';
 import type {CommandKind} from './protocol.js';
 import { FileJob } from './file-job.js';
+import {queueView} from './queue-view.js';
+import {installPwa} from './pwa.js';
 const byId=<T extends HTMLElement>(id:string):T=>document.getElementById(id) as T;
-let runtime:BrowserRuntime;
+let runtime!:BrowserRuntime;
 let disposed=false;
 let latest:Observation | null=null;
 const lines:string[]=[];
@@ -21,6 +24,7 @@ function create():void {
   runtime.onError=log;
   runtime.onObservation=o=>{
     latest=o;disposed=o.disposed;
+    queueView(o,runtime,log);
     const s=o.snapshot;
     for(const button of document.querySelectorAll<HTMLButtonElement>('[data-module]')) {
       const kind=button.dataset.module!;
@@ -42,6 +46,9 @@ function create():void {
   };
 }
 create();
+byId<HTMLInputElement>('profile-name').value=runtime.profile;
+byId('switch-profile').onclick=()=>{const profile=byId<HTMLInputElement>('profile-name').value;if(!/^[a-zA-Z0-9_-]{1,64}$/.test(profile)){log('Use 1–64 letters, digits, underscores or hyphens');return;}const url=new URL(location.href);url.searchParams.set('profile',profile);location.assign(url);};
+installPwa(log);
 function run(p:Promise<unknown>):void {void p.catch(e=>log(String(e)));}
 byId('open').onclick=()=>{
   const file=byId<HTMLInputElement>('file').files?.[0];if(!file) {log('Select a media File');return;}
@@ -79,4 +86,6 @@ byId('cancel-jobs').onclick=()=>{for(const j of jobs)j.cancel();};
 // It exposes commands and observations, never decoder instances or live PCM.
 Object.assign(window,{libzci:{load:(file:File)=>runtime.load(file),command:(kind:CommandKind,value?:number)=>runtime.command(kind,value),
   snapshot:()=>latest,suspend:()=>runtime.suspend(),resume:()=>runtime.resume(),
+  queue:(command:import('./profile-types.js').QueueCommand)=>runtime.queue(command),
+  ingest:(files:File[],handles:import('./profile-types.js').RealFileHandle[]=[],open=true)=>runtime.ingest(files,handles,open),
   job:(mode:'probe'|'render',verify=false)=>runtime.startJob(mode,verify).result,cancelJobs:()=>runtime.cancelJobs()}});

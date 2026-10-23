@@ -5,11 +5,13 @@ use serde_json::{json, Value};
 
 pub struct Engine {
     pub session: Session,
+    pub load_options: LoadOptions,
 }
 impl Default for Engine {
     fn default() -> Self {
         Self {
             session: Session::new(SessionId::fresh()),
+            load_options: LoadOptions::default(),
         }
     }
 }
@@ -36,7 +38,7 @@ impl Engine {
                 request_id,
                 source: SourceId::fresh(),
                 extension_hint: Some("opus".into()),
-                options: LoadOptions::default(),
+                options: self.load_options.clone(),
             },
             "play" => Command::Play {
                 session,
@@ -84,7 +86,7 @@ impl Engine {
         let actions: Vec<Value> = actions
             .into_iter()
             .map(|a| match a {
-                SessionAction::Open { tag: t, .. } => json!({"kind":"open","tag":tag(t)}),
+                SessionAction::Open { tag: t, options,.. } => json!({"kind":"open","tag":tag(t),"start_seconds":options.start_time.0,"subsong":options.subsong}),
                 SessionAction::Seek { tag: t, time } => {
                     json!({"kind":"seek","tag":tag(t),"frame":time.frames(rate).expect("validated seek")})
                 }

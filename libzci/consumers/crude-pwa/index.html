@@ -4,6 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>libzci file player</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#26334a" />
+    <meta name="libzci-version" content="__LIBZCI_VERSION__" />
     <style>
       body { font: 13px/1.45 system-ui, sans-serif; margin: 8px; max-width: 1100px; }
       fieldset { margin: 8px 0; }
@@ -18,15 +21,30 @@
   <body>
     <h1>libzci file player</h1>
     <p>
-      Transient file player · WAV / MP3 / FLAC / Vorbis / Opus · OpenMPT / AHX / HVL
+      libzci queue player · WAV / MP3 / FLAC / Vorbis / Opus · OpenMPT / AHX / HVL
     </p>
     <fieldset>
       <legend>Source</legend>
-      <input id="file" type="file" />
+      <input id="file" type="file" multiple />
       <button id="open">Open</button>
+      <button id="append-files">Append plain Files</button>
+      <button id="open-handle">Open restorable files…</button>
+      <button id="grant">Grant access and retry</button>
       <button id="dispose">Dispose</button>
       <label><input id="prefer-webcodecs" type="checkbox" /> Prefer optional WebCodecs Opus (single link, mono/stereo)</label>
     </fieldset>
+    <fieldset>
+      <legend>Durable queue</legend>
+      <div id="profile-status">Acquiring profile owner…</div>
+      <label>Profile <input id="profile-name" maxlength="64" value="default" /></label><button id="switch-profile">Open profile</button>
+      <button id="previous">Previous</button><button id="next">Next</button>
+      <label><input id="shuffle" type="checkbox" /> Shuffle</label>
+      <label>Repeat <select id="repeat"><option value="off">Off</option><option value="all">All</option><option value="one">One</option></select></label>
+      <label>Previous restarts after <input id="restart-threshold" type="number" value="3" min="0" max="600" step="0.5" /> s</label>
+      <button id="clear-up-next">Clear up-next</button><div id="up-next"></div>
+      <div style="max-height:180px;overflow:auto"><table id="queue"></table></div>
+    </fieldset>
+    <fieldset><legend>Offline PWA</legend><span id="pwa-status">Development mode</span> <button id="install" hidden>Install</button><button id="update" hidden>Restart with update</button></fieldset>
     <fieldset>
       <legend>Module controls</legend>
       <label>Subsong <input id="subsong-value" type="number" value="0" min="0" step="1" /></label><button data-module="subsong">Select</button>

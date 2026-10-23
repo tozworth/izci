@@ -88,6 +88,7 @@ pub struct Queue {
     pub current: Option<u64>,
     pub up_next: Vec<u64>,
     pub history: Vec<u64>,
+    pub forward: Vec<u64>,
     pub shuffle_remaining: Vec<u64>,
     pub next_id: u64,
     pub random_state: u32,
@@ -99,6 +100,7 @@ impl Default for Queue {
             current: None,
             up_next: vec![],
             history: vec![],
+            forward: vec![],
             shuffle_remaining: vec![],
             next_id: 1,
             random_state: 0x6d2b79f5,
@@ -108,6 +110,12 @@ impl Default for Queue {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum QueueCommand {
+    Volume {
+        volume: f32,
+    },
+    Mute {
+        mute: bool,
+    },
     Append {
         sources: Vec<SourceReference>,
     },
@@ -169,6 +177,7 @@ impl Queue {
     }
     pub fn next(&mut self, settings: &QueueSettings, ended: bool) -> Option<u64> {
         if !self.up_next.is_empty() {
+            self.forward.clear();
             return Some(self.up_next.remove(0));
         }
         if ended && settings.repeat == Repeat::One && self.current.is_some() {
@@ -177,7 +186,13 @@ impl Queue {
         if self.items.is_empty() {
             return None;
         }
+        if !ended && self.items.len() == 1 {
+            return Some(self.items[0].id);
+        }
         if settings.shuffle {
+            if let Some(id) = self.forward.pop() {
+                return Some(id);
+            }
             if self.shuffle_remaining.is_empty() {
                 // A consumed shuffle cycle ends unless repeat-all is enabled.
                 if self.current.is_some() && settings.repeat != Repeat::All {
@@ -217,6 +232,12 @@ impl Queue {
             return Ok(self.current);
         }
         if let Some(id) = self.history.pop() {
+            if let Some(current) = self.current {
+                self.forward.push(current);
+                if self.forward.len() > MAX_HISTORY {
+                    self.forward.remove(0);
+                }
+            }
             self.current = Some(id);
             return Ok(Some(id));
         }
