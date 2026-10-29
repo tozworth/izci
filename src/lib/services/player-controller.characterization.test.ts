@@ -37,6 +37,7 @@ const harness = vi.hoisted(() => {
     togglePictureInPicture = vi.fn(() => Promise.resolve(false));
     element: HTMLVideoElement | null = null;
     pictureInPictureSupported = false;
+    pictureInPictureActive = false;
 
     constructor(...callbacks: unknown[]) {
       this.role = (['stream', 'module', 'hively', 'video'] as const)[instances.length % 4];
@@ -219,6 +220,27 @@ afterAll(() => {
 });
 
 describe('player controller supersession characterization', () => {
+  it('keeps the active video element for PiP when a prepared video is selected', async () => {
+    const initial = await loadInitial('first-video', 'video');
+    initial.instance.pictureInPictureActive = true;
+    const elements: Array<HTMLVideoElement | null> = [];
+    const unsubscribe = playerController.mediaElements.subscribe(({ video }) => elements.push(video));
+    const preparing = playerController.prepareNext(backendTrack('second-video', 'video'));
+    await flushUntilPending('second-video');
+    resolvePending('second-video');
+    await preparing;
+    expect(playerController.commitPrepared('second-video')).toBe(false);
+
+    initial.instance.unload.mockClear();
+    const loading = playerController.load(backendTrack('second-video', 'video'), { autoPlay: true });
+    await flushUntilPending('second-video');
+    const replacement = resolvePending('second-video');
+    await loading;
+    expect(replacement.instance).toBe(initial.instance);
+    expect(initial.instance.unload).not.toHaveBeenCalled();
+    expect(elements.every((element) => element === initial.instance.element)).toBe(true);
+    unsubscribe();
+  });
   it.each(['module', 'hively'] as const)('restores remembered %s controls before playback, including prepared tracks', async (backend) => {
     const loaded = await loadInitial('remembered', backend);
     const song = { channels: ['', '', '', ''], instruments: [], samples: [], orders: [], patterns: [], numSubsongs: 1 };

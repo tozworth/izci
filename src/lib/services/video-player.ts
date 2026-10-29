@@ -48,6 +48,11 @@ export class VideoPlayerService {
     );
   }
 
+  get pictureInPictureActive(): boolean {
+    return typeof document !== 'undefined' && this.#element !== null &&
+      document.pictureInPictureElement === this.#element;
+  }
+
   async togglePictureInPicture(): Promise<boolean> {
     const element = this.#element;
 
@@ -80,7 +85,7 @@ export class VideoPlayerService {
       throw new Error('Video playback is unavailable outside a browser window.');
     }
 
-    this.unload();
+    this.unload({ preservePictureInPicture: this.pictureInPictureActive });
     this.#active = true;
     this.#autoPlay = options.autoPlay === true;
     this.#initialPosition = Math.max(options.initialPosition ?? 0, 0);
@@ -158,7 +163,7 @@ export class VideoPlayerService {
     }
   }
 
-  unload(): void {
+  unload(options: { preservePictureInPicture?: boolean } = {}): void {
     const element = this.#element;
 
     this.#active = false;
@@ -176,7 +181,10 @@ export class VideoPlayerService {
     }
 
     element.pause();
-    if (typeof document !== 'undefined' && document.pictureInPictureElement === element) {
+    if (options.preservePictureInPicture && this.pictureInPictureActive) {
+      return;
+    }
+    if (this.pictureInPictureActive) {
       void document.exitPictureInPicture().catch(() => undefined);
     }
     element.removeAttribute('src');

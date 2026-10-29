@@ -66,7 +66,7 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
       const enteringTheater = signature !== presentationSignature;
       presentationSignature = signature;
       theaterHeldForIncoming = false;
-      if (enteringTheater) {
+      if (enteringTheater && !(track.kind === 'video' && playerController.videoPictureInPictureActive)) {
         // Surface the media tab on the same rule: re-showing it on an unrelated
         // publish steals the active tab from the one the user just picked.
         deps.showMediaTab();

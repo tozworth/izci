@@ -124,6 +124,32 @@ describe('VideoPlayerService', () => {
     expect(onSnapshot).toHaveBeenLastCalledWith({ state: 'ended', error: undefined });
   });
 
+  it('keeps picture-in-picture open while replacing the video source, and exits on unload', async () => {
+    const exitPictureInPicture = vi.fn(async () => undefined);
+    vi.stubGlobal('document', {
+      createElement: vi.fn(() => element),
+      pictureInPictureEnabled: true,
+      pictureInPictureElement: element,
+      exitPictureInPicture
+    });
+    const service = new VideoPlayerService(vi.fn(), vi.fn(), vi.fn());
+    const first = service.load(track);
+    element.emit('loadedmetadata');
+    await first;
+    element.removeAttribute.mockClear();
+
+    const second = service.load({ ...track, id: 'video-2', objectUrl: 'blob:second-video' });
+    expect(element.src).toBe('blob:second-video');
+    expect(exitPictureInPicture).not.toHaveBeenCalled();
+    expect(element.removeAttribute).not.toHaveBeenCalled();
+    element.emit('loadedmetadata');
+    await second;
+
+    service.unload();
+    expect(exitPictureInPicture).toHaveBeenCalledOnce();
+    expect(element.removeAttribute).toHaveBeenCalledWith('src');
+  });
+
   it('rejects the pending load and reports an error when the element fails', async () => {
     const onSnapshot = vi.fn();
     const service = new VideoPlayerService(onSnapshot, vi.fn(), vi.fn());

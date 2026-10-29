@@ -397,9 +397,11 @@ function createPlayerController() {
     bundle.stream.destroy();
     bundle.module.stop({ silent: true });
     bundle.hively.stop({ silent: true });
-    bundle.video.unload();
+    const preserveVideoPiP = bundle === activeBundle && track.kind === 'video' &&
+      bundle.track?.kind === 'video' && bundle.video.pictureInPictureActive;
+    if (!preserveVideoPiP) bundle.video.unload();
     if (bundle === activeBundle) {
-      mediaElements.set({ video: null });
+      if (!preserveVideoPiP) mediaElements.set({ video: null });
       patternChannels.setTrack(null);
       modulePattern.set({ ...initialModulePatternSnapshot });
     }
@@ -537,6 +539,7 @@ function createPlayerController() {
 
   function commitPrepared(trackId: string, crossfadeSeconds = 0, autoPlay = true): boolean {
     if (!preparedBundle?.ready || !preparedBundle.track || preparedBundle.track.id !== trackId) return false;
+    if (activeBundle.video.pictureInPictureActive && preparedBundle.track.kind === 'video') return false;
     operationSequence += 1;
     logInfo('playback', 'Prepared track committed', { id: trackId, crossfadeSeconds });
     clearOutgoing();
@@ -606,6 +609,9 @@ function createPlayerController() {
     get videoPictureInPictureSupported() {
       return activeBundle.video.pictureInPictureSupported;
     },
+    get videoPictureInPictureActive() {
+      return activeBundle.video.pictureInPictureActive;
+    },
     resumeAudio() {
       return audioBusService.resume();
     },
@@ -634,7 +640,9 @@ function createPlayerController() {
       if (mode === 'crossfade') {
         const ready = await prepareNext(track);
         if (requestId !== operationSequence || !ready) return;
-        commitPrepared(track.id, durationSeconds);
+        if (!commitPrepared(track.id, durationSeconds)) {
+          await loadActive(track, { autoPlay: true });
+        }
         return;
       }
       if (mode === 'fadeout' && activeBundle.track) {
