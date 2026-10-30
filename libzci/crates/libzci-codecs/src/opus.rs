@@ -5,7 +5,7 @@ use crate::opusfile_ffi as ffi;
 use libzci::*;
 use std::{ffi::c_void, ptr::NonNull, sync::Arc};
 
-pub const OPUS_VERSION: &str = "libopusfile-0.12/libopus-1.5.2/r3";
+pub const OPUS_VERSION: &str = "libopusfile-0.12/libopus-1.5.2/r5";
 #[derive(Clone, Copy, Debug)]
 pub struct OpusLimits {
     pub max_source_bytes: u64,
@@ -219,7 +219,7 @@ impl OpusInstance {
         }
         let mut channels = None;
         let mut mixed = false;
-        let mut comment_bytes = 0usize;
+        let mut budget = libzci::provider::CommentBudget::new(limits.max_comment_bytes);
         let mut source_frame = 0_u64;
         for link in 0..links {
             cancel.check()?;
@@ -238,34 +238,37 @@ impl OpusInstance {
             if tags.comments < 0 || tags.comments as usize > limits.max_comment_bytes {
                 return Err(corrupt("invalid Opus comment count"));
             }
+            if tags.vendor.is_null() {
+                return Err(corrupt("missing Opus vendor"));
+            }
+            let vendor_length = unsafe { std::ffi::CStr::from_ptr(tags.vendor) }
+                .to_bytes()
+                .len();
+            budget.reserve(vendor_length)?;
+            budget.reserve(16 + tags.comments as usize * 4)?;
             let comments_start = instance.comments.len();
             for i in 0..tags.comments as usize {
                 let size = unsafe { *tags.comment_lengths.add(i) };
                 if size < 0 {
                     return Err(corrupt("invalid comment length"));
                 }
-                comment_bytes = comment_bytes
-                    .checked_add(size as usize)
-                    .ok_or_else(|| corrupt("comment size overflow"))?;
-                if comment_bytes > limits.max_comment_bytes {
-                    return Err(LibzciError::ResourceExhausted {
-                        detail: "Opus comments exceed byte budget".into(),
-                    });
+                budget.reserve(size as usize)?;
+                let pointer = unsafe { *tags.user_comments.add(i) };
+                if pointer.is_null() {
+                    return Err(corrupt("missing comment data"));
                 }
-                let bytes = unsafe {
-                    std::slice::from_raw_parts(
-                        (*tags.user_comments.add(i)).cast::<u8>(),
-                        size as usize,
-                    )
-                };
-                let text = String::from_utf8_lossy(bytes);
-                if let Some((key, value)) = text.split_once('=') {
-                    if libzci::provider::is_embedded_payload_key(key) {
+                let bytes =
+                    unsafe { std::slice::from_raw_parts(pointer.cast::<u8>(), size as usize) };
+                let separator = bytes.iter().take(257).position(|b| *b == b'=');
+                if let Some(at) = separator {
+                    let key = String::from_utf8_lossy(&bytes[..at]);
+                    if !budget.visible(&key, size as usize)? {
                         continue;
                     }
-                    instance
-                        .comments
-                        .push((key.to_ascii_uppercase(), value.to_owned()));
+                    instance.comments.push((
+                        key.to_ascii_uppercase(),
+                        String::from_utf8_lossy(&bytes[at + 1..]).into_owned(),
+                    ));
                 }
             }
             let frames = unsafe { ffi::op_pcm_total(handle.as_ptr(), link) };

@@ -128,7 +128,7 @@ impl Engine {
         let info = match id {
             "org.xiph.opus" => ProviderInfo {
                 id: ProviderId::OPUS,
-                version: "libopusfile-0.12/libopus-1.5.2/r4",
+                version: "libopusfile-0.12/libopus-1.5.2/r5",
                 display_name: "Reference Opus (libopusfile)",
             },
             "org.symphonia.audio" => libzci_symphonia::INFO,
@@ -256,7 +256,7 @@ impl Engine {
             ProviderMetadata {
                 info: ProviderInfo {
                     id: ProviderId::OPUS,
-                    version: "libopusfile-0.12/libopus-1.5.2/r4",
+                    version: "libopusfile-0.12/libopus-1.5.2/r5",
                     display_name: "Reference Opus (libopusfile)",
                 },
                 layout: PcmLayout::stereo48k(),

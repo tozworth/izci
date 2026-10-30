@@ -5,6 +5,7 @@
 //! decode/process/resample/feed pipeline (`playback`). SQLite and GUI
 //! arrive in later phases through their own modules.
 
+pub mod artwork;
 pub mod audio;
 mod gain_transport;
 pub mod lyrics;

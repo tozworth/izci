@@ -5,6 +5,8 @@
 //! mechanisms in consumers/crude-pwa. Demux helpers remain available for later
 //! optional packet providers, outside the production reference timeline.
 #[cfg(target_arch = "wasm32")]
+pub mod artwork;
+#[cfg(target_arch = "wasm32")]
 pub mod audio_decoder;
 #[cfg(target_arch = "wasm32")]
 pub mod bindings;

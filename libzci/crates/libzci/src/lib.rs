@@ -18,11 +18,15 @@
 //! public interface. This crate has no browser, device, Tauri, Svelte,
 //! or Go dependency.
 
+#[cfg(feature = "control")]
+pub mod artwork;
 pub mod audio;
 #[cfg(feature = "control")]
 pub mod catalog;
 #[cfg(feature = "control")]
 pub mod command;
+#[cfg(feature = "control")]
+mod embedded_metadata;
 pub mod error;
 #[cfg(feature = "control")]
 pub mod event;

@@ -16,6 +16,7 @@ pub struct WebOpusPackets {
     carry: Vec<u8>,
     packets: VecDeque<Vec<u8>>,
     eof: bool,
+    tags_read: bool,
     params: OpusStreamParams,
 }
 #[wasm_bindgen]
@@ -37,6 +38,7 @@ impl WebOpusPackets {
             carry: Vec::new(),
             packets: VecDeque::new(),
             eof: false,
+            tags_read: false,
             params: OpusStreamParams {
                 channels: 0,
                 preskip: 0,
@@ -58,8 +60,12 @@ impl WebOpusPackets {
     pub fn next_packet(&mut self) -> std::result::Result<js_sys::Uint8Array, JsValue> {
         loop {
             if let Some(packet) = self.packets.pop_front() {
-                if packet.starts_with(b"OpusTags") {
+                if !self.tags_read {
+                    if packet.len() > libzci::provider::MAX_CONTAINER_COMMENTS {
+                        return Err(js("OpusTags exceeds container budget"));
+                    }
                     parse_opus_tags_packet(&packet).map_err(js)?;
+                    self.tags_read = true;
                     continue;
                 }
                 if packet.len() > 65536 {
@@ -105,7 +111,12 @@ impl WebOpusPackets {
         self.packets =
             split_packets_with_carry(&body, &header[27..], &mut self.carry, entry.header_type)?
                 .into();
-        if self.carry.len() > 65536 {
+        let limit = if self.tags_read {
+            65536
+        } else {
+            libzci::provider::MAX_CONTAINER_COMMENTS
+        };
+        if self.carry.len() > limit {
             return Err(LibzciError::ResourceExhausted {
                 detail: "Opus packet carry exceeds budget".into(),
             });

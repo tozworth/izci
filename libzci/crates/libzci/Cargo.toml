@@ -16,7 +16,8 @@ serde_json = { version = "1", optional = true }
 sha2 = {version="=0.10.9",optional=true}
 caseless = { version = "=0.2.2", optional = true }
 unicode-normalization = { version = "=0.1.26", optional = true }
+base64 = { version = "=0.22.1", optional = true }
 
 [features]
 default = ["control"]
-control = ["dep:serde", "dep:serde_json", "dep:sha2", "dep:caseless", "dep:unicode-normalization"]
+control = ["dep:serde", "dep:serde_json", "dep:sha2", "dep:caseless", "dep:unicode-normalization", "dep:base64"]

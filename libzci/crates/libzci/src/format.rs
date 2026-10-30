@@ -260,6 +260,11 @@ pub struct OpusTags {
 
 /// Parse an `OpusTags` packet (≥8 bytes).
 pub fn parse_opus_tags_packet(packet: &[u8]) -> Result<OpusTags> {
+    if packet.len() > crate::provider::MAX_CONTAINER_COMMENTS {
+        return Err(LibzciError::ResourceExhausted {
+            detail: "OpusTags exceeds 24 MiB".into(),
+        });
+    }
     if packet.len() < 8 || &packet[0..8] != b"OpusTags" {
         return Err(LibzciError::Corrupt {
             detail: "second Ogg packet is not OpusTags".into(),
@@ -277,7 +282,7 @@ pub fn parse_opus_tags_packet(packet: &[u8]) -> Result<OpusTags> {
         Ok(v)
     };
     let vendor_len = read_u32(&mut pos)? as usize;
-    if packet.len() < pos + vendor_len {
+    if vendor_len > packet.len().saturating_sub(pos) {
         return Err(LibzciError::Corrupt {
             detail: "truncated OpusTags vendor".into(),
         });
@@ -285,9 +290,14 @@ pub fn parse_opus_tags_packet(packet: &[u8]) -> Result<OpusTags> {
     let vendor = String::from_utf8_lossy(&packet[pos..pos + vendor_len]).into_owned();
     pos += vendor_len;
     let comment_count = read_u32(&mut pos)? as usize;
+    if comment_count > 65536 {
+        return Err(LibzciError::ResourceExhausted {
+            detail: "OpusTags comment count exceeds 65536".into(),
+        });
+    }
     for _ in 0..comment_count {
         let len = read_u32(&mut pos)? as usize;
-        if packet.len() < pos + len {
+        if len > packet.len().saturating_sub(pos) {
             return Err(LibzciError::Corrupt {
                 detail: "truncated OpusTags comment".into(),
             });
@@ -303,6 +313,35 @@ pub fn parse_opus_tags_packet(packet: &[u8]) -> Result<OpusTags> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn tag_lengths_counts_and_total_bytes_are_bounded_before_expansion() {
+        let mut packet = b"OpusTags".to_vec();
+        packet.extend(u32::MAX.to_le_bytes());
+        assert_eq!(
+            parse_opus_tags_packet(&packet).unwrap_err().kind(),
+            "corrupt"
+        );
+        packet.truncate(8);
+        packet.extend(0u32.to_le_bytes());
+        packet.extend(65537u32.to_le_bytes());
+        assert_eq!(
+            parse_opus_tags_packet(&packet).unwrap_err().kind(),
+            "resource-exhausted"
+        );
+        packet.truncate(12);
+        packet.extend(1u32.to_le_bytes());
+        packet.extend(u32::MAX.to_le_bytes());
+        assert_eq!(
+            parse_opus_tags_packet(&packet).unwrap_err().kind(),
+            "corrupt"
+        );
+        assert_eq!(
+            parse_opus_tags_packet(&vec![0; crate::provider::MAX_CONTAINER_COMMENTS + 1])
+                .unwrap_err()
+                .kind(),
+            "resource-exhausted"
+        );
+    }
     #[test]
     fn opus_packet_duration_limits_and_variable_frames() {
         assert_eq!(opus_packet_frames(&[0x80]).unwrap(), 120);

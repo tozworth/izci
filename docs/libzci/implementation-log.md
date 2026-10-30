@@ -374,6 +374,42 @@ is `.local/libzci/m3-play-counts-evidence.json`. Normalization signal checks and
 production M2/M3 ownership, capability, catalog, scan, reopen and offline checks
 also pass after the wiring. Artwork/images, M4-M6 and A1/A2 remain open.
 
+The next M3 slice adds transient encoded artwork extraction over a common
+ranged ID3/FLAC/Ogg walker. Lyrics retain their selection policy and tests;
+container framing, range/length limits, unsynchronization, continuation and CRC
+checks now have one owner. Artwork reads PIC/APIC, FLAC PICTURE and base64
+METADATA_BLOCK_PICTURE, prefers a front cover to the first fallback, skips linked
+resources without fetching them, and derives MIME from raster content. Payloads
+are bounded to 16 MiB, total candidate reads to 32 MiB and metadata scanning to
+64 MiB. Explicit native/WASM jobs own their encoded bytes and cancellation;
+the browser catalog allows four concurrent artwork jobs. No encoded originals
+enter queue/catalog records or playback observations. This implements extraction,
+not yet image decoding, renditions, cache eviction or image-session navigation.
+
+Reference Opus now distinguishes aggregate container tags (24 MiB including
+vendor/framing) from routine text facts (64 KiB). Shared Rust admits text and
+skips embedded payloads before allocating strings. This fixes audio open failure
+for ordinary embedded covers larger than the former aggregate 64 KiB limit.
+The C bridge bounds raw framing separately; optional WebCodecs accepts the same
+bounded large header while retaining the smaller audio-packet budget. Tag
+length/count checks reject overflow and excessive expansion. Native/browser
+reference provider revisions are aligned at r5.
+
+Windows MSVC core/native/control/audio/crude/CLI suites pass (57 core checks,
+three artwork framing/budget suites and two native artwork-job/provider checks).
+Native real MP3/FLAC/Vorbis/Opus extraction returns the exact generated PNG and
+lyrics, and device-free rendering still completes with finite output and no
+embedded payload facts. The seven reference Opus and callback allocation checks
+also pass. Rebuilt control/audio WASM and reference C codec; TypeScript, all seven
+audio ABI tests, `npm run test:artwork`, metadata/lyrics and production M3 checks
+pass in muted Chromium. Browser artwork evidence includes exact 153,161-byte
+PNG extraction, actual 256×256 bitmap decoding, output-free inspection, catalog
+payload exclusion and reference/optional WebCodecs playback, seek and EOF with
+the large cover. Inputs/FFmpeg 8.1.1 recipe and evidence remain ignored under
+`.local/libzci/media/m3/artwork-*` and `.local/libzci/m3-artwork-evidence.json`.
+Format references: [ID3 APIC](https://id3.org/id3v2.4.0-frames#Attached_picture)
+and [FLAC PICTURE](https://www.rfc-editor.org/rfc/rfc9639.html#section-8.8).
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

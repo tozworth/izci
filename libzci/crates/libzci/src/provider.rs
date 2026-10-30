@@ -53,6 +53,46 @@ pub fn is_embedded_payload_key(key: &str) -> bool {
     .iter()
     .any(|candidate| key.trim().eq_ignore_ascii_case(candidate))
 }
+/// Encoded payloads stay in the container and are read separately on demand.
+/// Account their framing without copying them into routine metadata facts.
+pub const MAX_CONTAINER_COMMENTS: usize = 24 * 1024 * 1024;
+pub struct CommentBudget {
+    raw: usize,
+    text: usize,
+    text_limit: usize,
+}
+impl CommentBudget {
+    pub fn new(text_limit: usize) -> Self {
+        Self {
+            raw: 0,
+            text: 0,
+            text_limit,
+        }
+    }
+    pub fn reserve(&mut self, length: usize) -> Result<()> {
+        self.raw = self
+            .raw
+            .checked_add(length)
+            .filter(|n| *n <= MAX_CONTAINER_COMMENTS)
+            .ok_or_else(|| LibzciError::ResourceExhausted {
+                detail: "container comments exceed 24 MiB".into(),
+            })?;
+        Ok(())
+    }
+    pub fn visible(&mut self, key: &str, length: usize) -> Result<bool> {
+        if is_embedded_payload_key(key) {
+            return Ok(false);
+        }
+        self.text = self
+            .text
+            .checked_add(length)
+            .filter(|n| *n <= self.text_limit)
+            .ok_or_else(|| LibzciError::ResourceExhausted {
+                detail: "text comments exceed byte budget".into(),
+            })?;
+        Ok(true)
+    }
+}
 
 /// Static identity for one provider implementation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -613,6 +653,20 @@ pub fn registry_map(reg: &ProviderRegistry) -> HashMap<&'static str, &'static st
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn embedded_payloads_and_routine_text_have_independent_finite_budgets() {
+        let mut budget = super::CommentBudget::new(64);
+        budget.reserve(200000).unwrap();
+        assert!(!budget.visible("METADATA_BLOCK_PICTURE", 200000).unwrap());
+        budget.reserve(20).unwrap();
+        assert!(budget.visible("R128_TRACK_GAIN", 20).unwrap());
+        budget.reserve(20).unwrap();
+        assert!(budget.visible("R128_TRACK_GAIN", 20).unwrap());
+        assert!(budget.visible("TITLE", 25).is_err());
+        assert!(super::CommentBudget::new(65536)
+            .reserve(super::MAX_CONTAINER_COMMENTS + 1)
+            .is_err());
+    }
     #[test]
     fn embedded_payloads_stay_on_demand_under_id3_user_text_wrappers() {
         for key in [

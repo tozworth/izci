@@ -98,4 +98,5 @@ Object.assign(window,{libzci:{load:(file:File)=>runtime.load(file),command:(kind
   catalogGroups:(by:import('./catalog-types.js').CatalogGroupBy,query:import('./catalog-types.js').CatalogQuery={})=>runtime.catalogGroups(by,query),
   catalogLyrics:(media:number)=>runtime.catalogLyrics(media),catalogCancelLyrics:()=>runtime.catalogCancelLyrics(),
   catalogAddRoot:(handle:import('./profile-types.js').RealDirectoryHandle,settings?:import('./catalog-types.js').ScanSettings)=>runtime.catalogAddRoot(handle,settings),catalogAddFiles:(files:File[],handles:import('./profile-types.js').RealFileHandle[]=[],verify=true)=>runtime.catalogAddFiles(files,handles,verify),catalogScan:(root:number)=>runtime.catalogScan(root),catalogCancel:()=>runtime.catalogCancel(),
+  catalogArtwork:(media:number)=>runtime.catalogArtwork(media),catalogCancelArtwork:()=>runtime.catalogCancelArtwork(),
   job:(mode:'probe'|'render',verify=false)=>runtime.startJob(mode,verify).result,cancelJobs:()=>runtime.cancelJobs()}});

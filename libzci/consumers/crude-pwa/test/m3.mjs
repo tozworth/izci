@@ -72,6 +72,7 @@ try{
   assert.equal((await owner.evaluate(()=>window.libzci.catalogQuery())).total,2);
   assert.equal(await owner.evaluate(()=>window.audioContexts),0,'offline launch scan creates no audio output');
   assert.equal(await owner.evaluate(media=>window.libzci.catalogLyrics(media),b.id),null,'offline on-demand lyric worker reads local files without constructing audio output');
+  assert.equal(await owner.evaluate(media=>window.libzci.catalogArtwork(media),b.id),null,'offline on-demand artwork worker and bindings load from cached production assets');
   await owner.evaluate(()=>window.libzci.command('play'));await owner.waitForFunction(()=>window.libzci.snapshot()?.snapshot.position_frames>1000&&window.libzci.snapshot()?.output.energy>0);
   results.push({test:'cold offline catalog reopen, launch scan, reusable probes and local playback use cached production assets'});
   assert.deepEqual(errors,[]);

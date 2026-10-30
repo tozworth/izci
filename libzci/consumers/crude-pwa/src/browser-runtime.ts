@@ -108,6 +108,8 @@ export class BrowserRuntime {
   catalogBookmarks(media:number,subsong:number|null=null):Promise<Bookmark[]>{return this.request('catalog',['bookmarks',[media,subsong]]);}
   catalogLyrics(media:number):Promise<LyricsDocument|null>{return this.request('catalog',['lyrics',[media]]);}
   catalogCancelLyrics():Promise<void>{return this.request('catalog',['cancel-lyrics',[]]);}
+  catalogArtwork(media:number):Promise<import('./artwork-job.js').EncodedArtwork|null>{return this.request('catalog',['artwork',[media]]);}
+  catalogCancelArtwork():Promise<void>{return this.request('catalog',['cancel-artwork',[]]);}
   catalogAddRoot(handle:RealDirectoryHandle,settings:ScanSettings={recursive:true,scan_on_launch:false,verify_unknown:true,probe_concurrency:2}):Promise<CatalogOutcome>{return this.request('catalog',['add-root',[handle,settings]]);}
   catalogAddFiles(files:File[],handles:RealFileHandle[]=[],verifyUnknown=true):Promise<CatalogOutcome>{return this.request('catalog',['add-files',[files,handles,verifyUnknown]]);}
   catalogScan(root:number):Promise<void>{return this.request('catalog',['scan',[root]]);}

@@ -5,6 +5,7 @@
 #include <opusfile.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 
 typedef struct {
   int source;
@@ -52,8 +53,15 @@ EMSCRIPTEN_KEEPALIVE int zci_open(ZciOpus *c) {
     if (h->mapping_family != 0 || h->channel_count < 1 || h->channel_count > 2) return OP_EIMPL;
     const OpusTags *t = op_tags(c->file, i);
     if (t->comments < 0 || t->comments > 65536) return OP_EBADHEADER;
+    if (!t->vendor) return OP_EBADHEADER;
+    size_t vendor_bytes = strlen(t->vendor);
+    size_t framing_bytes = 16 + 4 * (size_t)t->comments;
+    if (vendor_bytes > (size_t)(24 * 1024 * 1024 - bytes)) return OP_EBADHEADER;
+    bytes += (int)vendor_bytes;
+    if (framing_bytes > (size_t)(24 * 1024 * 1024 - bytes)) return OP_EBADHEADER;
+    bytes += (int)framing_bytes;
     for (int j = 0; j < t->comments; ++j) {
-      if (t->comment_lengths[j] < 0 || t->comment_lengths[j] > 65536 - bytes) return OP_EBADHEADER;
+      if (t->comment_lengths[j] < 0 || t->comment_lengths[j] > 24 * 1024 * 1024 - bytes) return OP_EBADHEADER;
       bytes += t->comment_lengths[j];
     }
   }
@@ -66,7 +74,8 @@ EMSCRIPTEN_KEEPALIVE double zci_link_total(ZciOpus *c, int link) {
   return (double)op_pcm_total(c->file, link);
 }
 /* Read-only leases are valid until zci_close. Lengths, not NUL terminators,
- * bound tag copies; open already enforces the aggregate 64 KiB budget. */
+ * bound tag copies; open enforces the aggregate 24 MiB container budget.
+ * Shared Rust separately bounds routine text and excludes embedded payloads. */
 static const OpusTags *tags_at(ZciOpus *c, int link) {
   if (!c || !c->file || link < 0 || link >= op_link_count(c->file)) return NULL;
   return op_tags(c->file, link);

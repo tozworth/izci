@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import init, { WebPreparation, classify, known_extension,metadata_tag_visible,normalize_metadata } from '../generated/libzci_web.js';
+import init, { WebPreparation, classify, known_extension,MetadataBudget,normalize_metadata } from '../generated/libzci_web.js';
 import { openProvider, type Backend, type Facts } from './browser-providers.js';
 import { openWebCodecs } from './webcodecs-opus.js';
 import createCodec from '../generated/opus-reference.js';
@@ -58,7 +58,7 @@ const position=():number=>backend?.position()??(handle?codec._zci_position(handl
 const total=():number|null=>facts?facts.total:handle?codec._zci_total(handle):null;
 function currentFacts():Facts {
   if(backend){const result=backend.facts();if(opusComments.length)result.comments=opusComments;if(opusGainPoints.length)result.normalization_points=opusGainPoints;return result;}
-  return {provider:{id:'org.xiph.opus',name:'Reference Opus (libopusfile)',version:'libopusfile-0.12/libopus-1.5.2/r4'},rate:48000,channels:2,total:codec._zci_total(handle),comments:opusComments,capabilities:{subsongs:0,channels:0},module:null,
+  return {provider:{id:'org.xiph.opus',name:'Reference Opus (libopusfile)',version:'libopusfile-0.12/libopus-1.5.2/r5'},rate:48000,channels:2,total:codec._zci_total(handle),comments:opusComments,capabilities:{subsongs:0,channels:0},module:null,
     applied:{trimmed_preskip:true,trimmed_end:true,applied_header_gain:true},normalization_points:opusGainPoints};
 }
 
@@ -121,21 +121,23 @@ async function perform(job: DecodeJob): Promise<void> {
       handle = codec._zci_create(source.id, file.size);
       if (!handle) throw {kind: 'resource-exhausted', detail: 'codec context allocation failed'};
       await call('zci_open', [handle]);
-      const text=new TextDecoder();let commentBytes=0,sourceFrame=0;
+      const text=new TextDecoder(),budget=new MetadataBudget();let sourceFrame=0;
+      try {
       for(let link=0;link<codec._zci_links(handle);link++){
       const start=opusComments.length;
       for(let index=0;index<codec._zci_comment_count(handle,link);index++){
         const length=codec._zci_comment_length(handle,link,index),pointer=codec._zci_comment_data(handle,link,index);
-        if(length<0||length>65536-commentBytes||length&&!pointer)throw {kind:'corrupt',detail:'Invalid bounded Opus comment'};
-        commentBytes+=length;
+        if(length<0||pointer<0||length&&!pointer||pointer+length>codec.HEAPU8.length)throw {kind:'corrupt',detail:'Invalid bounded Opus comment'};
+        budget.reserve(length);
         const bytes=codec.HEAPU8.subarray(pointer,pointer+length),separator=bytes.subarray(0,257).indexOf(61);
-        if(separator>=0){const key=text.decode(bytes.subarray(0,separator));if(metadata_tag_visible(key))opusComments.push([key.replace(/[a-z]/g,c=>c.toUpperCase()),text.decode(bytes.subarray(separator+1))]);}
+        if(separator>=0){const key=text.decode(bytes.subarray(0,separator));if(budget.visible(key,length))opusComments.push([key.replace(/[a-z]/g,c=>c.toUpperCase()),text.decode(bytes.subarray(separator+1))]);}
       }
       const frames=codec._zci_link_total(handle,link);
       if(!Number.isSafeInteger(frames)||frames<0)throw {kind:'corrupt',detail:'Invalid Opus link timeline'};
       if(frames>0)opusGainPoints.push({source_frame:sourceFrame,tags:JSON.parse(normalize_metadata(JSON.stringify(opusComments.slice(start)),undefined,'' )).replay_gain});
       sourceFrame+=frames;
       }
+      }finally{budget.free();}
       if(job.preferWebCodecs&&codec._zci_links(handle)===1) {
         try {backend=await openWebCodecs(source.id,file,codec._zci_total(handle),yieldTask,check);}
         catch(e){check();post({type:'capability',detail:`Optional WebCodecs declined; using reference: ${failure(e).detail}`});}

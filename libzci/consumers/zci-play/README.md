@@ -56,4 +56,6 @@ chained streams (mixed layouts normalize to stereo), pre-skip, end trim and
 header gain. R128/ReplayGain comments are reported without applying tag gain.
 Other Opus mappings and nonseekable/unknown-length sources are typed unsupported
 outcomes. The reference defaults bound source size to 1 GiB, links to 1,024,
-comments to 64 KiB and each source callback read to 32 KiB.
+routine text comments to 64 KiB, aggregate container tags (including encoded
+artwork) to 24 MiB and each source callback read to 32 KiB. Artwork and lyrics
+stay outside routine playback facts and are read by explicit source jobs.
