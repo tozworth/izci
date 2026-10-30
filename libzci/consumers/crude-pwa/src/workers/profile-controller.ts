@@ -1,7 +1,7 @@
 import {openProfile} from './profile-storage.js';
 import {Capabilities,CapabilityStaging} from '../capabilities.js';
-import type {ProfileState,QueueCommand,QueueLoad,QueueSettings,RealFileHandle,SourceReference} from '../profile-types.js';
-import type {WebProfile} from '../generated/libzci_web.js';
+import type {ProfileState,QueueCommand,QueueLoad,RealFileHandle,SourceReference} from '../profile-types.js';
+import type {WebProfile,WebEngine} from '../generated/libzci_web.js';
 import {BrowserCatalog} from './browser-catalog.js';
 export class ProfileController {
   readonly catalog:BrowserCatalog;
@@ -10,14 +10,25 @@ export class ProfileController {
   private staging=new CapabilityStaging();
   private epoch=0;
   access='';
-  private constructor(private core:WebProfile,private handles:Capabilities,private load:(file:File,options:QueueLoad)=>void,private stop:()=>void,private settings:(settings:QueueSettings)=>void,private publish:()=>void) {
-    this.catalog=new BrowserCatalog(core,handles,this.files,this.staging,()=>{this.cached=undefined;this.publish();});
+  private constructor(private core:WebProfile,private handles:Capabilities,private load:(file:File,options:QueueLoad)=>void,private stop:()=>void,private engine:WebEngine,private applied:()=>void,private publish:()=>void) {
+    this.catalog=new BrowserCatalog(core,handles,this.files,this.staging,()=>{this.cached=undefined;this.syncPlayback();this.publish();});
   }
-  static async open(name:string,load:(file:File,options:QueueLoad)=>void,stop:()=>void,settings:(settings:QueueSettings)=>void,publish:()=>void):Promise<ProfileController> {
+  static async open(name:string,load:(file:File,options:QueueLoad)=>void,stop:()=>void,engine:WebEngine,applied:()=>void,publish:()=>void):Promise<ProfileController> {
     const core=await openProfile(name),handles=new Capabilities(name);
-    const controller=new ProfileController(core,handles,load,stop,settings,publish);
+    const controller=new ProfileController(core,handles,load,stop,engine,applied,publish);
+    core.attach_playback(engine);controller.applied();
     await handles.recoverReferenced(key=>core.references_browser_capability(key));
     await controller.restore();return controller;
+  }
+  private syncError='';
+  syncPlayback():void {
+    try {
+      if(this.core.sync_playback(this.engine))this.cached=undefined;
+      this.syncError='';this.applied();
+    } catch(e) {
+      const detail=String((e as {detail?:string}).detail??e);
+      if(detail!==this.syncError){this.syncError=detail;self.postMessage({type:'error',kind:'storage-failure',detail:`Play count/settings sync: ${detail}`});}
+    }
   }
   snapshot():ProfileState {return this.cached??=JSON.parse(this.core.snapshot()) as ProfileState;}
   private request(command:QueueCommand,request?:string) {const result=JSON.parse(this.core.request(JSON.stringify(command),request)) as {appended:number[];load:QueueLoad|null;stop:boolean;duplicate:boolean};this.cached=undefined;return result;}
@@ -29,14 +40,14 @@ export class ProfileController {
       const file=load.source.kind==='browser_handle'?await this.handles.resolve(load.source.locator):this.files.get(load.source.key);
       if(epoch!==this.epoch)return;
       if(!file)throw {kind:'non-restorable',detail:'Plain File selection; choose it again after reload'};
-      this.access='granted';this.load(file,load);
+      this.access='granted';this.load(file,load);this.syncPlayback();
     }catch(e){if(epoch!==this.epoch)return;this.access=`${(e as {kind?:string}).kind??'unavailable'}: ${(e as {detail?:string}).detail??String(e)}`;}
     this.publish();
   }
   async command(command:QueueCommand,request?:string):Promise<{appended:number[];load:QueueLoad|null;duplicate:boolean}> {
     const outcome=this.request(command,request);
     if(outcome.stop){++this.epoch;this.stop();}
-    const s=this.snapshot();this.settings(s.settings);this.publish();
+    const s=this.snapshot();this.syncPlayback();this.publish();
     if(!s.queue.current)this.access='no selected source';
     if(outcome.load)await this.materialize(outcome.load);
     if(command.kind==='remove') {

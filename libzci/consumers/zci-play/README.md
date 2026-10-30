@@ -21,7 +21,10 @@ On GNU/Linux use `libzci/target/release/zci-play` with the same flags.
 - `--device NAME`: output-device name substring; defaults to the system device.
 - `--profile DIR`: explicitly open/lock a fresh libzci SQLite profile; append the
   supplied path as a new queue occurrence and persist its selection/options.
-  Saved volume/mute apply unless volume is explicitly overridden. Reusing a
+  Saved volume/mute and ReplayGain apply unless volume is explicitly overridden.
+  Profile-bound playback counts current Library members through the shared
+  consumed-media qualifier; appending queue-only paths does not add Library
+  membership. Device-free rendering never accrues counts. Reusing a
   path appends a duplicate occurrence. The ordinary izci profile is untouched.
 - `--volume V`: linear master volume, finite 0.0 through 1.0; default 1.0.
 - `--start SECONDS`: finite nonnegative media time; converted by the core.

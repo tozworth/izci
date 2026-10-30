@@ -97,6 +97,44 @@ pub struct NativeProfile {
     db: Option<NativeDatabase>,
 }
 impl NativeProfile {
+    pub fn attach_playback(
+        &mut self,
+        runtime: &crate::NativeRuntime,
+        session: libzci::SessionId,
+    ) -> Result<libzci::profile::ProfilePlayback> {
+        let db = self
+            .db
+            .as_mut()
+            .ok_or_else(|| failure("unavailable", "playback binding requires an open profile"))?;
+        libzci::profile::ProfilePlayback::attach(&self.core, &runtime.snapshot(session)?, db)
+    }
+    pub fn sync_playback(
+        &mut self,
+        binding: &mut libzci::profile::ProfilePlayback,
+        runtime: &crate::NativeRuntime,
+        session: libzci::SessionId,
+    ) -> Result<libzci::profile::PlaybackSync> {
+        let observation = runtime.playback_observation(session)?;
+        let db = self
+            .db
+            .as_mut()
+            .ok_or_else(|| failure("unavailable", "playback binding requires an open profile"))?;
+        let plan = binding.prepare(&mut self.core, observation, db)?;
+        for ack in &plan.acknowledged {
+            runtime.acknowledge_plays(session, &ack.binding, ack.sequence)?;
+        }
+        for command in &plan.commands {
+            runtime.submit(command, &libzci::CancelFlag::default())?;
+        }
+        Ok(plan)
+    }
+    pub fn close_playback(&mut self, binding: &mut libzci::profile::ProfilePlayback) -> Result<()> {
+        let db = self
+            .db
+            .as_mut()
+            .ok_or_else(|| failure("unavailable", "playback binding requires an open profile"))?;
+        binding.close(&self.core, db)
+    }
     pub fn transient() -> Self {
         Self {
             core: Profile::transient(),

@@ -47,6 +47,7 @@ test('worklet ABI preserves source-rate positions within blocks and at final dra
       for (let quantum = 1; quantum <= 32; quantum++) {
         wasm.renderer_process(pointer);
         assert.equal(wasm.renderer_position(pointer), Math.floor(quantum * 128 * sourceRate / 48000), `${sourceRate} Hz quantum ${quantum}`);
+        assert.equal(wasm.renderer_consumed(pointer),quantum*128,'consumed duration stays in output-rate frames');
       }
       assert.equal(wasm.renderer_finished(pointer), 1);
     } finally {
@@ -99,12 +100,14 @@ test('fixed audio pool retains long marked output, tails and generations without
     }
     assert.equal(w.memory.buffer.byteLength,heap);
     assert(w.renderer_position(p)<=received);
+    assert(w.renderer_consumed(p)<=received);
     assert(++callbacks<100000);
   }
-  assert.equal(received,total);assert.equal(w.renderer_position(p),total);assert.equal(free.size,8);
+  assert.equal(received,total);assert.equal(w.renderer_position(p),total);assert.equal(w.renderer_consumed(p),total);assert.equal(free.size,8);
   w.renderer_reset(p,2,5000);
   assert.equal(w.renderer_enqueue(p,0,1,0,1,0,48000,48000,1),0);
   for(let i=0;i<100;i++)w.renderer_process(p);
+  assert.equal(w.renderer_consumed(p),0,'new generation and starvation carry no consumed media time');
   assert.equal(w.renderer_position(p),5000);assert.equal(w.renderer_finished(p),0);
   assert(output.every(n=>n===0));
   w.renderer_settings(p,0,1,0,960);const silence=w.renderer_silence(p);

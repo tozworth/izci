@@ -337,6 +337,12 @@ pub unsafe extern "C" fn renderer_media(p: *mut Renderer) -> f64 {
 #[no_mangle]
 /// # Safety
 /// `p` must be live and must not be concurrently mutated.
+pub unsafe extern "C" fn renderer_consumed(p: *mut Renderer) -> f64 {
+    (*p).clock.consumed_frames() as f64
+}
+#[no_mangle]
+/// # Safety
+/// `p` must be live and must not be concurrently mutated.
 pub unsafe extern "C" fn renderer_silence(p: *mut Renderer) -> f64 {
     (*p).silence as f64
 }

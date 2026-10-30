@@ -69,6 +69,19 @@ pub enum Command {
         session: SessionId,
         settings: crate::ReplayGainSettings,
     },
+    BindPlayCounts {
+        request_id: RequestId,
+        session: SessionId,
+        binding: String,
+        settings: crate::PlayCountSettings,
+    },
+    CountEligibility {
+        request_id: RequestId,
+        session: SessionId,
+        source_key: String,
+        instance: RequestId,
+        media: Option<u64>,
+    },
     Module {
         request_id: RequestId,
         session: SessionId,
@@ -97,6 +110,8 @@ impl Command {
             | Self::SetVolume { session, .. }
             | Self::SetMute { session, .. }
             | Self::SetReplayGain { session, .. }
+            | Self::BindPlayCounts { session, .. }
+            | Self::CountEligibility { session, .. }
             | Self::Module { session, .. } => session,
         }
     }
@@ -114,6 +129,8 @@ impl Command {
             | Self::SetVolume { request_id, .. }
             | Self::SetMute { request_id, .. }
             | Self::SetReplayGain { request_id, .. }
+            | Self::BindPlayCounts { request_id, .. }
+            | Self::CountEligibility { request_id, .. }
             | Self::Module { request_id, .. } => request_id,
         }
     }
@@ -161,6 +178,7 @@ impl MediaTime {
 pub struct LoadOptions {
     pub start_time: MediaTime,
     pub subsong: Option<u32>,
+    pub context: Option<crate::PlaybackContext>,
 }
 #[derive(Clone, Copy, Debug)]
 pub enum ModuleControl {

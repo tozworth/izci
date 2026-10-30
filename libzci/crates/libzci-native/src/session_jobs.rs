@@ -126,10 +126,26 @@ impl SessionEntry {
                 .0;
         }
     }
-    pub fn consumed(&self, generation: Generation, position: u64, final_consumed: bool) {
+    pub fn consumed(
+        &self,
+        generation: Generation,
+        progress: PlaybackProgress,
+        final_consumed: bool,
+    ) {
         let mut c = self.control.lock().unwrap();
         let before = c.owner.revision();
-        c.owner.consumed(generation, position, final_consumed);
+        if let Err(error) = c.owner.consumed(generation, progress, final_consumed) {
+            let tag = c.owner.tag();
+            c.owner.failed(tag, error.clone());
+            c.refresh_output();
+            c.events.push(Event::Failed {
+                session: tag.session,
+                generation: tag.generation,
+                request_id: Some(tag.operation),
+                error,
+            });
+            return;
+        }
         if c.owner.revision() != before {
             let snapshot = c.owner.snapshot();
             let event = if final_consumed {

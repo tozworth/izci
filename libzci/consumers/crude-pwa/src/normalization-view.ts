@@ -1,7 +1,7 @@
 import type {Observation} from './runtime.js';
 import type {BrowserRuntime} from './browser-runtime.js';
 import type {ReplayGainSettings} from './profile-types.js';
-let rendered='';
+let rendered='';let countsRendered='';
 const el=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
 const numbers=['preamp_db','missing_gain_db','r128_target_lufs'] as const;
 const flags=['fallback','prevent_clipping'] as const;
@@ -15,6 +15,11 @@ export function normalizationView(o:Observation,runtime:BrowserRuntime,log:(s:st
     for(const key of flags)next[key]=el<HTMLInputElement>(`normalization-${key}`).checked;
     void runtime.queue({kind:'settings',settings:{...settings,replay_gain:next}}).catch(e=>log(String(e)));
   };
+  const counts=o.snapshot.play_counts;
+  el('counts-status').textContent=`${counts.credited_seconds.toFixed(1)} s · ${counts.pending} pending · ${counts.overflowed} skipped`;
+  el('counts-apply').onclick=()=>{void runtime.queue({kind:'settings',settings:{...settings,play_counts:{enabled:el<HTMLInputElement>('counts-enabled').checked,threshold_seconds:Number(el<HTMLInputElement>('counts-threshold').value)}}}).catch(e=>log(String(e)));};
+  const countKey=JSON.stringify(settings.play_counts);
+  if(countKey!==countsRendered){countsRendered=countKey;el<HTMLInputElement>('counts-enabled').checked=settings.play_counts.enabled;el<HTMLInputElement>('counts-threshold').value=String(settings.play_counts.threshold_seconds);}
   const key=JSON.stringify(rg);if(key===rendered)return;rendered=key;
   el<HTMLSelectElement>('normalization-mode').value=rg.mode;
   for(const name of numbers)el<HTMLInputElement>(`normalization-${name}`).value=String(rg[name]);

@@ -47,6 +47,20 @@ pub fn draw(ui: &mut egui::Ui, controller: &mut Controller) {
         &mut settings.replay_gain,
         controller.snapshot().normalization,
     );
+    ui.horizontal(|ui| {
+        ui.checkbox(&mut settings.play_counts.enabled, "Library play counts");
+        ui.label("Count after continuous playback");
+        ui.add(
+            egui::DragValue::new(&mut settings.play_counts.threshold_seconds)
+                .range(1..=3600)
+                .suffix(" s"),
+        );
+        let counts = controller.snapshot().play_counts;
+        ui.label(format!(
+            "{:.1} s · {} pending · {} skipped",
+            counts.credited_seconds, counts.pending, counts.overflowed
+        ));
+    });
     if settings != s.settings {
         command = Some(QueueCommand::Settings { settings });
     }

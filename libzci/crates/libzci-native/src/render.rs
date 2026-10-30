@@ -176,15 +176,31 @@ impl RenderJob {
                     + self.gain_points.capacity() * size_of::<GainPoint>();
                 if let Some(RenderStep::Data { block, samples }) = output {
                     self.progress.output_frames += block.valid_frames as u64;
-                    self.entry
-                        .consumed(block.generation, block.source_end, false);
+                    self.entry.consumed(
+                        block.generation,
+                        PlaybackProgress {
+                            position_frames: block.source_end,
+                            consumed_frames: self.progress.output_frames,
+                            output_rate: self.options.output_rate,
+                            observed_at_ms: 0,
+                        },
+                        false,
+                    );
                     return Ok(RenderStep::Data { block, samples });
                 }
                 if p.is_drained() {
                     self.complete = true;
                     let s = self.entry.snapshot();
-                    self.entry
-                        .consumed(s.generation, self.progress.source_frames, true);
+                    self.entry.consumed(
+                        s.generation,
+                        PlaybackProgress {
+                            position_frames: self.progress.source_frames,
+                            consumed_frames: self.progress.output_frames,
+                            output_rate: self.options.output_rate,
+                            observed_at_ms: 0,
+                        },
+                        true,
+                    );
                     return Ok(RenderStep::Complete(RenderResult {
                         output_frames: self.progress.output_frames,
                         rate_hz: self.options.output_rate,

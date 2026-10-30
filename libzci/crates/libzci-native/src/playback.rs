@@ -261,7 +261,7 @@ pub(crate) fn pipeline_main(
             || snap.pending_operation
             || snap.running == RunningState::Suspended;
 
-        if let Some((gen, media)) = transport.media_position() {
+        if let Some((gen, media)) = transport.consumption() {
             entry.consumed(gen, media, false);
         }
         if held {
@@ -272,9 +272,18 @@ pub(crate) fn pipeline_main(
             let progress = p.pump(|block, samples| producer.write(block, samples));
             if p.is_drained() {
                 drained.store(true, Ordering::Release);
-                if let Some((ack, media)) = transport.completed_position() {
+                if let Some((ack, media)) = transport.completed_consumption() {
                     if ack == generation {
-                        entry.consumed(generation, media.unwrap_or(snap.position_frames), true);
+                        entry.consumed(
+                            generation,
+                            media.unwrap_or(PlaybackProgress {
+                                position_frames: snap.position_frames,
+                                consumed_frames: 0,
+                                output_rate: rate,
+                                observed_at_ms: crate::pcm_transport::observation_time_ms(),
+                            }),
+                            true,
+                        );
                         finished.store(true, Ordering::Release);
                     }
                 }
@@ -381,6 +390,7 @@ mod tests {
         {
             let mut c = entry.control.lock().unwrap();
             c.output = Some(monitor.clone());
+            c.owner.output_state(RunningState::Running);
             c.refresh_output();
         }
         let cancel = CancelFlag::default();
@@ -574,8 +584,45 @@ mod tests {
             }
         }
         let session = rt.create_session();
-        rt.load(session, source, None, &CancelFlag::default())
-            .unwrap();
+        command(
+            &rt,
+            Command::BindPlayCounts {
+                session,
+                request_id: RequestId::fresh(),
+                binding: "a".repeat(32),
+                settings: PlayCountSettings {
+                    enabled: true,
+                    threshold_seconds: 1,
+                },
+            },
+        );
+        command(
+            &rt,
+            Command::Load {
+                session,
+                request_id: RequestId::fresh(),
+                source,
+                extension_hint: None,
+                options: LoadOptions {
+                    context: Some(PlaybackContext {
+                        reference: libzci::queue::SourceReference {
+                            key: "native-count-test".into(),
+                            kind: libzci::queue::SourceKind::Ephemeral,
+                            locator: "native-count-test".into(),
+                            display_path: "test".into(),
+                        },
+                        library_media: Some(1),
+                    }),
+                    ..Default::default()
+                },
+            },
+        );
+        rt.wait_ready(session, &CancelFlag::default()).unwrap();
+        assert!(rt
+            .playback_observation(session)
+            .unwrap()
+            .qualified
+            .is_empty());
         if let Some(settings) = normalization {
             command(
                 &rt,
@@ -591,6 +638,7 @@ mod tests {
         {
             let mut c = entry.control.lock().unwrap();
             c.output = Some(monitor.clone());
+            c.owner.output_state(RunningState::Running);
             c.refresh_output();
         }
         let token = CancelFlag::default();
@@ -632,6 +680,14 @@ mod tests {
         assert_eq!(actual, expected, "worker lost PCM at {rate}");
         assert_eq!(entry.snapshot().state, TransportState::Ended);
         assert_eq!(entry.snapshot().position_frames, total);
+        let observation = rt.playback_observation(session).unwrap();
+        assert_eq!(
+            observation.snapshot.consumed_frames,
+            actual.len() as u64 / 2
+        );
+        assert_eq!(observation.snapshot.output_rate, Some(rate));
+        assert_eq!(observation.qualified.len(), usize::from(total >= 48000));
+
         token.cancel();
         let _ = worker.join().unwrap();
     }

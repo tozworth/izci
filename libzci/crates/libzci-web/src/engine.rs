@@ -116,9 +116,9 @@ impl Engine {
         let s = self.session.snapshot();
         json!({"session":s.session.0,"revision":s.revision.0,"generation":s.generation.0,
             "state":format!("{:?}",s.state),"requested":format!("{:?}",s.requested),"running":format!("{:?}",s.running),
-            "position_frames":s.position_frames,"total_frames":s.total_frames,"sample_rate":s.layout.map(|l|l.sample_rate),
+            "position_frames":s.position_frames,"consumed_frames":s.consumed_frames,"output_rate":s.output_rate,"total_frames":s.total_frames,"sample_rate":s.layout.map(|l|l.sample_rate),
             "provider":s.provider.map(|p|json!({"id":p.id.0,"version":p.version,"name":p.display_name})),
-            "volume":s.volume,"mute":s.mute,"replay_gain":s.replay_gain,"normalization":s.normalization,"normalization_revision":s.normalization_revision.0,"decoding_eof":s.decoding_eof,"pending_operation":s.pending_operation,
+            "volume":s.volume,"mute":s.mute,"replay_gain":s.replay_gain,"normalization":s.normalization,"normalization_revision":s.normalization_revision.0,"decoding_eof":s.decoding_eof,"pending_operation":s.pending_operation,"play_counts":s.play_counts,"subsong":s.subsong,
             "capabilities":crate::wire::capabilities(s.capabilities),"module":crate::wire::module(s.module.as_deref().cloned()),
             "metadata":s.metadata.as_ref().map(|m|&m.comments),
             "error":s.error.map(|e|e.to_string()),"tag":self.tag()})
@@ -288,16 +288,49 @@ mod tests {
         e.command("play", 0.0).unwrap();
         e.session.eof(old);
         assert_eq!(e.session.state(), TransportState::Playing);
-        e.session.consumed(old.generation, 128, false);
+        e.session
+            .consumed(
+                old.generation,
+                PlaybackProgress {
+                    position_frames: 128,
+                    consumed_frames: 128,
+                    output_rate: 48000,
+                    observed_at_ms: 1,
+                },
+                false,
+            )
+            .unwrap();
         assert_eq!(e.session.position_frames(), 128);
         e.command("seek", 3.0).unwrap();
         assert!(!e.opened(old, 480000, 0));
         let new = e.session.tag();
         e.session.landed(new, 144000);
-        e.session.consumed(old.generation, 480000, true);
+        e.session
+            .consumed(
+                old.generation,
+                PlaybackProgress {
+                    position_frames: 480000,
+                    consumed_frames: 480000,
+                    output_rate: 48000,
+                    observed_at_ms: 1,
+                },
+                true,
+            )
+            .unwrap();
         assert_eq!(e.session.position_frames(), 144000);
         e.session.eof(new);
-        e.session.consumed(new.generation, 480000, true);
+        e.session
+            .consumed(
+                new.generation,
+                PlaybackProgress {
+                    position_frames: 480000,
+                    consumed_frames: 336000,
+                    output_rate: 48000,
+                    observed_at_ms: 1,
+                },
+                true,
+            )
+            .unwrap();
         assert_eq!(e.session.state(), TransportState::Ended);
     }
 }

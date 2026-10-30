@@ -19,6 +19,7 @@ fn render_from(bytes: Vec<u8>, processing: ProcessingMode, start: f64) -> Vec<f3
                 load: LoadOptions {
                     start_time: MediaTime(start),
                     subsong: None,
+                    context: None,
                 },
                 ..Default::default()
             },
@@ -212,7 +213,15 @@ fn callback_primes_new_generations_and_retargets_normalization_without_stereo_or
     rx.render(&mut output);
     assert!((last - output[0]).abs() < 0.01);
     assert!(output.as_chunks::<2>().0.iter().all(|v| v[0] == v[1]));
-    assert_eq!(monitor.media_position(), Some((Generation(1), 384)));
+    assert_eq!(
+        monitor.consumption().map(|(g, p)| (
+            g,
+            p.position_frames,
+            p.consumed_frames,
+            p.output_rate
+        )),
+        Some((Generation(1), 384, 384, 48000))
+    );
     monitor.request_generation(Generation(2));
     monitor.set_replay_gain(0.125);
     assert_eq!(tx.write(block(Generation(2), 0), &[1.0; 512]), 256);

@@ -42,10 +42,10 @@ pub enum SessionAction {
 
 pub struct Session {
     snapshot: Snapshot,
-    instance: RequestId,
     operation: RequestId,
     disposed: bool,
     receipts: std::collections::VecDeque<CommandAccept>,
+    counts: crate::play_counts::PlayCountTracker,
 }
 impl Session {
     pub fn new(id: SessionId) -> Self {
@@ -57,9 +57,15 @@ impl Session {
                 state: TransportState::Idle,
                 provider: None,
                 position_frames: 0,
+                consumed_frames: 0,
+                output_rate: None,
+                context: None,
+                subsong: None,
+                play_counts: PlayCountSnapshot::default(),
                 total_frames: None,
                 error: None,
                 request_id: None,
+                source_instance: RequestId(0),
                 layout: None,
                 metadata: None,
                 volume: 1.0,
@@ -78,10 +84,10 @@ impl Session {
                 capabilities: ModuleCapabilities::default(),
                 module: None,
             },
-            instance: RequestId(0),
             operation: RequestId(0),
             disposed: false,
             receipts: Default::default(),
+            counts: Default::default(),
         }
     }
     pub fn id(&self) -> SessionId {
@@ -114,7 +120,7 @@ impl Session {
     pub fn tag(&self) -> JobTag {
         JobTag {
             session: self.id(),
-            instance: self.instance,
+            instance: self.snapshot.source_instance,
             operation: self.operation,
             generation: self.generation(),
         }
@@ -123,6 +129,7 @@ impl Session {
         !self.disposed && tag == self.tag()
     }
     fn commit(&mut self) {
+        self.snapshot.play_counts = self.counts.snapshot();
         self.snapshot.revision.bump();
     }
     fn invalidate(&mut self, request: RequestId) {
@@ -130,6 +137,9 @@ impl Session {
         self.operation = request;
         self.snapshot.decoding_eof = false;
         self.snapshot.pending_operation = true;
+        self.snapshot.consumed_frames = 0;
+        self.snapshot.output_rate = None;
+        self.counts.new_generation(false);
     }
     pub fn accept(&mut self, command: &Command) -> Result<(CommandAccept, Vec<SessionAction>)> {
         if self.disposed {
@@ -139,6 +149,18 @@ impl Session {
             return Err(invalid("wrong session"));
         }
         let request = command.request_id();
+        if let Command::CountEligibility { instance, .. } = command {
+            if *instance != self.snapshot.source_instance {
+                return Ok((
+                    CommandAccept {
+                        request_id: request,
+                        session: self.id(),
+                        generation: self.generation(),
+                    },
+                    Vec::new(),
+                ));
+            }
+        }
         if let Some(receipt) = self.receipts.iter().find(|r| r.request_id == request) {
             return Ok((*receipt, Vec::new()));
         }
@@ -151,8 +173,14 @@ impl Session {
                 ..
             } => {
                 options.start_time.validate()?;
+                if let Some(context) = &options.context {
+                    context.validate()?;
+                }
                 self.invalidate(request);
-                self.instance = request;
+                self.counts.reset_continuity();
+                self.snapshot.context = options.context.clone().map(std::sync::Arc::new);
+                self.snapshot.subsong = options.subsong;
+                self.snapshot.source_instance = request;
                 self.snapshot.state = TransportState::Loading;
                 self.snapshot.provider = None;
                 self.snapshot.layout = None;
@@ -179,13 +207,14 @@ impl Session {
             }
             Command::Seek { time, .. } => {
                 time.validate()?;
-                if self.instance.0 == 0 {
+                if self.snapshot.source_instance.0 == 0 {
                     return Err(invalid("seek with no source"));
                 }
                 if let Some(layout) = self.snapshot.layout {
                     time.frames(layout.sample_rate)?;
                 }
                 self.invalidate(request);
+                self.counts.reset_continuity();
                 self.snapshot.error = None;
                 if self.snapshot.state == TransportState::Ended {
                     self.snapshot.state = TransportState::Ready;
@@ -197,15 +226,16 @@ impl Session {
             }
             Command::Stop { .. } => {
                 self.invalidate(request);
+                self.counts.reset_continuity();
                 self.snapshot.requested = RequestedState::Held;
                 self.snapshot.position_frames = 0;
                 self.snapshot.error = None;
-                self.snapshot.state = if self.instance.0 == 0 {
+                self.snapshot.state = if self.snapshot.source_instance.0 == 0 {
                     TransportState::Idle
                 } else {
                     TransportState::Ready
                 };
-                if self.instance.0 != 0 {
+                if self.snapshot.source_instance.0 != 0 {
                     actions.push(SessionAction::Seek {
                         tag: self.tag(),
                         time: MediaTime(0.0),
@@ -227,6 +257,7 @@ impl Session {
                 }
                 if self.snapshot.state == TransportState::Ended {
                     self.invalidate(request);
+                    self.counts.reset_continuity();
                     actions.push(SessionAction::Seek {
                         tag: self.tag(),
                         time: MediaTime(0.0),
@@ -238,6 +269,9 @@ impl Session {
                 }
             }
             Command::Pause { .. } => {
+                if self.snapshot.requested == RequestedState::Running {
+                    self.counts.fence();
+                }
                 self.snapshot.requested = RequestedState::Held;
                 if self.snapshot.state == TransportState::Playing {
                     self.snapshot.state = TransportState::Ready;
@@ -255,12 +289,38 @@ impl Session {
                 self.snapshot.replay_gain = *settings;
                 self.normalize();
             }
+            Command::BindPlayCounts {
+                binding, settings, ..
+            } => self.counts.bind(binding, *settings)?,
+            Command::CountEligibility {
+                source_key, media, ..
+            } => {
+                if let Some(media) = media {
+                    crate::catalog::id(*media)?;
+                }
+                let context = self
+                    .snapshot
+                    .context
+                    .as_ref()
+                    .filter(|c| c.reference.key == *source_key)
+                    .ok_or_else(|| invalid("stale play-count source context"))?;
+                if context.library_media != *media {
+                    let mut context = (**context).clone();
+                    context.library_media = *media;
+                    self.snapshot.context = Some(std::sync::Arc::new(context));
+                    self.counts.fence();
+                }
+            }
             Command::Module { control, .. } => {
                 if self.snapshot.layout.is_none() {
                     return Err(invalid("module is not loaded"));
                 }
                 control.validate(self.snapshot.capabilities)?;
                 self.invalidate(request);
+                if let ModuleControl::Subsong(subsong) = control {
+                    self.snapshot.subsong = Some(*subsong);
+                    self.counts.reset_continuity();
+                }
                 actions.push(SessionAction::Module {
                     tag: self.tag(),
                     control: *control,
@@ -268,6 +328,7 @@ impl Session {
             }
             Command::Dispose { .. } => {
                 self.invalidate(request);
+                self.counts.reset_continuity();
                 self.disposed = true;
                 self.snapshot.requested = RequestedState::Held;
                 self.snapshot.running = RunningState::Closed;
@@ -307,6 +368,11 @@ impl Session {
         self.snapshot.layout = Some(metadata.layout);
         self.snapshot.total_frames = metadata.total_frames;
         self.snapshot.capabilities = capabilities;
+        self.snapshot.subsong = if capabilities.subsongs > 0 {
+            Some(self.snapshot.subsong.unwrap_or(0))
+        } else {
+            None
+        };
         self.snapshot.metadata = Some(std::sync::Arc::new(metadata));
         self.normalize();
         self.landed(tag, position)
@@ -335,6 +401,13 @@ impl Session {
     }
     pub fn observed(&mut self, tag: JobTag, observation: Option<crate::ModuleObservation>) {
         if self.accepts(tag) {
+            if let Some(observation) = &observation {
+                if self.snapshot.subsong != Some(observation.selected_subsong) {
+                    self.snapshot.subsong = Some(observation.selected_subsong);
+                    self.counts.fence();
+                    self.commit();
+                }
+            }
             self.snapshot.module = observation.map(std::sync::Arc::new);
         }
     }
@@ -358,6 +431,7 @@ impl Session {
             return false;
         }
         self.snapshot.error = Some(error);
+        self.counts.fence();
         self.snapshot.state = TransportState::Failed;
         self.snapshot.requested = RequestedState::Held;
         self.snapshot.pending_operation = false;
@@ -371,13 +445,29 @@ impl Session {
         }
     }
     /// Consumption is on the source timeline, independent of underrun silence.
-    pub fn consumed(&mut self, generation: Generation, position: u64, final_consumed: bool) {
+    pub fn consumed(
+        &mut self,
+        generation: Generation,
+        progress: PlaybackProgress,
+        final_consumed: bool,
+    ) -> Result<()> {
         if !self.is_current(generation) || self.snapshot.pending_operation {
-            return;
+            return Ok(());
         }
+        progress.validate()?;
+        self.snapshot.consumed_frames = progress.consumed_frames;
+        self.snapshot.output_rate = Some(progress.output_rate);
+        self.counts.observe(
+            progress,
+            self.snapshot.context.as_deref(),
+            self.snapshot.subsong,
+            self.snapshot.requested == RequestedState::Running
+                && self.snapshot.running == RunningState::Running,
+        )?;
         if self.snapshot.requested == RequestedState::Running {
-            self.snapshot.position_frames =
-                position.min(self.snapshot.total_frames.unwrap_or(u64::MAX));
+            self.snapshot.position_frames = progress
+                .position_frames
+                .min(self.snapshot.total_frames.unwrap_or(u64::MAX));
             self.observe_normalization();
             if final_consumed && self.snapshot.decoding_eof {
                 self.snapshot.state = TransportState::Ended;
@@ -385,12 +475,16 @@ impl Session {
             }
             self.commit();
         }
+        Ok(())
     }
     pub fn output_state(&mut self, running: RunningState) {
         if self.snapshot.running == running {
             return;
         }
         self.snapshot.running = running;
+        if running != RunningState::Running {
+            self.counts.fence();
+        }
         if self.snapshot.requested == RequestedState::Running && running == RunningState::Suspended
         {
             self.snapshot.state = TransportState::OutputSuspended;
@@ -400,6 +494,16 @@ impl Session {
             self.snapshot.state = TransportState::Playing;
         }
         self.commit();
+    }
+}
+impl Session {
+    pub fn qualified_plays(&self) -> Vec<QualifiedPlay> {
+        self.counts.pending()
+    }
+    pub fn acknowledge_plays(&mut self, binding: &str, sequence: u64) -> Result<()> {
+        self.counts.acknowledge(binding, sequence)?;
+        self.commit();
+        Ok(())
     }
 }
 fn invalid(detail: &str) -> LibzciError {
@@ -466,7 +570,17 @@ mod tests {
             request_id: RequestId::fresh(),
         })
         .unwrap();
-        s.consumed(s.generation(), 25000, false);
+        s.consumed(
+            s.generation(),
+            PlaybackProgress {
+                position_frames: 25000,
+                consumed_frames: 25000,
+                output_rate: 48000,
+                observed_at_ms: 1,
+            },
+            false,
+        )
+        .unwrap();
         assert_eq!(s.snapshot().normalization.gain_db, 4.0);
         assert_eq!(s.snapshot().normalization_revision, revision);
         let old = s.tag();

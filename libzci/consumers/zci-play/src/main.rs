@@ -228,6 +228,13 @@ fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
     let options = LoadOptions {
         start_time: MediaTime(args.start_secs),
         subsong: args.subsong,
+        context: profile
+            .as_ref()
+            .and_then(|p| p.core.snapshot().restore())
+            .map(|load| libzci::PlaybackContext {
+                reference: load.source,
+                library_media: None,
+            }),
     };
     if let Some(path) = &args.render_pcm {
         if std::fs::canonicalize(path).ok() == std::fs::canonicalize(&args.path).ok() {
@@ -295,6 +302,14 @@ fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
         cancel,
     )?;
     let loaded = runtime.wait_ready(session, cancel)?;
+    let mut binding = profile
+        .as_mut()
+        .map(|p| p.attach_playback(&runtime, session))
+        .transpose()?;
+    if let (Some(p), Some(b)) = (&mut profile, &mut binding) {
+        p.sync_playback(b, &runtime, session)?;
+    }
+
     runtime.submit(
         &Command::SetVolume {
             request_id: RequestId::fresh(),
@@ -340,43 +355,65 @@ fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
             loaded.provider, loaded.total_frames, loaded.position_frames
         );
     }
-    loop {
-        let snapshot = runtime.snapshot(session)?;
-        if let Some(p) = &mut profile {
-            let seconds = MediaTime::from_frames(
-                snapshot.position_frames,
-                snapshot.layout.map_or(1, |l| l.sample_rate),
-            )
-            .0;
-            if (seconds - p.core.snapshot().position_seconds).abs() >= 2.0
-                || cancel.is_cancelled()
-                || snapshot.state == TransportState::Ended
-            {
-                p.command(QueueCommand::Checkpoint {
-                    position_seconds: seconds,
-                    subsong: snapshot.module.as_ref().map(|m| m.selected_subsong),
-                })?;
+    let playback_result = (|| -> libzci::Result<()> {
+        loop {
+            if let (Some(p), Some(b)) = (&mut profile, &mut binding) {
+                p.sync_playback(b, &runtime, session)?;
             }
-        }
-        cancel.check()?;
-        if let Some(error) = snapshot.error {
-            return Err(error);
-        }
-        if args.diagnostics {
-            let state =
-                runtime
-                    .output_state(output)
-                    .ok_or_else(|| LibzciError::DeviceUnavailable {
-                        detail: "output lost".into(),
+            let snapshot = runtime.snapshot(session)?;
+            if let Some(p) = &mut profile {
+                let seconds = MediaTime::from_frames(
+                    snapshot.position_frames,
+                    snapshot.layout.map_or(1, |l| l.sample_rate),
+                )
+                .0;
+                if (seconds - p.core.snapshot().position_seconds).abs() >= 2.0
+                    || cancel.is_cancelled()
+                    || snapshot.state == TransportState::Ended
+                {
+                    p.command(QueueCommand::Checkpoint {
+                        position_seconds: seconds,
+                        subsong: snapshot.module.as_ref().map(|m| m.selected_subsong),
                     })?;
-            eprintln!("zci-play: position={} decoded={} device_frames={} hungry={} drained={} finished={}", snapshot.position_frames, state.decoded_position, state.consumed_frames, state.hungry_pops, state.drained, state.finished);
+                }
+            }
+            cancel.check()?;
+            if let Some(error) = snapshot.error {
+                return Err(error);
+            }
+            if args.diagnostics {
+                let state =
+                    runtime
+                        .output_state(output)
+                        .ok_or_else(|| LibzciError::DeviceUnavailable {
+                            detail: "output lost".into(),
+                        })?;
+                eprintln!("zci-play: position={} decoded={} device_frames={} hungry={} drained={} finished={}", snapshot.position_frames, state.decoded_position, state.consumed_frames, state.hungry_pops, state.drained, state.finished);
+            }
+            if snapshot.state == TransportState::Ended {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
         }
-        if snapshot.state == TransportState::Ended {
-            break;
+        Ok(())
+    })();
+    let _ = runtime.submit(
+        &Command::Pause {
+            session,
+            request_id: RequestId::fresh(),
+        },
+        &CancelFlag::default(),
+    );
+    let finish = (|| -> libzci::Result<()> {
+        if let (Some(p), Some(b)) = (&mut profile, &mut binding) {
+            p.sync_playback(b, &runtime, session)?;
+            p.close_playback(b)?;
         }
-        std::thread::sleep(Duration::from_millis(20));
-    }
+        Ok(())
+    })();
     runtime.dispose_session(session);
+    playback_result?;
+    finish?;
     eprintln!("zci-play: done {}", args.path.display());
     Ok(())
 }

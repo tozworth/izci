@@ -2,7 +2,7 @@
 //! A slot is owned by exactly one endpoint/queue. No cloneable producer, no
 //! shared mutable Vec, and no producer-side read-cursor reset.
 
-use libzci::{AudioProcessor, Generation, OutputBlock};
+use libzci::{AudioProcessor, Generation, OutputBlock, PlaybackProgress};
 use rtrb::{Consumer, Producer, RingBuffer};
 use std::cell::UnsafeCell;
 use std::sync::{
@@ -42,6 +42,8 @@ pub struct OutputMonitor {
     queued_frames: AtomicUsize,
     render_epoch: AtomicU64,
     media_position: AtomicU64,
+    consumed_frames: AtomicU64,
+    output_rate: AtomicU32,
     media_generation: AtomicU64,
     media_valid: AtomicBool,
     clock_drained: AtomicBool,
@@ -105,21 +107,26 @@ impl OutputMonitor {
             && self.render_epoch.load(Ordering::Acquire) == epoch
     }
     /// A coherent callback observation; no source progress during underruns.
-    pub fn media_position(&self) -> Option<(Generation, u64)> {
+    pub fn consumption(&self) -> Option<(Generation, PlaybackProgress)> {
         let epoch = self.render_epoch.load(Ordering::Acquire);
         if !epoch.is_multiple_of(2) || !self.media_valid.load(Ordering::Acquire) {
             return None;
         }
         let value = (
             Generation(self.media_generation.load(Ordering::Relaxed)),
-            self.media_position.load(Ordering::Relaxed),
+            PlaybackProgress {
+                position_frames: self.media_position.load(Ordering::Relaxed),
+                consumed_frames: self.consumed_frames.load(Ordering::Relaxed),
+                output_rate: self.output_rate.load(Ordering::Relaxed),
+                observed_at_ms: observation_time_ms(),
+            },
         );
         (self.render_epoch.load(Ordering::Acquire) == epoch).then_some(value)
     }
     /// Completion and position must come from the same callback boundary.
     /// A separate empty-queue query followed by a position query can race the
     /// next callback and finalize with an older snapshot.
-    pub fn completed_position(&self) -> Option<(Generation, Option<u64>)> {
+    pub fn completed_consumption(&self) -> Option<(Generation, Option<PlaybackProgress>)> {
         let epoch = self.render_epoch.load(Ordering::Acquire);
         if !epoch.is_multiple_of(2)
             || self.len_frames() != 0
@@ -131,7 +138,12 @@ impl OutputMonitor {
         let position = if self.media_valid.load(Ordering::Acquire)
             && self.media_generation.load(Ordering::Relaxed) == generation.0
         {
-            Some(self.media_position.load(Ordering::Relaxed))
+            Some(PlaybackProgress {
+                position_frames: self.media_position.load(Ordering::Relaxed),
+                consumed_frames: self.consumed_frames.load(Ordering::Relaxed),
+                output_rate: self.output_rate.load(Ordering::Relaxed),
+                observed_at_ms: observation_time_ms(),
+            })
         } else {
             None
         };
@@ -213,6 +225,8 @@ pub fn pcm_transport(
         queued_frames: AtomicUsize::new(0),
         render_epoch: AtomicU64::new(0),
         media_position: AtomicU64::new(0),
+        consumed_frames: AtomicU64::new(0),
+        output_rate: AtomicU32::new(48000),
         media_generation: AtomicU64::new(generation.0),
         media_valid: AtomicBool::new(false),
         clock_drained: AtomicBool::new(true),
@@ -359,6 +373,9 @@ impl PcmConsumer {
                 let index = self.active.unwrap();
                 // SAFETY: producer cannot regain this index until release_active.
                 let slot = unsafe { &*self.monitor.pool.slots[index].get() };
+                self.monitor
+                    .output_rate
+                    .store(slot.block.layout.sample_rate, Ordering::Relaxed);
                 let count = (out.len() / 2 - frames).min(slot.block.valid_frames - self.offset);
                 out[frames * 2..(frames + count) * 2]
                     .copy_from_slice(&slot.samples[self.offset * 2..(self.offset + count) * 2]);
@@ -398,6 +415,7 @@ impl PcmConsumer {
             out.fill(0.0);
             self.clock.reset();
             self.clock_generation = current;
+            self.prime_gain = true;
             self.monitor.media_valid.store(false, Ordering::Release);
             self.monitor.clock_drained.store(true, Ordering::Release);
             self.select_current(current);
@@ -419,11 +437,21 @@ impl PcmConsumer {
             }
         }
         self.monitor
+            .consumed_frames
+            .store(self.clock.consumed_frames(), Ordering::Relaxed);
+        self.monitor
             .clock_drained
             .store(self.clock.drained(), Ordering::Release);
         self.monitor.render_epoch.fetch_add(1, Ordering::Release);
         frames
     }
+}
+pub(crate) fn observation_time_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| {
+            d.as_millis().min(libzci::catalog::MAX_ID as u128) as u64
+        })
 }
 
 #[cfg(test)]

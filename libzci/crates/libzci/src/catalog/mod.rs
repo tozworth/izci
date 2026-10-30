@@ -2,6 +2,8 @@
 //! Query pages contain references and bounded metadata, never media/artwork blobs.
 mod metadata;
 pub(crate) mod mutation;
+pub(crate) mod plays;
+pub use plays::{PlayCountAcknowledgement, PlayCountOutcome};
 pub(crate) mod query;
 pub(crate) mod scans;
 mod text;

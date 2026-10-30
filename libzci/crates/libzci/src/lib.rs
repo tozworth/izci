@@ -34,6 +34,10 @@ pub mod lyrics;
 #[cfg(feature = "control")]
 pub mod ogg_reader;
 #[cfg(feature = "control")]
+pub mod play_counts;
+#[cfg(feature = "control")]
+pub mod playback_progress;
+#[cfg(feature = "control")]
 pub mod profile;
 #[cfg(feature = "control")]
 pub mod provider;
@@ -71,6 +75,10 @@ pub use ogg_reader::{
     ogg_crc, split_packets_with_carry, validate_ogg_index, IndexFacts, PageEntry, PageScanner,
     GRANULE_NONE, MAX_SINGLE_READ,
 };
+#[cfg(feature = "control")]
+pub use play_counts::{PlayCountSettings, PlayCountSnapshot, PlaybackContext, QualifiedPlay};
+#[cfg(feature = "control")]
+pub use playback_progress::PlaybackProgress;
 #[cfg(feature = "control")]
 pub use provider::{
     decode_chunk, AppliedAdjustments, DecodeStatus, DecoderInstance, Inspection,

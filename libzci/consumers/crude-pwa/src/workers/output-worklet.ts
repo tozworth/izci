@@ -15,6 +15,7 @@ type AudioWasm = WebAssembly.Exports & {
   renderer_eof(p:number,g:number):void; renderer_process(p:number):void;
   renderer_recycled_count(p:number):number; renderer_recycled(p:number,n:number):number;
   renderer_position(p:number):number; renderer_media(p:number):number;
+  renderer_consumed(p:number):number;
   renderer_silence(p:number):number; renderer_finished(p:number):number;
 };
 class Output extends AudioWorkletProcessor {
@@ -108,7 +109,7 @@ class Output extends AudioWorkletProcessor {
     if (this.control && !this.reportPending && (++this.count%16===0 || finished && !this.reportedFinished)) {
       this.reportPending=true;this.reportedFinished=finished;
       this.control.postMessage({type:'report',generation:this.generation,position:this.wasm.renderer_position(this.pointer),
-        media:this.wasm.renderer_media(this.pointer),silence:this.wasm.renderer_silence(this.pointer),finished,
+        media:this.wasm.renderer_media(this.pointer),consumedFrames:this.wasm.renderer_consumed(this.pointer),observedAt:Date.now(),silence:this.wasm.renderer_silence(this.pointer),finished,
         queuedBlocks:this.buffers.size,highWater:this.highWater,peak:this.peak,intervalPeak:this.intervalPeak,energy:this.energy,rate:sampleRate,
         audioHeapBytes:this.wasm.memory.buffer.byteLength});
       this.intervalPeak=0;

@@ -1,7 +1,7 @@
 import init, { WebEngine } from '../generated/libzci_web.js';
 import { failure, sameTag, type Snapshot, type Tag } from '../protocol.js';
 import {ProfileController} from './profile-controller.js';
-import type {QueueLoad,QueueSettings} from '../profile-types.js';
+import type {QueueLoad} from '../profile-types.js';
 
 const decoder = new Worker(new URL('./decode-worker.ts', import.meta.url), {type:'module'});
 const ready = init().then(() => new WebEngine());
@@ -30,7 +30,7 @@ let checkpointAt=0;
 let restorePlay=false;
 function queueLoad(source:File,load:QueueLoad):void {
   self.postMessage({type:'source',file:source});
-  file=source;web.load_options(load.position_seconds,load.subsong??undefined);restorePlay=load.autoplay;command('load');
+  file=source;web.load_options(load.position_seconds,load.subsong??undefined,JSON.stringify({reference:load.source,library_media:null}));restorePlay=load.autoplay;command('load');
 }
 function launch(): void {
   if (output && generation>=0 && pendingJob && acknowledgedGeneration === generation) {
@@ -58,13 +58,6 @@ function settings(): void {
   output.postMessage({type:'settings',generation,running:s.requested === 'Running' && !s.pending_operation && s.state !== 'Failed',volume:s.volume,mute:s.mute,replayGain:s.normalization.linear,latency});
   const key=`${s.generation}/${s.normalization_revision}`;
   if(key!==gainProgramKey){output.postMessage({type:'gain-schedule',generation,...JSON.parse(web.gain_schedule())});gainProgramKey=key;}
-}
-function profileSettings(s:QueueSettings):void {
-  const observed=snapshot();
-  if(observed.volume!==s.volume)command('volume',s.volume);
-  if(observed.mute!==s.mute)command('mute',Number(s.mute));
-  if(JSON.stringify(observed.replay_gain)!==JSON.stringify(s.replay_gain))web.replay_gain(JSON.stringify(s.replay_gain));
-  settings();publish();
 }
 function command(kind: string, value = 0): void {
   const result = JSON.parse(web.command(kind, value));
@@ -113,8 +106,8 @@ self.onmessage = async e => {
     const m = e.data;
     let value:unknown;
     if(m.type==='profile-init') {
-      profileReady=(async()=>{profile=await ProfileController.open(m.name,queueLoad,()=>{if(snapshot().state!=='Idle')command('stop');},profileSettings,publish);publish();self.postMessage({type:'profile-ready'});})();
-      await profileReady;profileSettings(profile!.snapshot().settings);profile!.catalog.launchScans();return;
+      profileReady=(async()=>{profile=await ProfileController.open(m.name,queueLoad,()=>{if(snapshot().state!=='Idle')command('stop');},web,()=>{settings();publish();},publish);publish();self.postMessage({type:'profile-ready'});})();
+      await profileReady;profile!.syncPlayback();profile!.catalog.launchScans();return;
     }
     if(profileReady)await profileReady;
     if (m.type === 'attach') {
@@ -124,7 +117,8 @@ self.onmessage = async e => {
         if (o.type === 'report') {
           outputStats = o;
           if (!disposed && o.generation === snapshot().generation && anchoredGeneration===o.generation) {
-            web.consumed(o.generation,o.position,o.finished);
+            web.consumed(o.generation,o.position,o.consumedFrames,o.rate,o.observedAt,o.finished);
+            profile?.syncPlayback();
             if (o.finished) {
               settings();
               if(snapshot().state==='Ended'&&endedGeneration!==o.generation) {

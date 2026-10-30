@@ -30,6 +30,7 @@ fn opus_streams_exact_long_timeline_start_tails_and_converted_output() {
                     load: LoadOptions {
                         start_time: MediaTime(start),
                         subsong: None,
+                        context: None,
                     },
                     output_rate: rate,
                     processing: ProcessingMode::Raw,

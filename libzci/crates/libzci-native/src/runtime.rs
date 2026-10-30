@@ -13,6 +13,34 @@ pub struct NativeRuntime {
     pub(crate) outputs: Mutex<crate::playback::OutputMap>,
 }
 impl NativeRuntime {
+    pub fn playback_observation(
+        &self,
+        session: SessionId,
+    ) -> Result<libzci::profile::PlaybackObservation> {
+        let entry = self.entry(session)?;
+        let c = entry.control.lock().unwrap();
+        Ok(libzci::profile::PlaybackObservation {
+            snapshot: c.owner.snapshot(),
+            qualified: c.owner.qualified_plays(),
+        })
+    }
+    pub fn acknowledge_plays(
+        &self,
+        session: SessionId,
+        binding: &str,
+        sequence: u64,
+    ) -> Result<()> {
+        let entry = self.entry(session)?;
+        let mut c = entry.control.lock().unwrap();
+        c.owner.acknowledge_plays(binding, sequence)?;
+        let s = c.owner.snapshot();
+        c.events.push(Event::StateChanged {
+            session,
+            generation: s.generation,
+            revision: s.revision,
+        });
+        Ok(())
+    }
     pub fn new() -> Arc<Self> {
         Arc::new(Self::default())
     }
@@ -84,8 +112,11 @@ impl NativeRuntime {
             .as_ref()
             .map(|_| self.registry.lock().unwrap().clone());
         let mut c = entry.control.lock().unwrap();
-        if let Some((generation, position)) = c.output.as_ref().and_then(|o| o.media_position()) {
-            c.owner.consumed(generation, position, false);
+        if let Some((generation, progress)) = c.output.as_ref().and_then(|o| o.consumption()) {
+            if let Err(error) = c.owner.consumed(generation, progress, false) {
+                let tag = c.owner.tag();
+                c.owner.failed(tag, error);
+            }
         }
         let previous = c.owner.snapshot();
         let previous_tag = c.owner.tag();

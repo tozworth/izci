@@ -336,6 +336,44 @@ allocation checks pass. Gain parsing now examines the complete byte-bounded
 comment block, so display-field limits cannot hide late gain tags or duplicate
 R128 fields. Unit checks cover those late-field cases.
 
+Play counts now qualify in the shared Session from actual output media frames,
+independently of source position, decode read-ahead, underrun silence or wall
+time. The output clock records media crossing the latency boundary, freezes
+already credited partial spans when latency rises, and resets on generations.
+Only current Library membership earns credit. Pause, seek, stop, repeat,
+subsong changes, output suspension and eligibility changes reset continuity;
+parameter-only generations preserve it at the same output rate. Settings expose
+enablement and a 1–3,600 second continuous-play threshold (default 15 seconds).
+Module plays update both whole-media and selected-subsong facts.
+
+Shared ProfilePlayback coordinates settings, membership, qualified records and
+SQL acknowledgements. Native captures a control observation before SQL and
+releases the session lock; the browser owner worker invokes the same policy.
+Both crudes and profile-bound CLI playback use it. Device-free renders remain
+unbound and never count. SQL transactions atomically update facts, revisions,
+sequence high-water marks and bounded retry receipts. Exact repeated delivery
+does not double count; changed/stale sequences and old connection bindings are
+refused. Removal preserves facts; removed members and images cannot increment.
+The session retains at most 64 pending qualifications, with explicit skipped
+counts if a sustained persistence outage exhausts that budget. This is bounded
+retry behavior, not a claim of lossless counting across process loss or unlimited
+storage outages. Continuity and pending records remain transient.
+
+Windows MSVC core/native/control/audio/crude/CLI suites pass (55 core tests,
+four real SQLite count/coordinator tests, and existing transport/storage/output
+checks). Fault injection covers fact/receipt/high-water/profile writes and
+COMMIT, preserving all prior facts and revisions. Real native Opus output and
+chained normalization workers retain exact samples and count once at 48/44.1 kHz
+through tiny pools; callback allocations/deallocations remain zero. The test
+output mechanism explicitly reports Running, as the real device adapter does.
+Control/audio WASM rebuilt; TypeScript and all seven audio ABI checks pass.
+`npm run test:play-counts` passes in muted headless Chromium on actual OPFS SQL:
+consumed audio, pause/reset, seek, disabled settings, count/date reopen, queue-only
+exclusion and a count committed while the document debugger is paused. Evidence
+is `.local/libzci/m3-play-counts-evidence.json`. Normalization signal checks and
+production M2/M3 ownership, capability, catalog, scan, reopen and offline checks
+also pass after the wiring. Artwork/images, M4-M6 and A1/A2 remain open.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

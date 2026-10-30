@@ -14,6 +14,7 @@ use std::{
 };
 pub struct Controller {
     pub profile: libzci_native::profile::NativeProfile,
+    playback: Option<libzci::profile::ProfilePlayback>,
     ended_generation: Option<Generation>,
     checkpoint: std::time::Instant,
     active_occurrence: Option<u64>,
@@ -35,6 +36,12 @@ impl Controller {
     pub fn with_profile(path: &Path) -> Result<Self> {
         let profile = libzci_native::profile::NativeProfile::open(path)?;
         let mut controller = Self::assemble(profile);
+        controller.playback = Some(
+            controller
+                .profile
+                .attach_playback(&controller.runtime, controller.session)?,
+        );
+        controller.sync_playback()?;
         if let Some(load) = controller.profile.core.snapshot().restore() {
             let result = controller.load_occurrence(load);
             controller.record(result);
@@ -58,6 +65,7 @@ impl Controller {
         let session = runtime.create_session();
         Self {
             profile,
+            playback: None,
             ended_generation: None,
             checkpoint: std::time::Instant::now(),
             active_occurrence: None,
@@ -118,6 +126,10 @@ impl Controller {
                 options: LoadOptions {
                     start_time: MediaTime(load.position_seconds),
                     subsong: load.subsong,
+                    context: Some(PlaybackContext {
+                        reference: load.source.clone(),
+                        library_media: None,
+                    }),
                 },
             },
             &CancelFlag::default(),
@@ -127,6 +139,24 @@ impl Controller {
         }
         self.hint = hint;
         self.active_occurrence = Some(load.occurrence);
+        self.sync_playback()?;
+        if load.autoplay {
+            self.runtime.submit(
+                &Command::Play {
+                    session: self.session,
+                    request_id: RequestId::fresh(),
+                },
+                &CancelFlag::default(),
+            )?;
+        }
+        Ok(())
+    }
+    fn sync_playback(&mut self) -> Result<()> {
+        if let Some(binding) = self.playback.as_mut() {
+            self.profile
+                .sync_playback(binding, &self.runtime, self.session)?;
+            return Ok(());
+        }
         let settings = self.profile.core.snapshot().settings.clone();
         for command in [
             Command::SetVolume {
@@ -147,52 +177,30 @@ impl Controller {
         ] {
             self.runtime.submit(&command, &CancelFlag::default())?;
         }
-        if load.autoplay {
-            self.runtime.submit(
-                &Command::Play {
-                    session: self.session,
-                    request_id: RequestId::fresh(),
-                },
-                &CancelFlag::default(),
-            )?;
-        }
         Ok(())
+    }
+    fn close_playback(&mut self) {
+        let _ = self.runtime.submit(
+            &Command::Pause {
+                session: self.session,
+                request_id: RequestId::fresh(),
+            },
+            &CancelFlag::default(),
+        );
+        if let Err(e) = self.sync_playback() {
+            self.error = e.to_string();
+            return;
+        }
+        if let Some(mut binding) = self.playback.take() {
+            if let Err(e) = self.profile.close_playback(&mut binding) {
+                self.error = e.to_string();
+            }
+        }
     }
     pub fn queue_command(&mut self, command: libzci::queue::QueueCommand) {
         let result = (|| -> Result<()> {
             let outcome = self.profile.command(command)?;
-            let settings = self.profile.core.snapshot().settings.clone();
-            let observed = self.snapshot();
-            if observed.volume != settings.volume {
-                self.runtime.submit(
-                    &Command::SetVolume {
-                        session: self.session,
-                        request_id: RequestId::fresh(),
-                        volume: settings.volume,
-                    },
-                    &CancelFlag::default(),
-                )?;
-            }
-            if observed.mute != settings.mute {
-                self.runtime.submit(
-                    &Command::SetMute {
-                        session: self.session,
-                        request_id: RequestId::fresh(),
-                        mute: settings.mute,
-                    },
-                    &CancelFlag::default(),
-                )?;
-            }
-            if observed.replay_gain != settings.replay_gain {
-                self.runtime.submit(
-                    &Command::SetReplayGain {
-                        session: self.session,
-                        request_id: RequestId::fresh(),
-                        settings: settings.replay_gain,
-                    },
-                    &CancelFlag::default(),
-                )?;
-            }
+            self.sync_playback()?;
             if outcome.stop {
                 self.runtime.submit(
                     &Command::Stop {
@@ -273,6 +281,9 @@ impl Controller {
         }
     }
     pub fn tick(&mut self) {
+        if let Err(e) = self.sync_playback() {
+            self.error = e.to_string();
+        }
         let s = self.snapshot();
         if s.state == TransportState::Ended && self.ended_generation != Some(s.generation) {
             self.save_position();
@@ -377,14 +388,22 @@ impl Controller {
         }
     }
     pub fn dispose(&mut self) {
+        let durable = self.playback.is_some();
         self.active_occurrence = None;
         self.cancel_jobs();
+        self.close_playback();
         self.runtime.dispose_session(self.session);
         self.output = None;
         if let Some(s) = self.source.take() {
             self.runtime.release_source(s);
         }
         self.session = self.runtime.create_session();
+        if durable {
+            match self.profile.attach_playback(&self.runtime, self.session) {
+                Ok(binding) => self.playback = Some(binding),
+                Err(e) => self.error = e.to_string(),
+            };
+        }
     }
     pub fn output(&self) -> Option<OutputObservation> {
         self.output.and_then(|id| self.runtime.output_state(id))
@@ -417,6 +436,7 @@ impl Drop for Controller {
     fn drop(&mut self) {
         self.save_position();
         self.cancel_jobs();
+        self.close_playback();
         self.runtime.dispose_session(self.session);
     }
 }

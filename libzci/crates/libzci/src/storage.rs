@@ -142,7 +142,7 @@ pub fn open(db: &mut dyn SqlBridge) -> Result<ProfileState> {
         Ok(state)
     })
 }
-fn write(
+pub(crate) fn write(
     db: &mut dyn SqlBridge,
     state: &ProfileState,
     previous: Option<&ProfileState>,

@@ -31,7 +31,7 @@ fn parse_tag(s: &str) -> std::result::Result<JobTag, JsValue> {
 #[wasm_bindgen]
 #[derive(Default)]
 pub struct WebEngine {
-    inner: Engine,
+    pub(crate) inner: Engine,
 }
 #[wasm_bindgen]
 impl WebEngine {
@@ -73,11 +73,24 @@ impl WebEngine {
         &mut self,
         seconds: f64,
         subsong: Option<u32>,
+        context: Option<String>,
     ) -> std::result::Result<(), JsValue> {
         MediaTime(seconds).validate().map_err(typed_js)?;
         self.inner.load_options = LoadOptions {
             start_time: MediaTime(seconds),
             subsong,
+            context: context
+                .map(|c| {
+                    if c.len() > 32 * 1024 {
+                        return Err(typed_js(LibzciError::ResourceExhausted {
+                            detail: "playback context byte budget exceeded".into(),
+                        }));
+                    }
+                    let context: PlaybackContext = serde_json::from_str(&c).map_err(js)?;
+                    context.validate().map_err(typed_js)?;
+                    Ok(context)
+                })
+                .transpose()?,
         };
         Ok(())
     }
@@ -134,10 +147,40 @@ impl WebEngine {
         };
         Ok(self.inner.session.failed(parse_tag(tag)?, e))
     }
-    pub fn consumed(&mut self, generation: f64, position: f64, finished: bool) {
+    pub fn consumed(
+        &mut self,
+        generation: f64,
+        position: f64,
+        consumed: f64,
+        output_rate: u32,
+        observed_at_ms: f64,
+        finished: bool,
+    ) -> std::result::Result<(), JsValue> {
+        let integer = |value: f64| -> std::result::Result<u64, JsValue> {
+            if !value.is_finite()
+                || !(0.0..=libzci::catalog::MAX_ID as f64).contains(&value)
+                || value.fract() != 0.0
+            {
+                Err(typed_js(LibzciError::InvalidArgument {
+                    detail: "invalid playback observation integer".into(),
+                }))
+            } else {
+                Ok(value as u64)
+            }
+        };
         self.inner
             .session
-            .consumed(Generation(generation as u64), position as u64, finished);
+            .consumed(
+                Generation(integer(generation)?),
+                PlaybackProgress {
+                    position_frames: integer(position)?,
+                    consumed_frames: integer(consumed)?,
+                    output_rate,
+                    observed_at_ms: integer(observed_at_ms)?,
+                },
+                finished,
+            )
+            .map_err(typed_js)
     }
     pub fn output_state(&mut self, state: &str) {
         self.inner.session.output_state(match state {

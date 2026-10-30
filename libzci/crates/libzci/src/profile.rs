@@ -1,9 +1,12 @@
 //! Durable mutations publish a revision only after the shared SQL transaction commits.
+mod playback;
+mod plays;
 use crate::{
     queue::*,
     storage::{self, SqlBridge},
     Result,
 };
+pub use playback::{PlaybackObservation, PlaybackSync, ProfilePlayback};
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

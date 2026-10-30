@@ -333,6 +333,7 @@ fn public_load_options_module_capabilities_and_controls() {
             options: LoadOptions {
                 subsong: Some(1),
                 start_time: MediaTime(0.5),
+                context: None,
             },
         },
         &cancel,

@@ -26,12 +26,18 @@ pub struct Snapshot {
     pub provider: Option<crate::provider::ProviderInfo>,
     /// Position in provider-timeline frames.
     pub position_frames: u64,
+    pub consumed_frames: u64,
+    pub output_rate: Option<u32>,
+    pub context: Option<std::sync::Arc<crate::PlaybackContext>>,
+    pub subsong: Option<u32>,
+    pub play_counts: crate::PlayCountSnapshot,
     /// Finite total in frames, when known.
     pub total_frames: Option<u64>,
     /// Last terminal error, if the state is failed.
     pub error: Option<LibzciError>,
     /// Request that produced this snapshot, when applicable.
     pub request_id: Option<RequestId>,
+    pub source_instance: RequestId,
     pub layout: Option<crate::PcmLayout>,
     pub metadata: Option<std::sync::Arc<crate::ProviderMetadata>>,
     pub volume: f32,

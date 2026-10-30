@@ -51,6 +51,7 @@ impl SqlBridge for BrowserSql {
 pub struct WebProfile {
     core: Profile,
     db: BrowserSql,
+    playback: Option<libzci::profile::ProfilePlayback>,
 }
 #[wasm_bindgen]
 impl WebProfile {
@@ -58,7 +59,62 @@ impl WebProfile {
     pub fn new(statement: js_sys::Function) -> Result<WebProfile, JsValue> {
         let mut db = BrowserSql(statement);
         let core = Profile::open(&mut db).map_err(typed)?;
-        Ok(Self { core, db })
+        Ok(Self {
+            core,
+            db,
+            playback: None,
+        })
+    }
+    pub fn attach_playback(
+        &mut self,
+        engine: &mut crate::bindings::WebEngine,
+    ) -> Result<(), JsValue> {
+        if self.playback.is_some() {
+            return Err(typed(failure("busy", "profile playback already attached")));
+        }
+        self.playback = Some(
+            libzci::profile::ProfilePlayback::attach(
+                &self.core,
+                &engine.inner.session.snapshot(),
+                &mut self.db,
+            )
+            .map_err(typed)?,
+        );
+        self.sync_playback(engine).map(|_| ())
+    }
+    pub fn sync_playback(
+        &mut self,
+        engine: &mut crate::bindings::WebEngine,
+    ) -> Result<bool, JsValue> {
+        let binding = self
+            .playback
+            .as_mut()
+            .ok_or_else(|| typed(failure("unavailable", "profile playback is not attached")))?;
+        let observation = libzci::profile::PlaybackObservation {
+            snapshot: engine.inner.session.snapshot(),
+            qualified: engine.inner.session.qualified_plays(),
+        };
+        let plan = binding
+            .prepare(&mut self.core, observation, &mut self.db)
+            .map_err(typed)?;
+        for ack in &plan.acknowledged {
+            engine
+                .inner
+                .session
+                .acknowledge_plays(&ack.binding, ack.sequence)
+                .map_err(typed)?;
+        }
+        for command in &plan.commands {
+            engine.inner.session.accept(command).map_err(typed)?;
+        }
+        Ok(plan.counts.is_some_and(|c| c.counted != 0))
+    }
+    pub fn close_playback(&mut self) -> Result<(), JsValue> {
+        if let Some(binding) = self.playback.as_mut() {
+            binding.close(&self.core, &mut self.db).map_err(typed)?;
+        }
+        self.playback = None;
+        Ok(())
     }
     pub fn snapshot(&self) -> String {
         serde_json::to_string(self.core.snapshot()).unwrap()

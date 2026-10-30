@@ -52,6 +52,9 @@
       <label>Missing tags <input id="normalization-missing_gain_db" type="number" min="-60" max="24" step="0.1" /> dB</label>
       <label>R128 target <input id="normalization-r128_target_lufs" type="number" min="-30" max="-5" step="0.1" /> LUFS</label>
       <button id="normalization-apply">Apply</button><span id="normalization-status"></span>
+      <p><label><input id="counts-enabled" type="checkbox" /> Library play counts</label>
+      <label>Count after continuous playback <input id="counts-threshold" type="number" min="1" max="3600" step="1" /> s</label>
+      <button id="counts-apply">Apply counts</button><span id="counts-status"></span></p>
     </fieldset>
     <fieldset><legend>Library / managed folders</legend>
       <button id="catalog-add-files">Add selected plain Files</button><button id="catalog-add-handles">Add restorable files…</button><button id="catalog-add-root">Add folder…</button><button id="catalog-cancel">Cancel scan</button>

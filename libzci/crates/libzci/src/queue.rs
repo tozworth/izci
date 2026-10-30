@@ -59,6 +59,8 @@ pub struct QueueSettings {
     pub mute: bool,
     #[serde(default)]
     pub replay_gain: crate::ReplayGainSettings,
+    #[serde(default)]
+    pub play_counts: crate::PlayCountSettings,
 }
 impl Default for QueueSettings {
     fn default() -> Self {
@@ -69,6 +71,7 @@ impl Default for QueueSettings {
             volume: 1.,
             mute: false,
             replay_gain: crate::ReplayGainSettings::default(),
+            play_counts: crate::PlayCountSettings::default(),
         }
     }
 }
@@ -81,7 +84,8 @@ impl QueueSettings {
         {
             return Err(invalid("playback setting out of range"));
         }
-        self.replay_gain.validate()
+        self.replay_gain.validate()?;
+        self.play_counts.validate()
     }
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

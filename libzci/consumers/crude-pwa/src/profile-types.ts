@@ -1,6 +1,7 @@
 export interface SourceReference {key:string;kind:'native_path'|'browser_handle'|'ephemeral';locator:string;display_path:string}
 export interface ReplayGainSettings {mode:'off'|'track'|'album';fallback:boolean;preamp_db:number;missing_gain_db:number;r128_target_lufs:number;prevent_clipping:boolean}
-export interface QueueSettings {shuffle:boolean;repeat:'off'|'all'|'one';previous_restart_seconds:number;volume:number;mute:boolean;replay_gain:ReplayGainSettings}
+export interface PlayCountSettings {enabled:boolean;threshold_seconds:number}
+export interface QueueSettings {shuffle:boolean;repeat:'off'|'all'|'one';previous_restart_seconds:number;volume:number;mute:boolean;replay_gain:ReplayGainSettings;play_counts:PlayCountSettings}
 export interface ProfileState {revision:number;catalog_revision:number;sources:SourceReference[];queue:{items:{id:number;source_key:string;subsong:number|null}[];current:number|null;up_next:number[]};settings:QueueSettings;position_seconds:number}
 export interface QueueLoad {occurrence:number;source:SourceReference;position_seconds:number;subsong:number|null;autoplay:boolean}
 export type QueueCommand={kind:'volume';volume:number}|{kind:'mute';mute:boolean}|{kind:'append';sources:SourceReference[]}|{kind:'remove'|'play'|'up_next';id:number}|{kind:'move';id:number;index:number}|{kind:'next';ended:boolean}|{kind:'previous';position_seconds:number}|{kind:'clear_up_next'}|{kind:'settings';settings:QueueSettings}|{kind:'checkpoint';position_seconds:number;subsong:number|null};
