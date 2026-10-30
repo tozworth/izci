@@ -4,6 +4,7 @@ mod metadata;
 pub(crate) mod mutation;
 pub(crate) mod query;
 pub(crate) mod scans;
+pub use query::{CatalogGroup, CatalogGroupBy, CatalogGroupPage};
 pub use query::{CatalogPage, CatalogQuery, CatalogRow, CatalogSort, Collection};
 pub use scans::{ManagedRoot, RootInput, ScanPlan, ScanSettings, ScanSummary};
 

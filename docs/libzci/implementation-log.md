@@ -125,6 +125,17 @@ Current M3 remainder: grouping, supplemental metadata/ReplayGain/lyrics policy,
 audible-timeline play counts, artwork/image jobs/cache/navigation, plus their
 consumer controls and acceptance. M4-M6 and server/Svelte adoption remain open.
 
+The next slice adds shared paged artist, album+artist, genre and media-kind
+groups, with the same collection/root/subsong/search filters and catalog
+revision checks as flat queries. Albums with the same label under different
+artists remain separate; group keys preserve exact metadata values. Exact media
+ID/source-key and genre filters support focused lookups. Both crude UIs offer
+group selection/clear controls over these APIs. Native catalog tests now include
+group totals, filters, paging and stale-revision rejection; crude-native tests,
+WASM rebuild, PWA typecheck/build, real OPFS storage/group checks and production
+M3 owner/offline/catalog/group UI scenarios pass. Remaining M3 work excludes
+grouping but still includes metadata/ReplayGain/lyrics, counts and artwork/images.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

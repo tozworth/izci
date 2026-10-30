@@ -12,6 +12,8 @@ use std::collections::VecDeque;
 #[derive(Default)]
 pub struct CatalogView {
     query: CatalogQuery,
+    group_by: Option<CatalogGroupBy>,
+    groups: Option<CatalogGroupPage>,
     page: Option<CatalogPage>,
     roots: Vec<ManagedRoot>,
     scan: Option<(ScanPlan, NativeScanJob)>,
@@ -45,6 +47,10 @@ impl CatalogView {
     }
     fn refresh(&mut self, c: &mut Controller) -> Result<()> {
         self.page = Some(c.profile.catalog_query(&self.query)?);
+        self.groups = self
+            .group_by
+            .map(|by| c.profile.catalog_groups(by, &self.query))
+            .transpose()?;
         self.roots = c.profile.managed_roots()?;
         self.observed_revision = Some(c.profile.core.snapshot().catalog_revision);
         if let Some(selected) = &self.selected {
@@ -202,6 +208,76 @@ impl CatalogView {
                     });
                 }
                 let mut changed = false;
+                ui.horizontal(|ui| {
+                    egui::ComboBox::from_id_salt("catalog-group")
+                        .selected_text(format!("Group: {:?}", self.group_by))
+                        .show_ui(ui, |ui| {
+                            changed |= ui
+                                .selectable_value(&mut self.group_by, None, "No grouping")
+                                .changed();
+                            for by in [
+                                CatalogGroupBy::Artist,
+                                CatalogGroupBy::Album,
+                                CatalogGroupBy::Genre,
+                                CatalogGroupBy::Kind,
+                            ] {
+                                changed |= ui
+                                    .selectable_value(
+                                        &mut self.group_by,
+                                        Some(by),
+                                        format!("{by:?}"),
+                                    )
+                                    .changed();
+                            }
+                        });
+                    if ui.button("Clear group filter").clicked() {
+                        self.query.artist = None;
+                        self.query.album = None;
+                        self.query.genre = None;
+                        self.query.kind = None;
+                        self.query.offset = 0;
+                        changed = true;
+                    }
+                });
+                if let Some(groups) = self.groups.clone() {
+                    ui.horizontal_wrapped(|ui| {
+                        for group in groups.groups {
+                            if ui
+                                .button(format!("{} ({})", group.key.join(" / "), group.count))
+                                .clicked()
+                            {
+                                self.query.artist = None;
+                                self.query.album = None;
+                                self.query.genre = None;
+                                self.query.kind = None;
+                                self.query.offset = 0;
+                                match self.group_by {
+                                    Some(CatalogGroupBy::Artist) => {
+                                        self.query.artist = Some(group.key[0].clone())
+                                    }
+                                    Some(CatalogGroupBy::Album) => {
+                                        self.query.artist = Some(group.key[0].clone());
+                                        self.query.album = Some(group.key[1].clone());
+                                    }
+                                    Some(CatalogGroupBy::Genre) => {
+                                        self.query.genre = Some(group.key[0].clone())
+                                    }
+                                    Some(CatalogGroupBy::Kind) => {
+                                        self.query.kind = match group.key[0].as_str() {
+                                            "audio" => Some(MediaKind::Audio),
+                                            "module" => Some(MediaKind::Module),
+                                            "video" => Some(MediaKind::Video),
+                                            "image" => Some(MediaKind::Image),
+                                            _ => None,
+                                        }
+                                    }
+                                    None => {}
+                                }
+                                changed = true;
+                            }
+                        }
+                    });
+                }
                 ui.horizontal(|ui| {
                     changed |= ui
                         .selectable_value(

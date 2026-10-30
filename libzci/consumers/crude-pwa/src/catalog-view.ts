@@ -1,5 +1,5 @@
 import type {BrowserRuntime} from './browser-runtime.js';
-import type {CatalogCommand,CatalogQuery,CatalogRow,ManagedRoot} from './catalog-types.js';
+import type {CatalogCommand,CatalogQuery,CatalogRow,CatalogGroupBy,ManagedRoot} from './catalog-types.js';
 import type {Observation} from './runtime.js';
 import type {RealDirectoryHandle,RealFileHandle} from './profile-types.js';
 const element=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
@@ -9,8 +9,11 @@ export class CatalogView {
   private offset=0;
   private epoch=0;
   private selected:CatalogRow|null=null;
+  private filter:Pick<CatalogQuery,'artist'|'album'|'genre'|'kind'>={};
   constructor(private runtime:BrowserRuntime,private log:(message:string)=>void){
     element('catalog-refresh').onclick=()=>this.refresh();
+    element('catalog-group').onchange=()=>{this.filter={};this.offset=0;this.refresh();};
+    element('catalog-group-clear').onclick=()=>{this.filter={};this.offset=0;this.refresh();};
     for(const id of ['catalog-collection','catalog-search','catalog-sort','catalog-descending','catalog-subsong'])element(id).onchange=()=>{this.offset=0;this.refresh();};
     element('catalog-prev').onclick=()=>{this.offset=Math.max(0,this.offset-100);this.refresh();};
     element('catalog-next').onclick=()=>{this.offset+=100;this.refresh();};
@@ -42,11 +45,16 @@ export class CatalogView {
     const epoch=++this.epoch;
     const query:CatalogQuery={collection:element<HTMLSelectElement>('catalog-collection').value as CatalogQuery['collection'],search:element<HTMLInputElement>('catalog-search').value,sort:element<HTMLSelectElement>('catalog-sort').value as CatalogQuery['sort'],descending:element<HTMLInputElement>('catalog-descending').checked,offset:this.offset,limit:100};
     const song=this.subsong();if(song!==null)query.subsong=song;
-    this.run(Promise.all([this.runtime.catalogQuery(query),this.runtime.catalogRoots()]).then(([page,roots])=>{
+    Object.assign(query,this.filter);
+    const by=element<HTMLSelectElement>('catalog-group').value as CatalogGroupBy|'';
+    this.run(Promise.all([this.runtime.catalogQuery(query),this.runtime.catalogRoots(),by?this.runtime.catalogGroups(by,query):Promise.resolve(null)]).then(([page,roots,groups])=>{
       if(epoch!==this.epoch)return;
       element('catalog-page').textContent=`${page.total} items · revision ${page.revision} · offset ${this.offset}`;
       element('catalog-rows').replaceChildren(...page.rows.map(row=>this.row(row)));
       element('catalog-roots').replaceChildren(...roots.map(root=>this.root(root)));
+      element('catalog-groups').replaceChildren(...groups?.groups.map(group=>this.button(`${group.key.map(v=>v||'Unknown').join(' / ')} (${group.count})`,()=>{
+        this.filter=by==='album'?{artist:group.key[0],album:group.key[1]}:by==='artist'?{artist:group.key[0]}:by==='genre'?{genre:group.key[0]}:{kind:group.key[0] as CatalogQuery['kind']};this.offset=0;this.refresh();
+      }))??[]);
       if(this.selected){const updated=page.rows.find(r=>r.id===this.selected!.id);if(updated)this.selected=updated;this.details();}
     }));
   }

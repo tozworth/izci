@@ -3,7 +3,9 @@ export interface Metadata {title:string;artist:string;album:string;genre:string;
 export interface MediaInput {source:SourceReference;kind:'audio'|'module'|'video'|'image';source_revision:string;metadata:Metadata}
 export interface CatalogRow extends MediaInput {id:number;in_library:boolean;facts:{favorite:boolean;rating:number;play_count:number;last_played_ms:number|null}}
 export interface CatalogPage {revision:number;total:number;rows:CatalogRow[]}
-export interface CatalogQuery {collection?:'library'|'favorites'|'all';kind?:MediaInput['kind'];root?:number;subsong?:number;search?:string;artist?:string;album?:string;sort?:'title'|'artist'|'album'|'rating'|'play_count'|'path';descending?:boolean;offset?:number;limit?:number;revision?:number}
+export type CatalogGroupBy='artist'|'album'|'genre'|'kind';
+export interface CatalogGroupPage {revision:number;total:number;groups:{key:string[];count:number}[]}
+export interface CatalogQuery {collection?:'library'|'favorites'|'all';kind?:MediaInput['kind'];root?:number;media?:number;source_key?:string;subsong?:number;search?:string;artist?:string;album?:string;genre?:string;sort?:'title'|'artist'|'album'|'rating'|'play_count'|'path';descending?:boolean;offset?:number;limit?:number;revision?:number}
 export interface ScanSettings {recursive:boolean;scan_on_launch:boolean;verify_unknown:boolean;probe_concurrency:number}
 export interface ManagedRoot {id:number;revision:number;config:{source:SourceReference;settings:ScanSettings}}
 export interface ScanPlan {token:string;root:ManagedRoot;max_batch:number;max_entries:number}

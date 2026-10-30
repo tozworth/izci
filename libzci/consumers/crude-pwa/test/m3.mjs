@@ -60,6 +60,9 @@ try{
   assert.equal((await owner.evaluate(()=>window.libzci.snapshot())).scan.state,'idle');
   results.push({test:'cancelled and corrupt-file scans preserve prior membership, replacement scan recovers'});
   await owner.locator('#catalog-refresh').click();await owner.waitForFunction(()=>document.querySelectorAll('#catalog-rows tr').length===2);
+  const groups=await owner.evaluate(()=>window.libzci.catalogGroups('kind'));assert.equal(groups.groups[0].key[0],'audio');assert.equal(groups.groups[0].count,2);
+  await owner.locator('#catalog-group').selectOption('kind');await owner.locator('#catalog-groups button').filter({hasText:'audio (2)'}).click();
+  await owner.waitForFunction(()=>document.querySelectorAll('#catalog-rows tr').length===2);await owner.locator('#catalog-group-clear').click();
   await owner.locator('#catalog-rows button').filter({hasText:'Details'}).first().click();await owner.waitForFunction(()=>document.querySelector('#catalog-details')?.textContent?.includes('metadata'));
   await owner.screenshot({path:path.join(root,'.local/libzci/m3-catalog.png'),fullPage:true});
   await owner.evaluate(async root=>{const r=(await window.libzci.catalogRoots()).find(r=>r.id===root);await window.libzci.catalogMutate({kind:'root',root:{...r.config,settings:{...r.config.settings,scan_on_launch:true}}});await navigator.serviceWorker.ready;},ids.root);

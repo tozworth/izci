@@ -84,7 +84,10 @@ self.onmessage=async()=>{try {
   await handles.recoverReferenced(key=>profile.references_browser_capability(key),staging);
   assert(await handles.get(key),'catalog-only reference retains the capability without a queue row');
   assert(profile.references_source(key),'source reference liveness includes catalog');
+  const albums=JSON.parse(profile.catalog_groups('album','{}'));
+  assert(albums.total===1&&albums.groups[0].count===2&&albums.groups[0].key[0]==='Artist','shared OPFS album/artist grouping');
+  assert(JSON.parse(profile.catalog_query(JSON.stringify({source_key:key}))).rows[0].source.key===key,'indexed source identity query');
   statement('PRAGMA user_version=999','[]');profile.free();let schema=false;try{new WebProfile(bridge);}catch{schema=true;}assert(schema,'unknown schema rejected');
   assert(JSON.parse(statement('SELECT count(*) FROM queue_occurrences','[]'))[0][0]===2,'schema failure leaves rows intact');
-  db.close();self.postMessage({passed:['one shared SQL setting committed/reopened','duplicates','busy/quota/commit injection rollback','real SQLite page quota','durable retry receipt','schema refusal preserves data','catalog/favorites/subsong ratings/bookmarks OPFS reopen','catalog transaction rollback and durable receipts','independent catalog revision during playback checkpoints','managed root staging/reconciliation/cancellation and finish receipts','real capability identity sharing, overlapping staging, GC serialization and catalog liveness']});
+  db.close();self.postMessage({passed:['one shared SQL setting committed/reopened','duplicates','busy/quota/commit injection rollback','real SQLite page quota','durable retry receipt','schema refusal preserves data','catalog/favorites/subsong ratings/bookmarks OPFS reopen','catalog transaction rollback and durable receipts','independent catalog revision during playback checkpoints','managed root staging/reconciliation/cancellation and finish receipts','real capability identity sharing, overlapping staging, GC serialization and catalog liveness','shared grouped OPFS queries and indexed identity lookup']});
 }catch(e){self.postMessage({error:String(e)});}};

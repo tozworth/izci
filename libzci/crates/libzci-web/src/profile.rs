@@ -139,6 +139,30 @@ impl WebProfile {
         )
         .map_err(js)
     }
+    pub fn catalog_groups(&mut self, by: &str, query: &str) -> Result<String, JsValue> {
+        if query.len() > 32 * 1024 || by.len() > 32 {
+            return Err(typed(libzci::LibzciError::ResourceExhausted {
+                detail: "catalog group query input exceeds budget".into(),
+            }));
+        }
+        let by = serde_json::from_value(serde_json::Value::String(by.into())).map_err(|e| {
+            typed(libzci::LibzciError::InvalidArgument {
+                detail: format!("{e}"),
+            })
+        })?;
+        let query = serde_json::from_str(query).map_err(|e| {
+            typed(libzci::LibzciError::InvalidArgument {
+                detail: format!("{e}"),
+            })
+        })?;
+        serde_json::to_string(
+            &self
+                .core
+                .catalog_groups(by, &query, &mut self.db)
+                .map_err(typed)?,
+        )
+        .map_err(js)
+    }
     pub fn managed_roots(&mut self) -> Result<String, JsValue> {
         serde_json::to_string(&self.core.managed_roots(&mut self.db).map_err(typed)?).map_err(js)
     }

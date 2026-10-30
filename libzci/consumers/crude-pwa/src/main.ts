@@ -91,5 +91,6 @@ Object.assign(window,{libzci:{load:(file:File)=>runtime.load(file),command:(kind
   queue:(command:import('./profile-types.js').QueueCommand)=>runtime.queue(command),
   ingest:(files:File[],handles:import('./profile-types.js').RealFileHandle[]=[],open=true)=>runtime.ingest(files,handles,open),
   catalogQuery:(query:import('./catalog-types.js').CatalogQuery={})=>runtime.catalogQuery(query),catalogMutate:(command:import('./catalog-types.js').CatalogCommand)=>runtime.catalogMutate(command),catalogRoots:()=>runtime.catalogRoots(),catalogBookmarks:(media:number,subsong:number|null=null)=>runtime.catalogBookmarks(media,subsong),
+  catalogGroups:(by:import('./catalog-types.js').CatalogGroupBy,query:import('./catalog-types.js').CatalogQuery={})=>runtime.catalogGroups(by,query),
   catalogAddRoot:(handle:import('./profile-types.js').RealDirectoryHandle,settings?:import('./catalog-types.js').ScanSettings)=>runtime.catalogAddRoot(handle,settings),catalogAddFiles:(files:File[],handles:import('./profile-types.js').RealFileHandle[]=[],verify=true)=>runtime.catalogAddFiles(files,handles,verify),catalogScan:(root:number)=>runtime.catalogScan(root),catalogCancel:()=>runtime.catalogCancel(),
   job:(mode:'probe'|'render',verify=false)=>runtime.startJob(mode,verify).result,cancelJobs:()=>runtime.cancelJobs()}});

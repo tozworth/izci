@@ -146,6 +146,7 @@ self.onmessage = async e => {
       const catalog=profile!.catalog;
       switch(m.operation){
         case 'query':value=catalog.query(m.args[0]);break;
+        case 'groups':value=catalog.groups(m.args[0],m.args[1]);break;
         case 'roots':value=catalog.roots();break;
         case 'bookmarks':value=catalog.bookmarks(m.args[0],m.args[1]);break;
         case 'mutate':value=catalog.mutate(m.args[0],m.request);break;

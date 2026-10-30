@@ -424,3 +424,108 @@ fn bounded_queries_sort_filter_and_page_large_corpus_without_copying_it_to_snaps
         .is_err());
     assert_eq!(p.core.snapshot().revision, revision);
 }
+
+#[test]
+fn grouped_queries_share_filters_revisions_and_exact_album_artist_identity() {
+    let dir = Temp::new();
+    let mut p = NativeProfile::open(&dir.0).unwrap();
+    let mut media = vec![];
+    for (name, artist, album, genre, kind) in [
+        ("/a", "First", "Same album", "Jazz", MediaKind::Audio),
+        ("/b", "First", "Same album", "Jazz", MediaKind::Audio),
+        ("/c", "Second", "Same album", "Rock", MediaKind::Module),
+        ("/d", "", "", "", MediaKind::Image),
+    ] {
+        let mut m = input(name);
+        m.kind = kind;
+        m.metadata.artist = artist.into();
+        m.metadata.album = album.into();
+        m.metadata.genre = genre.into();
+        media.push(m);
+    }
+    let ids = run(&mut p, CatalogCommand::Add { media }).media;
+    let query = CatalogQuery::default();
+    let albums = p.catalog_groups(CatalogGroupBy::Album, &query).unwrap();
+    assert_eq!(albums.total, 3);
+    assert_eq!(albums.groups.iter().map(|g| g.count).sum::<u64>(), 4);
+    assert!(albums
+        .groups
+        .iter()
+        .any(|g| g.key == vec!["First", "Same album"] && g.count == 2));
+    assert!(albums
+        .groups
+        .iter()
+        .any(|g| g.key == vec!["Second", "Same album"] && g.count == 1));
+    for by in [
+        CatalogGroupBy::Artist,
+        CatalogGroupBy::Genre,
+        CatalogGroupBy::Kind,
+    ] {
+        let groups = p
+            .catalog_groups(
+                by,
+                &CatalogQuery {
+                    limit: 1,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        assert_eq!(groups.total, 3);
+        assert_eq!(groups.groups.len(), 1);
+    }
+    let filtered = p
+        .catalog_groups(
+            CatalogGroupBy::Album,
+            &CatalogQuery {
+                genre: Some("Jazz".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    assert_eq!(filtered.total, 1);
+    assert_eq!(filtered.groups[0].count, 2);
+    let source = p
+        .catalog_query(&CatalogQuery {
+            source_key: Some("/c".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(source.rows[0].id, ids[2]);
+    assert_eq!(
+        p.catalog_query(&CatalogQuery {
+            media: Some(ids[3]),
+            ..Default::default()
+        })
+        .unwrap()
+        .rows[0]
+            .kind,
+        MediaKind::Image
+    );
+    run(
+        &mut p,
+        CatalogCommand::Favorite {
+            media: ids[2],
+            subsong: None,
+            favorite: true,
+        },
+    );
+    let favorites = p
+        .catalog_groups(
+            CatalogGroupBy::Artist,
+            &CatalogQuery {
+                collection: Collection::Favorites,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    assert_eq!(favorites.groups[0].key, vec!["Second"]);
+    assert!(p
+        .catalog_groups(
+            CatalogGroupBy::Album,
+            &CatalogQuery {
+                revision: Some(albums.revision),
+                ..Default::default()
+            }
+        )
+        .is_err());
+}

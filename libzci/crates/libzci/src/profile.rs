@@ -360,6 +360,14 @@ impl Profile {
     ) -> Result<crate::catalog::CatalogPage> {
         crate::catalog::query::query(db, query)
     }
+    pub fn catalog_groups(
+        &self,
+        by: crate::catalog::CatalogGroupBy,
+        query: &crate::catalog::CatalogQuery,
+        db: &mut dyn SqlBridge,
+    ) -> Result<crate::catalog::CatalogGroupPage> {
+        crate::catalog::query::groups(db, by, query)
+    }
 
     pub fn bookmarks(
         &self,

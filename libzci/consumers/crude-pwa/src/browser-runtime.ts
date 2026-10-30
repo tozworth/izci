@@ -3,7 +3,7 @@ import {Capabilities} from './capabilities.js';
 import type {CommandKind} from './protocol.js';
 import type {QueueCommand,RealFileHandle} from './profile-types.js';
 import type {RealDirectoryHandle} from './profile-types.js';
-import type {Bookmark,CatalogCommand,CatalogOutcome,CatalogPage,CatalogQuery,ManagedRoot,ScanSettings} from './catalog-types.js';
+import type {Bookmark,CatalogCommand,CatalogOutcome,CatalogPage,CatalogQuery,CatalogGroupBy,CatalogGroupPage,ManagedRoot,ScanSettings} from './catalog-types.js';
 /** One profile lock encloses the SQL worker, decoder, output and Media Session.
  * Attached documents send bounded idempotent requests and acknowledge snapshots. */
 export class BrowserRuntime {
@@ -101,6 +101,7 @@ export class BrowserRuntime {
   command(kind:CommandKind,value=0):Promise<void> {return this.request('command',[kind,value]);}
   queue(command:QueueCommand):Promise<void> {return this.request('queue',[command]);}
   catalogQuery(query:CatalogQuery={}):Promise<CatalogPage>{return this.request('catalog',['query',[query]]);}
+  catalogGroups(by:CatalogGroupBy,query:CatalogQuery={}):Promise<CatalogGroupPage>{return this.request('catalog',['groups',[by,query]]);}
   catalogMutate(command:CatalogCommand):Promise<CatalogOutcome>{return this.request('catalog',['mutate',[command]]);}
   catalogRoots():Promise<ManagedRoot[]>{return this.request('catalog',['roots',[]]);}
   catalogBookmarks(media:number,subsong:number|null=null):Promise<Bookmark[]>{return this.request('catalog',['bookmarks',[media,subsong]]);}

@@ -1,7 +1,7 @@
 import {known_extension,normalize_metadata,type WebProfile} from '../generated/libzci_web.js';
 import {Capabilities,type CapabilityStaging} from '../capabilities.js';
 import {ProbeWorker} from '../probe-worker.js';
-import type {CatalogCommand,CatalogOutcome,CatalogPage,CatalogQuery,ManagedRoot,MediaInput,ScanObservation,ScanPlan,ScanSettings} from '../catalog-types.js';
+import type {CatalogCommand,CatalogOutcome,CatalogPage,CatalogQuery,CatalogGroupBy,CatalogGroupPage,ManagedRoot,MediaInput,ScanObservation,ScanPlan,ScanSettings} from '../catalog-types.js';
 import type {RealDirectoryHandle,RealFileHandle,SourceReference} from '../profile-types.js';
 import type {Facts} from './browser-providers.js';
 interface Active {plan:ScanPlan;cancelled:boolean;pool:ProbeWorker[];staged:Set<string>}
@@ -14,6 +14,7 @@ export class BrowserCatalog {
   observation:ScanObservation={state:'idle',root:null,visited:0,accepted:0,ignored:0,detail:''};
   constructor(private core:WebProfile,private handles:Capabilities,private files:Map<string,File>,private staging:CapabilityStaging,private publish:()=>void){}
   query(query:CatalogQuery={}):CatalogPage{return JSON.parse(this.core.catalog_query(JSON.stringify(query)));}
+  groups(by:CatalogGroupBy,query:CatalogQuery={}):CatalogGroupPage{return JSON.parse(this.core.catalog_groups(by,JSON.stringify(query)));}
   roots():ManagedRoot[]{return JSON.parse(this.core.managed_roots());}
   bookmarks(media:number,subsong:number|null){return JSON.parse(this.core.bookmarks(BigInt(media),subsong??undefined));}
   mutate(command:CatalogCommand,request?:string):CatalogOutcome{

@@ -133,6 +133,17 @@ impl NativeProfile {
             .ok_or_else(|| failure("unavailable", "catalog requires an open profile"))?;
         self.core.catalog_query(query, db)
     }
+    pub fn catalog_groups(
+        &mut self,
+        by: libzci::catalog::CatalogGroupBy,
+        query: &libzci::catalog::CatalogQuery,
+    ) -> Result<libzci::catalog::CatalogGroupPage> {
+        let db = self
+            .db
+            .as_mut()
+            .ok_or_else(|| failure("unavailable", "catalog requires an open profile"))?;
+        self.core.catalog_groups(by, query, db)
+    }
     pub fn bookmarks(
         &mut self,
         media: u64,
