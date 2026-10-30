@@ -29,6 +29,16 @@ async function job(bytes,request){return page.evaluate(async({bytes,request})=>{
 },{bytes:Array.from(bytes),request});}
 try{
   await page.goto('http://localhost:5197/?profile=images');await page.waitForFunction(()=>!!window.libzci?.snapshot()?.profile);
+  const jxlBytes=await readFile(path.join(root,'libzci/crates/libzci/tests/fixtures/lossless.jxl')),jxl=await job(jxlBytes,{kind:'image',spec:{max_edge:128}});
+  assert.equal(jxl.facts.mime,'image/jxl');assert.equal(jxl.facts.bits_per_pixel,32);assert.deepEqual([jxl.rendition.width,jxl.rendition.height],[128,128]);
+  for(let y=0;y<128;y++)for(let x=0;x<128;x++)for(const [channel,value]of [y,100,200,255].entries())assert(Math.abs(jxl.pixels[(y*128+x)*4+channel]-value)<=1);
+  const jxlCatalog=await page.evaluate(async bytes=>{const api=window.libzci,result=await api.catalogAddFiles([new File([new Uint8Array(bytes)],'lossless.jxl')],[],false),row=(await api.catalogQuery({media:result.media[0]})).rows[0],first=await api.catalogRendition(row.id,32),second=await api.catalogRendition(row.id,32);return {row,first:first.cache,second:second.cache,width:second.rendition.width};},Array.from(jxlBytes));
+  assert.equal(jxlCatalog.row.kind,'image');assert.equal(jxlCatalog.row.metadata.image.mime,'image/jxl');assert.equal(jxlCatalog.first,'miss');assert.equal(jxlCatalog.second,'hit');assert.equal(jxlCatalog.width,32);
+  results.push({test:'shared JPEG XL decoding preserves lossless color/alpha and uses the same catalog, rendition and separate-cache path without browser image codecs'});
+  const conformance=path.join(root,'libzci/crates/libzci/tests/fixtures/jxl-conformance'),oriented=await job(await readFile(path.join(conformance,'input.jxl')),{kind:'image',spec:{max_edge:128}}),reference=await job(await readFile(path.join(conformance,'ref.png')),{kind:'image',spec:{max_edge:128}});
+  assert.equal(oriented.facts.orientation,5);assert.equal(oriented.facts.icc_sha256,'6603ae12a4ac1ac742cacd887e9b35552a12c354ff25a00cae069ad4b932e6cc');assert.deepEqual([oriented.rendition.width,oriented.rendition.height],[reference.rendition.width,reference.rendition.height]);
+  assert(Math.max(...oriented.pixels.map((v,i)=>Math.abs(v-reference.pixels[i])))<=2);
+  results.push({test:'shared WASM JPEG XL codestream orientation and nonstandard BRG ICC match the upstream PNG reference within two resized 8-bit code values'});
   for(let orientation=1;orientation<=8;orientation++){
     const bytes=png(2,3,pixels,orientation),result=await job(bytes,{kind:'image',spec:{max_edge:8}});
     assert.equal(result.facts.orientation,orientation);assert.deepEqual([result.rendition.width,result.rendition.height],orientation<=4?[2,3]:[3,2]);assert.deepEqual(result.pixels.filter((_,i)=>i%4===0).map(v=>v/30),expected[orientation-1]);

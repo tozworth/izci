@@ -109,7 +109,7 @@ impl ArtworkView {
                 }
                 if ui.button("Open image…").clicked() {
                     if let Some(path) = rfd::FileDialog::new()
-                        .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+                        .add_filter("Images", &["png", "jpg", "jpeg", "webp", "jxl"])
                         .pick_file()
                     {
                         self.start(ImageJob::from_path_cached(

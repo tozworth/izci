@@ -541,6 +541,39 @@ The production PWA build, seven import-free audio-WASM checks and M3 cold-offlin
 catalog/scan/playback checks pass. Broader visual format/color and the remaining
 M3 acceptance checks are still open; A1/A2 adoption has not begun.
 
+The following M3 format slice adds JPEG XL through the pinned JPEG XL Project
+[`jxl` 0.8.0 decoder](https://github.com/libjxl/jxl-rs), without a browser-native
+image-codec dependency. A focused ImageDecoder adapter disables the codec's
+orientation transform and ignores EXIF orientation; shared rendering applies the
+codestream orientation exactly once. It requests straight-alpha 8-bit preview
+pixels, retains original sample-depth facts and converts the reported output
+ICC to sRGB through the existing shared color path. Core source/pixel/output
+limits and a codec sample limit apply; typed codec size/ICC failures map to
+resource exhaustion. Catalog imports/scans and separate rendition caches use
+the same path. Native image pickers now include JXL.
+
+Native and muted Chromium checks pass a project-generated lossless RGBA fixture
+and the pinned, BSD-licensed upstream `bench_oriented_brg` case (orientation 5,
+nonstandard BRG ICC). At full size native output differs from the 8-bit PNG
+reference by at most one code value; resized WASM output differs by at most two.
+These are bounded 8-bit reference comparisons, not a claim of passing the full
+floating-point conformance corpus. The fixture provenance, hashes and licenses
+are checked in. Native scans persist JXL image facts alongside PNG/audio while
+keeping images out of the queue; browser catalog JXL jobs reopen cached results.
+
+The current JXL still-preview path uses the first frame, explicitly rejects
+CMYK, and does not promise strict 128 MiB intermediate codec allocation. In
+particular, the pinned decoder has a larger internal ICC decompression ceiling
+before the existing 1 MiB returned-profile limit. Resource-budget hardening and
+measurement remain required readiness work; no tighter bound is inferred from
+small passing fixtures. AVIF and broader non-ICC/HDR color handling remain open.
+The control WASM grows from about 3.91 MB to 5.46 MB; the import-free audio WASM
+is unchanged. The production build, audio-WASM checks and M3 cold-offline path
+pass with the new local runtime asset.
+`cargo test --locked --manifest-path libzci/Cargo.toml --workspace` also passes;
+device-access smoke remains ignored. The provider-enabled native image-scan
+test and the rebuilt WASM/Chromium image suite pass separately.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 

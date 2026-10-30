@@ -3,6 +3,7 @@
 //! remain transient; only bounded facts and rebuildable renditions may persist.
 mod cache;
 mod job;
+mod jxl;
 mod reader;
 mod rendition;
 mod session;
@@ -47,7 +48,7 @@ impl ImageFacts {
             || self.display_width != if rotated { self.height } else { self.width }
             || self.display_height != if rotated { self.width } else { self.height }
             || !(1..=128).contains(&self.bits_per_pixel)
-            || !["image/png", "image/jpeg", "image/webp"].contains(&self.mime.as_str())
+            || !["image/png", "image/jpeg", "image/webp", "image/jxl"].contains(&self.mime.as_str())
             || self.icc_bytes > MAX_ICC_BYTES
             || self
                 .icc_sha256
@@ -113,13 +114,19 @@ fn decode_reader<R: BufRead + Seek>(
     cancel: &CancelFlag,
 ) -> Result<(ImageFacts, Option<ImageRendition>)> {
     cancel.check()?;
-    let mut reader = ImageReader::with_format(reader, format(mime)?);
     let mut limits = image::Limits::default();
     limits.max_image_width = Some(MAX_IMAGE_DIMENSION);
     limits.max_image_height = Some(MAX_IMAGE_DIMENSION);
     limits.max_alloc = Some(MAX_DECODE_BYTES);
-    reader.limits(limits);
-    let mut decoder = reader.into_decoder().map_err(map_error)?;
+    let mut decoder: Box<dyn ImageDecoder + '_> = if mime == "image/jxl" {
+        let mut decoder = jxl::Decoder::new(reader).map_err(map_error)?;
+        decoder.set_limits(limits).map_err(map_error)?;
+        Box::new(decoder)
+    } else {
+        let mut reader = ImageReader::with_format(reader, format(mime)?);
+        reader.limits(limits);
+        Box::new(reader.into_decoder().map_err(map_error)?)
+    };
     let (width, height) = decoder.dimensions();
     dimensions(width, height)?;
     // ImageReader's allocator limit is best effort. Always check total pixel

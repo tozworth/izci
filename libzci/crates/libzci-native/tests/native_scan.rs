@@ -67,6 +67,11 @@ fn images_scan_as_catalog_media_preserve_facts_and_cannot_enter_the_queue() {
     std::fs::copy(&fixture, files.0.join("cover.png")).unwrap();
     std::fs::copy(&fixture, files.0.join("picture.wav")).unwrap();
     std::fs::copy(&fixture, files.0.join("unknown.bytes")).unwrap();
+    std::fs::write(
+        files.0.join("lossless.jxl"),
+        include_bytes!("../../libzci/tests/fixtures/lossless.jxl"),
+    )
+    .unwrap();
     wave(&files.0.join("audio.jpg"));
     let runtime = NativeRuntime::new();
     runtime
@@ -102,7 +107,7 @@ fn images_scan_as_catalog_media_preserve_facts_and_cannot_enter_the_queue() {
                     p.stage_scan(&plan.token, vec![media], db).unwrap();
                 }
                 ScanEvent::Complete(progress) => {
-                    assert_eq!((progress.accepted, progress.ignored), (3, 1));
+                    assert_eq!((progress.accepted, progress.ignored), (4, 1));
                     p.catalog_request(CatalogCommand::FinishScan { token: plan.token }, None, db)
                         .unwrap();
                     return;
@@ -121,7 +126,14 @@ fn images_scan_as_catalog_media_preserve_facts_and_cannot_enter_the_queue() {
             &mut db,
         )
         .unwrap();
-    assert_eq!(images.total, 2);
+    assert_eq!(images.total, 3);
+    let jxl = images
+        .rows
+        .iter()
+        .find(|r| r.source.display_path.ends_with("lossless.jxl"))
+        .unwrap();
+    assert_eq!(jxl.metadata.image.as_ref().unwrap().mime, "image/jxl");
+    assert_eq!(jxl.metadata.image.as_ref().unwrap().width, 128);
     let cover = images
         .rows
         .iter()
@@ -198,7 +210,7 @@ fn images_scan_as_catalog_media_preserve_facts_and_cannot_enter_the_queue() {
             })
             .unwrap()
             .total,
-        2
+        3
     );
 }
 #[test]

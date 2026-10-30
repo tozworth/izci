@@ -1,6 +1,71 @@
 use image::ImageEncoder;
 use libzci::{images::*, *};
 use std::sync::atomic::{AtomicUsize, Ordering};
+#[test]
+fn jpeg_xl_codestream_orientation_and_nonstandard_icc_match_the_upstream_reference() {
+    let spec = RenditionSpec { max_edge: 2048 };
+    let cancel = CancelFlag::default();
+    let jxl = render_image_bytes(
+        include_bytes!("fixtures/jxl-conformance/input.jxl"),
+        spec,
+        &cancel,
+    )
+    .unwrap();
+    let reference = render_image_bytes(
+        include_bytes!("fixtures/jxl-conformance/ref.png"),
+        spec,
+        &cancel,
+    )
+    .unwrap();
+    assert_ne!(jxl.source.orientation, 1);
+    assert!(jxl.source.icc_bytes > 0);
+    assert_eq!((jxl.width, jxl.height), (reference.width, reference.height));
+    let mut peak = 0i32;
+    let mut sum = 0u64;
+    for (a, b) in jxl.rgba.iter().zip(&reference.rgba) {
+        let error = (*a as i32 - *b as i32).abs();
+        peak = peak.max(error);
+        sum += error as u64;
+    }
+    let mean = sum as f64 / jxl.rgba.len() as f64;
+    assert!(
+        peak <= 1 && mean <= 0.25,
+        "peak {peak}, mean {mean}; {:?}",
+        jxl.source
+    );
+}
+#[test]
+fn jpeg_xl_uses_the_same_bounded_color_rendition_pipeline_and_keeps_source_facts() {
+    let source = MemSource::new(include_bytes!("fixtures/lossless.jxl").to_vec());
+    let cancel = CancelFlag::default();
+    let facts = inspect_image(&source, &cancel).unwrap();
+    assert_eq!(facts.mime, "image/jxl");
+    assert_eq!(
+        (facts.width, facts.height, facts.orientation),
+        (128, 128, 1)
+    );
+    assert_eq!(facts.bits_per_pixel, 32);
+    assert!(facts.alpha);
+    let full = render_image(&source, RenditionSpec { max_edge: 128 }, &cancel).unwrap();
+    assert_eq!(full.source, facts);
+    for y in 0..128 {
+        for x in 0..128 {
+            let p = &full.rgba[(y * 128 + x) * 4..][..4];
+            for (a, b) in p.iter().zip([y as u8, 100, 200, 255]) {
+                assert!((*a as i32 - b as i32).abs() <= 1);
+            }
+        }
+    }
+    let small = render_image(&source, RenditionSpec { max_edge: 32 }, &cancel).unwrap();
+    assert_eq!((small.width, small.height), (32, 32));
+    assert_eq!(small.source, facts);
+    let meta = CachedRendition::from_rendition(&small, RenditionSpec { max_edge: 32 }).unwrap();
+    let cached = restore_cached_rendition(meta, small.png.clone(), &cancel).unwrap();
+    assert_eq!(cached.rgba, small.rgba);
+    assert_eq!(cached.source, facts);
+    let truncated = MemSource::new(include_bytes!("fixtures/lossless.jxl")[..40].to_vec());
+    assert!(render_image(&truncated, RenditionSpec::default(), &cancel).is_err());
+}
 fn exif(orientation: u8) -> Vec<u8> {
     let mut bytes = b"II\x2a\0\x08\0\0\0\x01\0\x12\x01\x03\0\x01\0\0\0".to_vec();
     bytes.extend([orientation, 0, 0, 0, 0, 0, 0, 0]);
