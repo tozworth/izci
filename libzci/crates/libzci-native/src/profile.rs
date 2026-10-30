@@ -1,7 +1,7 @@
 //! Native ownership and SQLite execution. SQL and queue policy stay in core.
 use libzci::{
     profile::{Profile, ProfileOutcome},
-    queue::{QueueCommand, SourceKind, SourceReference},
+    queue::QueueCommand,
     storage::{failure, SqlBridge},
     Result,
 };
@@ -179,27 +179,7 @@ impl NativeProfile {
     pub fn append_paths(&mut self, paths: &[std::path::PathBuf]) -> Result<ProfileOutcome> {
         let mut sources = vec![];
         for path in paths {
-            let absolute =
-                std::fs::canonicalize(path).map_err(|e| libzci::LibzciError::Unavailable {
-                    detail: e.to_string(),
-                })?;
-            let locator = absolute
-                .to_str()
-                .ok_or_else(|| libzci::LibzciError::InvalidArgument {
-                    detail: "path is not valid Unicode".into(),
-                })?
-                .to_owned();
-            let key = if cfg!(windows) {
-                locator.to_lowercase()
-            } else {
-                locator.clone()
-            };
-            sources.push(SourceReference {
-                key,
-                kind: SourceKind::NativePath,
-                display_path: locator.clone(),
-                locator,
-            });
+            sources.push(crate::source::native_reference(path)?);
         }
         self.command(QueueCommand::Append { sources })
     }

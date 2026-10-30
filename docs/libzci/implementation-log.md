@@ -64,6 +64,25 @@ WASM, `npm run typecheck` and muted Chromium `npm run test:storage` pass actual
 OPFS TEMP staging, deduplication, reconciliation, cancellation and finish receipts.
 Real folder enumeration/probe wiring and crude scan controls remain next work.
 
+Native enumeration/probe wiring now uses bounded directory depth/visited-entry,
+path/event queue and probe-concurrency budgets, with no SQLite or device in probe
+workers. Unsupported unknowns are ignored; corrupt known files, unavailable
+directories, permission failures, revision changes and cancellation fail the scan
+rather than claiming a complete enumeration. Symlinks/junctions are not followed.
+The canonical path-reference helper is shared with native queue imports. Shared
+metadata normalization applies first-nonempty provider precedence, common aliases,
+ordinal fields, UTF-8 bounds and filename fallback without embedded payloads.
+
+The native crude has Library/Favorites queries/pages, root settings and launch
+scans, rescan/cancel, ratings/favorites, queue append and bookmark controls, in a
+focused catalog view. `cargo test ... -p libzci -p libzci-native --lib` passed
+core/native units (device smoke remains separately ignored). `cargo test ...
+-p libzci-native --test native_scan --test scans --test catalog --test profile`
+passed real on-disk WAV probes/reopen/rescan, nonrecursive scanning, bounded-queue
+cancellation, corrupt/missing inputs and catalog/scan/profile suites. `cargo test
+... -p crude-native` passed its two controller/headless-egui tests. No physical
+listening or screenshot acceptance is inferred from those checks.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

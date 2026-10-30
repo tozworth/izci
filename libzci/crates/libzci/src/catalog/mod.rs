@@ -1,5 +1,6 @@
 //! Profile-owned catalog. SQL and identity/fact policy are shared by all adapters.
 //! Query pages contain references and bounded metadata, never media/artwork blobs.
+mod metadata;
 pub(crate) mod mutation;
 pub(crate) mod query;
 pub(crate) mod scans;

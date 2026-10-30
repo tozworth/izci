@@ -17,6 +17,35 @@ use std::os::windows::fs::FileExt;
 
 use libzci::{CancelFlag, LibzciError, Result, RuntimeSource, SourceCaps, SourceId};
 
+/// Genuine canonical path reference; folding affects identity only on Windows.
+/// Native callers share this implementation for queues, imports and scans.
+pub fn native_reference(path: &Path) -> Result<libzci::queue::SourceReference> {
+    let absolute = std::fs::canonicalize(path).map_err(|e| match e.kind() {
+        std::io::ErrorKind::PermissionDenied => LibzciError::AccessRequired {
+            detail: format!("cannot access {}: {e}", path.display()),
+        },
+        _ => LibzciError::Unavailable {
+            detail: format!("cannot resolve {}: {e}", path.display()),
+        },
+    })?;
+    let locator = absolute
+        .to_str()
+        .ok_or_else(|| LibzciError::InvalidArgument {
+            detail: "path is not valid Unicode".into(),
+        })?
+        .to_owned();
+    Ok(libzci::queue::SourceReference {
+        key: if cfg!(windows) {
+            locator.to_lowercase()
+        } else {
+            locator.clone()
+        },
+        kind: libzci::queue::SourceKind::NativePath,
+        display_path: locator.clone(),
+        locator,
+    })
+}
+
 /// Seekable native file opened as a runtime source.
 #[derive(Debug)]
 pub struct NativeFileSource {
@@ -76,6 +105,9 @@ impl NativeFileSource {
     /// Display path (same verbatim string; no parallel cache).
     pub fn display_path(&self) -> String {
         self.path.display().to_string()
+    }
+    pub fn revision_key(&self) -> String {
+        format!("{}:{}", self.len, self.revision)
     }
 }
 

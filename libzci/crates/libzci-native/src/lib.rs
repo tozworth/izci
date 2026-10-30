@@ -12,6 +12,7 @@ pub mod probe;
 pub mod profile;
 pub mod render;
 pub mod runtime;
+pub mod scan;
 mod session_jobs;
 pub mod source;
 
