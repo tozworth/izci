@@ -7,6 +7,8 @@ use serde_json::{json, Value};
 const MAX_ROOTS: u64 = 256;
 const MAX_SCANS: u64 = 8;
 const MAX_SCAN_ENTRIES: u64 = 100_000;
+const MAX_SCAN_BYTES: u64 = 128 * 1024 * 1024;
+const MAX_TOTAL_SCAN_BYTES: u64 = 256 * 1024 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -58,6 +60,8 @@ pub struct ScanPlan {
     pub root: ManagedRoot,
     pub max_batch: usize,
     pub max_entries: u64,
+    pub max_bytes: u64,
+    pub max_total_bytes: u64,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ScanSummary {
@@ -135,8 +139,16 @@ pub(crate) fn invalidate_root(db: &mut dyn SqlBridge, root: u64) -> Result<()> {
     exec(db, "DELETE FROM scan_jobs WHERE root_id=?", &[json!(root)])
 }
 fn init(db: &mut dyn SqlBridge) -> Result<()> {
-    exec(db,"CREATE TEMP TABLE IF NOT EXISTS scan_jobs (token TEXT PRIMARY KEY,root_id INTEGER NOT NULL UNIQUE,root_revision INTEGER NOT NULL)",&[])?;
-    exec(db,"CREATE TEMP TABLE IF NOT EXISTS scan_stage (token TEXT NOT NULL REFERENCES scan_jobs(token) ON DELETE CASCADE,source_key TEXT NOT NULL,reference TEXT NOT NULL,source_revision TEXT NOT NULL,kind TEXT NOT NULL,title TEXT NOT NULL,artist TEXT NOT NULL,album TEXT NOT NULL,genre TEXT NOT NULL,metadata TEXT NOT NULL,PRIMARY KEY(token,source_key))",&[])
+    exec(db,"CREATE TEMP TABLE IF NOT EXISTS scan_jobs (token TEXT PRIMARY KEY,root_id INTEGER NOT NULL UNIQUE,root_revision INTEGER NOT NULL,entries INTEGER NOT NULL DEFAULT 0 CHECK(entries>=0),bytes INTEGER NOT NULL DEFAULT 0 CHECK(bytes>=0))",&[])?;
+    exec(db,"CREATE TEMP TABLE IF NOT EXISTS scan_stage (token TEXT NOT NULL REFERENCES scan_jobs(token) ON DELETE CASCADE,source_key TEXT NOT NULL,reference TEXT NOT NULL,source_revision TEXT NOT NULL,kind TEXT NOT NULL,title TEXT NOT NULL,artist TEXT NOT NULL,album TEXT NOT NULL,genre TEXT NOT NULL,metadata TEXT NOT NULL,byte_cost INTEGER NOT NULL CHECK(byte_cost>=0),PRIMARY KEY(token,source_key))",&[])?;
+    // Transactional credits avoid rescanning the staged corpus on each small
+    // browser batch. Global accounting touches at most eight job records.
+    for sql in [
+        "CREATE TEMP TRIGGER IF NOT EXISTS scan_insert AFTER INSERT ON scan_stage BEGIN UPDATE scan_jobs SET entries=entries+1,bytes=bytes+new.byte_cost WHERE token=new.token; END",
+        "CREATE TEMP TRIGGER IF NOT EXISTS scan_update AFTER UPDATE ON scan_stage BEGIN UPDATE scan_jobs SET bytes=bytes+new.byte_cost-old.byte_cost WHERE token=new.token; END",
+        "CREATE TEMP TRIGGER IF NOT EXISTS scan_delete AFTER DELETE ON scan_stage BEGIN UPDATE scan_jobs SET entries=entries-1,bytes=bytes-old.byte_cost WHERE token=old.token; END",
+    ]{exec(db,sql,&[])?;}
+    Ok(())
 }
 fn job(db: &mut dyn SqlBridge, token: &str) -> Result<ManagedRoot> {
     text(token, 128, false)?;
@@ -167,7 +179,16 @@ pub(crate) fn begin(db: &mut dyn SqlBridge, n: u64) -> Result<ScanPlan> {
         if integer(&db.statement("SELECT count(*) FROM scan_jobs", &[])?)? >= MAX_SCANS {
             return Err(invalid("active scan budget exceeded"));
         }
-        let token = format!("scan-{}", crate::RequestId::fresh().0);
+        // A process/worker restart resets atomic IDs. Include connection-side
+        // entropy so an old consumer token cannot name a replacement job.
+        let nonce = db.statement("SELECT lower(hex(randomblob(16)))", &[])?;
+        let nonce = nonce
+            .first()
+            .and_then(|r| r.first())
+            .and_then(Value::as_str)
+            .filter(|n| n.len() == 32 && n.bytes().all(|b| b.is_ascii_hexdigit()))
+            .ok_or_else(|| failure("io", "missing scan job nonce"))?;
+        let token = format!("scan-{}-{nonce}", crate::RequestId::fresh().0);
         exec(
             db,
             "INSERT INTO scan_jobs(token,root_id,root_revision) VALUES(?,?,?)",
@@ -178,6 +199,8 @@ pub(crate) fn begin(db: &mut dyn SqlBridge, n: u64) -> Result<ScanPlan> {
             root,
             max_batch: MAX_BATCH,
             max_entries: MAX_SCAN_ENTRIES,
+            max_bytes: MAX_SCAN_BYTES,
+            max_total_bytes: MAX_TOTAL_SCAN_BYTES,
         })
     })
 }
@@ -193,14 +216,37 @@ pub(crate) fn stage(db: &mut dyn SqlBridge, token: &str, media: Vec<MediaInput>)
         job(db, token)?;
         for input in media {
             let m = &input.metadata;
-            exec(db,"INSERT INTO scan_stage(token,source_key,reference,source_revision,kind,title,artist,album,genre,metadata) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(token,source_key) DO UPDATE SET reference=excluded.reference,source_revision=excluded.source_revision,kind=excluded.kind,title=excluded.title,artist=excluded.artist,album=excluded.album,genre=excluded.genre,metadata=excluded.metadata",&[json!(token),json!(input.source.key),json!(serde_json::to_string(&input.source).unwrap()),json!(input.source_revision),json!(input.kind.sql()),json!(m.title),json!(m.artist),json!(m.album),json!(m.genre),json!(serde_json::to_string(m).unwrap())])?;
+            let reference = serde_json::to_string(&input.source).unwrap();
+            let metadata = serde_json::to_string(m).unwrap();
+            // Include duplicated scalar/JSON fields and primary-key storage,
+            // plus per-row/page overhead. A row-count bound alone permits huge
+            // TEMP allocations when a root has unusually long metadata/paths.
+            let cost = 512
+                + 2 * (token.len() + input.source.key.len())
+                + reference.len()
+                + input.source_revision.len()
+                + input.kind.sql().len()
+                + m.title.len()
+                + m.artist.len()
+                + m.album.len()
+                + m.genre.len()
+                + metadata.len();
+            exec(db,"INSERT INTO scan_stage(token,source_key,reference,source_revision,kind,title,artist,album,genre,metadata,byte_cost) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(token,source_key) DO UPDATE SET reference=excluded.reference,source_revision=excluded.source_revision,kind=excluded.kind,title=excluded.title,artist=excluded.artist,album=excluded.album,genre=excluded.genre,metadata=excluded.metadata,byte_cost=excluded.byte_cost",&[json!(token),json!(input.source.key),json!(reference),json!(input.source_revision),json!(input.kind.sql()),json!(m.title),json!(m.artist),json!(m.album),json!(m.genre),json!(metadata),json!(cost)])?;
         }
         let count = integer(&db.statement(
-            "SELECT count(*) FROM scan_stage WHERE token=?",
+            "SELECT entries FROM scan_jobs WHERE token=?",
             &[json!(token)],
         )?)?;
         if count > MAX_SCAN_ENTRIES {
             return Err(invalid("scan entry budget exceeded"));
+        }
+        let bytes =
+            integer(&db.statement("SELECT bytes FROM scan_jobs WHERE token=?", &[json!(token)])?)?;
+        let total = integer(&db.statement("SELECT COALESCE(sum(bytes),0) FROM scan_jobs", &[])?)?;
+        if bytes > MAX_SCAN_BYTES || total > MAX_TOTAL_SCAN_BYTES {
+            return Err(crate::LibzciError::ResourceExhausted {
+                detail: "managed scan staging byte budget exceeded".into(),
+            });
         }
         Ok(count)
     })

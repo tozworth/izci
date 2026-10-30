@@ -49,6 +49,11 @@ self.onmessage=async()=>{try {
   let scan=JSON.parse(profile.begin_scan(BigInt(root)));
   const scanned={source:{...source,key:'scanned'},kind:'audio',source_revision:'1',metadata:{title:'Scanned'}};
   assert(profile.stage_scan(scan.token,JSON.stringify([scanned,scanned]))===1n,'scan staging deduplicates by identity');
+  statement('UPDATE scan_stage SET byte_cost=? WHERE token=?',JSON.stringify([scan.max_bytes,scan.token]));
+  let limited=false;try{profile.stage_scan(scan.token,JSON.stringify([{...scanned,source:{...source,key:'over-byte-budget'}}]));}catch{limited=true;}
+  assert(limited,'OPFS TEMP accounting rejects a staging byte-budget overflow');
+  assert(JSON.parse(statement('SELECT entries FROM scan_jobs WHERE token=?',JSON.stringify([scan.token])))[0][0]===1,'over-budget stage and counter updates roll back together');
+  profile.stage_scan(scan.token,JSON.stringify([scanned])); // replacement frees old accounted bytes
   assert(JSON.parse(profile.catalog_query('{}')).total===1,'staging does not publish catalog');
   const finished=JSON.parse(profile.catalog_request(JSON.stringify({kind:'finish_scan',token:scan.token}),'finish-scan'));
   assert(finished.scan.added===1,'OPFS root reconciliation');

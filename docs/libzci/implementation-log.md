@@ -214,6 +214,19 @@ The pinned archives/wrapper were rebuilt. Native provider selection tests,
 browser metadata/unknown verification checks and the full M1 ordinary/module
 output and native/browser sample comparisons pass with the rebuilt archive.
 
+Managed scans now cap accounted staging bytes at 128 MiB per root and 256 MiB
+across active jobs, in addition to entry/batch/job limits. Accounting includes
+JSON/scalar/index-key duplication and per-row overhead. TEMP-table triggers
+maintain transactional entry/byte credits, so small browser batches do not
+recount/sum the full staged corpus. Replacements release their previous cost;
+budget failures roll back the entire batch and credits without publishing
+membership. Scan tokens include connection-side randomness to avoid reuse after
+worker/process atomic IDs restart. Native scan and real-folder tests pass,
+including injected accounting high-water marks (not a physical RAM benchmark).
+Rebuilt WASM, actual OPFS trigger/budget rollback checks and production M3
+catalog/scan/owner/offline scenarios pass. These limits bound staging accounting;
+overall codec/renderer resource measurements remain part of adoption readiness.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

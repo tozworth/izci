@@ -343,3 +343,69 @@ fn scan_budgets_bound_jobs_and_batches_and_root_settings_persist() {
         p.begin_scan(*n, &mut db).unwrap();
     }
 }
+
+#[test]
+fn staging_byte_budgets_rollback_batches_and_replacement_releases_accounted_space() {
+    let dir = Temp::new();
+    let mut db = NativeDatabase::open(&dir.0).unwrap();
+    let mut p = Profile::open(&mut db).unwrap();
+    let a = root(&mut p, &mut db, "/a");
+    let b = root(&mut p, &mut db, "/b");
+    let c = root(&mut p, &mut db, "/c");
+    let first = p.begin_scan(a, &mut db).unwrap();
+    p.stage_scan(&first.token, vec![input("/one")], &mut db)
+        .unwrap();
+    let before = p.snapshot().clone();
+    // Inject accounting high-water marks instead of allocating hundreds of MiB
+    // in the regression. The real SQL transaction must reject/rollback writes.
+    db.statement(
+        "UPDATE scan_stage SET byte_cost=? WHERE token=?",
+        &[json!(first.max_bytes), json!(first.token)],
+    )
+    .unwrap();
+    assert!(matches!(
+        p.stage_scan(&first.token, vec![input("/two")], &mut db),
+        Err(libzci::LibzciError::ResourceExhausted { .. })
+    ));
+    assert_eq!(
+        db.statement("SELECT count(*) FROM scan_stage", &[])
+            .unwrap(),
+        vec![vec![json!(1)]]
+    );
+    assert_eq!(p.snapshot(), &before);
+    p.stage_scan(&first.token, vec![input("/one")], &mut db)
+        .unwrap(); // replacement uses its new cost, not another retained copy
+    let second = p.begin_scan(b, &mut db).unwrap();
+    p.stage_scan(&second.token, vec![input("/two")], &mut db)
+        .unwrap();
+    db.statement(
+        "UPDATE scan_stage SET byte_cost=?",
+        &[json!(first.max_bytes)],
+    )
+    .unwrap();
+    let third = p.begin_scan(c, &mut db).unwrap();
+    assert_eq!(third.max_total_bytes, first.max_bytes * 2);
+    assert!(matches!(
+        p.stage_scan(&third.token, vec![input("/three")], &mut db),
+        Err(libzci::LibzciError::ResourceExhausted { .. })
+    ));
+    assert_eq!(
+        db.statement(
+            "SELECT count(*) FROM scan_stage WHERE token=?",
+            &[json!(third.token)]
+        )
+        .unwrap(),
+        vec![vec![json!(0)]]
+    );
+    p.cancel_scan(&first.token, &mut db).unwrap();
+    assert_eq!(
+        p.stage_scan(&third.token, vec![input("/three")], &mut db)
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        page(&p, &mut db).total,
+        0,
+        "staging/failure never publishes partial membership"
+    );
+}
