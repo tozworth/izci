@@ -379,6 +379,8 @@ pub(crate) fn scan(
     visitor: &mut impl MetadataVisitor,
 ) -> Result<()> {
     cancel.check()?;
+    source.verify_snapshot()?;
+    let revision = source.revision();
     let mut header = [0; 10];
     let mut read = 0;
     while read < header.len() {
@@ -392,7 +394,7 @@ pub(crate) fn scan(
         read += n;
     }
     let header = &header[..read];
-    if header.starts_with(b"ID3") {
+    let result = if header.starts_with(b"ID3") {
         id3(source, header, cancel, visitor)
     } else if header.starts_with(b"fLaC") {
         flac(source, cancel, visitor)
@@ -400,5 +402,13 @@ pub(crate) fn scan(
         ogg(source, cancel, visitor)
     } else {
         Ok(())
+    };
+    cancel.check()?;
+    source.verify_snapshot()?;
+    if source.revision() != revision {
+        return Err(LibzciError::Unavailable {
+            detail: "metadata source changed during reading".into(),
+        });
     }
+    result
 }

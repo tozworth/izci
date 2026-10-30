@@ -157,6 +157,8 @@ self.onmessage = async e => {
         case 'cancel-lyrics':catalog.cancelLyrics();break;
         case 'artwork':value=await catalog.artwork(m.args[0]);break;
         case 'cancel-artwork':catalog.cancelArtwork();break;
+        case 'rendition':value=await catalog.rendition(m.args[0],m.args[1]);break;
+        case 'cancel-renditions':catalog.cancelRenditions();break;
         case 'mutate':value=catalog.mutate(m.args[0],m.request);break;
         case 'add-root':value=await catalog.addRoot(m.args[0],m.args[1],m.request);break;
         case 'add-files':value=await catalog.addFiles(m.args[0],m.args[1],m.args[2],m.request);break;

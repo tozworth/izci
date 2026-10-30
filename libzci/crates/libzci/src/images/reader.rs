@@ -73,6 +73,7 @@ pub(super) fn with_source<T>(
     run: impl FnOnce(BufReader<Cursor<'_>>, &str) -> Result<T>,
 ) -> Result<T> {
     cancel.check()?;
+    source.verify_snapshot()?;
     let len = source
         .len()
         .ok_or_else(|| unsupported("image source requires a known length"))?;
@@ -111,6 +112,7 @@ pub(super) fn with_source<T>(
         return Err(error);
     }
     cancel.check()?;
+    source.verify_snapshot()?;
     if source.revision() != revision {
         return Err(LibzciError::Unavailable {
             detail: "image source changed during reading".into(),

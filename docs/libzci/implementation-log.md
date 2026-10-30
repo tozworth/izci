@@ -434,6 +434,34 @@ and bounded profile facts, PNG/JPEG/WebP, short ranged reads, access/cancel/sour
 limits, source revision changes and a forged oversized PNG. Control/audio WASM cross-compiles with the
 new dependencies; browser pixel-runtime checks are not yet implemented here.
 
+Shared visual job requests now expose inspection, image renditions and embedded
+artwork renditions through native worker jobs and an explicit WASM result
+object. Browser workers transfer the bounded PNG, then free their WASM result;
+native surfaces receive oriented RGBA8 directly from the same rendition instead
+of adding a shell decoder. A result can retain up to 8 MiB PNG plus 16 MiB RGBA8
+at the maximum 2,048-pixel edge; neither is a playback snapshot or user record.
+The PWA catalog has four concurrent rendition jobs, cancellation during handle
+resolution, an artwork-preview action and presentation-owned URL cleanup. The
+native crude has current/file artwork and standalone image preview controls with
+the same edge setting, worker cancellation and a presentation-owned texture.
+Mutable native sources verify their opened length/mtime before/after finite
+visual and embedded-metadata work; this does not add per-frame callback I/O.
+
+Native visual jobs and the egui texture lifecycle pass: real image and four
+embedded formats yield identical PNGs, inspection/rendering leave the music
+session revision/generation/position unchanged, changed open files are refused,
+and closing the preview releases its texture. The existing crude tests pass.
+`npm run test:images` passes in muted headless Chromium using real worker/WASM
+decode and canvas pixel checks: all EXIF orientations, alpha edges, header
+budgets, cancellation, ICC-to-sRGB with the installed sRGB profile (SHA-256
+`2b3aa1645779a9e634744faf9b01e9102b0c9b88fd6deced7934df86b949af7e`),
+and artwork/image work while the real audio clock continues in one generation.
+The catalog preview displays the rendition and releases its URL on close.
+Evidence: `.local/libzci/m3-images-evidence.json`. Production M3 checks also
+load artwork/rendition workers and their decoder assets on a cold offline launch
+without creating an AudioContext. Catalog image import/scanning, captured
+navigation, separate cache/eviction and broader format/color support remain open.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

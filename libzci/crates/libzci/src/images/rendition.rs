@@ -28,6 +28,8 @@ pub struct ImageRendition {
     pub width: u32,
     pub height: u32,
     pub png: Vec<u8>,
+    /// Oriented sRGB RGBA8 for native surface upload. Transient; cache only PNG.
+    pub rgba: Vec<u8>,
 }
 pub(super) fn srgb_pixels(
     image: DynamicImage,
@@ -153,5 +155,6 @@ pub(super) fn render(
         width,
         height,
         png: output.bytes,
+        rgba: pixels.into_raw(),
     })
 }

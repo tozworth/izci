@@ -1,3 +1,4 @@
+mod artwork_view;
 mod catalog_view;
 mod controller;
 mod lyrics_view;
@@ -9,6 +10,7 @@ use eframe::egui;
 use libzci::*;
 use std::{path::Path, time::Duration};
 struct App {
+    artwork: artwork_view::ArtworkView,
     lyrics: lyrics_view::LyricsView,
     catalog: catalog_view::CatalogView,
     controller: Controller,
@@ -27,6 +29,7 @@ struct App {
 impl Default for App {
     fn default() -> Self {
         Self {
+            artwork: Default::default(),
             lyrics: Default::default(),
             catalog: Default::default(),
             controller: Controller::new(),
@@ -68,6 +71,7 @@ impl App {
             queue_view::draw(ui,&mut self.controller);
             self.catalog.draw(ui,&mut self.controller);
             self.lyrics.draw(ui,&mut self.controller);
+            self.artwork.draw(ui,&self.controller);
             ui.label(format!("Provider: {:?}   audible {:.3} s / {:?} frames   pending {} / EOF {}",s.provider,MediaTime::from_frames(s.position_frames,s.layout.map_or(1,|l|l.sample_rate)).0,s.total_frames,s.pending_operation,s.decoding_eof));
             if let Some(o)=self.controller.output() {ui.label(format!("Decoded {} / consumed {} / queued {} / underruns {} · {}",o.decoded_position,o.consumed_frames,o.ring_fill_frames,o.hungry_pops,o.device_label));}
             let c=s.capabilities;
@@ -115,6 +119,7 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.controller.tick();
         self.lyrics.tick();
+        self.artwork.tick(ctx);
         self.catalog.tick(&mut self.controller);
         self.draw(ctx);
         if self

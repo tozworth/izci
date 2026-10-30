@@ -119,6 +119,23 @@ impl RuntimeSource for NativeFileSource {
     fn revision(&self) -> u64 {
         self.revision
     }
+    fn verify_snapshot(&self) -> Result<()> {
+        let metadata = self.file.metadata().map_err(|e| LibzciError::Unavailable {
+            detail: format!("cannot verify file snapshot: {e}"),
+        })?;
+        let revision = metadata
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(metadata.len().wrapping_add(1));
+        if metadata.len() != self.len || revision != self.revision {
+            return Err(LibzciError::Unavailable {
+                detail: "file changed since it was opened".into(),
+            });
+        }
+        Ok(())
+    }
 
     fn caps(&self) -> SourceCaps {
         SourceCaps::seekable_stream(Some(self.len))

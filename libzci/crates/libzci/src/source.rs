@@ -107,6 +107,12 @@ pub trait RuntimeSource: Send + Sync + std::fmt::Debug {
     /// invalidates decoder preparation and derived caches without
     /// becoming a new rating/favorite identity (later phase).
     fn revision(&self) -> u64;
+    /// Finite inspection/rendition jobs verify their input before publishing.
+    /// Immutable snapshots need no extra work. Mutable native sources override
+    /// this to detect changes to the opened file without doing I/O per frame.
+    fn verify_snapshot(&self) -> Result<()> {
+        Ok(())
+    }
     /// Capabilities for provider selection and limit enforcement.
     fn caps(&self) -> SourceCaps;
     /// Read up to `buf.len()` bytes at absolute `offset`.

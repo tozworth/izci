@@ -8,6 +8,7 @@
 pub mod artwork;
 pub mod audio;
 mod gain_transport;
+pub mod images;
 pub mod lyrics;
 pub mod pcm_transport;
 pub mod playback;

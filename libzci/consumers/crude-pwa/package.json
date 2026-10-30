@@ -21,6 +21,7 @@
     "test:metadata": "node test/metadata.mjs",
     "test:play-counts": "node test/play-counts.mjs",
     "test:artwork": "node test/artwork.mjs",
+    "test:images": "node test/images.mjs",
     "test:normalization": "node test/normalization.mjs",
     "test:storage": "node test/storage.mjs",
     "test:installed": "node test/installed.mjs",
