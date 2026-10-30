@@ -4,6 +4,7 @@ import type {CommandKind} from './protocol.js';
 import type {QueueCommand,RealFileHandle} from './profile-types.js';
 import type {RealDirectoryHandle} from './profile-types.js';
 import type {Bookmark,CatalogCommand,CatalogOutcome,CatalogPage,CatalogQuery,CatalogGroupBy,CatalogGroupPage,ManagedRoot,ScanSettings} from './catalog-types.js';
+import type {LyricsDocument} from './lyrics-types.js';
 /** One profile lock encloses the SQL worker, decoder, output and Media Session.
  * Attached documents send bounded idempotent requests and acknowledge snapshots. */
 export class BrowserRuntime {
@@ -105,6 +106,8 @@ export class BrowserRuntime {
   catalogMutate(command:CatalogCommand):Promise<CatalogOutcome>{return this.request('catalog',['mutate',[command]]);}
   catalogRoots():Promise<ManagedRoot[]>{return this.request('catalog',['roots',[]]);}
   catalogBookmarks(media:number,subsong:number|null=null):Promise<Bookmark[]>{return this.request('catalog',['bookmarks',[media,subsong]]);}
+  catalogLyrics(media:number):Promise<LyricsDocument|null>{return this.request('catalog',['lyrics',[media]]);}
+  catalogCancelLyrics():Promise<void>{return this.request('catalog',['cancel-lyrics',[]]);}
   catalogAddRoot(handle:RealDirectoryHandle,settings:ScanSettings={recursive:true,scan_on_launch:false,verify_unknown:true,probe_concurrency:2}):Promise<CatalogOutcome>{return this.request('catalog',['add-root',[handle,settings]]);}
   catalogAddFiles(files:File[],handles:RealFileHandle[]=[],verifyUnknown=true):Promise<CatalogOutcome>{return this.request('catalog',['add-files',[files,handles,verifyUnknown]]);}
   catalogScan(root:number):Promise<void>{return this.request('catalog',['scan',[root]]);}

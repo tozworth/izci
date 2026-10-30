@@ -167,7 +167,15 @@ after `npm run build`, `npm run test:m3` (catalog/scans/owner loss/cold offline
 reopen and playback). Evidence and a reference screenshot are written under
 `.local/libzci/m3-*`. These use genuine OPFS handles; external picker grant and
 physical background acceptance remain separate checks. M3 artwork/images,
-lyrics, count accrual and additional metadata policy remain unfinished.
+count accrual and additional metadata policy remain unfinished.
+
+The Lyrics section uses the shared Rust document parser and cue lookup. The
+Library Lyrics action runs an independent ranged source job for ID3 USLT/lyric
+TXXX or FLAC/Vorbis/Opus comments; UTF-8 text/LRC sidecars are supported too.
+Follow/seek cues and display delay affect presentation only. Reads create no
+decoder/output, can be cancelled and never put lyric payloads in SQL. Routine
+provider facts omit embedded lyric/artwork payloads. `npm run test:metadata`
+checks real 300-cue fixtures, output independence and audible-clock UI behavior.
 
 Generate R3 inputs with pinned FFmpeg 8.1.1 and build the native reference CLI
 first (workspace README), then:

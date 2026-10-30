@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import init, { WebPreparation, classify, known_extension } from '../generated/libzci_web.js';
+import init, { WebPreparation, classify, known_extension,metadata_tag_visible } from '../generated/libzci_web.js';
 import { openProvider, type Backend, type Facts } from './browser-providers.js';
 import { openWebCodecs } from './webcodecs-opus.js';
 import createCodec from '../generated/opus-reference.js';
@@ -126,8 +126,8 @@ async function perform(job: DecodeJob): Promise<void> {
         const length=codec._zci_comment_length(handle,link,index),pointer=codec._zci_comment_data(handle,link,index);
         if(length<0||length>65536-commentBytes||length&&!pointer)throw {kind:'corrupt',detail:'Invalid bounded Opus comment'};
         commentBytes+=length;
-        const value=text.decode(codec.HEAPU8.subarray(pointer,pointer+length)),separator=value.indexOf('=');
-        if(separator>=0)opusComments.push([value.slice(0,separator).replace(/[a-z]/g,c=>c.toUpperCase()),value.slice(separator+1)]);
+        const bytes=codec.HEAPU8.subarray(pointer,pointer+length),separator=bytes.subarray(0,257).indexOf(61);
+        if(separator>=0){const key=text.decode(bytes.subarray(0,separator));if(metadata_tag_visible(key))opusComments.push([key.replace(/[a-z]/g,c=>c.toUpperCase()),text.decode(bytes.subarray(separator+1))]);}
       }
       if(job.preferWebCodecs&&codec._zci_links(handle)===1) {
         try {backend=await openWebCodecs(source.id,file,codec._zci_total(handle),yieldTask,check);}

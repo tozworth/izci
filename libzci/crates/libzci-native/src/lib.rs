@@ -6,6 +6,7 @@
 //! arrive in later phases through their own modules.
 
 pub mod audio;
+pub mod lyrics;
 pub mod pcm_transport;
 pub mod playback;
 pub mod probe;

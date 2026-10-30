@@ -170,6 +170,7 @@ impl SymphoniaInstance {
             comments.extend(
                 rev.tags()
                     .iter()
+                    .filter(|tag| !libzci::provider::is_embedded_payload_key(&tag.key))
                     .take(128)
                     .map(|t| (t.key.clone(), t.value.to_string())),
             );
@@ -178,6 +179,7 @@ impl SymphoniaInstance {
             comments.extend(
                 rev.tags()
                     .iter()
+                    .filter(|tag| !libzci::provider::is_embedded_payload_key(&tag.key))
                     .take(128)
                     .map(|t| (t.key.clone(), t.value.to_string())),
             );

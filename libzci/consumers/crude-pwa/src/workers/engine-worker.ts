@@ -149,6 +149,8 @@ self.onmessage = async e => {
         case 'groups':value=catalog.groups(m.args[0],m.args[1]);break;
         case 'roots':value=catalog.roots();break;
         case 'bookmarks':value=catalog.bookmarks(m.args[0],m.args[1]);break;
+        case 'lyrics':value=await catalog.lyrics(m.args[0]);break;
+        case 'cancel-lyrics':catalog.cancelLyrics();break;
         case 'mutate':value=catalog.mutate(m.args[0],m.request);break;
         case 'add-root':value=await catalog.addRoot(m.args[0],m.args[1],m.request);break;
         case 'add-files':value=await catalog.addFiles(m.args[0],m.args[1],m.args[2],m.request);break;

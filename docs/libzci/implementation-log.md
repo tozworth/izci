@@ -170,6 +170,39 @@ prefill rather than an earlier output report. Missing native executables report
 the actual spawn error. One intermediate validation run was invalidated by a
 concurrent generated-WASM reload; the final pass used fixed generated assets.
 
+Shared transient lyrics now include a bounded plain/LRC parser, clock offsets,
+multiple/out-of-order timestamps, simultaneous cue groups, explicit clear cues,
+binary-search audible-time lookup and expanded-text/input limits. Native and
+WASM expose the same document semantics. Independent source jobs read ID3v2.2/
+2.3/2.4 USLT and lyric TXXX fields, FLAC comments and continued Vorbis/Opus Ogg
+packets with ranged reads, length/CRC/continuation validation and cancellation.
+Normal ID3 reads skip unrelated artwork rather than copying it; global v2.2/2.3
+unsynchronization has a separate bounded tag-buffer fallback. Compressed/encrypted
+lyric frames are unsupported; UTF-8/Latin-1/UTF-16 lyric text is supported.
+Input text is capped at 256 KiB, individual lines at 4096 bytes, 8192 timed cues,
+expanded cue text at 1 MiB, individual comment packets at 4 MiB and metadata scan
+span at 64 MiB. Nothing is persisted in catalog/queue records.
+
+Both crudes expose transient embedded/sidecar lyrics, follow/seek cues and a
+display-delay tweak. Browser lookups resolve real catalog references through the
+owner, with bounded concurrent cancellable worker jobs and no decoder/output.
+The presentation uses Rust cue lookup and only highlights the matching playing
+source. Routine Opus/Symphonia playback/probe facts now omit embedded lyric and
+artwork payloads; the on-demand jobs own their retrieval.
+
+Verification: five pure parser/ranged-reader tests include short reads, large
+skipped artwork, text encodings, corrupt lengths/CRC and expansion budgets. Two
+native job tests verify no-provider operation and cancellation during a held
+source while another job completes. Core/native and native Opus suites plus
+crude-native controller/headless-egui tests pass. Rebuilt WASM, PWA typecheck,
+`test:metadata`, build and production `test:m3` pass. Synthetic FFmpeg 8.1.1
+MP3/FLAC/Vorbis/Opus fixtures yield all 300 cues beyond regular metadata-field
+truncation. Browser checks cover no-output jobs, cancellation, cue highlighting,
+display-delay clearing, foreign-source isolation and absent embedded payloads
+in automatic snapshots. Production cold offline tests execute the on-demand
+reader worker from cached assets. Remaining M3 work includes ReplayGain policy/
+processing, play counts and artwork/images; M4-M6/A1/A2 remain open.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

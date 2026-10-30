@@ -19,6 +19,26 @@ use crate::audio::pcm::{ChannelLayout, PcmChunk, PcmLayout};
 use crate::error::{LibzciError, Result};
 use crate::source::{CancelFlag, RuntimeSource};
 
+/// Embedded payloads are retrieved by explicit source jobs, never copied into
+/// routine probe/playback facts or durable normalized catalog metadata.
+pub fn is_embedded_payload_key(key: &str) -> bool {
+    [
+        "lyrics",
+        "unsyncedlyrics",
+        "unsynced lyrics",
+        "syncedlyrics",
+        "synced lyrics",
+        "uslt",
+        "sylt",
+        "metadata_block_picture",
+        "coverart",
+        "coverartmime",
+        "coverarturl",
+    ]
+    .iter()
+    .any(|candidate| key.trim().eq_ignore_ascii_case(candidate))
+}
+
 /// Static identity for one provider implementation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ProviderId(pub &'static str);

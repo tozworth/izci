@@ -10,7 +10,7 @@ export class CatalogView {
   private epoch=0;
   private selected:CatalogRow|null=null;
   private filter:Pick<CatalogQuery,'artist'|'album'|'genre'|'kind'>={};
-  constructor(private runtime:BrowserRuntime,private log:(message:string)=>void){
+  constructor(private runtime:BrowserRuntime,private log:(message:string)=>void,private lyrics:(row:CatalogRow)=>void){
     element('catalog-refresh').onclick=()=>this.refresh();
     element('catalog-group').onchange=()=>{this.filter={};this.offset=0;this.refresh();};
     element('catalog-group-clear').onclick=()=>{this.filter={};this.offset=0;this.refresh();};
@@ -63,6 +63,7 @@ export class CatalogView {
     const tr=document.createElement('tr');
     const cell=(value:string)=>{const td=document.createElement('td');td.textContent=value;tr.append(td);return td;};
     cell(`${row.metadata.title} · ${row.metadata.artist}`).append(this.button('Details',()=>{this.selected=row;this.details();}));
+    tr.lastElementChild!.append(this.button('Lyrics',()=>this.lyrics(row)));
     cell(row.source.display_path);const controls=cell('');
     if(row.kind!=='image')controls.append(this.button('Append to Queue',()=>this.run(this.runtime.queue({kind:'append',sources:[row.source]}))));
     controls.append(this.button(row.facts.favorite?'Unfavorite':'Favorite',()=>this.mutate({kind:'favorite',media:row.id,subsong:this.subsong(),favorite:!row.facts.favorite})));

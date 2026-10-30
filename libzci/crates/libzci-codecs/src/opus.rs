@@ -256,6 +256,9 @@ impl OpusInstance {
                 };
                 let text = String::from_utf8_lossy(bytes);
                 if let Some((key, value)) = text.split_once('=') {
+                    if libzci::provider::is_embedded_payload_key(key) {
+                        continue;
+                    }
                     instance
                         .comments
                         .push((key.to_ascii_uppercase(), value.to_owned()));

@@ -5,8 +5,10 @@ import { FileJob } from './file-job.js';
 import {queueView} from './queue-view.js';
 import {installPwa} from './pwa.js';
 import {CatalogView} from './catalog-view.js';
+import {LyricsView} from './lyrics-view.js';
 const byId=<T extends HTMLElement>(id:string):T=>document.getElementById(id) as T;
 let runtime!:BrowserRuntime;
+let lyrics:LyricsView|null=null;
 let disposed=false;
 let latest:Observation | null=null;
 const lines:string[]=[];
@@ -22,12 +24,14 @@ function table(id:string,rows:[string,unknown][]):void {
 }
 function create():void {
   runtime=new BrowserRuntime();disposed=false;
-  const catalog=new CatalogView(runtime,log);
+  lyrics?.close();lyrics=new LyricsView(runtime,log);
+  const catalog=new CatalogView(runtime,log,row=>{void lyrics!.open(row).catch(e=>log(String(e)));});
   runtime.onError=log;
   runtime.onObservation=o=>{
     latest=o;disposed=o.disposed;
     queueView(o,runtime,log);
     catalog.observe(o);
+    lyrics?.observe(o);
     const s=o.snapshot;
     for(const button of document.querySelectorAll<HTMLButtonElement>('[data-module]')) {
       const kind=button.dataset.module!;
@@ -92,5 +96,6 @@ Object.assign(window,{libzci:{load:(file:File)=>runtime.load(file),command:(kind
   ingest:(files:File[],handles:import('./profile-types.js').RealFileHandle[]=[],open=true)=>runtime.ingest(files,handles,open),
   catalogQuery:(query:import('./catalog-types.js').CatalogQuery={})=>runtime.catalogQuery(query),catalogMutate:(command:import('./catalog-types.js').CatalogCommand)=>runtime.catalogMutate(command),catalogRoots:()=>runtime.catalogRoots(),catalogBookmarks:(media:number,subsong:number|null=null)=>runtime.catalogBookmarks(media,subsong),
   catalogGroups:(by:import('./catalog-types.js').CatalogGroupBy,query:import('./catalog-types.js').CatalogQuery={})=>runtime.catalogGroups(by,query),
+  catalogLyrics:(media:number)=>runtime.catalogLyrics(media),catalogCancelLyrics:()=>runtime.catalogCancelLyrics(),
   catalogAddRoot:(handle:import('./profile-types.js').RealDirectoryHandle,settings?:import('./catalog-types.js').ScanSettings)=>runtime.catalogAddRoot(handle,settings),catalogAddFiles:(files:File[],handles:import('./profile-types.js').RealFileHandle[]=[],verify=true)=>runtime.catalogAddFiles(files,handles,verify),catalogScan:(root:number)=>runtime.catalogScan(root),catalogCancel:()=>runtime.catalogCancel(),
   job:(mode:'probe'|'render',verify=false)=>runtime.startJob(mode,verify).result,cancelJobs:()=>runtime.cancelJobs()}});

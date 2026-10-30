@@ -9,7 +9,7 @@ struct BrowserSql(js_sys::Function);
 fn js(e: impl ToString) -> JsValue {
     JsValue::from_str(&e.to_string())
 }
-fn typed(e: libzci::LibzciError) -> JsValue {
+pub(crate) fn typed(e: libzci::LibzciError) -> JsValue {
     let object = js_sys::Object::new();
     let _ = js_sys::Reflect::set(&object, &"kind".into(), &e.kind().into());
     let _ = js_sys::Reflect::set(&object, &"detail".into(), &e.to_string().into());
@@ -221,4 +221,9 @@ pub fn normalize_metadata(
         display_path,
     ))
     .map_err(js)
+}
+
+#[wasm_bindgen]
+pub fn metadata_tag_visible(key: &str) -> bool {
+    key.len() <= 256 && !libzci::provider::is_embedded_payload_key(key)
 }

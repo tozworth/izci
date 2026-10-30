@@ -1,5 +1,6 @@
 mod catalog_view;
 mod controller;
+mod lyrics_view;
 mod queue_view;
 mod smoke;
 use controller::Controller;
@@ -7,6 +8,7 @@ use eframe::egui;
 use libzci::*;
 use std::{path::Path, time::Duration};
 struct App {
+    lyrics: lyrics_view::LyricsView,
     catalog: catalog_view::CatalogView,
     controller: Controller,
     path: String,
@@ -24,6 +26,7 @@ struct App {
 impl Default for App {
     fn default() -> Self {
         Self {
+            lyrics: Default::default(),
             catalog: Default::default(),
             controller: Controller::new(),
             path: String::new(),
@@ -63,6 +66,7 @@ impl App {
             ui.label(format!("Session {} / generation {}   {:?}   requested {:?} / output {:?}",s.session.0,s.generation.0,s.state,s.requested,s.running));
             queue_view::draw(ui,&mut self.controller);
             self.catalog.draw(ui,&mut self.controller);
+            self.lyrics.draw(ui,&mut self.controller);
             ui.label(format!("Provider: {:?}   audible {:.3} s / {:?} frames   pending {} / EOF {}",s.provider,MediaTime::from_frames(s.position_frames,s.layout.map_or(1,|l|l.sample_rate)).0,s.total_frames,s.pending_operation,s.decoding_eof));
             if let Some(o)=self.controller.output() {ui.label(format!("Decoded {} / consumed {} / queued {} / underruns {} · {}",o.decoded_position,o.consumed_frames,o.ring_fill_frames,o.hungry_pops,o.device_label));}
             let c=s.capabilities;
@@ -109,6 +113,7 @@ impl App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.controller.tick();
+        self.lyrics.tick();
         self.catalog.tick(&mut self.controller);
         self.draw(ctx);
         if self

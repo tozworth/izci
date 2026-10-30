@@ -40,7 +40,15 @@ background enumeration/probing; rescan reconciles only that root after success.
 Cancel, corrupt files and missing/denied roots preserve prior membership/facts.
 Recursion, scan at launch, unknown verification and probe concurrency are stored
 per root. Scans do not open audio output. Catalog metadata is normalized in Rust;
-lyrics, artwork/images and continuous-play count accrual remain M3 work.
+artwork/images and continuous-play count accrual remain M3 work.
+
+Lyrics offers independent on-demand embedded reads and UTF-8 text/LRC sidecars,
+shared Rust timing/cue lookup, follow/seek controls and display delay. Reading
+lyrics creates no decoder or audio output and leaves the current music alone.
+Documents remain transient. Readers support ID3 USLT/lyric TXXX and FLAC/Vorbis/
+Opus comments; compressed/encrypted lyric frames are unsupported. Jobs can be
+cancelled, text/packet/cue expansion is bounded, and ordinary metadata facts omit
+embedded payloads. The native source-job tests require no codec libraries.
 
 Headless checks (after generating M1 fixtures):
 

@@ -11,6 +11,8 @@ pub mod bindings;
 pub mod demux;
 pub mod engine;
 #[cfg(target_arch = "wasm32")]
+pub mod lyrics;
+#[cfg(target_arch = "wasm32")]
 pub mod opus_packets;
 #[cfg(target_arch = "wasm32")]
 pub mod profile;

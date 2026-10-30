@@ -1,6 +1,7 @@
 import {known_extension,normalize_metadata,type WebProfile} from '../generated/libzci_web.js';
 import {Capabilities,type CapabilityStaging} from '../capabilities.js';
 import {ProbeWorker} from '../probe-worker.js';
+import {LyricsJob} from '../lyrics-job.js';
 import type {CatalogCommand,CatalogOutcome,CatalogPage,CatalogQuery,CatalogGroupBy,CatalogGroupPage,ManagedRoot,MediaInput,ScanObservation,ScanPlan,ScanSettings} from '../catalog-types.js';
 import type {RealDirectoryHandle,RealFileHandle,SourceReference} from '../profile-types.js';
 import type {Facts} from './browser-providers.js';
@@ -11,12 +12,22 @@ const extension=(name:string)=>name.split('.').pop()?.toLowerCase()??'';
 export class BrowserCatalog {
   private active:Active|null=null;
   private launch:number[]=[];
+  private lyricJobs=new Set<LyricsJob>();
   observation:ScanObservation={state:'idle',root:null,visited:0,accepted:0,ignored:0,detail:''};
   constructor(private core:WebProfile,private handles:Capabilities,private files:Map<string,File>,private staging:CapabilityStaging,private publish:()=>void){}
   query(query:CatalogQuery={}):CatalogPage{return JSON.parse(this.core.catalog_query(JSON.stringify(query)));}
   groups(by:CatalogGroupBy,query:CatalogQuery={}):CatalogGroupPage{return JSON.parse(this.core.catalog_groups(by,JSON.stringify(query)));}
   roots():ManagedRoot[]{return JSON.parse(this.core.managed_roots());}
   bookmarks(media:number,subsong:number|null){return JSON.parse(this.core.bookmarks(BigInt(media),subsong??undefined));}
+  async lyrics(media:number){
+    if(this.lyricJobs.size>=4)throw new Error('Concurrent lyric job budget exhausted');
+    const row=this.query({collection:'all',media,limit:1}).rows[0];if(!row)throw new Error('Unknown lyric media');
+    const source=row.source;const file=source.kind==='browser_handle'?await this.handles.resolve(source.locator):this.files.get(source.key);
+    if(!file)throw Object.assign(new Error('Lyric source is not currently accessible'),{kind:'access-required'});
+    if(this.lyricJobs.size>=4)throw Object.assign(new Error('Concurrent lyric job budget exhausted'),{kind:'resource-exhausted'});
+    const job=new LyricsJob(file);this.lyricJobs.add(job);try{return await job.result;}finally{this.lyricJobs.delete(job);}
+  }
+  cancelLyrics():void{for(const job of this.lyricJobs)job.cancel();this.lyricJobs.clear();}
   mutate(command:CatalogCommand,request?:string):CatalogOutcome{
     const outcome=JSON.parse(this.core.catalog_request(JSON.stringify(command),request)) as CatalogOutcome;
     if(!outcome.duplicate&&outcome.root&&this.active?.plan.root.id===outcome.root&&command.kind!=='finish_scan')this.cancel();
