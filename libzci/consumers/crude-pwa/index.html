@@ -44,6 +44,16 @@
       <button id="clear-up-next">Clear up-next</button><div id="up-next"></div>
       <div style="max-height:180px;overflow:auto"><table id="queue"></table></div>
     </fieldset>
+    <fieldset><legend>Library / managed folders</legend>
+      <button id="catalog-add-files">Add selected plain Files</button><button id="catalog-add-handles">Add restorable files…</button><button id="catalog-add-root">Add folder…</button><button id="catalog-cancel">Cancel scan</button>
+      <div id="catalog-scan-status"></div><div id="catalog-roots"></div>
+      <select id="catalog-collection"><option value="library">Library</option><option value="favorites">Favorites</option></select><input id="catalog-search" placeholder="Search title / artist / album" />
+      <select id="catalog-sort"><option value="title">Title</option><option value="artist">Artist</option><option value="album">Album</option><option value="rating">Rating</option><option value="path">Path</option></select>
+      <label><input id="catalog-descending" type="checkbox" /> Descending</label><label>Subsong <input id="catalog-subsong" type="number" min="0" placeholder="Whole media" /></label>
+      <button id="catalog-refresh">Refresh</button><button id="catalog-prev">Previous page</button><button id="catalog-next">Next page</button><span id="catalog-page"></span>
+      <div style="max-height:180px;overflow:auto"><table id="catalog-rows"></table></div><pre id="catalog-details"></pre>
+      <input id="catalog-bookmark-label" placeholder="Bookmark label" /><input id="catalog-bookmark-position" type="number" min="0" value="0" step="0.1" /><button id="catalog-bookmark-add">Bookmark selected item at (s)</button><div id="catalog-bookmarks"></div>
+    </fieldset>
     <fieldset><legend>Offline PWA</legend><span id="pwa-status">Development mode</span> <button id="install" hidden>Install</button><button id="update" hidden>Restart with update</button></fieldset>
     <fieldset>
       <legend>Module controls</legend>

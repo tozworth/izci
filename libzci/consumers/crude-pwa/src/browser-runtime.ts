@@ -2,6 +2,8 @@ import {LocalRuntime,type Observation} from './runtime.js';
 import {Capabilities} from './capabilities.js';
 import type {CommandKind} from './protocol.js';
 import type {QueueCommand,RealFileHandle} from './profile-types.js';
+import type {RealDirectoryHandle} from './profile-types.js';
+import type {Bookmark,CatalogCommand,CatalogOutcome,CatalogPage,CatalogQuery,ManagedRoot,ScanSettings} from './catalog-types.js';
 /** One profile lock encloses the SQL worker, decoder, output and Media Session.
  * Attached documents send bounded idempotent requests and acknowledge snapshots. */
 export class BrowserRuntime {
@@ -84,7 +86,7 @@ export class BrowserRuntime {
   }
   private async execute(action:string,args:any[],request?:string):Promise<unknown> {
     const r=this.local;if(!r)throw new Error('No owner');
-    switch(action){case 'load':return r.load(args[0],args[1],request);case 'ingest':return r.ingest(args[0],args[1],args[2],request);case 'command':return r.command(args[0],args[1],request);case 'queue':return r.queue(args[0],request);case 'restore':return r.restore();case 'suspend':return r.suspend();case 'resume':return r.resume();case 'job':return r.startJob(args[0],args[1]).result;case 'cancelJobs':return r.cancelJobs();default:throw new Error('Unknown owner request');}
+    switch(action){case 'catalog':return r.catalog(args[0],args[1],request);case 'load':return r.load(args[0],args[1],request);case 'ingest':return r.ingest(args[0],args[1],args[2],request);case 'command':return r.command(args[0],args[1],request);case 'queue':return r.queue(args[0],request);case 'restore':return r.restore();case 'suspend':return r.suspend();case 'resume':return r.resume();case 'job':return r.startJob(args[0],args[1]).result;case 'cancelJobs':return r.cancelJobs();default:throw new Error('Unknown owner request');}
   }
   private async request(action:string,args:unknown[]=[]):Promise<any> {
     await this.connected;
@@ -98,6 +100,15 @@ export class BrowserRuntime {
   ingest(files:File[],handles:RealFileHandle[]=[],open=true):Promise<void> {return this.request('ingest',[files,handles,open]);}
   command(kind:CommandKind,value=0):Promise<void> {return this.request('command',[kind,value]);}
   queue(command:QueueCommand):Promise<void> {return this.request('queue',[command]);}
+  catalogQuery(query:CatalogQuery={}):Promise<CatalogPage>{return this.request('catalog',['query',[query]]);}
+  catalogMutate(command:CatalogCommand):Promise<CatalogOutcome>{return this.request('catalog',['mutate',[command]]);}
+  catalogRoots():Promise<ManagedRoot[]>{return this.request('catalog',['roots',[]]);}
+  catalogBookmarks(media:number,subsong:number|null=null):Promise<Bookmark[]>{return this.request('catalog',['bookmarks',[media,subsong]]);}
+  catalogAddRoot(handle:RealDirectoryHandle,settings:ScanSettings={recursive:true,scan_on_launch:false,verify_unknown:true,probe_concurrency:2}):Promise<CatalogOutcome>{return this.request('catalog',['add-root',[handle,settings]]);}
+  catalogAddFiles(files:File[],handles:RealFileHandle[]=[],verifyUnknown=true):Promise<CatalogOutcome>{return this.request('catalog',['add-files',[files,handles,verifyUnknown]]);}
+  catalogScan(root:number):Promise<void>{return this.request('catalog',['scan',[root]]);}
+  catalogCancel():Promise<void>{return this.request('catalog',['cancel',[]]);}
+  grantCapability(locator:string):Promise<void>{return new Capabilities(this.profile).grant(locator);}
   async grant():Promise<void> {
     const s=this.latest?.profile;const occurrence=s?.queue.items.find(i=>i.id===s.queue.current);const source=s?.sources.find(r=>r.key===occurrence?.source_key);
     if(!source||source.kind!=='browser_handle')throw new Error('Current source has no restorable handle');

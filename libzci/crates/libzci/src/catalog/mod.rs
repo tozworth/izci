@@ -182,4 +182,6 @@ pub(crate) const SCHEMA: &[&str] = &[
     "CREATE TABLE managed_roots (id INTEGER PRIMARY KEY AUTOINCREMENT CHECK(id<=9007199254740991), source_key TEXT NOT NULL UNIQUE, config TEXT NOT NULL, revision INTEGER NOT NULL)",
     "CREATE TABLE root_memberships (root_id INTEGER NOT NULL REFERENCES managed_roots(id) ON DELETE CASCADE, media_id INTEGER NOT NULL REFERENCES media(id), PRIMARY KEY(root_id,media_id))",
     "CREATE INDEX media_roots ON root_memberships(media_id,root_id)",
+    "CREATE INDEX media_capabilities ON media(json_extract(reference,'$.kind'),json_extract(reference,'$.locator'))",
+    "CREATE INDEX root_capabilities ON managed_roots(json_extract(config,'$.source.kind'),json_extract(config,'$.source.locator'))",
 ];

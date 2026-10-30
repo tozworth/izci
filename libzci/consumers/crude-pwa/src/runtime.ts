@@ -3,8 +3,9 @@ import audioWasm from './generated/libzci_audio_web.wasm?url';
 import type { CommandKind, Snapshot } from './protocol.js';
 import { FileJob } from './file-job.js';
 import type {ProfileState,QueueCommand,RealFileHandle} from './profile-types.js';
+import type {ScanObservation} from './catalog-types.js';
 
-export interface Observation {snapshot:Snapshot; stats:Record<string,number>; output:Record<string,number>; disposed:boolean; sourceName?:string; sourceBytes?:number;profile?:ProfileState;access?:string;ownership?:string}
+export interface Observation {snapshot:Snapshot; stats:Record<string,number>; output:Record<string,number>; disposed:boolean; sourceName?:string; sourceBytes?:number;profile?:ProfileState;access?:string;ownership?:string;scan?:ScanObservation}
 /** Document adapter: activation/AudioContext/MediaSession and worker assembly.
  * No PCM traverses the document. Closing presentation does not drive transport. */
 export class LocalRuntime {
@@ -16,7 +17,7 @@ export class LocalRuntime {
   private setup:Promise<void> | null = null;
   private observation:Observation | null = null;
   private initialized:Promise<void>;
-  private pending=new Map<string,{resolve:()=>void;reject:(e:unknown)=>void}>();
+  private pending=new Map<string,{resolve:(value:any)=>void;reject:(e:unknown)=>void}>();
   onObservation:(o:Observation)=>void=()=>{};
   onError:(message:string)=>void=()=>{};
   constructor(profile:string) {
@@ -28,7 +29,7 @@ export class LocalRuntime {
       } else if(e.data.type==='source')this.file=e.data.file;
       else if(e.data.type==='profile-ready')resolve();
       else if(e.data.type==='profile-failed')reject(new Error(e.data.error));
-      else if(e.data.type==='result') {const pending=this.pending.get(e.data.request);this.pending.delete(e.data.request);if(e.data.error)pending?.reject(new Error(e.data.error));else pending?.resolve();}
+      else if(e.data.type==='result') {const pending=this.pending.get(e.data.request);this.pending.delete(e.data.request);if(e.data.error)pending?.reject(new Error(e.data.error));else pending?.resolve(e.data.value);}
       else if(e.data.type==='error') this.onError(`${e.data.kind}: ${e.data.detail}`);
     };
     this.engine.postMessage({type:'profile-init',name:profile});
@@ -78,10 +79,11 @@ export class LocalRuntime {
     await this.request({type:'load',file,preferWebCodecs},request);
     this.file=file;
   }
-  private async request(message:Record<string,unknown>,request:string=`${this.observation?.profile?.revision??0}:${crypto.randomUUID()}`):Promise<void> {
+  private async request<T=void>(message:Record<string,unknown>,request:string=`${this.observation?.profile?.revision??0}:${crypto.randomUUID()}`):Promise<T> {
     await this.initialized;if(this.pending.size>=32)throw new Error('Too many pending runtime commands');
-    await new Promise<void>((resolve,reject)=>{this.pending.set(request,{resolve,reject});this.engine.postMessage({...message,request});});
+    return new Promise<T>((resolve,reject)=>{this.pending.set(request,{resolve,reject});this.engine.postMessage({...message,request});});
   }
+  catalog(operation:string,args:unknown[],request?:string):Promise<unknown>{return this.request({type:'catalog',operation,args},request);}
   async ingest(files:File[],handles:RealFileHandle[]=[],open=true,request?:string):Promise<void> {await this.ensureOutput();await this.request({type:'ingest',files,handles,open},request);this.file=files[0]??this.file;}
   async queue(command:QueueCommand,request?:string):Promise<void> {if(['play','next','previous'].includes(command.kind))await this.ensureOutput();await this.request({type:'queue',command},request);}
   async restore():Promise<void> {await this.ensureOutput();await this.request({type:'restore'});}

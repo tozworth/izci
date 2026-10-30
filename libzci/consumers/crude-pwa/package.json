@@ -17,6 +17,7 @@
     "test:callbacks": "node test/callbacks.mjs",
     "test:m1": "node test/m1.mjs",
     "test:m2": "node test/m2.mjs",
+    "test:m3": "node test/m3.mjs",
     "test:storage": "node test/storage.mjs",
     "test:installed": "node test/installed.mjs",
     "test:update": "node test/update.mjs",

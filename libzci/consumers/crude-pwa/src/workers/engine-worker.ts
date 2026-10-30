@@ -43,7 +43,7 @@ function publish(): void {
   // One UI update in flight: a stalled document never grows a message queue.
   if (outstanding) return;
   outstanding = true; dirty = false;
-  self.postMessage({type:'snapshot',snapshot:snapshot(),stats,output:outputStats,disposed,sourceName:file?.name,sourceBytes:file?.size,profile:profile?.snapshot(),access:profile?.access});
+  self.postMessage({type:'snapshot',snapshot:snapshot(),stats,output:outputStats,disposed,sourceName:file?.name,sourceBytes:file?.size,profile:profile?.snapshot(),access:profile?.access,scan:profile?.catalog.observation});
 }
 function settings(): void {
   if(!output)return;
@@ -101,9 +101,10 @@ self.onmessage = async e => {
   try {
     if (!web) web = await ready;
     const m = e.data;
+    let value:unknown;
     if(m.type==='profile-init') {
       profileReady=(async()=>{profile=await ProfileController.open(m.name,queueLoad,()=>{if(snapshot().state!=='Idle')command('stop');},(volume,mute)=>{command('volume',volume);command('mute',Number(mute));},publish);publish();self.postMessage({type:'profile-ready'});})();
-      await profileReady;const settings=profile!.snapshot().settings;command('volume',settings.volume);command('mute',Number(settings.mute));return;
+      await profileReady;const settings=profile!.snapshot().settings;command('volume',settings.volume);command('mute',Number(settings.mute));profile!.catalog.launchScans();return;
     }
     if(profileReady)await profileReady;
     if (m.type === 'attach') {
@@ -141,6 +142,20 @@ self.onmessage = async e => {
       preferWebCodecs=!!m.preferWebCodecs;await profile!.ingest([m.file],[],true,m.request);
     } else if(m.type==='ingest') {await profile!.ingest(m.files,m.handles,m.open,m.request);}
     else if(m.type==='queue') {await profile!.command(m.command,m.request);}
+    else if(m.type==='catalog') {
+      const catalog=profile!.catalog;
+      switch(m.operation){
+        case 'query':value=catalog.query(m.args[0]);break;
+        case 'roots':value=catalog.roots();break;
+        case 'bookmarks':value=catalog.bookmarks(m.args[0],m.args[1]);break;
+        case 'mutate':value=catalog.mutate(m.args[0],m.request);break;
+        case 'add-root':value=await catalog.addRoot(m.args[0],m.args[1],m.request);break;
+        case 'add-files':value=await catalog.addFiles(m.args[0],m.args[1],m.args[2],m.request);break;
+        case 'scan':catalog.start(m.args[0]);break;
+        case 'cancel':catalog.cancel();break;
+        default:throw new Error('Unknown catalog operation');
+      }
+    }
     else if(m.type==='restore') {await profile!.restore();}
     else if (m.type === 'command') {
       if(m.kind==='volume')await profile!.command({kind:'volume',volume:m.value},m.request);
@@ -160,6 +175,6 @@ self.onmessage = async e => {
       settings(); publish();
     } else if (m.type === 'output-error') fail(snapshot().tag,'device-unavailable',m.detail);
     else if (m.type === 'ack') {outstanding = false; if (dirty) publish();}
-    if(m.request)self.postMessage({type:'result',request:m.request});
+    if(m.request)self.postMessage({type:'result',request:m.request,value});
   } catch (error) {const detail=failure(error);self.postMessage({type:'error',...detail});if(request)self.postMessage({type:'result',request,error:detail.detail});else if(e.data.type==='profile-init')self.postMessage({type:'profile-failed',error:detail.detail});}
 };

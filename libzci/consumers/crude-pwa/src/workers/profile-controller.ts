@@ -1,18 +1,22 @@
 import {openProfile} from './profile-storage.js';
-import {Capabilities} from '../capabilities.js';
+import {Capabilities,CapabilityStaging} from '../capabilities.js';
 import type {ProfileState,QueueCommand,QueueLoad,RealFileHandle,SourceReference} from '../profile-types.js';
 import type {WebProfile} from '../generated/libzci_web.js';
+import {BrowserCatalog} from './browser-catalog.js';
 export class ProfileController {
+  readonly catalog:BrowserCatalog;
   private cached:ProfileState|undefined;
   private files=new Map<string,File>();
-  private staging=new Set<string>();
+  private staging=new CapabilityStaging();
   private epoch=0;
   access='';
-  private constructor(private core:WebProfile,private handles:Capabilities,private load:(file:File,options:QueueLoad)=>void,private stop:()=>void,private settings:(volume:number,mute:boolean)=>void,private publish:()=>void) {}
+  private constructor(private core:WebProfile,private handles:Capabilities,private load:(file:File,options:QueueLoad)=>void,private stop:()=>void,private settings:(volume:number,mute:boolean)=>void,private publish:()=>void) {
+    this.catalog=new BrowserCatalog(core,handles,this.files,this.staging,()=>{this.cached=undefined;this.publish();});
+  }
   static async open(name:string,load:(file:File,options:QueueLoad)=>void,stop:()=>void,settings:(volume:number,mute:boolean)=>void,publish:()=>void):Promise<ProfileController> {
     const core=await openProfile(name),handles=new Capabilities(name);
     const controller=new ProfileController(core,handles,load,stop,settings,publish);
-    await handles.recover(new Set(controller.snapshot().sources.filter(s=>s.kind==='browser_handle').map(s=>s.locator)));
+    await handles.recoverReferenced(key=>core.references_browser_capability(key));
     await controller.restore();return controller;
   }
   snapshot():ProfileState {return this.cached??=JSON.parse(this.core.snapshot()) as ProfileState;}
@@ -36,20 +40,20 @@ export class ProfileController {
     if(!s.queue.current)this.access='no selected source';
     if(outcome.load)await this.materialize(outcome.load);
     if(command.kind==='remove') {
-      await this.handles.recover(()=>new Set(this.snapshot().sources.filter(r=>r.kind==='browser_handle').map(r=>r.locator)),this.staging);
-      const live=this.snapshot().sources;
-      for(const key of this.files.keys())if(!live.some(r=>r.key===key))this.files.delete(key);
+      await this.handles.recoverReferenced(key=>this.core.references_browser_capability(key),this.staging);
+      for(const key of this.files.keys())if(!this.core.references_source(key))this.files.delete(key);
     }
     return outcome;
   }
   async ingest(files:File[],handles:RealFileHandle[]=[],open=true,request=crypto.randomUUID()):Promise<void> {
     if(!files.length||files.length>10000||handles.length&&handles.length!==files.length)throw new Error('Invalid source batch');
     const sources:SourceReference[]=[];
+    const stagedKeys=new Set<string>();
     try {
     for(const file of files) {
-      const handle=handles[sources.length];const key=`${request}/${sources.length}`;
+      const handle=handles[sources.length];let key=`${request}/${sources.length}`;
+      this.staging.protect(key,stagedKeys);if(handle)key=await this.handles.stage(handle,key,resolved=>this.staging.protect(resolved,stagedKeys));
       sources.push({key,kind:handle?'browser_handle':'ephemeral',locator:key,display_path:file.name});
-      this.staging.add(key);if(handle)await this.handles.stage(handle,key);
     }
     // Files become reachable only after the durable SQL reference commit.
     const append=await this.command({kind:'append',sources},`${request}/append`);
@@ -61,6 +65,6 @@ export class ProfileController {
       if(outcome.load){outcome.load.autoplay=false;await this.materialize(outcome.load);}
     }
     this.publish();
-    }finally{for(const source of sources)this.staging.delete(source.key);}
+    }finally{this.staging.release(stagedKeys);}
   }
 }

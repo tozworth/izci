@@ -1,0 +1,78 @@
+// Real OPFS handles and SQLite, production workers/WASM and muted Chromium.
+// External picker grants and physical background lifecycle remain separate.
+import {chromium} from 'playwright';
+import {preview} from 'vite';
+import assert from 'node:assert/strict';
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+const root=fileURLToPath(new URL('../../../../',import.meta.url));
+const server=await preview({root:path.join(root,'libzci/consumers/crude-pwa'),preview:{port:5197,strictPort:true}});
+const browser=await chromium.launch({headless:true,args:['--mute-audio']});
+const context=await browser.newContext();const results=[],errors=[];
+await context.addInitScript(()=>{window.audioContexts=0;const Original=window.AudioContext;window.AudioContext=class extends Original{constructor(...args){super(...args);window.audioContexts++;}};});
+const open=async()=>{const page=await context.newPage();page.on('pageerror',e=>errors.push(String(e)));await page.goto('http://localhost:5197/?profile=m3-test');await page.waitForFunction(()=>window.libzci?.snapshot()?.profile);return page;};
+const waitScan=async page=>{try{await page.waitForFunction(()=>window.libzci.snapshot()?.scan?.state!=='scanning',undefined,{timeout:30000});}catch(e){console.error(await page.evaluate(()=>({scan:window.libzci.snapshot()?.scan,log:document.querySelector('#diagnostics')?.textContent})));throw e;}};
+try{
+  let owner=await open();const bytes=Array.from(await readFile(path.join(root,'.local/libzci/media/m1/44100-1.wav')));
+  const ids=await owner.evaluate(async bytes=>{
+    const api=window.libzci;
+    await api.catalogAddFiles([new File([new Uint8Array(bytes)],'plain.wav')],[],false);
+    const opfs=await navigator.storage.getDirectory(),music=await opfs.getDirectoryHandle('music',{create:true}),nested=await music.getDirectoryHandle('nested',{create:true});
+    for(const [dir,name]of [[music,'a.wav'],[nested,'b.wav']]){const file=await dir.getFileHandle(name,{create:true}),writer=await file.createWritable();await writer.write(new Uint8Array(bytes));await writer.close();}
+    const note=await music.getFileHandle('ignored.txt',{create:true}),writer=await note.createWritable();await writer.write('not media');await writer.close();
+    const settings={recursive:true,scan_on_launch:false,verify_unknown:false,probe_concurrency:2};
+    const root=(await api.catalogAddRoot(music,settings)).root;await api.catalogScan(root);return {root};
+  },bytes);
+  await waitScan(owner);
+  let page=await owner.evaluate(()=>window.libzci.catalogQuery());assert.equal(page.total,3);
+  const a=page.rows.find(r=>r.source.display_path.endsWith('/a.wav')),b=page.rows.find(r=>r.source.display_path.endsWith('/b.wav'));assert(a&&b);assert.notEqual(a.id,b.id);
+  assert.equal(await owner.evaluate(()=>window.audioContexts),0,'catalog scans/probes create no audio output');
+  assert.equal((await owner.evaluate(()=>window.libzci.snapshot())).snapshot.state,'Idle');
+  results.push({test:'real folder enumeration and reusable background probes commit three media without an audio output'});
+  const repeated=await owner.evaluate(async()=>{const music=await(await navigator.storage.getDirectory()).getDirectoryHandle('music'),handle=await music.getFileHandle('a.wav');return window.libzci.catalogAddFiles([await handle.getFile()],[handle],false);});
+  assert.equal(repeated.media[0],a.id);assert.equal((await owner.evaluate(()=>window.libzci.catalogQuery())).total,3);
+  await owner.evaluate(async id=>{const api=window.libzci;await api.catalogMutate({kind:'favorite',media:id,subsong:null,favorite:true});await api.catalogMutate({kind:'rate',media:id,subsong:0,rating:7});await api.catalogMutate({kind:'bookmark',media:id,subsong:0,position_seconds:1.25,label:'Intro'});},b.id);
+  const nested=await owner.evaluate(async()=>{const directory=await(await(await navigator.storage.getDirectory()).getDirectoryHandle('music')).getDirectoryHandle('nested');const result=await window.libzci.catalogAddRoot(directory,{recursive:true,scan_on_launch:false,verify_unknown:false,probe_concurrency:1});await window.libzci.catalogScan(result.root);return result.root;});
+  await waitScan(owner);assert.equal((await owner.evaluate(()=>window.libzci.catalogQuery())).total,3);
+  const nestedPage=await owner.evaluate(root=>window.libzci.catalogQuery({root}),nested);assert.equal(nestedPage.rows[0].id,b.id);
+  await owner.evaluate(async root=>{const roots=await window.libzci.catalogRoots(),r=roots.find(r=>r.id===root);await window.libzci.catalogMutate({kind:'root',root:{...r.config,settings:{...r.config.settings,recursive:false}}});await window.libzci.catalogScan(root);},ids.root);
+  await waitScan(owner);assert.equal((await owner.evaluate(()=>window.libzci.catalogQuery())).total,3,'nested root still owns b');
+  await owner.evaluate(root=>window.libzci.catalogMutate({kind:'remove_root',root}),nested);assert.equal((await owner.evaluate(()=>window.libzci.catalogQuery())).total,2);
+  assert.equal((await owner.evaluate(()=>window.libzci.catalogQuery({collection:'favorites'}))).rows[0].id,b.id);
+  results.push({test:'same-entry identity across imports and overlapping roots, independent facts and root ownership'});
+  const attached=await open();await attached.waitForFunction(()=>window.libzci.snapshot()?.ownership==='attached');assert.equal(attached.workers().length,0);
+  assert.equal((await attached.evaluate(()=>window.libzci.catalogQuery({collection:'favorites',subsong:0}))).total,0,'subsong favorite is independent');
+  assert.equal((await attached.evaluate(()=>window.libzci.catalogQuery({collection:'all',subsong:0}))).rows.find(r=>r.id===b.id).facts.rating,7);
+  await owner.close();owner=attached;await owner.waitForFunction(()=>window.libzci.snapshot()?.ownership==='owner');
+  assert.equal((await owner.evaluate(id=>window.libzci.catalogBookmarks(id,0),b.id))[0].position_seconds,1.25);
+  await owner.reload();await owner.waitForFunction(()=>window.libzci?.snapshot()?.profile);
+  const favorites=await owner.evaluate(()=>window.libzci.catalogQuery({collection:'favorites'}));assert.equal(favorites.rows[0].id,b.id);
+  await owner.evaluate(async source=>{await window.libzci.command('volume',0.02);await window.libzci.queue({kind:'append',sources:[source]});await window.libzci.queue({kind:'next',ended:false});},favorites.rows[0].source);
+  await owner.waitForFunction(()=>window.libzci.snapshot()?.snapshot.position_frames>1000&&window.libzci.snapshot()?.output.energy>0);await owner.evaluate(()=>window.libzci.command('pause'));
+  results.push({test:'catalog-only capabilities/facts survive owner loss and reload, then play through the real shared output'});
+  const before=await owner.evaluate(()=>window.libzci.catalogQuery());
+  await owner.evaluate(async root=>{await window.libzci.catalogScan(root);await window.libzci.catalogCancel();},ids.root);await waitScan(owner);
+  assert.deepEqual((await owner.evaluate(()=>window.libzci.catalogQuery())).rows,before.rows);
+  await owner.evaluate(async root=>{const music=await(await navigator.storage.getDirectory()).getDirectoryHandle('music'),file=await music.getFileHandle('broken.wav',{create:true}),writer=await file.createWritable();await writer.write('corrupt');await writer.close();await window.libzci.catalogScan(root);},ids.root);
+  await waitScan(owner);assert.equal((await owner.evaluate(()=>window.libzci.snapshot())).scan.state,'failed');assert.deepEqual((await owner.evaluate(()=>window.libzci.catalogQuery())).rows,before.rows);
+  await owner.evaluate(async root=>{const music=await(await navigator.storage.getDirectory()).getDirectoryHandle('music');await music.removeEntry('broken.wav');await window.libzci.catalogScan(root);},ids.root);await waitScan(owner);
+  assert.equal((await owner.evaluate(()=>window.libzci.snapshot())).scan.state,'idle');
+  results.push({test:'cancelled and corrupt-file scans preserve prior membership, replacement scan recovers'});
+  await owner.locator('#catalog-refresh').click();await owner.waitForFunction(()=>document.querySelectorAll('#catalog-rows tr').length===2);
+  await owner.locator('#catalog-rows button').filter({hasText:'Details'}).first().click();await owner.waitForFunction(()=>document.querySelector('#catalog-details')?.textContent?.includes('metadata'));
+  await owner.screenshot({path:path.join(root,'.local/libzci/m3-catalog.png'),fullPage:true});
+  await owner.evaluate(async root=>{const r=(await window.libzci.catalogRoots()).find(r=>r.id===root);await window.libzci.catalogMutate({kind:'root',root:{...r.config,settings:{...r.config.settings,scan_on_launch:true}}});await navigator.serviceWorker.ready;},ids.root);
+  await owner.waitForFunction(()=>!!navigator.serviceWorker.controller);
+  await owner.close();await context.setOffline(true);owner=await open();
+  await owner.waitForFunction(()=>window.libzci.snapshot()?.scan?.detail?.startsWith('Scan complete'),undefined,{timeout:30000});
+  assert.equal((await owner.evaluate(()=>window.libzci.catalogQuery())).total,2);
+  assert.equal(await owner.evaluate(()=>window.audioContexts),0,'offline launch scan creates no audio output');
+  await owner.evaluate(()=>window.libzci.command('play'));await owner.waitForFunction(()=>window.libzci.snapshot()?.snapshot.position_frames>1000&&window.libzci.snapshot()?.output.energy>0);
+  results.push({test:'cold offline catalog reopen, launch scan, reusable probes and local playback use cached production assets'});
+  assert.deepEqual(errors,[]);
+}finally{
+  await mkdir(path.join(root,'.local/libzci'),{recursive:true});await writeFile(path.join(root,'.local/libzci/m3-browser-evidence.json'),JSON.stringify({results,errors},null,2));
+  await browser.close();await new Promise(resolve=>server.httpServer.close(resolve));
+}
+console.log(JSON.stringify(results,null,2));

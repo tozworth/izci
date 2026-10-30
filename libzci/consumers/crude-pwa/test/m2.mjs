@@ -38,13 +38,13 @@ try {
   results.push({test:'real OPFS SQLite commit, duplicate queue, move, settings and real worklet output',revision:state.revision});
   await owner.evaluate(()=>window.libzci.queue({kind:'clear_up_next'}));
   const retry={type:'request',from:'m2-retry-client',id:'retry-1',action:'queue',args:[{kind:'up_next',id:2}]};
-  const deliver=async page=>page.evaluate(message=>new Promise(resolve=>{const channel=new BroadcastChannel('libzci-crude-v1-m2-test');channel.onmessage=e=>{if(e.data.type==='result'&&e.data.id===message.id){channel.close();resolve(e.data);}};channel.postMessage(message);channel.postMessage(message);}),retry);
+  const deliver=async page=>page.evaluate(message=>new Promise(resolve=>{const channel=new BroadcastChannel('libzci-crude-v2-m2-test');channel.onmessage=e=>{if(e.data.type==='result'&&e.data.id===message.id){channel.close();resolve(e.data);}};channel.postMessage(message);channel.postMessage(message);}),retry);
   assert(!(await deliver(owner)).error);await wait(owner,()=>window.libzci.snapshot()?.profile?.queue.up_next.length===1);
   const attached=await open();await wait(attached,()=>window.libzci.snapshot()?.ownership==='attached'&&window.libzci.snapshot()?.profile?.queue.items.length===2);
   assert.equal(attached.workers().length,0,'attached document creates no engine/decoder/SQL worker');
   await attached.evaluate(()=>window.libzci.command('volume',0.29));
   await wait(owner,()=>Math.abs(window.libzci.snapshot()?.profile?.settings.volume-0.29)<0.0001);
-  const locks=await owner.evaluate(()=>navigator.locks.query());assert.equal(locks.held.filter(l=>l.name==='libzci-crude-profile-v1-m2-test').length,1);
+  const locks=await owner.evaluate(()=>navigator.locks.query());assert.equal(locks.held.filter(l=>l.name==='libzci-crude-profile-v2-m2-test').length,1);
   results.push({test:'attached commands commit through exactly one owner',held:locks.held});
   await owner.close();owner=attached;
   await wait(owner,()=>window.libzci.snapshot()?.ownership==='owner'&&window.libzci.snapshot()?.profile?.queue.items.length===2);
@@ -53,12 +53,12 @@ try {
   assert(!(await deliver(owner)).error);await wait(owner,()=>window.libzci.snapshot()?.profile?.queue.up_next.length===1);
   results.push({test:'duplicated requests remain idempotent after owner loss and SQL reopen'});
   await owner.evaluate(async()=>{
-    const request=indexedDB.open('libzci-crude-capabilities-v1-m2-test',1);const db=await new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+    const request=indexedDB.open('libzci-crude-capabilities-v2-m2-test',2);const db=await new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
     await new Promise((resolve,reject)=>{const tx=db.transaction('handles','readwrite'),store=tx.objectStore('handles'),all=store.getAll();all.onsuccess=()=>{store.put({...all.result[0],pending:true});store.put({...all.result[0],key:'crash-orphan',pending:true});};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();
   });
   await owner.reload();await wait(owner,()=>window.libzci.snapshot()?.profile?.queue.items.length===2&&window.libzci.snapshot()?.access==='granted');
-  const registry=await owner.evaluate(async()=>{const request=indexedDB.open('libzci-crude-capabilities-v1-m2-test',1);const db=await new Promise(resolve=>request.onsuccess=()=>resolve(request.result));const rows=await new Promise(resolve=>{const r=db.transaction('handles').objectStore('handles').getAll();r.onsuccess=()=>resolve(r.result.map(({key,pending})=>({key,pending})));});db.close();return rows;});
-  assert.equal(registry.length,2);assert(registry.every(r=>!r.pending));results.push({test:'pending SQL-referenced capabilities complete; unreferenced crash orphans are removed'});
+  const registry=await owner.evaluate(async()=>{const request=indexedDB.open('libzci-crude-capabilities-v2-m2-test',2);const db=await new Promise(resolve=>request.onsuccess=()=>resolve(request.result));const rows=await new Promise(resolve=>{const r=db.transaction('handles').objectStore('handles').getAll();r.onsuccess=()=>resolve(r.result.map(({key,pending})=>({key,pending})));});db.close();return rows;});
+  assert.equal(registry.length,1);assert(registry.every(r=>!r.pending));results.push({test:'real same-entry handles share one capability, SQL-referenced pending handles complete, crash orphans are removed'});
   await owner.evaluate(()=>window.libzci.command('play'));
   await wait(owner,()=>window.libzci.snapshot()?.output.energy>0&&window.libzci.snapshot()?.snapshot.position_frames>1000);
   await owner.evaluate(()=>window.libzci.command('pause'));
@@ -92,8 +92,9 @@ try {
   await owner.evaluate(async bytes=>{
     const root=await navigator.storage.getDirectory(),handle=await root.getFileHandle('race.opus',{create:true}),writer=await handle.createWritable();await writer.write(new Uint8Array(bytes));await writer.close();const file=await handle.getFile();
     await window.libzci.ingest([file],[handle],false);
-    const batch=window.libzci.ingest(Array(8).fill(file),Array(8).fill(handle),false);
-    const request=indexedDB.open('libzci-crude-capabilities-v1-m2-import-race',1),db=await new Promise(resolve=>request.onsuccess=()=>resolve(request.result));
+    const batchHandle=await root.getFileHandle('race-batch.opus',{create:true}),batchWriter=await batchHandle.createWritable();await batchWriter.write(file);await batchWriter.close();const batchFile=await batchHandle.getFile();
+    const batch=window.libzci.ingest(Array(8).fill(batchFile),Array(8).fill(batchHandle),false);
+    const request=indexedDB.open('libzci-crude-capabilities-v2-m2-import-race',2),db=await new Promise(resolve=>request.onsuccess=()=>resolve(request.result));
     const deadline=Date.now()+5000;
     for(;;){const staged=await new Promise(resolve=>{const all=db.transaction('handles').objectStore('handles').getAll();all.onsuccess=()=>resolve(all.result.some(r=>r.pending));});if(staged)break;if(Date.now()>deadline)throw new Error('Staged import was not observed');await new Promise(resolve=>setTimeout(resolve,0));}
     await Promise.all([window.libzci.queue({kind:'remove',id:1}),window.libzci.ingest([new File([file],'race-plain.opus')],[],false),batch]);db.close();

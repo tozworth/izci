@@ -23,7 +23,7 @@ Independent probe/render never changes playback. Raw render exports stereo
 float32 little-endian at 48000 Hz. Cancel jobs and Dispose release their work.
 Unknown-extension verification defaults off and affects only independent probing.
 
-The default profile is `.local/libzci/profiles/crude-native/` relative to the
+The default profile is `.local/libzci/profiles/crude-native-v2/` relative to the
 launch directory. `--profile DIR` selects another independent libzci profile.
 The file lock is acquired before SQL/output ownership; a second process using
 the same profile fails visibly. Queue duplicates, moves, remove/play, up-next,
@@ -33,6 +33,14 @@ batch without selecting it; queue Play selects an occurrence. Unavailable paths
 preserve the saved queue and resume position. Playback checkpoints at two-second
 intervals and on orderly close; abrupt termination can lose the last interval.
 The hidden test uses a transient profile.
+
+Expand Library / managed folders for catalog queries, Library/Favorites,
+ratings, bookmarks, queue append and root settings. Add folder starts bounded
+background enumeration/probing; rescan reconciles only that root after success.
+Cancel, corrupt files and missing/denied roots preserve prior membership/facts.
+Recursion, scan at launch, unknown verification and probe concurrency are stored
+per root. Scans do not open audio output. Catalog metadata is normalized in Rust;
+lyrics, artwork/images and continuous-play count accrual remain M3 work.
 
 Headless checks (after generating M1 fixtures):
 

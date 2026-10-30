@@ -393,6 +393,22 @@ impl Profile {
     pub fn cancel_scan(&self, token: &str, db: &mut dyn SqlBridge) -> Result<()> {
         crate::catalog::scans::cancel(db, token)
     }
+    /// Capability GC asks core about durable references, including catalog-only
+    /// files and roots. It must never infer liveness from the playback queue.
+    pub fn references_browser_capability(
+        &self,
+        locator: &str,
+        db: &mut dyn SqlBridge,
+    ) -> Result<bool> {
+        crate::catalog::text(locator, 8192, false)?;
+        use serde_json::json;
+        Ok(!db.statement("SELECT 1 FROM source_references WHERE json_extract(reference,'$.kind')='browser_handle' AND json_extract(reference,'$.locator')=? UNION ALL SELECT 1 FROM media WHERE json_extract(reference,'$.kind')='browser_handle' AND json_extract(reference,'$.locator')=? UNION ALL SELECT 1 FROM managed_roots WHERE json_extract(config,'$.source.kind')='browser_handle' AND json_extract(config,'$.source.locator')=? LIMIT 1",&[json!(locator),json!(locator),json!(locator)])?.is_empty())
+    }
+    pub fn references_source(&self, key: &str, db: &mut dyn SqlBridge) -> Result<bool> {
+        crate::catalog::text(key, 8192, false)?;
+        use serde_json::json;
+        Ok(!db.statement("SELECT 1 FROM source_references WHERE key=? UNION ALL SELECT 1 FROM media WHERE source_key=? UNION ALL SELECT 1 FROM managed_roots WHERE source_key=? LIMIT 1",&[json!(key),json!(key),json!(key)])?.is_empty())
+    }
 }
 
 fn validate_request(request: &str) -> Result<()> {

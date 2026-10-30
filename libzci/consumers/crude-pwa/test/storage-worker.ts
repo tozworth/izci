@@ -1,5 +1,7 @@
 import init,{WebProfile} from '../src/generated/libzci_web.js';
 import {openDatabase} from '../src/workers/profile-storage.js';
+import {Capabilities,CapabilityStaging} from '../src/capabilities.js';
+import type {RealFileHandle} from '../src/profile-types.js';
 const assert=(v:unknown,message:string)=>{if(!v)throw new Error(message);};
 self.onmessage=async()=>{try {
   await init();const {db,statement}=await openDatabase(`storage-proof-${crypto.randomUUID()}`);
@@ -64,7 +66,25 @@ self.onmessage=async()=>{try {
   scan=JSON.parse(profile.begin_scan(BigInt(root)));
   const empty=JSON.parse(profile.catalog_request(JSON.stringify({kind:'finish_scan',token:scan.token})));
   assert(empty.scan.removed===1&&JSON.parse(profile.catalog_query('{}')).total===1,'only successful empty scan removes root membership');
+  const handles=new Capabilities(`capabilities-${crypto.randomUUID()}`),staging=new CapabilityStaging();
+  const capabilityRoot=await(await navigator.storage.getDirectory()).getDirectoryHandle(`capability-proof-${crypto.randomUUID()}`,{create:true});
+  const handle=await capabilityRoot.getFileHandle('test.wav',{create:true}) as RealFileHandle;
+  const first=new Set<string>(),second=new Set<string>();
+  const key=await handles.stage(handle,'first',key=>staging.protect(key,first));
+  const same=await handles.stage(handle,'second',key=>staging.protect(key,second));assert(key===same,'real isSameEntry identity reuse');
+  staging.release(first);await handles.recoverReferenced(()=>false,staging);assert(await handles.get(key),'one remaining operation still protects shared capability');
+  staging.release(second);
+  // Identity discovery and cleanup serialize together; actual identity is
+  // protected before the registration lock can be handed to recovery.
+  const race=new Set<string>();
+  await Promise.all([handles.stage(handle,'third',key=>staging.protect(key,race)),handles.recoverReferenced(()=>false,staging)]);
+  assert(await handles.get(key),'identity/GC race preserves the staged handle');
+  const actualSource={key,kind:'browser_handle',locator:key,display_path:'test.wav'};
+  profile.catalog_request(JSON.stringify({...add,media:[{...add.media[0],source:actualSource}]}));staging.release(race);
+  await handles.recoverReferenced(key=>profile.references_browser_capability(key),staging);
+  assert(await handles.get(key),'catalog-only reference retains the capability without a queue row');
+  assert(profile.references_source(key),'source reference liveness includes catalog');
   statement('PRAGMA user_version=999','[]');profile.free();let schema=false;try{new WebProfile(bridge);}catch{schema=true;}assert(schema,'unknown schema rejected');
   assert(JSON.parse(statement('SELECT count(*) FROM queue_occurrences','[]'))[0][0]===2,'schema failure leaves rows intact');
-  db.close();self.postMessage({passed:['one shared SQL setting committed/reopened','duplicates','busy/quota/commit injection rollback','real SQLite page quota','durable retry receipt','schema refusal preserves data','catalog/favorites/subsong ratings/bookmarks OPFS reopen','catalog transaction rollback and durable receipts','independent catalog revision during playback checkpoints','managed root staging/reconciliation/cancellation and finish receipts']});
+  db.close();self.postMessage({passed:['one shared SQL setting committed/reopened','duplicates','busy/quota/commit injection rollback','real SQLite page quota','durable retry receipt','schema refusal preserves data','catalog/favorites/subsong ratings/bookmarks OPFS reopen','catalog transaction rollback and durable receipts','independent catalog revision during playback checkpoints','managed root staging/reconciliation/cancellation and finish receipts','real capability identity sharing, overlapping staging, GC serialization and catalog liveness']});
 }catch(e){self.postMessage({error:String(e)});}};

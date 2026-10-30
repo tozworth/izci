@@ -11,7 +11,8 @@ R4 is implemented with headless end-to-end evidence; hidden-tab/screen-off and
 physical-device validation keep its acceptance open. M1 has Windows native and
 headless Chromium and Android emulator Chrome evidence. M2 is implemented with
 Windows native, OPFS, multi-window, installed/offline and update evidence;
-physical-device lifecycle/grant checks remain pending. M3-M6 remain open.
+physical-device lifecycle/grant checks remain pending. M3 is in progress with
+catalog/facts and native/browser managed scans; M4-M6 remain open.
 GNU/Linux R3 recovery remains unverified target work. Execute in order; numbered items within a milestone are commit-sized
 units where coherent. A milestone closes when its deliverable works and the
 listed checks pass, not when its file list exists. Pending verification is a
@@ -254,6 +255,13 @@ loss/reconnect works; installed cold offline launch plays local files; update
 and physical-device lifecycle observations are recorded independently.
 
 ## M3: library, user facts, metadata, artwork, and images
+
+Status: **in progress** (2026-10-30). Shared catalog identities, membership,
+favorites/ratings/bookmarks, bounded queries and atomic root reconciliation are
+implemented. Both crudes have real folder probes and catalog controls, including
+browser capability recovery, owner handoff and offline launch scans. Metadata
+policy, grouping, continuous-play counts, lyrics, artwork/images and remaining
+acceptance work are still open. See the current implementation log.
 
 **Deliverable:** both crudes build/reopen a useful media library with working
 facts, scans, details, lyrics/patterns, artwork, and independent image navigation.

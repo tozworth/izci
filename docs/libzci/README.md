@@ -30,6 +30,13 @@ remain open; see the [M2 evidence](implementation-log.md#2026-10-23-m2-persisten
 
 ## Start here
 
+Current work (2026-10-30): M3 catalog/facts, native/browser root enumeration,
+atomic reconciliation and both crudes' catalog controls are implemented with
+SQLite/OPFS and muted Chromium evidence. Grouping, remaining metadata policy,
+play counts, lyrics, artwork/images and later M4-M6/A1/A2 remain open. The user's
+end-to-end completion request authorizes builds, tests and inspections with
+audio kept low; preserve ordinary izci profiles/grants throughout adoption.
+
 1. Read [the review](review.md) for the actual starting code.
 2. Read [the implementation design](scaffolding.md) for the command, decoder,
    buffer, and output flow to implement.

@@ -65,6 +65,7 @@ pub fn open(db: &mut dyn SqlBridge) -> Result<ProfileState> {
         transaction(db, |db| {
             for sql in [
                 "CREATE TABLE source_references (key TEXT PRIMARY KEY, reference TEXT NOT NULL)",
+                "CREATE INDEX source_capabilities ON source_references(json_extract(reference,'$.kind'),json_extract(reference,'$.locator'))",
                 "CREATE TABLE queue_occurrences (id INTEGER PRIMARY KEY, ordinal INTEGER NOT NULL UNIQUE, source_key TEXT NOT NULL REFERENCES source_references(key), subsong INTEGER)",
                 "CREATE TABLE sessions (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, navigation TEXT NOT NULL, position_seconds REAL NOT NULL, catalog_revision INTEGER NOT NULL)",
                 "CREATE TABLE domain_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",

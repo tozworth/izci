@@ -4,6 +4,7 @@ import type {CommandKind} from './protocol.js';
 import { FileJob } from './file-job.js';
 import {queueView} from './queue-view.js';
 import {installPwa} from './pwa.js';
+import {CatalogView} from './catalog-view.js';
 const byId=<T extends HTMLElement>(id:string):T=>document.getElementById(id) as T;
 let runtime!:BrowserRuntime;
 let disposed=false;
@@ -21,10 +22,12 @@ function table(id:string,rows:[string,unknown][]):void {
 }
 function create():void {
   runtime=new BrowserRuntime();disposed=false;
+  const catalog=new CatalogView(runtime,log);
   runtime.onError=log;
   runtime.onObservation=o=>{
     latest=o;disposed=o.disposed;
     queueView(o,runtime,log);
+    catalog.observe(o);
     const s=o.snapshot;
     for(const button of document.querySelectorAll<HTMLButtonElement>('[data-module]')) {
       const kind=button.dataset.module!;
@@ -87,4 +90,6 @@ Object.assign(window,{libzci:{load:(file:File)=>runtime.load(file),command:(kind
   snapshot:()=>latest,suspend:()=>runtime.suspend(),resume:()=>runtime.resume(),
   queue:(command:import('./profile-types.js').QueueCommand)=>runtime.queue(command),
   ingest:(files:File[],handles:import('./profile-types.js').RealFileHandle[]=[],open=true)=>runtime.ingest(files,handles,open),
+  catalogQuery:(query:import('./catalog-types.js').CatalogQuery={})=>runtime.catalogQuery(query),catalogMutate:(command:import('./catalog-types.js').CatalogCommand)=>runtime.catalogMutate(command),catalogRoots:()=>runtime.catalogRoots(),catalogBookmarks:(media:number,subsong:number|null=null)=>runtime.catalogBookmarks(media,subsong),
+  catalogAddRoot:(handle:import('./profile-types.js').RealDirectoryHandle,settings?:import('./catalog-types.js').ScanSettings)=>runtime.catalogAddRoot(handle,settings),catalogAddFiles:(files:File[],handles:import('./profile-types.js').RealFileHandle[]=[],verify=true)=>runtime.catalogAddFiles(files,handles,verify),catalogScan:(root:number)=>runtime.catalogScan(root),catalogCancel:()=>runtime.catalogCancel(),
   job:(mode:'probe'|'render',verify=false)=>runtime.startJob(mode,verify).result,cancelJobs:()=>runtime.cancelJobs()}});

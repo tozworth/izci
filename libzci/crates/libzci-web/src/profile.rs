@@ -163,4 +163,38 @@ impl WebProfile {
     pub fn cancel_scan(&mut self, token: &str) -> Result<(), JsValue> {
         self.core.cancel_scan(token, &mut self.db).map_err(typed)
     }
+    pub fn references_browser_capability(&mut self, locator: &str) -> Result<bool, JsValue> {
+        self.core
+            .references_browser_capability(locator, &mut self.db)
+            .map_err(typed)
+    }
+    pub fn references_source(&mut self, key: &str) -> Result<bool, JsValue> {
+        self.core
+            .references_source(key, &mut self.db)
+            .map_err(typed)
+    }
+}
+
+#[wasm_bindgen]
+pub fn normalize_metadata(
+    comments: &str,
+    duration_seconds: Option<f64>,
+    display_path: &str,
+) -> Result<String, JsValue> {
+    if comments.len() > 2 * 1024 * 1024 || display_path.len() > 8192 {
+        return Err(typed(libzci::LibzciError::ResourceExhausted {
+            detail: "metadata input budget exceeded".into(),
+        }));
+    }
+    let comments = serde_json::from_str::<Vec<(String, String)>>(comments).map_err(|e| {
+        typed(libzci::LibzciError::InvalidArgument {
+            detail: e.to_string(),
+        })
+    })?;
+    serde_json::to_string(&libzci::catalog::Metadata::from_comments(
+        &comments,
+        duration_seconds,
+        display_path,
+    ))
+    .map_err(js)
 }

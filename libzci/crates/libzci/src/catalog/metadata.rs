@@ -23,19 +23,23 @@ impl Metadata {
                 continue;
             }
             match key.trim().to_ascii_lowercase().as_str() {
-                "title" | "tit2" | "tracktitle" if result.title.is_empty() => result.title = value,
-                "artist" | "tpe1" | "performer" if result.artist.is_empty() => {
+                "title" | "tit2" | "tracktitle" | "inam" if result.title.is_empty() => {
+                    result.title = value
+                }
+                "artist" | "tpe1" | "performer" | "iart" if result.artist.is_empty() => {
                     result.artist = value
                 }
-                "album" | "talb" if result.album.is_empty() => result.album = value,
-                "genre" | "tcon" if result.genre.is_empty() => result.genre = value,
-                "tracknumber" | "track_number" | "track" | "trck" if result.track.is_none() => {
+                "album" | "talb" | "iprd" if result.album.is_empty() => result.album = value,
+                "genre" | "tcon" | "ignr" if result.genre.is_empty() => result.genre = value,
+                "tracknumber" | "track_number" | "track" | "trck" | "itrk"
+                    if result.track.is_none() =>
+                {
                     result.track = ordinal(&value)
                 }
                 "discnumber" | "disc_number" | "disc" | "tpos" if result.disc.is_none() => {
                     result.disc = ordinal(&value)
                 }
-                "date" | "year" | "tdrc" | "tyer" if result.year.is_none() => {
+                "date" | "year" | "tdrc" | "tyer" | "icrd" if result.year.is_none() => {
                     result.year = value.get(..4).and_then(|s| s.parse().ok())
                 }
                 _ => {}

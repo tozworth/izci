@@ -44,12 +44,12 @@ Open profile selects a named namespace (also `?profile=NAME`; default `default`)
 Shared Rust owns occurrence IDs, duplicate append/order/remove/play, up-next,
 shuffle cycles/history, repeat, previous restart threshold, settings and SQL.
 Native SQLite and official SQLite WASM 3.54.1-build1 execute those same bound
-statements. Browser SQL uses `opfs-sahpool` at `/libzci-crude-v1/NAME/` with
+statements. Browser SQL uses `opfs-sahpool` at `/libzci-crude-v2/NAME/` with
 `preserveOnInitFailure: true`; no initialization/reset path deletes domain data.
 Schema mismatch, quota/busy/commit failures publish no durable success.
 
 Open restorable files uses the genuine FSA picker. Real handles are kept in IDB
-`libzci-crude-capabilities-v1-NAME`, separate from SQL. The pending → SQL commit →
+`libzci-crude-capabilities-v2-NAME`, separate from SQL. The pending → SQL commit →
 completion protocol recovers referenced pending entries and removes orphaned
 registry entries. It preserves entries involved in concurrent imports. Startup
 only queries permission; Grant access and retry is an explicit user action.
@@ -149,6 +149,25 @@ come from snapshots. OS action exposure and physical background survival require
 separate device checks; the document contains no silent transport anchor yet.
 
 ## Validation
+
+The Library / managed folders section uses the shared Rust catalog API. It
+supports plain/restorable imports, Library/Favorites, sorting/filtering/pages,
+per-subsong ratings/favorites/bookmarks, and managed roots with recursion,
+launch scan, unknown verification and probe concurrency. Real handle identity
+uses `isSameEntry`; equal bytes at different entries do not merge. File/directory
+capabilities stay in their separate IDB registry and are retained for catalog
+references even without queue membership. Pending capability registration and
+cleanup serialize under the profile owner, with overlapping staging protected.
+
+Scans enumerate/probe in bounded reusable workers without an AudioContext and
+commit ownership only on complete success. Startup scans query permission and
+never prompt; use the explicit Grant access control before retrying denied roots.
+Reference checks: `npm run test:storage` (real OPFS SQL and capability races) and,
+after `npm run build`, `npm run test:m3` (catalog/scans/owner loss/cold offline
+reopen and playback). Evidence and a reference screenshot are written under
+`.local/libzci/m3-*`. These use genuine OPFS handles; external picker grant and
+physical background acceptance remain separate checks. M3 artwork/images,
+lyrics, count accrual and additional metadata policy remain unfinished.
 
 Generate R3 inputs with pinned FFmpeg 8.1.1 and build the native reference CLI
 first (workspace README), then:

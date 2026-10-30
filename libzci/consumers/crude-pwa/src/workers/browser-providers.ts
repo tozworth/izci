@@ -13,6 +13,7 @@ export interface Backend {
   retainedBytes?():number;
   interrupt?():void;
 }
+let modules:Promise<any>|null=null;
 export async function openProvider(kind:string,id:number,file:File,read:(offset:number,length:number)=>Uint8Array,yieldTask:()=>Promise<void>,check:()=>void):Promise<Backend> {
   if(kind==='ordinary') {
     const decoder=new WebAudioDecoder(id,file.size);
@@ -23,7 +24,7 @@ export async function openProvider(kind:string,id:number,file:File,read:(offset:
     };
   }
   if(file.size>64*1024*1024)throw {kind:'resource-exhausted',detail:'Module exceeds 64 MiB'};
-  const c=await createModules({locateFile:()=>new URL(moduleWasm,import.meta.url).href});check();
+  const c=await (modules??=createModules({locateFile:()=>new URL(moduleWasm,import.meta.url).href}));check();
   const input=c._malloc(file.size);if(!input)throw {kind:'resource-exhausted',detail:'module buffer allocation'};
   let handle=0,pointer=0;
   try {

@@ -83,6 +83,48 @@ cancellation, corrupt/missing inputs and catalog/scan/profile suites. `cargo tes
 ... -p crude-native` passed its two controller/headless-egui tests. No physical
 listening or screenshot acceptance is inferred from those checks.
 
+Committed slices: `79c3f410` catalog/facts/query foundation, `c2751a86` atomic
+managed-root reconciliation, and `f8db8d0e` native probes/catalog controls.
+
+Browser catalog controls now use the same owner worker and Rust APIs, with
+bounded reusable probe workers and real directory enumeration. No AudioContext
+is created by catalog import/probe/scan. Module codec assembly is reused within
+a worker while decoder contexts remain independent. Metadata aliases include
+RIFF INFO fields as well as ID3/Vorbis names. Both roots and catalog-only files
+participate in core-owned capability liveness. Real `isSameEntry` identity is
+reused across pickers and overlapping roots; source bytes do not deduplicate.
+Stable path candidates accelerate repeated identity lookups. Handle recovery
+uses bounded IDB pages, serializes with registration, and protects overlapping
+staging with reference counts rather than prematurely deleting shared handles.
+Scan failures and replacement cancellation release workers/staging without
+overwriting the new operation's progress. Root grants are queried at launch;
+only explicit document controls request them.
+
+Validation after these browser changes:
+
+- Control/audio WASM build, crude PWA `npm run typecheck`, `npm run build`, and
+  `npm run test:storage` pass. The latter now checks genuine OPFS same-entry
+  handles, overlapping staging, registration/GC races and catalog-only liveness.
+- `npm run test:m3` passes real folder probes without output, same-entry catalog
+  imports/overlapping roots, per-subsong facts/bookmarks, attached queries with
+  no attached workers, owner loss/reload, catalog-only capability playback,
+  cancellation/corrupt-file preservation and recovery, and cold offline reopen
+  with automatic launch scans/probes and real output. Chromium is muted; the
+  test playback master is 0.02. Evidence: `.local/libzci/m3-browser-evidence.json`
+  and inspected screenshot `.local/libzci/m3-catalog.png`.
+- `npm run test:m2` passes the existing production worklet, queue/settings,
+  owner re-election/idempotence, capability crash recovery, cold offline,
+  initialization failure and concurrent import/removal scenarios. Fixture checks
+  use fresh v2 profiles, and duplicate handles now share one source capability
+  while preserving duplicate queue occurrences.
+- Native catalog/scan/profile/real-folder suites still pass after shared SQL
+  liveness/index and metadata changes. External picker grant interactions,
+  physical Android and true background/screen-off remain unverified.
+
+Current M3 remainder: grouping, supplemental metadata/ReplayGain/lyrics policy,
+audible-timeline play counts, artwork/image jobs/cache/navigation, plus their
+consumer controls and acceptance. M4-M6 and server/Svelte adoption remain open.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

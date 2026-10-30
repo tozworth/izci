@@ -108,3 +108,11 @@ screen-off/OS actions and physical Android remain pending. FFI remains later wor
 See [M2 evidence](../docs/libzci/implementation-log.md#2026-10-23-m2-persistent-queue-and-installed-pwa).
 Generated outputs stay in `target/` and `.local/libzci/`; ordinary player data and
 grants are preserved. The [roadmap](../docs/libzci/phases.md) owns later work.
+
+M3 is in progress: shared SQL catalog identities/revisions, independent Library
+membership, per-subsong favorites/ratings/bookmarks, bounded indexed queries,
+managed root settings and atomic reconciliation now work through native and WASM
+profile APIs. Both crudes expose catalog controls and real bounded folder probes.
+Browser identity/grants survive owner loss, catalog-only reopen and cold offline
+launch scans. New defaults use schema/profile namespace v2, preserving old data
+without migration. Remaining M3 behavior and M4-M6/server/shell adoption are open.
