@@ -36,6 +36,8 @@ pub struct Snapshot {
     pub metadata: Option<std::sync::Arc<crate::ProviderMetadata>>,
     pub volume: f32,
     pub mute: bool,
+    pub replay_gain: crate::ReplayGainSettings,
+    pub normalization: crate::Normalization,
     pub requested: crate::RequestedState,
     pub running: crate::RunningState,
     pub decoding_eof: bool,

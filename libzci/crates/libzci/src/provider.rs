@@ -21,7 +21,22 @@ use crate::source::{CancelFlag, RuntimeSource};
 
 /// Embedded payloads are retrieved by explicit source jobs, never copied into
 /// routine probe/playback facts or durable normalized catalog metadata.
+/// Strip a provider's ID3 user-text frame wrapper. The descriptor is the actual
+/// comment name (e.g. Symphonia reports TXXX:REPLAYGAIN_TRACK_GAIN).
+pub fn metadata_comment_key(key: &str) -> &str {
+    let key = key.trim();
+    for prefix in ["TXXX:", "TXX:"] {
+        if key
+            .get(..prefix.len())
+            .is_some_and(|k| k.eq_ignore_ascii_case(prefix))
+        {
+            return key[prefix.len()..].trim();
+        }
+    }
+    key
+}
 pub fn is_embedded_payload_key(key: &str) -> bool {
+    let key = metadata_comment_key(key);
     [
         "lyrics",
         "unsyncedlyrics",
@@ -558,6 +573,22 @@ pub fn registry_map(reg: &ProviderRegistry) -> HashMap<&'static str, &'static st
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn embedded_payloads_stay_on_demand_under_id3_user_text_wrappers() {
+        for key in [
+            "LYRICS",
+            "TXXX:LYRICS",
+            "TXX:uslt",
+            "txxx:METADATA_BLOCK_PICTURE",
+            " TXXX:coverart ",
+            "SYLT",
+        ] {
+            assert!(super::is_embedded_payload_key(key), "{key}");
+        }
+        for key in ["曲", "TITLE", "TXXX:REPLAYGAIN_TRACK_GAIN"] {
+            assert!(!super::is_embedded_payload_key(key), "{key}");
+        }
+    }
     use super::*;
     use crate::source::MemSource;
 

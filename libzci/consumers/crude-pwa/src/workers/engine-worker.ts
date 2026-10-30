@@ -1,7 +1,7 @@
 import init, { WebEngine } from '../generated/libzci_web.js';
 import { failure, sameTag, type Snapshot, type Tag } from '../protocol.js';
 import {ProfileController} from './profile-controller.js';
-import type {QueueLoad} from '../profile-types.js';
+import type {QueueLoad,QueueSettings} from '../profile-types.js';
 
 const decoder = new Worker(new URL('./decode-worker.ts', import.meta.url), {type:'module'});
 const ready = init().then(() => new WebEngine());
@@ -54,7 +54,14 @@ function settings(): void {
     decoder.postMessage({type:'invalidate'});
     output.postMessage({type:'reset',generation,position:s.position_frames});
   }
-  output.postMessage({type:'settings',generation,running:s.requested === 'Running' && !s.pending_operation && s.state !== 'Failed',volume:s.volume,mute:s.mute,latency});
+  output.postMessage({type:'settings',generation,running:s.requested === 'Running' && !s.pending_operation && s.state !== 'Failed',volume:s.volume,mute:s.mute,replayGain:s.normalization.linear,latency});
+}
+function profileSettings(s:QueueSettings):void {
+  const observed=snapshot();
+  if(observed.volume!==s.volume)command('volume',s.volume);
+  if(observed.mute!==s.mute)command('mute',Number(s.mute));
+  if(JSON.stringify(observed.replay_gain)!==JSON.stringify(s.replay_gain))web.replay_gain(JSON.stringify(s.replay_gain));
+  settings();publish();
 }
 function command(kind: string, value = 0): void {
   const result = JSON.parse(web.command(kind, value));
@@ -103,8 +110,8 @@ self.onmessage = async e => {
     const m = e.data;
     let value:unknown;
     if(m.type==='profile-init') {
-      profileReady=(async()=>{profile=await ProfileController.open(m.name,queueLoad,()=>{if(snapshot().state!=='Idle')command('stop');},(volume,mute)=>{command('volume',volume);command('mute',Number(mute));},publish);publish();self.postMessage({type:'profile-ready'});})();
-      await profileReady;const settings=profile!.snapshot().settings;command('volume',settings.volume);command('mute',Number(settings.mute));profile!.catalog.launchScans();return;
+      profileReady=(async()=>{profile=await ProfileController.open(m.name,queueLoad,()=>{if(snapshot().state!=='Idle')command('stop');},profileSettings,publish);publish();self.postMessage({type:'profile-ready'});})();
+      await profileReady;profileSettings(profile!.snapshot().settings);profile!.catalog.launchScans();return;
     }
     if(profileReady)await profileReady;
     if (m.type === 'attach') {

@@ -9,6 +9,7 @@ type AudioWasm = WebAssembly.Exports & {
   renderer_input(p:number):number; renderer_output(p:number):number;
   renderer_reset(p:number,g:number,position:number):void;
   renderer_settings(p:number,r:number,v:number,m:number,l:number):void;
+  renderer_replay_gain(p:number,gain:number):void;
   renderer_enqueue(p:number,id:number,g:number,start:number,end:number,output:number,sourceRate:number,rate:number,frames:number):number;
   renderer_eof(p:number,g:number):void; renderer_process(p:number):void;
   renderer_recycled_count(p:number):number; renderer_recycled(p:number,n:number):number;
@@ -84,6 +85,7 @@ class Output extends AudioWorkletProcessor {
       this.control.postMessage({type:m.type==='anchor'?'anchor-ack':'reset-ack',generation:m.generation});
     } else if (m.type==='settings' && m.generation===this.generation) {
       this.wasm.renderer_settings(this.pointer,Number(m.running),m.volume,Number(m.mute),m.latency);
+      this.wasm.renderer_replay_gain(this.pointer,m.replayGain);
     }
   }
   process(_inputs:Float32Array[][],outputs:Float32Array[][]): boolean {

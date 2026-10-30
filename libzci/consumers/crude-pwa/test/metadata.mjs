@@ -61,7 +61,7 @@ try{
   await page.waitForFunction(()=>window.libzci.snapshot()?.snapshot.position_frames>=4800&&document.querySelectorAll('#lyrics-rows [aria-current]').length===1);
   await page.evaluate(()=>window.libzci.command('pause'));await page.locator('#lyrics-delay').fill('1');await page.locator('#lyrics-delay').dispatchEvent('change');await page.waitForFunction(()=>!document.querySelector('#lyrics-rows [aria-current]'));
   await page.locator('#lyrics-delay').fill('0');await page.locator('#lyrics-delay').dispatchEvent('change');await page.waitForFunction(()=>!!document.querySelector('#lyrics-rows [aria-current]'));
-  assert(!(await page.evaluate(()=>window.libzci.snapshot().snapshot.metadata)).some(([key])=>key==='LYRICS'),'automatic transport snapshots omit embedded payloads');
+  assert(!(await page.evaluate(()=>window.libzci.snapshot().snapshot.metadata)).some(([key])=>key.toUpperCase().includes('LYRICS')),'automatic transport snapshots omit embedded payloads');
   const transport=await page.evaluate(()=>window.libzci.snapshot().snapshot);
   await page.locator('#catalog-rows tr').filter({hasText:'lyrics.mp3'}).getByRole('button',{name:'Lyrics',exact:true}).click();
   await page.waitForFunction(()=>!document.querySelector('#lyrics-rows [aria-current]'));

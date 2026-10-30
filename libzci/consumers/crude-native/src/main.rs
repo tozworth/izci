@@ -1,6 +1,7 @@
 mod catalog_view;
 mod controller;
 mod lyrics_view;
+mod normalization_view;
 mod queue_view;
 mod smoke;
 use controller::Controller;

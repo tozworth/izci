@@ -1,22 +1,23 @@
-//! Shared output processing: channel mapping plus master gain/mute.
+//! Shared output processing: pre-Raf ReplayGain and post-Raf master gain/mute.
 //!
-//! Signal ownership (contracts §5), current slice in Phase 2.1:
+//! Signal ownership (contracts §5):
 //!
 //! ```text
 //! source -> [transition envelope: Phase 5] -> raw program tap
-//!                                          -> [ReplayGain: later] -> [Raf: Phase 5]
+//!                                          -> ReplayGain -> [Raf: M4]
 //!                                          -> analysis -> master gain/mute -> output
 //! ```
 //!
-//! [`AudioProcessor`] owns the master stage today: mono-to-stereo
-//! mapping, finite anchored gain/mute ramps, and the raw-program tap
-//! point before any future ReplayGain/Raf processing. No tap consumer
+//! [`AudioProcessor`] owns separate normalization and master stages: stereo
+//! linked finite anchored ramps, and the raw-program tap before ReplayGain.
+//! No tap consumer
 //! is attached here. Parameter updates are differential and smoothed
 //! from the last rendered value — never stepped.
 
-/// Master gain/mute stage with ramp smoothing and a raw tap.
+/// Separate pre-Raf normalization and master gain/mute, with a raw tap.
 #[derive(Debug)]
 pub struct AudioProcessor {
+    replay_gain: GainRamp,
     /// Last rendered effective gain, including mute. Every retarget anchors here.
     rendered_gain: f32,
     /// Gain target for the next blocks.
@@ -38,6 +39,7 @@ impl AudioProcessor {
     pub fn new() -> Self {
         Self {
             rendered_gain: 1.0,
+            replay_gain: GainRamp::new(),
             target_gain: 1.0,
             target_mute: false,
             ramp_frames: 240,
@@ -45,6 +47,38 @@ impl AudioProcessor {
             ramp_from: 1.0,
             last_raw_peak: 0.0,
         }
+    }
+
+    /// Configure the actual output rate before processing. Both gain envelopes
+    /// last five milliseconds at this rate, independent of source/decoder rate.
+    pub fn set_sample_rate(&mut self, rate: u32) {
+        if rate == 0 {
+            return;
+        }
+        let frames = ((rate as u64 * 5) / 1000).max(1) as usize;
+        if self.ramp_frames != frames {
+            self.ramp_frames = frames;
+            self.replay_gain.frames = frames;
+            if self.ramp_left > 0 {
+                self.ramp_from = self.rendered_gain;
+                self.ramp_left = frames;
+            }
+            self.replay_gain.reanchor();
+        }
+    }
+    /// Effective linear normalization, resolved by shared control policy.
+    /// Invalid targets are ignored. This stage precedes Raf and master gain.
+    pub fn set_replay_gain(&mut self, gain: f32) {
+        if gain.is_finite() && (0.0..=1000.0).contains(&gain) {
+            self.replay_gain.target(gain);
+        }
+    }
+    /// Prime a new source before its first audible frame. Reusing the previous
+    /// source's normalization would produce an unintended startup boost/cut.
+    pub fn reset_replay_gain(&mut self, gain: f32) {
+        self.set_replay_gain(gain);
+        self.replay_gain.rendered = self.replay_gain.target;
+        self.replay_gain.left = 0;
     }
 
     /// Set the master volume (linear 0..=1, clamped, finite).
@@ -125,8 +159,11 @@ impl AudioProcessor {
                 }
             }
             self.rendered_gain = gain;
-            destination[0] = source[0] * gain;
-            destination[1] = source[1] * gain;
+            let normalization = self.replay_gain.next();
+            // Finite providers can exceed unity. Preserve headroom rather than
+            // clipping to full scale; saturate only floating-point overflow.
+            destination[0] = (source[0] * normalization).clamp(f32::MIN, f32::MAX) * gain;
+            destination[1] = (source[1] * normalization).clamp(f32::MIN, f32::MAX) * gain;
         }
         self.last_raw_peak = peak;
     }
@@ -147,7 +184,7 @@ impl AudioProcessor {
     pub fn apply_gain(samples: &mut [f32], gain: f32) {
         debug_assert!(gain.is_finite());
         for sample in samples {
-            *sample *= gain;
+            *sample = (*sample * gain).clamp(f32::MIN, f32::MAX);
         }
     }
     /// Explicit mono-to-stereo upmix (`out` gets `L,R = m,m`).
@@ -160,6 +197,50 @@ impl AudioProcessor {
     }
 }
 
+#[derive(Debug)]
+struct GainRamp {
+    rendered: f32,
+    target: f32,
+    from: f32,
+    frames: usize,
+    left: usize,
+}
+impl GainRamp {
+    fn new() -> Self {
+        Self {
+            rendered: 1.0,
+            target: 1.0,
+            from: 1.0,
+            frames: 240,
+            left: 0,
+        }
+    }
+    fn reanchor(&mut self) {
+        if self.left > 0 {
+            self.from = self.rendered;
+            self.left = self.frames;
+        }
+    }
+    fn target(&mut self, target: f32) {
+        if target != self.target {
+            self.target = target;
+            self.from = self.rendered;
+            self.left = self.frames;
+        }
+    }
+    fn next(&mut self) -> f32 {
+        if self.left > 0 {
+            let done = (self.frames - self.left + 1) as f32 / self.frames as f32;
+            self.rendered = self.from + (self.target - self.from) * done;
+            self.left -= 1;
+        }
+        if self.left == 0 {
+            self.rendered = self.target;
+        }
+        self.rendered
+    }
+}
+
 impl Default for AudioProcessor {
     fn default() -> Self {
         Self::new()
@@ -169,6 +250,37 @@ impl Default for AudioProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn independent_normalization_keeps_raw_peak_headroom_and_actual_rate_ramps() {
+        for rate in [44100, 48000, 96000] {
+            let mut p = AudioProcessor::new();
+            p.set_sample_rate(rate);
+            p.set_replay_gain(0.5);
+            let frames = (rate as usize * 5) / 1000;
+            let mut output = vec![0.0; frames * 2];
+            p.process_stereo(&vec![2.0; frames * 2], &mut output);
+            assert!(output[0] > 1.9);
+            assert_eq!(output[output.len() - 1], 1.0);
+            assert_eq!(p.last_raw_peak(), 2.0);
+            assert!(output.as_chunks::<2>().0.iter().all(|v| v[0] == v[1]));
+            p.set_replay_gain(2.0);
+            let mut first = [0.0; 2];
+            p.process_stereo(&[2.0; 2], &mut first);
+            assert!((first[0] - 1.0).abs() < 0.02);
+            p.reset_replay_gain(0.25);
+            p.process_stereo(&[2.0; 2], &mut first);
+            assert_eq!(first, [0.5; 2]);
+            p.reset_replay_gain(1000.0);
+            p.process_stereo(&[f32::MAX; 2], &mut first);
+            assert!(first.into_iter().all(f32::is_finite));
+            p.set_replay_gain(f32::NAN);
+            p.set_replay_gain(f32::INFINITY);
+            p.set_replay_gain(-1.0);
+            p.process_stereo(&[1.0; 2], &mut first);
+            assert_eq!(first, [1000.0; 2]);
+        }
+    }
 
     #[test]
     fn unity_passthrough_and_peak_tap() {

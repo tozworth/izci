@@ -1,5 +1,5 @@
 import type {SourceReference} from './profile-types.js';
-export interface Metadata {title:string;artist:string;album:string;genre:string;year:number|null;track:number|null;disc:number|null;duration_seconds:number|null}
+export interface Metadata {title:string;artist:string;album:string;genre:string;year:number|null;track:number|null;disc:number|null;duration_seconds:number|null;replay_gain?:{track_gain_db:number|null;album_gain_db:number|null;track_peak:number|null;album_peak:number|null;r128_track_gain_q8:number|null;r128_album_gain_q8:number|null}}
 export interface MediaInput {source:SourceReference;kind:'audio'|'module'|'video'|'image';source_revision:string;metadata:Metadata}
 export interface CatalogRow extends MediaInput {id:number;in_library:boolean;facts:{favorite:boolean;rating:number;play_count:number;last_played_ms:number|null}}
 export interface CatalogPage {revision:number;total:number;rows:CatalogRow[]}

@@ -222,6 +222,14 @@ disabled. Production tests cover full 30-second output, pause/seek/stop/mute,
 source access loss, missing codec assets, suspension, a debugger-paused decoder,
 and a stalled UI. Raw WASM tests verify exact marked samples and fixed memory.
 
+ReplayGain / R128 controls shared persisted session settings and displays the
+core's effective gain. Normalization precedes Raf/master, defaults off and is
+independent of raw jobs. The R128 target defaults to -18 LUFS; peak protection
+uses ReplayGain peak tags when available. Per-link normalization for chained
+Opus remains under development. `npm run test:normalization` generates synthetic
+tagged fixtures and measures actual muted worklet output, settings rollback and
+SQL reopen across reference/WebCodecs Opus, MP3, FLAC and Vorbis.
+
 Evidence lives in `.local/libzci/r4-*-evidence.json` and the implementation log.
 Headless foreground/output success does not establish hidden-tab, screen-off,
 physical Android, hardware listening or installed/offline behavior. Record each

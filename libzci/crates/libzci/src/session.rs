@@ -64,6 +64,8 @@ impl Session {
                 metadata: None,
                 volume: 1.0,
                 mute: false,
+                replay_gain: ReplayGainSettings::default(),
+                normalization: Normalization::default(),
                 requested: RequestedState::Held,
                 running: RunningState::Closed,
                 decoding_eof: false,
@@ -150,6 +152,7 @@ impl Session {
                 self.snapshot.provider = None;
                 self.snapshot.layout = None;
                 self.snapshot.metadata = None;
+                self.snapshot.normalization = Normalization::default();
                 self.snapshot.module = None;
                 self.snapshot.capabilities = ModuleCapabilities::default();
                 self.snapshot.total_frames = None;
@@ -236,6 +239,11 @@ impl Session {
                 self.snapshot.volume = *volume;
             }
             Command::SetMute { mute, .. } => self.snapshot.mute = *mute,
+            Command::SetReplayGain { settings, .. } => {
+                settings.validate()?;
+                self.snapshot.replay_gain = *settings;
+                self.normalize();
+            }
             Command::Module { control, .. } => {
                 if self.snapshot.layout.is_none() {
                     return Err(invalid("module is not loaded"));
@@ -285,7 +293,20 @@ impl Session {
         self.snapshot.total_frames = metadata.total_frames;
         self.snapshot.capabilities = capabilities;
         self.snapshot.metadata = Some(std::sync::Arc::new(metadata));
+        self.normalize();
         self.landed(tag, position)
+    }
+    fn normalize(&mut self) {
+        self.snapshot.normalization =
+            self.snapshot
+                .metadata
+                .as_ref()
+                .map_or_else(Normalization::default, |m| {
+                    self.snapshot
+                        .replay_gain
+                        .resolve(&ReplayGainMetadata::from_comments(&m.comments))
+                        .expect("validated settings and parsed tags")
+                });
     }
     pub fn observed(&mut self, tag: JobTag, observation: Option<crate::ModuleObservation>) {
         if self.accepts(tag) {
@@ -363,6 +384,78 @@ fn invalid(detail: &str) -> LibzciError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn normalization_is_session_owned_validated_and_rejects_stale_source_facts() {
+        let mut s = Session::new(SessionId::fresh());
+        let settings = ReplayGainSettings {
+            mode: ReplayGainMode::Track,
+            ..Default::default()
+        };
+        let request = RequestId::fresh();
+        s.accept(&Command::SetReplayGain {
+            session: s.id(),
+            request_id: request,
+            settings,
+        })
+        .unwrap();
+        let revision = s.revision();
+        s.accept(&Command::SetReplayGain {
+            session: s.id(),
+            request_id: request,
+            settings,
+        })
+        .unwrap();
+        assert_eq!(s.revision(), revision);
+        assert!(s
+            .accept(&Command::SetReplayGain {
+                session: s.id(),
+                request_id: RequestId::fresh(),
+                settings: ReplayGainSettings {
+                    preamp_db: f32::NAN,
+                    ..settings
+                }
+            })
+            .is_err());
+        assert_eq!(s.revision(), revision);
+        s.accept(&Command::Load {
+            session: s.id(),
+            request_id: RequestId::fresh(),
+            source: SourceId::fresh(),
+            extension_hint: None,
+            options: LoadOptions::default(),
+        })
+        .unwrap();
+        let first = s.tag();
+        let mut metadata = crate::provider::FakeFactory::new(48000, PcmLayout::mono48k())
+            .open(
+                std::sync::Arc::new(MemSource::new(b"FAKE".to_vec())),
+                &CancelFlag::default(),
+            )
+            .unwrap()
+            .metadata();
+        metadata.comments = vec![("R128_TRACK_GAIN".into(), "256".into())];
+        assert!(s.opened(first, metadata.clone(), ModuleCapabilities::default(), 0));
+        assert_eq!(s.snapshot().normalization.gain_db, 6.0);
+        s.accept(&Command::SetVolume {
+            session: s.id(),
+            request_id: RequestId::fresh(),
+            volume: 0.02,
+        })
+        .unwrap();
+        assert_eq!(s.snapshot().normalization.gain_db, 6.0);
+        s.accept(&Command::Load {
+            session: s.id(),
+            request_id: RequestId::fresh(),
+            source: SourceId::fresh(),
+            extension_hint: None,
+            options: LoadOptions::default(),
+        })
+        .unwrap();
+        assert_eq!(s.snapshot().normalization, Normalization::default());
+        assert!(!s.opened(first, metadata, ModuleCapabilities::default(), 0));
+        assert_eq!(s.snapshot().normalization, Normalization::default());
+        assert_eq!(s.snapshot().replay_gain, settings);
+    }
     #[test]
     fn time_conversion_validates_units() {
         assert_eq!(MediaTime(0.5).frames(44_100).unwrap(), 22_050);

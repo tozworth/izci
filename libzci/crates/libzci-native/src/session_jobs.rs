@@ -46,6 +46,7 @@ impl Control {
             );
             output.set_volume(s.volume);
             output.set_mute(s.mute);
+            output.set_replay_gain(s.normalization.linear);
             if self.closed {
                 output.stop();
             }

@@ -37,6 +37,7 @@ pub struct OutputMonitor {
     stopped: AtomicBool,
     volume: AtomicU32,
     mute: AtomicBool,
+    replay_gain: AtomicU32,
     queued_frames: AtomicUsize,
     render_epoch: AtomicU64,
     media_position: AtomicU64,
@@ -74,6 +75,11 @@ impl OutputMonitor {
     }
     pub fn set_mute(&self, mute: bool) {
         self.mute.store(mute, Ordering::Relaxed);
+    }
+    pub fn set_replay_gain(&self, gain: f32) {
+        if gain.is_finite() && (0.0..=1000.0).contains(&gain) {
+            self.replay_gain.store(gain.to_bits(), Ordering::Relaxed);
+        }
     }
     pub fn len_frames(&self) -> usize {
         self.queued_frames.load(Ordering::Acquire)
@@ -147,6 +153,7 @@ pub struct PcmConsumer {
     clock: libzci::audio::clock::MediaClock,
     clock_generation: Generation,
     latency: u64,
+    prime_gain: bool,
 }
 
 /// Preallocate before starting output. The returned endpoints have unique queue
@@ -185,6 +192,7 @@ pub fn pcm_transport(
         stopped: AtomicBool::new(false),
         volume: AtomicU32::new(1.0f32.to_bits()),
         mute: AtomicBool::new(false),
+        replay_gain: AtomicU32::new(1.0f32.to_bits()),
         queued_frames: AtomicUsize::new(0),
         render_epoch: AtomicU64::new(0),
         media_position: AtomicU64::new(0),
@@ -210,6 +218,7 @@ pub fn pcm_transport(
             clock: Default::default(),
             clock_generation: generation,
             latency: 0,
+            prime_gain: true,
         },
         monitor,
     )
@@ -306,6 +315,7 @@ impl PcmConsumer {
         if self.clock_generation != generation {
             self.clock.reset();
             self.clock_generation = generation;
+            self.prime_gain = true;
             self.monitor.media_valid.store(false, Ordering::Release);
         }
         let mut frames = 0;
@@ -321,6 +331,8 @@ impl PcmConsumer {
                 let index = self.active.unwrap();
                 // SAFETY: producer cannot regain this index until release_active.
                 let slot = unsafe { &*self.monitor.pool.slots[index].get() };
+                self.processor
+                    .set_sample_rate(slot.block.layout.sample_rate);
                 let count = (out.len() / 2 - frames).min(slot.block.valid_frames - self.offset);
                 out[frames * 2..(frames + count) * 2]
                     .copy_from_slice(&slot.samples[self.offset * 2..(self.offset + count) * 2]);
@@ -375,6 +387,13 @@ impl PcmConsumer {
             .set_volume(f32::from_bits(self.monitor.volume.load(Ordering::Relaxed)));
         self.processor
             .set_mute(self.monitor.mute.load(Ordering::Relaxed));
+        let replay_gain = f32::from_bits(self.monitor.replay_gain.load(Ordering::Relaxed));
+        if frames > 0 && self.prime_gain {
+            self.processor.reset_replay_gain(replay_gain);
+            self.prime_gain = false;
+        } else {
+            self.processor.set_replay_gain(replay_gain);
+        }
         self.processor
             .process_stereo_in_place(&mut out[..frames * 2]);
         self.monitor.render_epoch.fetch_add(1, Ordering::Release);

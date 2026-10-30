@@ -10,7 +10,15 @@ use std::sync::Arc;
 #[derive(Clone, Copy, Debug)]
 pub enum ProcessingMode {
     Raw,
-    Master { volume: f32, mute: bool },
+    Master {
+        volume: f32,
+        mute: bool,
+    },
+    Processed {
+        replay_gain: ReplayGainSettings,
+        volume: f32,
+        mute: bool,
+    },
 }
 #[derive(Clone, Debug)]
 pub struct RenderOptions {
@@ -57,6 +65,7 @@ pub struct RenderJob {
     preparation: Option<OutputPreparation>,
     progress: RenderProgress,
     complete: bool,
+    normalization: Normalization,
 }
 impl NativeRuntime {
     pub fn start_render(
@@ -67,7 +76,12 @@ impl NativeRuntime {
         cancel: &CancelFlag,
     ) -> Result<RenderJob> {
         PcmLayout::new(ChannelLayout::Stereo, options.output_rate)?;
-        if let ProcessingMode::Master { volume, .. } = options.processing {
+        if let ProcessingMode::Processed { replay_gain, .. } = options.processing {
+            replay_gain.validate()?;
+        }
+        if let ProcessingMode::Master { volume, .. } | ProcessingMode::Processed { volume, .. } =
+            options.processing
+        {
             if !volume.is_finite() || !(0.0..=1.0).contains(&volume) {
                 return Err(LibzciError::InvalidArgument {
                     detail: "render volume must be in 0..=1".into(),
@@ -112,6 +126,7 @@ impl NativeRuntime {
                 retained_bytes: 0,
             },
             complete: false,
+            normalization: Normalization::default(),
         })
     }
 }
@@ -136,9 +151,18 @@ impl RenderJob {
                 let mut output = None;
                 p.pump(|block, samples| {
                     let mut samples = samples.to_vec();
-                    if let ProcessingMode::Master { volume, mute } = self.options.processing {
+                    if let ProcessingMode::Master { volume, mute }
+                    | ProcessingMode::Processed { volume, mute, .. } = self.options.processing
+                    {
                         // Offline jobs have a fixed master setting, so no startup ramp.
-                        AudioProcessor::apply_gain(&mut samples, if mute { 0.0 } else { volume });
+                        AudioProcessor::apply_gain(
+                            &mut samples,
+                            if mute {
+                                0.0
+                            } else {
+                                self.normalization.linear * volume
+                            },
+                        );
                     }
                     output = Some(RenderStep::Data { block, samples });
                     block.valid_frames
@@ -176,6 +200,11 @@ impl RenderJob {
                 continue;
             }
             if self.preparation.is_none() {
+                if let ProcessingMode::Processed { replay_gain, .. } = self.options.processing {
+                    let metadata = self.entry.snapshot().metadata.expect("opened decoder");
+                    self.normalization = replay_gain
+                        .resolve(&ReplayGainMetadata::from_comments(&metadata.comments))?;
+                }
                 self.preparation = Some(OutputPreparation::new(
                     decoded.layout,
                     self.options.output_rate,

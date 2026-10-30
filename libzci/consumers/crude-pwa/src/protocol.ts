@@ -6,6 +6,8 @@ export interface Snapshot {
   position_frames: number; total_frames: number | null; sample_rate: number | null;
   provider: { id: string; version: string; name: string } | null;
   volume: number; mute: boolean; decoding_eof: boolean; pending_operation: boolean; error: string | null; tag: Tag;
+  replay_gain:import('./profile-types.js').ReplayGainSettings;
+  normalization:{origin:string;gain_db:number;linear:number;clipping_limited:boolean};
   capabilities: {subsongs:number;channels:number;interpolation:boolean;channel_mute:boolean;ramping:boolean;speed:boolean;pitch:boolean;loop_limit:boolean;patterns:boolean};
   metadata:[string,string][]|null;module:{selected_subsong:number;order:number;pattern:number;row:number;first_row:number;rows:number;channels:number;cells:number[][]}|null;
 }

@@ -42,6 +42,11 @@ pub fn draw(ui: &mut egui::Ui, controller: &mut Controller) {
             command = Some(QueueCommand::ClearUpNext);
         }
     });
+    crate::normalization_view::draw(
+        ui,
+        &mut settings.replay_gain,
+        controller.snapshot().normalization,
+    );
     if settings != s.settings {
         command = Some(QueueCommand::Settings { settings });
     }

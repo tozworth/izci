@@ -246,6 +246,51 @@ sort indexes without temporary sorting. Core/native suites, WASM rebuild,
 TypeScript checking, browser storage, production build, M2 owner/reopen/offline
 and M3 catalog/scan/owner/offline checks all pass with Chromium audio muted.
 
+Shared ReplayGain/R128 policy and normalized catalog facts are implemented.
+Optional normalization defaults off; settings persist in the shared playback
+settings row and are applied by sessions independently of the crude editor.
+Track/album selection, fallback, tagged preamp, missing-tag gain, R128 target
+and peak-tag clipping prevention are explicit. R128 integers are validated as
+signed Q7.8 (including duplicate rejection); valid R128 takes precedence over
+ReplayGain for the selected scope. The default -18 LUFS target adds 5 dB to the
+R128 -23 LUFS reference. Optional gain is additional to the provider-applied
+Opus header gain, following [RFC 7845 §5.2.1](https://www.rfc-editor.org/rfc/rfc7845#section-5.2.1).
+
+Native callbacks and the import-free worklet WASM run separate stereo-linked
+normalization and master envelopes. New sources prime their normalization before
+the first media frame; subsequent changes anchor at the last rendered value.
+Both stages use five milliseconds at the actual output rate, and underrun silence
+does not advance them. The raw peak precedes normalization; normalized audio
+retains headroom (only floating-point overflow saturates). Native device-free render
+jobs explicitly distinguish Raw, Master-only and Processed modes. Both crudes
+provide settings and effective-gain diagnostics without owning policy or DSP.
+
+Actual browser signal tests exposed ID3 user-text names such as
+`TXXX:REPLAYGAIN_TRACK_GAIN`. A shared key helper now removes that wrapper for
+normalization/catalog parsing and embedded-payload filtering, so lyric user-text
+frames also stay out of routine provider snapshots.
+
+Verification: core/native/browser-binding/audio-WASM/crude-native suites pass;
+native reference Opus sample tests prove header gain and optional R128 each apply
+once, Raw stays independent, and processed volume/mute work. Native callback
+allocation tests remain at zero allocations/deallocations. The five audio-WASM
+ABI tests cover source priming, rapid retargets, stereo linking, starvation and
+fixed memory. `npm run test:normalization` measures actual muted Chromium
+AudioWorklet levels for reference and optional WebCodecs Opus, MP3, FLAC and
+Vorbis, including track/album changes, preamp, mute, invalid-setting rollback and
+SQL reopen. Ratios agree within the stated 1.5% signal-measurement tolerance;
+the direct native sample checks are much tighter. Metadata/lyrics checks, real
+OPFS storage, production build, M2 owner/reopen/offline and M3 catalog/scan/offline
+checks pass. The full M1 output/sample suite also passes all ordinary and tracker
+inputs after the change. Current evidence is `.local/libzci/m3-normalization-evidence.json`.
+
+The audit also found that reference Opus facts flatten tags across chained
+links. Per-link normalization therefore still needs source-timeline boundaries
+and rendering support; this slice does not establish optional normalization for
+chained Opus. Raw/header-gain chain playback is preserved. This is the next
+correction before M3 normalization is considered finished. Play-count accrual,
+artwork/images, M4-M6 and A1/A2 adoption remain open.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

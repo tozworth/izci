@@ -77,7 +77,17 @@ impl Engine {
                 control: crate::wire::control(kind, value)?,
             },
         };
-        let (receipt, actions) = self.session.accept(&command)?;
+        self.accept(&command)
+    }
+    pub fn replay_gain(&mut self, settings: ReplayGainSettings) -> Result<Value> {
+        self.accept(&Command::SetReplayGain {
+            session: self.session.id(),
+            request_id: RequestId::fresh(),
+            settings,
+        })
+    }
+    fn accept(&mut self, command: &Command) -> Result<Value> {
+        let (receipt, actions) = self.session.accept(command)?;
         let rate = self
             .session
             .snapshot()
@@ -108,7 +118,7 @@ impl Engine {
             "state":format!("{:?}",s.state),"requested":format!("{:?}",s.requested),"running":format!("{:?}",s.running),
             "position_frames":s.position_frames,"total_frames":s.total_frames,"sample_rate":s.layout.map(|l|l.sample_rate),
             "provider":s.provider.map(|p|json!({"id":p.id.0,"version":p.version,"name":p.display_name})),
-            "volume":s.volume,"mute":s.mute,"decoding_eof":s.decoding_eof,"pending_operation":s.pending_operation,
+            "volume":s.volume,"mute":s.mute,"replay_gain":s.replay_gain,"normalization":s.normalization,"decoding_eof":s.decoding_eof,"pending_operation":s.pending_operation,
             "capabilities":crate::wire::capabilities(s.capabilities),"module":crate::wire::module(s.module.as_deref().cloned()),
             "metadata":s.metadata.as_ref().map(|m|&m.comments),
             "error":s.error.map(|e|e.to_string()),"tag":self.tag()})

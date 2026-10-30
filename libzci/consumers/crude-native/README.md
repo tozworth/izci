@@ -34,6 +34,12 @@ preserve the saved queue and resume position. Playback checkpoints at two-second
 intervals and on orderly close; abrupt termination can lose the last interval.
 The hidden test uses a transient profile.
 
+ReplayGain / R128 offers Off/Track/Album, fallback, tagged preamp, missing-tag
+gain, R128 target and peak-tag clipping prevention. Core sessions resolve the
+effective gain; normalization precedes Raf/master and does not alter raw renders.
+The default is off. R128 defaults to -18 LUFS (+5 dB from its tag reference).
+Per-link optional normalization for chained Opus is still under development.
+
 Expand Library / managed folders for catalog queries, Library/Favorites,
 ratings, bookmarks, queue append and root settings. Add folder starts bounded
 background enumeration/probing; rescan reconciles only that root after success.

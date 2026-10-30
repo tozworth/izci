@@ -64,6 +64,11 @@ pub enum Command {
         session: SessionId,
         mute: bool,
     },
+    SetReplayGain {
+        request_id: RequestId,
+        session: SessionId,
+        settings: crate::ReplayGainSettings,
+    },
     Module {
         request_id: RequestId,
         session: SessionId,
@@ -91,6 +96,7 @@ impl Command {
             | Self::Dispose { session, .. }
             | Self::SetVolume { session, .. }
             | Self::SetMute { session, .. }
+            | Self::SetReplayGain { session, .. }
             | Self::Module { session, .. } => session,
         }
     }
@@ -107,6 +113,7 @@ impl Command {
             | Self::Dispose { request_id, .. }
             | Self::SetVolume { request_id, .. }
             | Self::SetMute { request_id, .. }
+            | Self::SetReplayGain { request_id, .. }
             | Self::Module { request_id, .. } => request_id,
         }
     }

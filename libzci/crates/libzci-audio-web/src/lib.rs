@@ -28,6 +28,8 @@ pub struct Renderer {
     silence: u64,
     finished: bool,
     latency: u64,
+    replay_gain: f32,
+    prime_gain: bool,
 }
 impl Renderer {
     fn new() -> Self {
@@ -56,10 +58,13 @@ impl Renderer {
             silence: 0,
             finished: false,
             latency: 0,
+            replay_gain: 1.0,
+            prime_gain: true,
         }
     }
     fn reset(&mut self, generation: Generation, position: u64) {
         self.generation = generation;
+        self.prime_gain = true;
         self.head = 0;
         self.len = 0;
         self.eof = false;
@@ -83,6 +88,7 @@ impl Renderer {
             return false;
         }
         let slot = &mut self.slots[(self.head + self.len) % SLOTS];
+        self.processor.set_sample_rate(block.layout.sample_rate);
         slot.samples[..block.valid_frames * 2]
             .copy_from_slice(&self.input[..block.valid_frames * 2]);
         slot.block = Some(block);
@@ -115,7 +121,14 @@ impl Renderer {
                 self.len -= 1;
             }
         }
-        self.processor.process_stereo_in_place(&mut self.output);
+        if at > 0 && self.prime_gain {
+            self.processor.reset_replay_gain(self.replay_gain);
+            self.prime_gain = false;
+        } else {
+            self.processor.set_replay_gain(self.replay_gain);
+        }
+        self.processor
+            .process_stereo_in_place(&mut self.output[..at * 2]);
         self.media += at as u64;
         self.silence += (QUANTUM - at) as u64;
         if let Some(p) = self.clock.advance(QUANTUM as u64, self.latency) {
@@ -204,6 +217,14 @@ pub unsafe extern "C" fn renderer_enqueue(
 pub unsafe extern "C" fn renderer_eof(p: *mut Renderer, g: f64) {
     if (*p).generation == Generation(g as u64) {
         (*p).eof = true;
+    }
+}
+#[no_mangle]
+/// # Safety
+/// `p` must be a live renderer handle exclusively owned by this caller.
+pub unsafe extern "C" fn renderer_replay_gain(p: *mut Renderer, gain: f32) {
+    if gain.is_finite() && (0.0..=1000.0).contains(&gain) {
+        (*p).replay_gain = gain;
     }
 }
 #[no_mangle]

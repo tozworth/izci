@@ -165,6 +165,7 @@ fn callback_render_reset_and_recycling_never_allocate_or_deallocate() {
     let measurement = Measurement::start();
     rx.render(&mut out); // Partial active block.
     control.set_volume(0.3);
+    control.set_replay_gain(0.5);
     rx.render(&mut out); // Shared smoothing.
     control.request_generation(Generation(2));
     rx.render(&mut out); // Recycle stale active + ready indices.

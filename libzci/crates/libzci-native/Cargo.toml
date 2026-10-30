@@ -34,3 +34,7 @@ required-features = ["provider-tests"]
 [[test]]
 name = "audible"
 required-features = ["provider-tests"]
+
+[[test]]
+name = "replay_gain"
+required-features = ["provider-tests"]

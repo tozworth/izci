@@ -1,6 +1,7 @@
 import type {Observation} from './runtime.js';
 import type {BrowserRuntime} from './browser-runtime.js';
 import type {QueueCommand,RealFileHandle} from './profile-types.js';
+import {normalizationView} from './normalization-view.js';
 let revision=-1;
 let rendered='';
 const el=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
@@ -8,6 +9,7 @@ export function queueView(o:Observation,runtime:BrowserRuntime,log:(s:string)=>v
   const send=(command:QueueCommand)=>void runtime.queue(command).catch(e=>log(String(e)));
   el('profile-status').textContent=`Profile ${runtime.profile} · ${o.ownership??'connecting'} · access ${o.access??'none'} · ${o.profile?.revision??'—'}`;
   if(!o.profile)return;const s=o.profile;
+  normalizationView(o,runtime,log);
   el('previous').onclick=()=>send({kind:'previous',position_seconds:o.snapshot.position_frames/(o.snapshot.sample_rate??1)});
   el('next').onclick=()=>send({kind:'next',ended:false});
   el('grant').onclick=()=>void runtime.grant().catch(e=>log(String(e)));

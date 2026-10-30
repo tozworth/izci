@@ -40,6 +40,8 @@ pub mod provider;
 #[cfg(feature = "control")]
 pub mod queue;
 #[cfg(feature = "control")]
+pub mod replay_gain;
+#[cfg(feature = "control")]
 pub mod session;
 #[cfg(feature = "control")]
 pub mod source;
@@ -73,6 +75,10 @@ pub use provider::{
     decode_chunk, AppliedAdjustments, DecodeStatus, DecoderInstance, Inspection,
     ModuleCapabilities, ModuleObservation, ProbeInput, ProbeScore, ProviderFactory, ProviderId,
     ProviderInfo, ProviderMetadata, ProviderRegistry, PROBE_BYTES,
+};
+#[cfg(feature = "control")]
+pub use replay_gain::{
+    GainOrigin, Normalization, ReplayGainMetadata, ReplayGainMode, ReplayGainSettings,
 };
 #[cfg(feature = "control")]
 pub use session::{JobTag, Session, SessionAction, TransportState};

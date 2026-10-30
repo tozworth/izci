@@ -22,7 +22,10 @@ impl Metadata {
             if value.is_empty() {
                 continue;
             }
-            match key.trim().to_ascii_lowercase().as_str() {
+            match crate::provider::metadata_comment_key(key)
+                .to_ascii_lowercase()
+                .as_str()
+            {
                 "title" | "tit2" | "tracktitle" | "inam" if result.title.is_empty() => {
                     result.title = value
                 }
@@ -56,6 +59,7 @@ impl Metadata {
             result.title = bounded(title);
         }
         result.duration_seconds = duration_seconds.filter(|n| n.is_finite() && *n >= 0.);
+        result.replay_gain = crate::replay_gain::ReplayGainMetadata::from_comments(comments);
         result
     }
     pub fn from_provider(facts: &crate::ProviderMetadata, display_path: &str) -> Self {

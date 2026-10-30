@@ -139,6 +139,11 @@ impl Controller {
                 request_id: RequestId::fresh(),
                 mute: settings.mute,
             },
+            Command::SetReplayGain {
+                session: self.session,
+                request_id: RequestId::fresh(),
+                settings: settings.replay_gain,
+            },
         ] {
             self.runtime.submit(&command, &CancelFlag::default())?;
         }
@@ -174,6 +179,16 @@ impl Controller {
                         session: self.session,
                         request_id: RequestId::fresh(),
                         mute: settings.mute,
+                    },
+                    &CancelFlag::default(),
+                )?;
+            }
+            if observed.replay_gain != settings.replay_gain {
+                self.runtime.submit(
+                    &Command::SetReplayGain {
+                        session: self.session,
+                        request_id: RequestId::fresh(),
+                        settings: settings.replay_gain,
                     },
                     &CancelFlag::default(),
                 )?;
@@ -220,6 +235,10 @@ impl Controller {
         match &command {
             Command::SetVolume { volume, .. } => settings.volume = *volume,
             Command::SetMute { mute, .. } => settings.mute = *mute,
+            Command::SetReplayGain {
+                settings: replay_gain,
+                ..
+            } => settings.replay_gain = *replay_gain,
             _ => {}
         }
         if settings != self.profile.core.snapshot().settings {

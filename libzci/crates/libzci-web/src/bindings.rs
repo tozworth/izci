@@ -49,6 +49,14 @@ impl WebEngine {
     pub fn snapshot(&self) -> String {
         self.inner.snapshot().to_string()
     }
+    pub fn replay_gain(&mut self, settings: &str) -> std::result::Result<String, JsValue> {
+        let settings = serde_json::from_str(settings).map_err(js)?;
+        Ok(self
+            .inner
+            .replay_gain(settings)
+            .map_err(typed_js)?
+            .to_string())
+    }
     pub fn load_options(
         &mut self,
         seconds: f64,

@@ -34,6 +34,11 @@ fn durable_duplicates_order_settings_reopen_and_lock() {
             settings: QueueSettings {
                 volume: 0.42,
                 repeat: Repeat::All,
+                replay_gain: libzci::ReplayGainSettings {
+                    mode: libzci::ReplayGainMode::Album,
+                    preamp_db: -2.0,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         })
@@ -51,6 +56,8 @@ fn durable_duplicates_order_settings_reopen_and_lock() {
         vec![3, 1, 2]
     );
     assert_eq!(s.settings.volume, 0.42);
+    assert_eq!(s.settings.replay_gain.mode, libzci::ReplayGainMode::Album);
+    assert_eq!(s.settings.replay_gain.preamp_db, -2.0);
     assert_eq!(s.sources.len(), 1);
     let restore = s.restore().unwrap();
     assert_eq!(restore.position_seconds, 1.25);

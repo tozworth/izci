@@ -249,7 +249,7 @@ pub fn sniff_module_family(header: &[u8]) -> Option<ModuleFamily> {
 }
 
 /// Parsed `OpusTags` facts. Tags are diagnostics only: ReplayGain and
-/// R128 tags are never applied by providers (core policy, later).
+/// R128 tags are never applied by providers (optional normalization is core policy).
 #[derive(Clone, Debug)]
 pub struct OpusTags {
     /// Vendor string.

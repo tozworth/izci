@@ -45,6 +45,14 @@
       <button id="clear-up-next">Clear up-next</button><div id="up-next"></div>
       <div style="max-height:180px;overflow:auto"><table id="queue"></table></div>
     </fieldset>
+    <fieldset><legend>ReplayGain / R128</legend>
+      <label>Mode <select id="normalization-mode"><option value="off">Off</option><option value="track">Track</option><option value="album">Album</option></select></label>
+      <label><input id="normalization-fallback" type="checkbox" /> Fall back to other tag</label><label><input id="normalization-prevent_clipping" type="checkbox" /> Prevent clipping with peak tags</label><br />
+      <label>Tagged preamp <input id="normalization-preamp_db" type="number" min="-24" max="24" step="0.1" /> dB</label>
+      <label>Missing tags <input id="normalization-missing_gain_db" type="number" min="-60" max="24" step="0.1" /> dB</label>
+      <label>R128 target <input id="normalization-r128_target_lufs" type="number" min="-30" max="-5" step="0.1" /> LUFS</label>
+      <button id="normalization-apply">Apply</button><span id="normalization-status"></span>
+    </fieldset>
     <fieldset><legend>Library / managed folders</legend>
       <button id="catalog-add-files">Add selected plain Files</button><button id="catalog-add-handles">Add restorable files…</button><button id="catalog-add-root">Add folder…</button><button id="catalog-cancel">Cancel scan</button>
       <div id="catalog-scan-status"></div><div id="catalog-roots"></div>

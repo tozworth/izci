@@ -51,6 +51,7 @@ pub struct Metadata {
     pub track: Option<u32>,
     pub disc: Option<u32>,
     pub duration_seconds: Option<f64>,
+    pub replay_gain: crate::replay_gain::ReplayGainMetadata,
 }
 impl Metadata {
     fn validate(&self) -> Result<()> {
@@ -60,7 +61,7 @@ impl Metadata {
         if let Some(n) = self.duration_seconds {
             crate::MediaTime(n).validate()?;
         }
-        Ok(())
+        self.replay_gain.validate()
     }
 }
 

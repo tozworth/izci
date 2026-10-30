@@ -43,6 +43,21 @@ test('worklet ABI preserves source-rate positions within blocks and at final dra
     }
   }
 });
+test('normalization primes sources, retargets smoothly, and does not advance during starvation',()=>{
+  const w=new WebAssembly.Instance(module,{}).exports,p=w.renderer_new();
+  try{
+    const input=new Float32Array(w.memory.buffer,w.renderer_input(p),8192),output=new Float32Array(w.memory.buffer,w.renderer_output(p),256),heap=w.memory.buffer.byteLength;
+    input.fill(1);w.renderer_reset(p,1,0);w.renderer_settings(p,1,1,0,0);w.renderer_replay_gain(p,0.5);
+    assert.equal(w.renderer_enqueue(p,0,1,0,384,0,48000,48000,384),1);w.renderer_process(p);assert(output.every(n=>n===0.5));
+    w.renderer_replay_gain(p,2);w.renderer_process(p);assert(output[0]>0.5&&output[0]<0.51);let last=output[254];
+    w.renderer_replay_gain(p,0.25);w.renderer_process(p);assert(Math.abs(output[0]-last)<0.01);last=output[254];
+    for(let i=0;i<10;i++)w.renderer_process(p);assert(output.every(n=>n===0));
+    assert.equal(w.renderer_enqueue(p,0,1,384,640,384,48000,48000,256),1);w.renderer_process(p);assert(Math.abs(output[0]-last)<0.01);
+    for(let i=0;i<256;i+=2)assert.equal(output[i],output[i+1]);
+    w.renderer_reset(p,2,0);w.renderer_replay_gain(p,0.125);assert.equal(w.renderer_enqueue(p,0,2,0,128,0,48000,48000,128),1);w.renderer_process(p);assert(output.every(n=>n===0.125));
+    assert.equal(w.memory.buffer.byteLength,heap);
+  }finally{w.renderer_free(p);}
+});
 test('fixed audio pool retains long marked output, tails and generations without heap growth',()=>{
   const w=new WebAssembly.Instance(module,{}).exports;
   const p=w.renderer_new();

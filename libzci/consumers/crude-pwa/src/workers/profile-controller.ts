@@ -1,6 +1,6 @@
 import {openProfile} from './profile-storage.js';
 import {Capabilities,CapabilityStaging} from '../capabilities.js';
-import type {ProfileState,QueueCommand,QueueLoad,RealFileHandle,SourceReference} from '../profile-types.js';
+import type {ProfileState,QueueCommand,QueueLoad,QueueSettings,RealFileHandle,SourceReference} from '../profile-types.js';
 import type {WebProfile} from '../generated/libzci_web.js';
 import {BrowserCatalog} from './browser-catalog.js';
 export class ProfileController {
@@ -10,10 +10,10 @@ export class ProfileController {
   private staging=new CapabilityStaging();
   private epoch=0;
   access='';
-  private constructor(private core:WebProfile,private handles:Capabilities,private load:(file:File,options:QueueLoad)=>void,private stop:()=>void,private settings:(volume:number,mute:boolean)=>void,private publish:()=>void) {
+  private constructor(private core:WebProfile,private handles:Capabilities,private load:(file:File,options:QueueLoad)=>void,private stop:()=>void,private settings:(settings:QueueSettings)=>void,private publish:()=>void) {
     this.catalog=new BrowserCatalog(core,handles,this.files,this.staging,()=>{this.cached=undefined;this.publish();});
   }
-  static async open(name:string,load:(file:File,options:QueueLoad)=>void,stop:()=>void,settings:(volume:number,mute:boolean)=>void,publish:()=>void):Promise<ProfileController> {
+  static async open(name:string,load:(file:File,options:QueueLoad)=>void,stop:()=>void,settings:(settings:QueueSettings)=>void,publish:()=>void):Promise<ProfileController> {
     const core=await openProfile(name),handles=new Capabilities(name);
     const controller=new ProfileController(core,handles,load,stop,settings,publish);
     await handles.recoverReferenced(key=>core.references_browser_capability(key));
@@ -36,7 +36,7 @@ export class ProfileController {
   async command(command:QueueCommand,request?:string):Promise<{appended:number[];load:QueueLoad|null;duplicate:boolean}> {
     const outcome=this.request(command,request);
     if(outcome.stop){++this.epoch;this.stop();}
-    const s=this.snapshot();this.settings(s.settings.volume,s.settings.mute);this.publish();
+    const s=this.snapshot();this.settings(s.settings);this.publish();
     if(!s.queue.current)this.access='no selected source';
     if(outcome.load)await this.materialize(outcome.load);
     if(command.kind==='remove') {
