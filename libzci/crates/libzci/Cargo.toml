@@ -17,7 +17,9 @@ sha2 = {version="=0.10.9",optional=true}
 caseless = { version = "=0.2.2", optional = true }
 unicode-normalization = { version = "=0.1.26", optional = true }
 base64 = { version = "=0.22.1", optional = true }
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "webp"], optional = true }
+moxcms = { version = "=0.8.1", optional = true }
 
 [features]
 default = ["control"]
-control = ["dep:serde", "dep:serde_json", "dep:sha2", "dep:caseless", "dep:unicode-normalization", "dep:base64"]
+control = ["dep:serde", "dep:serde_json", "dep:sha2", "dep:caseless", "dep:unicode-normalization", "dep:base64", "dep:image", "dep:moxcms"]

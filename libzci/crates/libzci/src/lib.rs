@@ -34,6 +34,8 @@ pub mod event;
 pub mod format;
 pub mod ids;
 #[cfg(feature = "control")]
+pub mod images;
+#[cfg(feature = "control")]
 pub mod lyrics;
 #[cfg(feature = "control")]
 pub mod ogg_reader;

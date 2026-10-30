@@ -410,6 +410,30 @@ the large cover. Inputs/FFmpeg 8.1.1 recipe and evidence remain ignored under
 Format references: [ID3 APIC](https://id3.org/id3v2.4.0-frames#Attached_picture)
 and [FLAC PICTURE](https://www.rfc-editor.org/rfc/rfc9639.html#section-8.8).
 
+The following image-provider primitive implements shared PNG/JPEG/WebP header
+inspection and PNG renditions with pinned `image` 0.25.10 (only those codecs)
+and `moxcms` 0.8.1. Source reads remain ranged at 32 KiB and preserve cancellation
+and typed access failures. Limits are 64 MiB encoded source, 16,777,216 pixels,
+32,768 per dimension, 128 MiB declared decoded storage, 1 MiB ICC input and
+8 MiB encoded rendition. The decoder allocator's own limit is best effort;
+explicit dimension/total-byte checks precede pixel allocation. These are input/
+retention limits, not measured total-process or physical-device memory claims.
+
+Bounded facts include encoded/display dimensions, orientation, bit depth, alpha,
+and ICC size/hash; raw ICC bytes remain transient. Renditions apply all eight
+EXIF orientations, convert supported RGB/grayscale ICC profiles to sRGB, avoid
+upscaling, and resize with premultiplied alpha to prevent transparent-color
+halos. Unprofiled pixels currently use an sRGB assumption. Broader color-tag
+handling and AVIF/JXL/platform providers are still pending, along with bindings,
+catalog scan integration, caches, image-session navigation and both crude UIs.
+This primitive does not close M3's image acceptance gate.
+
+Six native integration suites pass for exact orientation/pixels and removal of
+the orientation tag from renditions, aspect/alpha/edge behavior, sRGB ICC identity
+and bounded profile facts, PNG/JPEG/WebP, short ranged reads, access/cancel/source
+limits, source revision changes and a forged oversized PNG. Control/audio WASM cross-compiles with the
+new dependencies; browser pixel-runtime checks are not yet implemented here.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to
