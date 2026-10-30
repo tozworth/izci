@@ -38,6 +38,85 @@ fn input(path: &str) -> MediaInput {
 fn run(p: &mut NativeProfile, command: CatalogCommand) -> CatalogOutcome {
     p.catalog_request(command, None).unwrap()
 }
+#[test]
+fn captured_image_queries_share_filters_order_and_revision_without_paging_or_transport_mutation() {
+    let dir = Temp::new();
+    let mut p = NativeProfile::open(&dir.0).unwrap();
+    let mut media = vec![];
+    for n in 0..650 {
+        let mut row = input(&format!("/pictures/{n:04}.png"));
+        row.kind = MediaKind::Image;
+        row.metadata.artist = if n % 2 == 0 { "A".into() } else { "B".into() };
+        media.push(row);
+    }
+    for chunk in media.chunks(256) {
+        run(
+            &mut p,
+            CatalogCommand::Add {
+                media: chunk.to_vec(),
+            },
+        );
+    }
+    run(
+        &mut p,
+        CatalogCommand::Add {
+            media: vec![input("/audio.wav")],
+        },
+    );
+    let before = p.core.snapshot().clone();
+    let query = CatalogQuery {
+        artist: Some("A".into()),
+        sort: CatalogSort::Path,
+        descending: true,
+        limit: 1,
+        offset: 100,
+        ..Default::default()
+    };
+    let sequence = p.image_sequence(&query).unwrap();
+    assert_eq!(sequence.media.len(), 325);
+    assert_eq!(p.core.snapshot(), &before);
+    let expected = p
+        .catalog_query(&CatalogQuery {
+            kind: Some(MediaKind::Image),
+            limit: 500,
+            offset: 0,
+            ..query.clone()
+        })
+        .unwrap()
+        .rows
+        .iter()
+        .map(|r| r.id)
+        .collect::<Vec<_>>();
+    assert_eq!(sequence.media, expected);
+    let mut view = libzci::images::ImageSession::default();
+    view.open(sequence.clone(), expected[0]).unwrap();
+    run(
+        &mut p,
+        CatalogCommand::Favorite {
+            media: expected[0],
+            subsong: None,
+            favorite: true,
+        },
+    );
+    assert!(p
+        .image_sequence(&CatalogQuery {
+            revision: Some(sequence.revision),
+            ..query.clone()
+        })
+        .is_err());
+    assert_eq!(
+        view.navigate(libzci::images::ImageNavigation::Next, false)
+            .unwrap()
+            .media,
+        Some(expected[1])
+    );
+    assert!(p
+        .image_sequence(&CatalogQuery {
+            kind: Some(MediaKind::Audio),
+            ..Default::default()
+        })
+        .is_err());
+}
 
 #[test]
 fn identity_and_facts_survive_revision_membership_queue_and_reopen() {

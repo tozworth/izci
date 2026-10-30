@@ -66,6 +66,9 @@
       <select id="catalog-group"><option value="">No grouping</option><option value="artist">Artist groups</option><option value="album">Album groups</option><option value="genre">Genre groups</option><option value="kind">Media kind groups</option></select><button id="catalog-group-clear">Clear group filter</button><div id="catalog-groups"></div>
       <div style="max-height:180px;overflow:auto"><table id="catalog-rows"></table></div><pre id="catalog-details"></pre>
       <div><button id="artwork-close">Close artwork</button><span id="artwork-caption"></span><br /><img id="artwork-image" alt="Artwork" hidden style="max-width:384px;max-height:384px" /></div>
+      <div><button id="image-first">First</button><button id="image-previous">Previous image</button><button id="image-next">Next image</button><button id="image-last">Last</button><button id="image-refresh">Reload image</button><button id="image-close">Close image</button>
+      <label><input id="image-wrap" type="checkbox" /> Wrap image navigation</label><label>Rendition edge <input id="image-edge" type="number" min="1" max="2048" value="1024" /></label>
+      <span id="image-caption"></span><br /><img id="image-stage" alt="Image viewer" hidden style="max-width:100%;max-height:500px" /></div>
       <input id="catalog-bookmark-label" placeholder="Bookmark label" /><input id="catalog-bookmark-position" type="number" min="0" value="0" step="0.1" /><button id="catalog-bookmark-add">Bookmark selected item at (s)</button><div id="catalog-bookmarks"></div>
     </fieldset>
     <fieldset><legend>Lyrics</legend>

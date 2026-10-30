@@ -1,10 +1,10 @@
-import init,{WebLyrics} from './generated/libzci_web.js';
+import {WebLyrics} from './generated/libzci_web.js';
+import {initializeControl} from './control-wasm.js';
 import type {BrowserRuntime} from './browser-runtime.js';
 import type {CatalogRow} from './catalog-types.js';
 import type {Observation} from './runtime.js';
 import {failure} from './protocol.js';
 const element=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
-let initialized:Promise<unknown>|null=null;
 /** Pure presentation over a transient shared-Rust document. */
 export class LyricsView {
   private document:WebLyrics|null=null;
@@ -34,7 +34,7 @@ export class LyricsView {
     }catch(error){if(epoch===this.epoch)element('lyrics-status').textContent=failure(error).detail;throw error;}
   }
   private async show(raw:string,source:string|null,epoch:number):Promise<void>{
-    await(initialized??=init());if(epoch!==this.epoch)return;
+    await initializeControl();if(epoch!==this.epoch)return;
     const parser=new WebLyrics(raw);this.document?.free();this.document=parser;this.source=source;this.active=[-1,-1];
     const snapshot=JSON.parse(parser.snapshot()) as {plain:string;lines:{time_ms:number;text:string}[]};
     this.rows=snapshot.lines.map(line=>{const row=document.createElement('button');row.textContent=`${(line.time_ms/1000).toFixed(3)}s  ${line.text}`;row.style.cssText='display:block;text-align:left;width:100%;border:0;font:inherit';row.onclick=()=>{

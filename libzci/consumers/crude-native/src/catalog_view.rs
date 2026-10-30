@@ -11,6 +11,7 @@ use std::collections::VecDeque;
 
 #[derive(Default)]
 pub struct CatalogView {
+    image_open: Option<(libzci::images::ImageSequence, u64)>,
     query: CatalogQuery,
     group_by: Option<CatalogGroupBy>,
     groups: Option<CatalogGroupPage>,
@@ -26,6 +27,9 @@ pub struct CatalogView {
     observed_revision: Option<u64>,
 }
 impl CatalogView {
+    pub fn take_image_open(&mut self) -> Option<(libzci::images::ImageSequence, u64)> {
+        self.image_open.take()
+    }
     pub fn init(&mut self, c: &mut Controller) {
         self.initialized = true;
         let result = (|| -> Result<()> {
@@ -364,6 +368,18 @@ impl CatalogView {
                                         c.queue_command(QueueCommand::Append {
                                             sources: vec![row.source.clone()],
                                         });
+                                    }
+                                    if row.kind == MediaKind::Image
+                                        && ui.button("View image").clicked()
+                                    {
+                                        let mut query = self.query.clone();
+                                        query.revision = Some(page.revision);
+                                        match c.profile.image_sequence(&query) {
+                                            Ok(sequence) => {
+                                                self.image_open = Some((sequence, row.id))
+                                            }
+                                            Err(e) => self.status = e.to_string(),
+                                        }
                                     }
                                     let mut favorite = row.facts.favorite;
                                     if ui.checkbox(&mut favorite, "Favorite").changed() {

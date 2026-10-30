@@ -97,6 +97,16 @@ pub struct NativeProfile {
     db: Option<NativeDatabase>,
 }
 impl NativeProfile {
+    pub fn image_sequence(
+        &mut self,
+        query: &libzci::catalog::CatalogQuery,
+    ) -> Result<libzci::images::ImageSequence> {
+        let db = self
+            .db
+            .as_mut()
+            .ok_or_else(|| failure("unavailable", "image sequence requires an open profile"))?;
+        self.core.image_sequence(query, db)
+    }
     pub fn attach_playback(
         &mut self,
         runtime: &crate::NativeRuntime,

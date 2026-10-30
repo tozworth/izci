@@ -1,6 +1,7 @@
 mod artwork_view;
 mod catalog_view;
 mod controller;
+mod image_view;
 mod lyrics_view;
 mod normalization_view;
 mod queue_view;
@@ -10,6 +11,7 @@ use eframe::egui;
 use libzci::*;
 use std::{path::Path, time::Duration};
 struct App {
+    images: image_view::ImageView,
     artwork: artwork_view::ArtworkView,
     lyrics: lyrics_view::LyricsView,
     catalog: catalog_view::CatalogView,
@@ -29,6 +31,7 @@ struct App {
 impl Default for App {
     fn default() -> Self {
         Self {
+            images: Default::default(),
             artwork: Default::default(),
             lyrics: Default::default(),
             catalog: Default::default(),
@@ -70,6 +73,8 @@ impl App {
             ui.label(format!("Session {} / generation {}   {:?}   requested {:?} / output {:?}",s.session.0,s.generation.0,s.state,s.requested,s.running));
             queue_view::draw(ui,&mut self.controller);
             self.catalog.draw(ui,&mut self.controller);
+            if let Some((sequence,media))=self.catalog.take_image_open(){self.images.open(sequence,media,&mut self.controller);}
+            self.images.draw(ui,&mut self.controller);
             self.lyrics.draw(ui,&mut self.controller);
             self.artwork.draw(ui,&self.controller);
             ui.label(format!("Provider: {:?}   audible {:.3} s / {:?} frames   pending {} / EOF {}",s.provider,MediaTime::from_frames(s.position_frames,s.layout.map_or(1,|l|l.sample_rate)).0,s.total_frames,s.pending_operation,s.decoding_eof));
@@ -120,6 +125,7 @@ impl eframe::App for App {
         self.controller.tick();
         self.lyrics.tick();
         self.artwork.tick(ctx);
+        self.images.tick(ctx);
         self.catalog.tick(&mut self.controller);
         self.draw(ctx);
         if self

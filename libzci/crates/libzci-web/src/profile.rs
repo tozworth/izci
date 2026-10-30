@@ -55,6 +55,21 @@ pub struct WebProfile {
 }
 #[wasm_bindgen]
 impl WebProfile {
+    pub fn image_sequence(&mut self, query: &str) -> Result<String, JsValue> {
+        if query.len() > 32768 {
+            return Err(typed(libzci::LibzciError::ResourceExhausted {
+                detail: "image sequence query exceeds budget".into(),
+            }));
+        }
+        let query = serde_json::from_str(query).map_err(js)?;
+        serde_json::to_string(
+            &self
+                .core
+                .image_sequence(&query, &mut self.db)
+                .map_err(typed)?,
+        )
+        .map_err(js)
+    }
     #[wasm_bindgen(constructor)]
     pub fn new(statement: js_sys::Function) -> Result<WebProfile, JsValue> {
         let mut db = BrowserSql(statement);

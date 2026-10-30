@@ -185,8 +185,7 @@ fn revision(db: &mut dyn SqlBridge, expected: Option<u64>) -> Result<u64> {
     }
     Ok(revision)
 }
-pub(crate) fn query(db: &mut dyn SqlBridge, query: &CatalogQuery) -> Result<CatalogPage> {
-    let (from, bind) = filtered(query)?;
+fn ordering(query: &CatalogQuery) -> String {
     let sort = match query.sort {
         CatalogSort::Title => vec!["m.title_key"],
         CatalogSort::Artist => vec!["m.artist_key", "m.album_key"],
@@ -202,12 +201,46 @@ pub(crate) fn query(db: &mut dyn SqlBridge, query: &CatalogQuery) -> Result<Cata
         .map(|s| format!("{s} {direction}"))
         .collect::<Vec<_>>()
         .join(",");
+    format!("{order},m.id {direction}")
+}
+pub(crate) fn image_sequence(
+    db: &mut dyn SqlBridge,
+    query: &CatalogQuery,
+) -> Result<crate::images::ImageSequence> {
+    if query.kind.is_some_and(|kind| kind != MediaKind::Image) {
+        return Err(invalid("originating query excludes images"));
+    }
+    let mut query = query.clone();
+    query.kind = Some(MediaKind::Image);
+    let (from, mut bind) = filtered(&query)?;
+    let order = ordering(&query);
+    transaction(db, |db| {
+        let revision = revision(db, query.revision)?;
+        bind.push(json!(crate::images::MAX_IMAGE_SEQUENCE + 1));
+        let rows = db.statement(
+            &format!("SELECT m.id{from} ORDER BY {order} LIMIT ?"),
+            &bind,
+        )?;
+        let sequence = crate::images::ImageSequence {
+            revision,
+            media: rows
+                .iter()
+                .map(|r| number(&r[0]))
+                .collect::<Result<Vec<_>>>()?,
+        };
+        sequence.validate()?;
+        Ok(sequence)
+    })
+}
+pub(crate) fn query(db: &mut dyn SqlBridge, query: &CatalogQuery) -> Result<CatalogPage> {
+    let (from, bind) = filtered(query)?;
+    let order = ordering(query);
     transaction(db, |db| {
         let revision = revision(db, query.revision)?;
         let total = number(&db.statement(&format!("SELECT count(*){from}"), &bind)?[0][0])?;
         let mut args = bind.clone();
         args.extend([json!(query.limit), json!(query.offset)]);
-        let rows=db.statement(&format!("SELECT m.id,m.reference,m.source_revision,m.kind,({LIBRARY_MEMBERSHIP}),m.metadata,COALESCE(f.favorite,0),COALESCE(f.rating,0),COALESCE(f.play_count,0),f.last_played_ms{from} ORDER BY {order},m.id {direction} LIMIT ? OFFSET ?"),&args)?;
+        let rows=db.statement(&format!("SELECT m.id,m.reference,m.source_revision,m.kind,({LIBRARY_MEMBERSHIP}),m.metadata,COALESCE(f.favorite,0),COALESCE(f.rating,0),COALESCE(f.play_count,0),f.last_played_ms{from} ORDER BY {order} LIMIT ? OFFSET ?"),&args)?;
         let rows = rows
             .into_iter()
             .map(|r| {

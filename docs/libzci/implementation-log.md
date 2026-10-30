@@ -479,6 +479,34 @@ reopen and output-free rendition restoration. These extend the existing image
 evidence file. Image-session navigation and the separate rendition cache remain
 open; imports do not yet turn the ordinary Open action into image viewing.
 
+Captured image navigation is now a separate shared-core session. A bounded SQL
+projection captures up to 100,000 ordered image identities from the originating
+query at one catalog revision, independent of visible page size/offset. It uses
+the same filters, normalized ordering and ID tie breakers as catalog pages.
+The transient session owns selection, optional wrap, reload and generations;
+late results, closed sessions and other session identities cannot publish facts.
+Reload/rendition-size changes invalidate old work without recapturing the list.
+Neither sequence nor image-session state is persisted or routed through music.
+
+Both crudes expose Library image viewing and navigation with rendition edge and
+wrap controls. Jobs/surfaces are cancelled/released on navigation and close.
+Browser cancellation has per-view scopes, so image-viewer activity does not
+cancel a separate artwork request. Document-owned WASM objects also share one
+initialization promise to prevent concurrent lyrics/image initialization from
+replacing each other's WASM memory instance.
+
+Core sequence/session and actual SQLite query checks pass, including a 650-image
+catalog with filtering and a capture larger than its one-row visible page,
+revision rejection, boundaries, wrapping, reload and stale/foreign results.
+The native viewer test creates/replaces/releases its texture, retains the old
+sequence after catalog additions and leaves music-session state unchanged.
+Muted Chromium checks pass while actual audio continues: OPFS image navigation
+survives new scan members and changed Library UI filters, wraps only on request,
+discards rapid stale jobs, and releases its URL without cancelling independent
+renditions. Existing metadata/lyrics and production M3 offline checks pass.
+Separate rendition cache/eviction and broader visual format/color support remain
+open before the M3 acceptance gate can close.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

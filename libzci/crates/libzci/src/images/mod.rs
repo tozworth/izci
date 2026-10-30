@@ -4,11 +4,15 @@
 mod job;
 mod reader;
 mod rendition;
+mod session;
 use crate::{CancelFlag, LibzciError, Result, RuntimeSource};
 use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader};
 pub use job::{run_image_job, ImageJobRequest, ImageJobResult};
 pub use rendition::{ImageRendition, RenditionSpec};
 use serde::{Deserialize, Serialize};
+pub use session::{
+    ImageNavigation, ImageSequence, ImageSession, ImageViewSnapshot, MAX_IMAGE_SEQUENCE,
+};
 use sha2::{Digest, Sha256};
 use std::io::{BufRead, Seek};
 pub const MAX_IMAGE_SOURCE_BYTES: u64 = 64 * 1024 * 1024;

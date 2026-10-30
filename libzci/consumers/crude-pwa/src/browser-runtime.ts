@@ -110,8 +110,10 @@ export class BrowserRuntime {
   catalogCancelLyrics():Promise<void>{return this.request('catalog',['cancel-lyrics',[]]);}
   catalogArtwork(media:number):Promise<import('./artwork-job.js').EncodedArtwork|null>{return this.request('catalog',['artwork',[media]]);}
   catalogCancelArtwork():Promise<void>{return this.request('catalog',['cancel-artwork',[]]);}
-  catalogRendition(media:number,maxEdge=512):Promise<import('./image-job.js').ImageJobResult>{return this.request('catalog',['rendition',[media,maxEdge]]);}
-  catalogCancelRenditions():Promise<void>{return this.request('catalog',['cancel-renditions',[]]);}
+  catalogRendition(media:number,maxEdge=512,scope?:string):Promise<import('./image-job.js').ImageJobResult>{return this.request('catalog',['rendition',[media,maxEdge,scope]]);}
+  imageSequence(query:CatalogQuery={}):Promise<import('./image-job.js').ImageSequence>{return this.request('catalog',['image-sequence',[query]]);}
+  imageRendition(media:number,maxEdge=1024,scope?:string):Promise<import('./image-job.js').ImageJobResult>{return this.request('catalog',['image-rendition',[media,maxEdge,scope]]);}
+  catalogCancelRenditions(scope?:string):Promise<void>{return this.request('catalog',['cancel-renditions',[scope]]);}
   catalogAddRoot(handle:RealDirectoryHandle,settings:ScanSettings={recursive:true,scan_on_launch:false,verify_unknown:true,probe_concurrency:2}):Promise<CatalogOutcome>{return this.request('catalog',['add-root',[handle,settings]]);}
   catalogAddFiles(files:File[],handles:RealFileHandle[]=[],verifyUnknown=true):Promise<CatalogOutcome>{return this.request('catalog',['add-files',[files,handles,verifyUnknown]]);}
   catalogScan(root:number):Promise<void>{return this.request('catalog',['scan',[root]]);}

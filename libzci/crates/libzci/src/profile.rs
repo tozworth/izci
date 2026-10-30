@@ -381,6 +381,13 @@ impl Profile {
     ) -> Result<crate::catalog::CatalogGroupPage> {
         crate::catalog::query::groups(db, by, query)
     }
+    pub fn image_sequence(
+        &self,
+        query: &crate::catalog::CatalogQuery,
+        db: &mut dyn SqlBridge,
+    ) -> Result<crate::images::ImageSequence> {
+        crate::catalog::query::image_sequence(db, query)
+    }
 
     pub fn bookmarks(
         &self,

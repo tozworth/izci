@@ -16,12 +16,12 @@ export class BrowserCatalog {
   private lyricJobs=new Set<LyricsJob>();
   private artworkJobs=new Set<ArtworkJob>();
   private artworkEpoch=0;
-  private imageJobs=new Set<ImageJob>();
-  private imageEpoch=0;
+  private imageJobs=new Set<{scope?:string;cancelled:boolean;job?:ImageJob}>();
   observation:ScanObservation={state:'idle',root:null,visited:0,accepted:0,ignored:0,detail:''};
   constructor(private core:WebProfile,private handles:Capabilities,private files:Map<string,File>,private staging:CapabilityStaging,private publish:()=>void){}
   query(query:CatalogQuery={}):CatalogPage{return JSON.parse(this.core.catalog_query(JSON.stringify(query)));}
   groups(by:CatalogGroupBy,query:CatalogQuery={}):CatalogGroupPage{return JSON.parse(this.core.catalog_groups(by,JSON.stringify(query)));}
+  imageSequence(query:CatalogQuery={}){return JSON.parse(this.core.image_sequence(JSON.stringify(query)));}
   roots():ManagedRoot[]{return JSON.parse(this.core.managed_roots());}
   bookmarks(media:number,subsong:number|null){return JSON.parse(this.core.bookmarks(BigInt(media),subsong??undefined));}
   async lyrics(media:number){
@@ -44,18 +44,20 @@ export class BrowserCatalog {
     const job=new ArtworkJob(file);this.artworkJobs.add(job);try{return await job.result;}finally{this.artworkJobs.delete(job);}
   }
   cancelArtwork():void{this.artworkEpoch++;for(const job of this.artworkJobs)job.cancel();this.artworkJobs.clear();}
-  async rendition(media:number,max_edge:number){
-    const epoch=this.imageEpoch;
+  async rendition(media:number,max_edge:number,imageOnly=false,scope?:string){
+    if(scope!==undefined&&(typeof scope!=='string'||scope.length>128))throw new Error('Invalid visual job scope');
     if(this.imageJobs.size>=4)throw Object.assign(new Error('Concurrent image job budget exhausted'),{kind:'resource-exhausted'});
-    const row=this.query({collection:'all',media,limit:1}).rows[0];if(!row)throw new Error('Unknown visual media');
+    const operation:{scope?:string;cancelled:boolean;job?:ImageJob}={scope,cancelled:false};this.imageJobs.add(operation);
+    try{
+    const row=this.query({collection:'all',media,limit:1,...(imageOnly?{kind:'image' as const}:{})}).rows[0];if(!row)throw new Error('Unknown visual media');
     const source=row.source,file=source.kind==='browser_handle'?await this.handles.resolve(source.locator):this.files.get(source.key);
-    if(epoch!==this.imageEpoch)throw Object.assign(new Error('Image job cancelled'),{kind:'cancelled'});
+    if(operation.cancelled)throw Object.assign(new Error('Image job cancelled'),{kind:'cancelled'});
     if(!file)throw Object.assign(new Error('Visual source is not currently accessible'),{kind:'access-required'});
-    if(this.imageJobs.size>=4)throw Object.assign(new Error('Concurrent image job budget exhausted'),{kind:'resource-exhausted'});
-    const job=new ImageJob(file,{kind:row.kind==='image'?'image':'artwork',spec:{max_edge}});this.imageJobs.add(job);
-    try{return await job.result;}finally{this.imageJobs.delete(job);}
+    const job=new ImageJob(file,{kind:row.kind==='image'?'image':'artwork',spec:{max_edge}});operation.job=job;
+    return {...await job.result,displayPath:source.display_path};
+    }finally{this.imageJobs.delete(operation);}
   }
-  cancelRenditions():void{this.imageEpoch++;for(const job of this.imageJobs)job.cancel();this.imageJobs.clear();}
+  cancelRenditions(scope?:string):void{for(const operation of this.imageJobs){if(scope!==undefined&&operation.scope!==scope)continue;operation.cancelled=true;operation.job?.cancel();this.imageJobs.delete(operation);}}
   mutate(command:CatalogCommand,request?:string):CatalogOutcome{
     const outcome=JSON.parse(this.core.catalog_request(JSON.stringify(command),request)) as CatalogOutcome;
     if(!outcome.duplicate&&outcome.root&&this.active?.plan.root.id===outcome.root&&command.kind!=='finish_scan')this.cancel();

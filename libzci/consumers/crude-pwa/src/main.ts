@@ -7,10 +7,12 @@ import {installPwa} from './pwa.js';
 import {CatalogView} from './catalog-view.js';
 import {LyricsView} from './lyrics-view.js';
 import {ArtworkView} from './artwork-view.js';
+import {ImageView} from './image-view.js';
 const byId=<T extends HTMLElement>(id:string):T=>document.getElementById(id) as T;
 let runtime!:BrowserRuntime;
 let lyrics:LyricsView|null=null;
 let artwork:ArtworkView|null=null;
+let images:ImageView|null=null;
 let disposed=false;
 let latest:Observation | null=null;
 const lines:string[]=[];
@@ -28,7 +30,8 @@ function create():void {
   runtime=new BrowserRuntime();disposed=false;
   lyrics?.close();lyrics=new LyricsView(runtime,log);
   artwork?.close();artwork=new ArtworkView(runtime,log);
-  const catalog=new CatalogView(runtime,log,row=>{void lyrics!.open(row).catch(e=>log(String(e)));},row=>{void artwork!.open(row).catch(e=>log(String(e)));});
+  images?.destroy();images=new ImageView(runtime,log);
+  const catalog=new CatalogView(runtime,log,row=>{void lyrics!.open(row).catch(e=>log(String(e)));},row=>{void artwork!.open(row).catch(e=>log(String(e)));},(row,query)=>{void images!.open(row,query).catch(e=>log(String(e)));});
   runtime.onError=log;
   runtime.onObservation=o=>{
     latest=o;disposed=o.disposed;
@@ -56,7 +59,7 @@ function create():void {
   };
 }
 create();
-window.addEventListener('pagehide',()=>artwork?.close());
+window.addEventListener('pagehide',()=>{artwork?.close();images?.close();});
 byId<HTMLInputElement>('profile-name').value=runtime.profile;
 byId('switch-profile').onclick=()=>{const profile=byId<HTMLInputElement>('profile-name').value;if(!/^[a-zA-Z0-9_-]{1,64}$/.test(profile)){log('Use 1–64 letters, digits, underscores or hyphens');return;}const url=new URL(location.href);url.searchParams.set('profile',profile);location.assign(url);};
 installPwa(log);
@@ -104,4 +107,6 @@ Object.assign(window,{libzci:{load:(file:File)=>runtime.load(file),command:(kind
   catalogAddRoot:(handle:import('./profile-types.js').RealDirectoryHandle,settings?:import('./catalog-types.js').ScanSettings)=>runtime.catalogAddRoot(handle,settings),catalogAddFiles:(files:File[],handles:import('./profile-types.js').RealFileHandle[]=[],verify=true)=>runtime.catalogAddFiles(files,handles,verify),catalogScan:(root:number)=>runtime.catalogScan(root),catalogCancel:()=>runtime.catalogCancel(),
   catalogArtwork:(media:number)=>runtime.catalogArtwork(media),catalogCancelArtwork:()=>runtime.catalogCancelArtwork(),
   catalogRendition:(media:number,maxEdge=512)=>runtime.catalogRendition(media,maxEdge),catalogCancelRenditions:()=>runtime.catalogCancelRenditions(),
+  imageOpen:async(media:number,query:import('./catalog-types.js').CatalogQuery={})=>{const row=(await runtime.catalogQuery({collection:'all',kind:'image',media,limit:1})).rows[0];if(!row)throw new Error('Unknown image');await images!.open(row,query);},
+  imageNavigate:(kind:string)=>images!.navigate(kind),imageSnapshot:()=>images?.snapshot(),imageClose:()=>images?.close(),
   job:(mode:'probe'|'render',verify=false)=>runtime.startJob(mode,verify).result,cancelJobs:()=>runtime.cancelJobs()}});

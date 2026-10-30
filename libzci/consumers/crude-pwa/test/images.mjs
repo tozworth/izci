@@ -78,6 +78,22 @@ try{
   const before=(await page.evaluate(()=>window.libzci.snapshot())).snapshot;
   const artwork=await job(await readFile(path.join(root,'.local/libzci/media/m3/artwork.opus')),{kind:'artwork',spec:{max_edge:64}});assert.deepEqual([artwork.rendition.width,artwork.rendition.height],[64,64]);assert.equal(artwork.facts.width,256);
   for(let n=0;n<3;n++)await job(png(2,3,pixels,6),{kind:'image',spec:{max_edge:2}});
+  await page.evaluate(({media,root})=>window.libzci.imageOpen(media,{root,sort:'path'}),{media:imageId,root:managed});
+  let viewer=await page.evaluate(()=>window.libzci.imageSnapshot());assert.equal(viewer.count,2);assert.equal(viewer.media,imageId);assert(viewer.facts);const origin=viewer.origin_revision;
+  await page.evaluate(async root=>{
+    const directory=await(await navigator.storage.getDirectory()).getDirectoryHandle('pictures'),source=await directory.getFileHandle('a.png'),target=await directory.getFileHandle('c.png',{create:true}),writer=await target.createWritable();await writer.write(await source.getFile());await writer.close();await window.libzci.catalogScan(root);
+  },managed);await page.waitForFunction(()=>window.libzci.snapshot()?.scan?.state!=='scanning');
+  assert.equal((await page.evaluate(root=>window.libzci.catalogQuery({root,kind:'image'}),managed)).total,3);
+  await page.locator('#catalog-search').fill('no matching image');await page.locator('#catalog-search').dispatchEvent('change');
+  await page.evaluate(()=>window.libzci.imageNavigate('next'));viewer=await page.evaluate(()=>window.libzci.imageSnapshot());assert.equal(viewer.count,2);assert.equal(viewer.origin_revision,origin);assert.notEqual(viewer.media,imageId);assert(viewer.facts);const last=viewer;
+  await page.evaluate(()=>window.libzci.imageNavigate('next'));assert.equal((await page.evaluate(()=>window.libzci.imageSnapshot())).generation,last.generation);
+  await page.locator('#image-wrap').setChecked(true);await page.evaluate(()=>window.libzci.imageNavigate('next'));assert.equal((await page.evaluate(()=>window.libzci.imageSnapshot())).media,imageId);
+  await page.evaluate(()=>Promise.all([window.libzci.imageNavigate('last'),window.libzci.imageNavigate('first')]));viewer=await page.evaluate(()=>window.libzci.imageSnapshot());assert.equal(viewer.media,imageId);assert(viewer.facts);
+  const refreshGeneration=viewer.generation;await page.locator('#image-edge').fill('1');await page.locator('#image-edge').dispatchEvent('change');await page.waitForFunction(g=>window.libzci.imageSnapshot()?.generation>g&&!!window.libzci.imageSnapshot()?.facts,refreshGeneration);assert.equal(await page.locator('#image-stage').evaluate(image=>image.naturalWidth),1);
+  viewer=await page.evaluate(()=>window.libzci.imageSnapshot());await page.evaluate(()=>window.libzci.imageNavigate('refresh'));assert.equal((await page.evaluate(()=>window.libzci.imageSnapshot())).generation,viewer.generation+1);
+  const independent=await page.evaluate(async media=>{const job=window.libzci.catalogRendition(media,64);window.libzci.imageClose();return job;},imageId);assert(independent.rendition);assert.equal((await page.evaluate(()=>window.libzci.imageSnapshot())).count,0);assert.equal(await page.evaluate(()=>window.imageUrls.size),0);
+  await page.locator('#catalog-search').fill('');await page.locator('#catalog-search').dispatchEvent('change');
+  results.push({test:'captured image navigation survives Library/query changes, wraps only on request, fences rapid jobs and isolates scoped cancellation while music plays'});
   const after=(await page.evaluate(()=>window.libzci.snapshot())).snapshot;assert.equal(after.generation,before.generation);assert.equal(after.requested,'Running');assert(after.position_frames>before.position_frames);await page.evaluate(()=>window.libzci.command('pause'));
   results.push({test:'artwork/image renditions, inspection, budget rejection and cancellation remain independent of playing music'});
   await page.locator('#file').setInputFiles(path.join(root,'.local/libzci/media/m3/artwork.opus'));await page.locator('#catalog-add-files').click();

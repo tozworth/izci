@@ -10,7 +10,7 @@ export class CatalogView {
   private epoch=0;
   private selected:CatalogRow|null=null;
   private filter:Pick<CatalogQuery,'artist'|'album'|'genre'|'kind'>={};
-  constructor(private runtime:BrowserRuntime,private log:(message:string)=>void,private lyrics:(row:CatalogRow)=>void,private artwork:(row:CatalogRow)=>void){
+  constructor(private runtime:BrowserRuntime,private log:(message:string)=>void,private lyrics:(row:CatalogRow)=>void,private artwork:(row:CatalogRow)=>void,private image:(row:CatalogRow,query:CatalogQuery)=>void){
     element('catalog-refresh').onclick=()=>this.refresh();
     element('catalog-group').onchange=()=>{this.filter={};this.offset=0;this.refresh();};
     element('catalog-group-clear').onclick=()=>{this.filter={};this.offset=0;this.refresh();};
@@ -50,7 +50,7 @@ export class CatalogView {
     this.run(Promise.all([this.runtime.catalogQuery(query),this.runtime.catalogRoots(),by?this.runtime.catalogGroups(by,query):Promise.resolve(null)]).then(([page,roots,groups])=>{
       if(epoch!==this.epoch)return;
       element('catalog-page').textContent=`${page.total} items · revision ${page.revision} · offset ${this.offset}`;
-      element('catalog-rows').replaceChildren(...page.rows.map(row=>this.row(row)));
+      element('catalog-rows').replaceChildren(...page.rows.map(row=>this.row(row,{...query,revision:page.revision})));
       element('catalog-roots').replaceChildren(...roots.map(root=>this.root(root)));
       element('catalog-groups').replaceChildren(...groups?.groups.map(group=>this.button(`${group.key.map(v=>v||'Unknown').join(' / ')} (${group.count})`,()=>{
         this.filter=by==='album'?{artist:group.key[0],album:group.key[1]}:by==='artist'?{artist:group.key[0]}:by==='genre'?{genre:group.key[0]}:{kind:group.key[0] as CatalogQuery['kind']};this.offset=0;this.refresh();
@@ -59,12 +59,13 @@ export class CatalogView {
     }));
   }
   private button(label:string,action:()=>void):HTMLButtonElement{const button=document.createElement('button');button.textContent=label;button.onclick=action;return button;}
-  private row(row:CatalogRow):HTMLTableRowElement{
+  private row(row:CatalogRow,query:CatalogQuery):HTMLTableRowElement{
     const tr=document.createElement('tr');
     const cell=(value:string)=>{const td=document.createElement('td');td.textContent=value;tr.append(td);return td;};
     cell(`${row.metadata.title} · ${row.metadata.artist}`).append(this.button('Details',()=>{this.selected=row;this.details();}));
     tr.lastElementChild!.append(this.button('Lyrics',()=>this.lyrics(row)));
     if(row.kind!=='image')tr.lastElementChild!.append(this.button('Artwork',()=>this.artwork(row)));
+    else tr.lastElementChild!.append(this.button('View image',()=>this.image(row,query)));
     cell(row.source.display_path);const controls=cell('');
     if(row.kind!=='image')controls.append(this.button('Append to Queue',()=>this.run(this.runtime.queue({kind:'append',sources:[row.source]}))));
     controls.append(this.button(row.facts.favorite?'Unfavorite':'Favorite',()=>this.mutate({kind:'favorite',media:row.id,subsong:this.subsong(),favorite:!row.facts.favorite})));

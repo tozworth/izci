@@ -261,9 +261,9 @@ favorites/ratings/bookmarks, bounded queries and atomic root reconciliation are
 implemented. Both crudes have real folder probes and catalog controls, including
 browser capability recovery, owner handoff and offline launch scans. Shared
 metadata/lyrics/ReplayGain and consumed-media counts are implemented. Bounded
-artwork/image jobs and previews work; image catalog imports/scans are being
-verified. Captured image navigation, separate rendition caching, broader visual
-format/color support and remaining acceptance work are still open. See the
+artwork/image jobs, previews, image catalog imports/scans and captured image
+navigation are verified in both crudes. Separate rendition caching, broader
+visual format/color support and remaining acceptance work are still open. See the
 current implementation log.
 
 **Deliverable:** both crudes build/reopen a useful media library with working
