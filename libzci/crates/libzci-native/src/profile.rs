@@ -144,6 +144,38 @@ impl NativeProfile {
             .ok_or_else(|| failure("unavailable", "catalog requires an open profile"))?;
         self.core.bookmarks(media, subsong, db)
     }
+    pub fn managed_roots(&mut self) -> Result<Vec<libzci::catalog::ManagedRoot>> {
+        let db = self
+            .db
+            .as_mut()
+            .ok_or_else(|| failure("unavailable", "catalog requires an open profile"))?;
+        self.core.managed_roots(db)
+    }
+    pub fn begin_scan(&mut self, root: u64) -> Result<libzci::catalog::ScanPlan> {
+        let db = self
+            .db
+            .as_mut()
+            .ok_or_else(|| failure("unavailable", "catalog requires an open profile"))?;
+        self.core.begin_scan(root, db)
+    }
+    pub fn stage_scan(
+        &mut self,
+        token: &str,
+        media: Vec<libzci::catalog::MediaInput>,
+    ) -> Result<u64> {
+        let db = self
+            .db
+            .as_mut()
+            .ok_or_else(|| failure("unavailable", "catalog requires an open profile"))?;
+        self.core.stage_scan(token, media, db)
+    }
+    pub fn cancel_scan(&mut self, token: &str) -> Result<()> {
+        let db = self
+            .db
+            .as_mut()
+            .ok_or_else(|| failure("unavailable", "catalog requires an open profile"))?;
+        self.core.cancel_scan(token, db)
+    }
     pub fn append_paths(&mut self, paths: &[std::path::PathBuf]) -> Result<ProfileOutcome> {
         let mut sources = vec![];
         for path in paths {

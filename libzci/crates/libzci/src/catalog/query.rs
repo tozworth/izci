@@ -26,6 +26,7 @@ pub enum CatalogSort {
 pub struct CatalogQuery {
     pub collection: Collection,
     pub kind: Option<MediaKind>,
+    pub root: Option<u64>,
     pub subsong: Option<u32>,
     pub search: String,
     pub artist: Option<String>,
@@ -43,6 +44,7 @@ impl Default for CatalogQuery {
         Self {
             collection: Collection::Library,
             kind: None,
+            root: None,
             subsong: None,
             search: String::new(),
             artist: None,
@@ -88,9 +90,16 @@ pub(crate) fn query(db: &mut dyn SqlBridge, query: &CatalogQuery) -> Result<Cata
     let mut conditions = vec![];
     let mut bind = vec![json!(subsong(query.subsong))];
     match query.collection {
-        Collection::Library => conditions.push("m.manual=1"),
+        Collection::Library => conditions.push(LIBRARY_MEMBERSHIP),
         Collection::Favorites => conditions.push("f.favorite=1"),
         Collection::All => {}
+    }
+    if let Some(root) = query.root {
+        id(root)?;
+        conditions.push(
+            "EXISTS (SELECT 1 FROM root_memberships rm WHERE rm.media_id=m.id AND rm.root_id=?)",
+        );
+        bind.push(json!(root));
     }
     if let Some(kind) = query.kind {
         conditions.push("m.kind=?");
@@ -145,7 +154,7 @@ pub(crate) fn query(db: &mut dyn SqlBridge, query: &CatalogQuery) -> Result<Cata
         let total = number(&db.statement(&format!("SELECT count(*){from}"), &bind)?[0][0])?;
         let mut args = bind.clone();
         args.extend([json!(query.limit), json!(query.offset)]);
-        let rows=db.statement(&format!("SELECT m.id,m.reference,m.source_revision,m.kind,m.manual,m.metadata,COALESCE(f.favorite,0),COALESCE(f.rating,0),COALESCE(f.play_count,0),f.last_played_ms{from} ORDER BY {order},m.id {direction} LIMIT ? OFFSET ?"),&args)?;
+        let rows=db.statement(&format!("SELECT m.id,m.reference,m.source_revision,m.kind,({LIBRARY_MEMBERSHIP}),m.metadata,COALESCE(f.favorite,0),COALESCE(f.rating,0),COALESCE(f.play_count,0),f.last_played_ms{from} ORDER BY {order},m.id {direction} LIMIT ? OFFSET ?"),&args)?;
         let rows = rows
             .into_iter()
             .map(|r| {
@@ -180,6 +189,8 @@ pub(crate) fn query(db: &mut dyn SqlBridge, query: &CatalogQuery) -> Result<Cata
         })
     })
 }
+const LIBRARY_MEMBERSHIP: &str =
+    "(m.manual=1 OR EXISTS (SELECT 1 FROM root_memberships rm WHERE rm.media_id=m.id))";
 
 pub(crate) fn bookmarks(
     db: &mut dyn SqlBridge,

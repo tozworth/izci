@@ -139,4 +139,28 @@ impl WebProfile {
         )
         .map_err(js)
     }
+    pub fn managed_roots(&mut self) -> Result<String, JsValue> {
+        serde_json::to_string(&self.core.managed_roots(&mut self.db).map_err(typed)?).map_err(js)
+    }
+    pub fn begin_scan(&mut self, root: u64) -> Result<String, JsValue> {
+        serde_json::to_string(&self.core.begin_scan(root, &mut self.db).map_err(typed)?).map_err(js)
+    }
+    pub fn stage_scan(&mut self, token: &str, media: &str) -> Result<u64, JsValue> {
+        if media.len() > 4 * 1024 * 1024 {
+            return Err(typed(libzci::LibzciError::ResourceExhausted {
+                detail: "scan batch exceeds 4 MiB".into(),
+            }));
+        }
+        let media = serde_json::from_str(media).map_err(|e| {
+            typed(libzci::LibzciError::InvalidArgument {
+                detail: format!("{e}"),
+            })
+        })?;
+        self.core
+            .stage_scan(token, media, &mut self.db)
+            .map_err(typed)
+    }
+    pub fn cancel_scan(&mut self, token: &str) -> Result<(), JsValue> {
+        self.core.cancel_scan(token, &mut self.db).map_err(typed)
+    }
 }

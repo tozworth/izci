@@ -43,7 +43,28 @@ self.onmessage=async()=>{try {
   assert(JSON.parse(profile.catalog_request(JSON.stringify(add),'catalog-add')).duplicate,'catalog receipt survives OPFS reopen');
   assert(JSON.parse(profile.catalog_query(JSON.stringify({subsong:0}))).rows[0].facts.rating===7,'subsong facts survive OPFS reopen');
   assert(JSON.parse(profile.bookmarks(BigInt(media),0))[0].position_seconds===2.5,'bookmark survives OPFS reopen');
+  const root=JSON.parse(profile.catalog_request(JSON.stringify({kind:'root',root:{source:{key:'root',kind:'browser_handle',locator:'root-capability',display_path:'Music'},settings:{}}}))).root;
+  let scan=JSON.parse(profile.begin_scan(BigInt(root)));
+  const scanned={source:{...source,key:'scanned'},kind:'audio',source_revision:'1',metadata:{title:'Scanned'}};
+  assert(profile.stage_scan(scan.token,JSON.stringify([scanned,scanned]))===1n,'scan staging deduplicates by identity');
+  assert(JSON.parse(profile.catalog_query('{}')).total===1,'staging does not publish catalog');
+  const finished=JSON.parse(profile.catalog_request(JSON.stringify({kind:'finish_scan',token:scan.token}),'finish-scan'));
+  assert(finished.scan.added===1,'OPFS root reconciliation');
+  assert(JSON.parse(profile.catalog_query(JSON.stringify({root}))).total===1,'root-scoped query');
+  assert(JSON.parse(profile.catalog_request(JSON.stringify({kind:'finish_scan',token:scan.token}),'finish-scan')).duplicate,'scan finish retry is idempotent after staging is released');
+  scan=JSON.parse(profile.begin_scan(BigInt(root)));profile.cancel_scan(scan.token);
+  let cancelled=false;try{profile.catalog_request(JSON.stringify({kind:'finish_scan',token:scan.token}));}catch{cancelled=true;}
+  assert(cancelled&&JSON.parse(profile.catalog_query('{}')).total===2,'cancelled scan preserves catalog');
+  scan=JSON.parse(profile.begin_scan(BigInt(root)));profile.stage_scan(scan.token,JSON.stringify([{...scanned,source:{...source,key:'partial'}}]));
+  profile.free();profile=new WebProfile(bridge);
+  // The same SQL connection keeps its transient job; freeing a binding does
+  // not close the DB. Actual connection loss drops TEMP tables.
+  profile.cancel_scan(scan.token);
+  assert(JSON.parse(profile.managed_roots()).length===1,'managed roots persist');
+  scan=JSON.parse(profile.begin_scan(BigInt(root)));
+  const empty=JSON.parse(profile.catalog_request(JSON.stringify({kind:'finish_scan',token:scan.token})));
+  assert(empty.scan.removed===1&&JSON.parse(profile.catalog_query('{}')).total===1,'only successful empty scan removes root membership');
   statement('PRAGMA user_version=999','[]');profile.free();let schema=false;try{new WebProfile(bridge);}catch{schema=true;}assert(schema,'unknown schema rejected');
   assert(JSON.parse(statement('SELECT count(*) FROM queue_occurrences','[]'))[0][0]===2,'schema failure leaves rows intact');
-  db.close();self.postMessage({passed:['one shared SQL setting committed/reopened','duplicates','busy/quota/commit injection rollback','real SQLite page quota','durable retry receipt','schema refusal preserves data','catalog/favorites/subsong ratings/bookmarks OPFS reopen','catalog transaction rollback and durable receipts','independent catalog revision during playback checkpoints']});
+  db.close();self.postMessage({passed:['one shared SQL setting committed/reopened','duplicates','busy/quota/commit injection rollback','real SQLite page quota','durable retry receipt','schema refusal preserves data','catalog/favorites/subsong ratings/bookmarks OPFS reopen','catalog transaction rollback and durable receipts','independent catalog revision during playback checkpoints','managed root staging/reconciliation/cancellation and finish receipts']});
 }catch(e){self.postMessage({error:String(e)});}};

@@ -2,7 +2,9 @@
 //! Query pages contain references and bounded metadata, never media/artwork blobs.
 pub(crate) mod mutation;
 pub(crate) mod query;
+pub(crate) mod scans;
 pub use query::{CatalogPage, CatalogQuery, CatalogRow, CatalogSort, Collection};
+pub use scans::{ManagedRoot, RootInput, ScanPlan, ScanSettings, ScanSummary};
 
 use crate::{
     queue::{invalid, SourceReference},
@@ -103,6 +105,15 @@ pub struct Bookmark {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CatalogCommand {
+    Root {
+        root: RootInput,
+    },
+    RemoveRoot {
+        root: u64,
+    },
+    FinishScan {
+        token: String,
+    },
     Add {
         media: Vec<MediaInput>,
     },
@@ -138,6 +149,8 @@ pub struct CatalogOutcome {
     /// return touched identities. Consumers refresh queries at this revision.
     pub media: Vec<u64>,
     pub bookmark: Option<u64>,
+    pub root: Option<u64>,
+    pub scan: Option<ScanSummary>,
 }
 
 pub(crate) fn text(s: &str, limit: usize, empty: bool) -> Result<()> {
@@ -165,4 +178,7 @@ pub(crate) const SCHEMA: &[&str] = &[
     "CREATE INDEX favorites ON user_facts(subsong,favorite,media_id)",
     "CREATE TABLE bookmarks (id INTEGER PRIMARY KEY AUTOINCREMENT CHECK(id<=9007199254740991), media_id INTEGER NOT NULL REFERENCES media(id), subsong INTEGER NOT NULL CHECK(subsong>=-1), position_seconds REAL NOT NULL CHECK(position_seconds>=0), label TEXT NOT NULL)",
     "CREATE INDEX media_bookmarks ON bookmarks(media_id,subsong,position_seconds,id)",
+    "CREATE TABLE managed_roots (id INTEGER PRIMARY KEY AUTOINCREMENT CHECK(id<=9007199254740991), source_key TEXT NOT NULL UNIQUE, config TEXT NOT NULL, revision INTEGER NOT NULL)",
+    "CREATE TABLE root_memberships (root_id INTEGER NOT NULL REFERENCES managed_roots(id) ON DELETE CASCADE, media_id INTEGER NOT NULL REFERENCES media(id), PRIMARY KEY(root_id,media_id))",
+    "CREATE INDEX media_roots ON root_memberships(media_id,root_id)",
 ];

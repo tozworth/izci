@@ -54,8 +54,24 @@ pub(crate) fn apply(
         revision,
         media: vec![],
         bookmark: None,
+        root: None,
+        scan: None,
     };
     match command {
+        CatalogCommand::Root { root } => {
+            outcome.root = Some(super::scans::put_root(db, &root, revision)?)
+        }
+        CatalogCommand::RemoveRoot { root } => {
+            super::scans::root(db, root)?;
+            super::scans::invalidate_root(db, root)?;
+            exec(db, "DELETE FROM managed_roots WHERE id=?", &[json!(root)])?;
+            outcome.root = Some(root);
+        }
+        CatalogCommand::FinishScan { token } => {
+            let summary = super::scans::finish(db, &token)?;
+            outcome.root = Some(summary.root);
+            outcome.scan = Some(summary);
+        }
         CatalogCommand::Add { media } => {
             if media.is_empty() || media.len() > MAX_BATCH {
                 return Err(invalid("catalog batch must contain 1..256 entries"));
@@ -72,6 +88,11 @@ pub(crate) fn apply(
                 require(db, n)?;
                 // Removal drops membership only, preserving facts and identity.
                 exec(db, "UPDATE media SET manual=0 WHERE id=?", &[json!(n)])?;
+                exec(
+                    db,
+                    "DELETE FROM root_memberships WHERE media_id=?",
+                    &[json!(n)],
+                )?;
                 outcome.media.push(n);
             }
         }

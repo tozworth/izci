@@ -48,6 +48,22 @@ M3 remains in progress: managed scans, metadata/lyrics policy, play counts,
 artwork/images and the crude presentation controls still need implementation.
 M4-M6/A1/A2 remain open; this slice does not claim shell or server adoption.
 
+The following M3 slice adds managed root settings (recursion, launch scan,
+unknown verification, bounded probe concurrency), connection-local TEMP scan
+staging, bounded batches/jobs/entries and atomic successful reconciliation.
+Overlapping roots retain independent memberships; rescans preserve media IDs
+and user facts. Cancelled/partial/superseded scans, removed or changed roots,
+connection loss and failed writes/commits cannot erase the prior catalog.
+Finish receipts survive lost replies; no transient job is persisted. Native and
+WASM profile bindings expose the same begin/stage/cancel/finish operations.
+
+`cargo test --locked --manifest-path libzci/Cargo.toml -p libzci-native --test scans --test catalog --test profile`
+passes 11 tests, including root ownership, empty scan, cancellation, rollback,
+connection reopen, bounded staging and existing queue/profile behavior. Rebuilt
+WASM, `npm run typecheck` and muted Chromium `npm run test:storage` pass actual
+OPFS TEMP staging, deduplication, reconciliation, cancellation and finish receipts.
+Real folder enumeration/probe wiring and crude scan controls remain next work.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

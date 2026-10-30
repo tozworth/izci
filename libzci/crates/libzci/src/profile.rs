@@ -369,6 +369,30 @@ impl Profile {
     ) -> Result<Vec<crate::catalog::Bookmark>> {
         crate::catalog::query::bookmarks(db, media, subsong)
     }
+    pub fn managed_roots(
+        &self,
+        db: &mut dyn SqlBridge,
+    ) -> Result<Vec<crate::catalog::ManagedRoot>> {
+        crate::catalog::scans::roots(db)
+    }
+    pub fn begin_scan(
+        &self,
+        root: u64,
+        db: &mut dyn SqlBridge,
+    ) -> Result<crate::catalog::ScanPlan> {
+        crate::catalog::scans::begin(db, root)
+    }
+    pub fn stage_scan(
+        &self,
+        token: &str,
+        media: Vec<crate::catalog::MediaInput>,
+        db: &mut dyn SqlBridge,
+    ) -> Result<u64> {
+        crate::catalog::scans::stage(db, token, media)
+    }
+    pub fn cancel_scan(&self, token: &str, db: &mut dyn SqlBridge) -> Result<()> {
+        crate::catalog::scans::cancel(db, token)
+    }
 }
 
 fn validate_request(request: &str) -> Result<()> {
