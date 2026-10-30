@@ -14,10 +14,10 @@ pub fn failure(code: &str, detail: impl ToString) -> LibzciError {
         detail: detail.to_string(),
     }
 }
-fn exec(db: &mut dyn SqlBridge, sql: &str, bind: &[Value]) -> Result<()> {
+pub(crate) fn exec(db: &mut dyn SqlBridge, sql: &str, bind: &[Value]) -> Result<()> {
     db.statement(sql, bind).map(|_| ())
 }
-fn transaction<T>(
+pub(crate) fn transaction<T>(
     db: &mut dyn SqlBridge,
     f: impl FnOnce(&mut dyn SqlBridge) -> Result<T>,
 ) -> Result<T> {
@@ -31,7 +31,7 @@ fn transaction<T>(
     }
     result
 }
-fn decode<T: serde::de::DeserializeOwned>(v: &Value) -> Result<T> {
+pub(crate) fn decode<T: serde::de::DeserializeOwned>(v: &Value) -> Result<T> {
     serde_json::from_str(
         v.as_str()
             .ok_or_else(|| failure("corrupt", "expected JSON text"))?,
@@ -46,7 +46,7 @@ pub fn open(db: &mut dyn SqlBridge) -> Result<ProfileState> {
         .and_then(|r| r.first())
         .and_then(Value::as_u64)
         .ok_or_else(|| failure("init", "missing schema version"))?;
-    if version != 0 && version != 1 {
+    if version != 0 && version != 2 {
         return Err(failure(
             "schema",
             format!("unsupported libzci schema {version}; existing data preserved"),
@@ -66,28 +66,34 @@ pub fn open(db: &mut dyn SqlBridge) -> Result<ProfileState> {
             for sql in [
                 "CREATE TABLE source_references (key TEXT PRIMARY KEY, reference TEXT NOT NULL)",
                 "CREATE TABLE queue_occurrences (id INTEGER PRIMARY KEY, ordinal INTEGER NOT NULL UNIQUE, source_key TEXT NOT NULL REFERENCES source_references(key), subsong INTEGER)",
-                "CREATE TABLE sessions (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, navigation TEXT NOT NULL, position_seconds REAL NOT NULL)",
+                "CREATE TABLE sessions (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, navigation TEXT NOT NULL, position_seconds REAL NOT NULL, catalog_revision INTEGER NOT NULL)",
                 "CREATE TABLE domain_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
                 "CREATE TABLE request_receipts (request TEXT PRIMARY KEY, revision INTEGER NOT NULL, payload TEXT NOT NULL, outcome TEXT NOT NULL)",
-                "PRAGMA user_version=1",
             ] {exec(db,sql,&[])?;}
+            for sql in crate::catalog::SCHEMA {
+                exec(db, sql, &[])?;
+            }
+            exec(db, "PRAGMA user_version=2", &[])?;
             write(db, &ProfileState::default(), None)
         })?;
     }
     // Reopen consistently even if an adapter is used without the profile lock.
     transaction(db, |db| {
         let rows = db.statement(
-            "SELECT revision,navigation,position_seconds FROM sessions WHERE id=1",
+            "SELECT revision,navigation,position_seconds,catalog_revision FROM sessions WHERE id=1",
             &[],
         )?;
         let r = rows
             .first()
-            .filter(|r| r.len() == 3)
+            .filter(|r| r.len() == 4)
             .ok_or_else(|| failure("corrupt", "missing session"))?;
         let mut state = ProfileState {
             revision: r[0]
                 .as_u64()
                 .ok_or_else(|| failure("corrupt", "revision"))?,
+            catalog_revision: r[3]
+                .as_u64()
+                .ok_or_else(|| failure("corrupt", "catalog revision"))?,
             queue: decode(&r[1])?,
             position_seconds: r[2]
                 .as_f64()
@@ -164,11 +170,12 @@ fn write(
     };
     exec(
         db,
-        "INSERT OR REPLACE INTO sessions(id,revision,navigation,position_seconds) VALUES(1,?,?,?)",
+        "INSERT OR REPLACE INTO sessions(id,revision,navigation,position_seconds,catalog_revision) VALUES(1,?,?,?,?)",
         &[
             json!(state.revision),
             json!(serde_json::to_string(&navigation).unwrap()),
             json!(state.position_seconds),
+            json!(state.catalog_revision),
         ],
     )?;
     exec(
@@ -177,11 +184,11 @@ fn write(
         &[json!(serde_json::to_string(&state.settings).unwrap())],
     )
 }
-pub fn receipt(
+pub fn receipt<T: serde::de::DeserializeOwned>(
     db: &mut dyn SqlBridge,
     request: &str,
     payload: &str,
-) -> Result<Option<crate::profile::ProfileOutcome>> {
+) -> Result<Option<T>> {
     let rows = db.statement(
         "SELECT payload,outcome FROM request_receipts WHERE request=?",
         &[json!(request)],
@@ -198,12 +205,13 @@ pub fn receipt(
         Ok(None)
     }
 }
-pub fn commit(
+pub(crate) fn commit_operation<T: serde::Serialize>(
     db: &mut dyn SqlBridge,
     state: &ProfileState,
     previous: &ProfileState,
-    request: Option<(&str, &str, &crate::profile::ProfileOutcome)>,
-) -> Result<()> {
+    request: Option<(&str, &str)>,
+    operation: impl FnOnce(&mut dyn SqlBridge) -> Result<T>,
+) -> Result<T> {
     transaction(db, |db| {
         let row = db.statement("SELECT revision FROM sessions WHERE id=1", &[])?;
         if row.first().and_then(|r| r.first()).and_then(Value::as_u64) != Some(previous.revision) {
@@ -213,7 +221,8 @@ pub fn commit(
             ));
         }
         write(db, state, Some(previous))?;
-        if let Some((id, payload, outcome)) = request {
+        let outcome = operation(db)?;
+        if let Some((id, payload)) = request {
             exec(
                 db,
                 "INSERT INTO request_receipts(request,revision,payload,outcome) VALUES(?,?,?,?)",
@@ -221,11 +230,11 @@ pub fn commit(
                     json!(id),
                     json!(state.revision),
                     json!(payload),
-                    json!(serde_json::to_string(outcome).unwrap()),
+                    json!(serde_json::to_string(&outcome).unwrap()),
                 ],
             )?;
             exec(db,"DELETE FROM request_receipts WHERE request NOT IN (SELECT request FROM request_receipts ORDER BY revision DESC LIMIT 128)",&[])?;
         }
-        Ok(())
+        Ok(outcome)
     })
 }

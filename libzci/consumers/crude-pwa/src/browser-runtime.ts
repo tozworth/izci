@@ -29,7 +29,7 @@ export class BrowserRuntime {
   constructor(readonly profile=new URL(location.href).searchParams.get('profile')??'default') {
     if(!/^[a-zA-Z0-9_-]{1,64}$/.test(profile))throw new Error('Invalid profile name');
     if(!navigator.locks||!globalThis.BroadcastChannel)throw new Error('Durable profiles require Web Locks and BroadcastChannel');
-    this.channel=new BroadcastChannel(`libzci-crude-v1-${profile}`);this.channel.onmessage=e=>void this.receive(e.data);
+    this.channel=new BroadcastChannel(`libzci-crude-v2-${profile}`);this.channel.onmessage=e=>void this.receive(e.data);
     void this.connected.catch(()=>{});
     this.timer=setInterval(()=>{
       if(this.local){this.channel.postMessage({type:'owner',term:this.term});for(const [id,c] of this.clients)if(Date.now()-c.seen>30000)this.clients.delete(id);}
@@ -41,7 +41,7 @@ export class BrowserRuntime {
   }
   private async acquire():Promise<void> {
     if(this.acquiring||this.local||this.closed)return;this.acquiring=true;
-    try {await navigator.locks.request(`libzci-crude-profile-v1-${this.profile}`,{ifAvailable:true},async lock=>{
+    try {await navigator.locks.request(`libzci-crude-profile-v2-${this.profile}`,{ifAvailable:true},async lock=>{
       this.acquiring=false;if(!lock||this.closed)return;
       this.term=crypto.randomUUID();this.local=new LocalRuntime(this.profile);
       this.local.onError=e=>{if(!this.latest?.profile)this.failConnect(new Error(e));this.onError(e);this.channel.postMessage({type:'error',term:this.term,error:e});};

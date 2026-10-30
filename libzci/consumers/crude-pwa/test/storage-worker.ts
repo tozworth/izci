@@ -22,7 +22,28 @@ self.onmessage=async()=>{try {
   assert(full,'real SQLite page quota must fail');assert(profile.snapshot()===before,'quota publishes no revision');
   statement('PRAGMA max_page_count=2147483646','[]');profile.free();profile=new WebProfile(bridge);assert(profile.snapshot()===before,'quota preserves OPFS data');
   const duplicate=JSON.parse(profile.request(JSON.stringify({kind:'append',sources:[source,source]}),'append-1'));assert(duplicate.duplicate,'receipt survives reopen');assert(profile.snapshot()===before,'duplicate does not publish or append');
+  const add={kind:'add',media:[{source,kind:'audio',source_revision:'1',metadata:{title:'Library test',artist:'Artist',album:'Album'}}]};
+  const added=JSON.parse(profile.catalog_request(JSON.stringify(add),'catalog-add'));
+  const media=added.media[0];assert(Number.isSafeInteger(media),'catalog ID is JSON-safe');
+  profile.catalog_request(JSON.stringify({kind:'favorite',media,subsong:null,favorite:true}));
+  profile.catalog_request(JSON.stringify({kind:'rate',media,subsong:0,rating:7}));
+  profile.catalog_request(JSON.stringify({kind:'bookmark',media,subsong:0,position_seconds:2.5,label:'Marker'}));
+  const page=JSON.parse(profile.catalog_query(JSON.stringify({collection:'favorites'})));
+  assert(page.total===1&&page.rows[0].id===media,'OPFS catalog/favorite query');
+  const revision=page.revision;
+  profile.command(JSON.stringify({kind:'checkpoint',position_seconds:1,subsong:null}));
+  assert(JSON.parse(profile.catalog_query(JSON.stringify({revision}))).revision===revision,'playback checkpoint does not invalidate catalog pages');
+  before=profile.snapshot();
+  for(const at of ['INSERT INTO media','INSERT INTO request_receipts','COMMIT']) {
+    fault=at;let failed=false;try {profile.catalog_request(JSON.stringify({...add,media:[{...add.media[0],source:{...source,key:'bad'}}]}),'bad-catalog-add');}catch{failed=true;}
+    assert(failed,`catalog ${at} failure`);assert(profile.snapshot()===before,'failed catalog command publishes nothing');fault='';
+    assert(JSON.parse(profile.catalog_query('{}')).total===1,'catalog insert rolled back');
+  }
+  profile.free();profile=new WebProfile(bridge);
+  assert(JSON.parse(profile.catalog_request(JSON.stringify(add),'catalog-add')).duplicate,'catalog receipt survives OPFS reopen');
+  assert(JSON.parse(profile.catalog_query(JSON.stringify({subsong:0}))).rows[0].facts.rating===7,'subsong facts survive OPFS reopen');
+  assert(JSON.parse(profile.bookmarks(BigInt(media),0))[0].position_seconds===2.5,'bookmark survives OPFS reopen');
   statement('PRAGMA user_version=999','[]');profile.free();let schema=false;try{new WebProfile(bridge);}catch{schema=true;}assert(schema,'unknown schema rejected');
   assert(JSON.parse(statement('SELECT count(*) FROM queue_occurrences','[]'))[0][0]===2,'schema failure leaves rows intact');
-  db.close();self.postMessage({passed:['one shared SQL setting committed/reopened','duplicates','busy/quota/commit injection rollback','real SQLite page quota','durable retry receipt','schema refusal preserves data']});
+  db.close();self.postMessage({passed:['one shared SQL setting committed/reopened','duplicates','busy/quota/commit injection rollback','real SQLite page quota','durable retry receipt','schema refusal preserves data','catalog/favorites/subsong ratings/bookmarks OPFS reopen','catalog transaction rollback and durable receipts','independent catalog revision during playback checkpoints']});
 }catch(e){self.postMessage({error:String(e)});}};

@@ -4,7 +4,7 @@ interface Entry {key:string;handle:RealFileHandle;pending:boolean}
 export class Capabilities {
   private db:Promise<IDBDatabase>;
   constructor(profile:string) {
-    this.db=new Promise((resolve,reject)=>{const request=indexedDB.open(`libzci-crude-capabilities-v1-${profile}`,1);
+    this.db=new Promise((resolve,reject)=>{const request=indexedDB.open(`libzci-crude-capabilities-v2-${profile}`,1);
       request.onupgradeneeded=()=>request.result.createObjectStore('handles',{keyPath:'key'});
       request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
     });

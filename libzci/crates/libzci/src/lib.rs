@@ -20,6 +20,8 @@
 
 pub mod audio;
 #[cfg(feature = "control")]
+pub mod catalog;
+#[cfg(feature = "control")]
 pub mod command;
 pub mod error;
 #[cfg(feature = "control")]

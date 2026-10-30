@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(deny_unknown_fields)]
 pub struct ProfileState {
     pub revision: u64,
+    pub catalog_revision: u64,
     pub sources: Vec<SourceReference>,
     pub queue: Queue,
     pub settings: QueueSettings,
@@ -33,6 +34,7 @@ pub struct ProfileOutcome {
 impl ProfileState {
     pub fn validate(&self) -> Result<()> {
         if self.revision > 9_007_199_254_740_991
+            || self.catalog_revision > crate::catalog::MAX_ID
             || self
                 .sources
                 .iter()
@@ -276,11 +278,11 @@ impl Profile {
             Sha256::digest(serde_json::to_vec(&command).unwrap())
         );
         if let Some(request) = request {
-            if request.is_empty() || request.len() > 256 {
-                return Err(invalid("invalid durable request identity"));
-            }
+            validate_request(request)?;
             if let Some(db) = db.as_mut() {
-                if let Some(mut outcome) = storage::receipt(*db, request, &payload)? {
+                if let Some(mut outcome) =
+                    storage::receipt::<ProfileOutcome>(*db, request, &payload)?
+                {
                     outcome.duplicate = true;
                     outcome.load = None;
                     outcome.stop = false;
@@ -290,26 +292,102 @@ impl Profile {
             // Browser envelopes retain the sender's observed revision across
             // reconnects. An evicted receipt is never permission to replay an
             // old mutation: fail visibly and require a fresh snapshot/request.
-            if let Some((base, _)) = request.split_once(':') {
-                let base = base
-                    .parse::<u64>()
-                    .map_err(|_| invalid("invalid request revision"))?;
-                if base > self.state.revision || self.state.revision - base > 128 {
-                    return Err(storage::failure("request-expired","request outcome expired; refresh the snapshot before issuing a new request"));
-                }
-            }
+            validate_request_age(request, self.state.revision)?;
         }
         let mut next = self.state.clone();
         let outcome = next.apply(command)?;
         if let Some(db) = db {
-            storage::commit(
+            storage::commit_operation(
                 db,
                 &next,
                 &self.state,
-                request.map(|id| (id, payload.as_str(), &outcome)),
+                request.map(|id| (id, payload.as_str())),
+                |_| Ok(outcome.clone()),
             )?;
         }
         self.state = next;
         Ok(outcome)
     }
+
+    /// Catalog mutations share the profile owner/revision and SQL transaction,
+    /// without loading the catalog into the playback snapshot on every tick.
+    pub fn catalog_request(
+        &mut self,
+        command: crate::catalog::CatalogCommand,
+        request: Option<&str>,
+        db: &mut dyn SqlBridge,
+    ) -> Result<crate::catalog::CatalogOutcome> {
+        use sha2::{Digest, Sha256};
+        let payload = format!(
+            "catalog:{:x}",
+            Sha256::digest(serde_json::to_vec(&command).unwrap())
+        );
+        if let Some(request) = request {
+            validate_request(request)?;
+            if let Some(mut outcome) =
+                storage::receipt::<crate::catalog::CatalogOutcome>(db, request, &payload)?
+            {
+                outcome.duplicate = true;
+                return Ok(outcome);
+            }
+            validate_request_age(request, self.state.revision)?;
+        }
+        let mut next = self.state.clone();
+        next.revision = next
+            .revision
+            .checked_add(1)
+            .ok_or_else(|| invalid("revision exhausted"))?;
+        next.catalog_revision = next
+            .catalog_revision
+            .checked_add(1)
+            .ok_or_else(|| invalid("catalog revision exhausted"))?;
+        next.validate()?;
+        let outcome = storage::commit_operation(
+            db,
+            &next,
+            &self.state,
+            request.map(|id| (id, payload.as_str())),
+            |db| crate::catalog::mutation::apply(db, command, next.catalog_revision),
+        )?;
+        self.state = next;
+        Ok(outcome)
+    }
+
+    pub fn catalog_query(
+        &self,
+        query: &crate::catalog::CatalogQuery,
+        db: &mut dyn SqlBridge,
+    ) -> Result<crate::catalog::CatalogPage> {
+        crate::catalog::query::query(db, query)
+    }
+
+    pub fn bookmarks(
+        &self,
+        media: u64,
+        subsong: Option<u32>,
+        db: &mut dyn SqlBridge,
+    ) -> Result<Vec<crate::catalog::Bookmark>> {
+        crate::catalog::query::bookmarks(db, media, subsong)
+    }
+}
+
+fn validate_request(request: &str) -> Result<()> {
+    if request.is_empty() || request.len() > 256 {
+        return Err(invalid("invalid durable request identity"));
+    }
+    Ok(())
+}
+fn validate_request_age(request: &str, revision: u64) -> Result<()> {
+    if let Some((base, _)) = request.split_once(':') {
+        let base = base
+            .parse::<u64>()
+            .map_err(|_| invalid("invalid request revision"))?;
+        if base > revision || revision - base > 128 {
+            return Err(storage::failure(
+                "request-expired",
+                "request outcome expired; refresh the snapshot before issuing a new request",
+            ));
+        }
+    }
+    Ok(())
 }

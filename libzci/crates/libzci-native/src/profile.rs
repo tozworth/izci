@@ -112,6 +112,38 @@ impl NativeProfile {
         self.core
             .command(command, self.db.as_mut().map(|db| db as &mut dyn SqlBridge))
     }
+    pub fn catalog_request(
+        &mut self,
+        command: libzci::catalog::CatalogCommand,
+        request: Option<&str>,
+    ) -> Result<libzci::catalog::CatalogOutcome> {
+        let db = self
+            .db
+            .as_mut()
+            .ok_or_else(|| failure("unavailable", "catalog requires an open profile"))?;
+        self.core.catalog_request(command, request, db)
+    }
+    pub fn catalog_query(
+        &mut self,
+        query: &libzci::catalog::CatalogQuery,
+    ) -> Result<libzci::catalog::CatalogPage> {
+        let db = self
+            .db
+            .as_mut()
+            .ok_or_else(|| failure("unavailable", "catalog requires an open profile"))?;
+        self.core.catalog_query(query, db)
+    }
+    pub fn bookmarks(
+        &mut self,
+        media: u64,
+        subsong: Option<u32>,
+    ) -> Result<Vec<libzci::catalog::Bookmark>> {
+        let db = self
+            .db
+            .as_mut()
+            .ok_or_else(|| failure("unavailable", "catalog requires an open profile"))?;
+        self.core.bookmarks(media, subsong, db)
+    }
     pub fn append_paths(&mut self, paths: &[std::path::PathBuf]) -> Result<ProfileOutcome> {
         let mut sources = vec![];
         for path in paths {

@@ -10,6 +10,44 @@ are all open. No build, test, listening, or browser result was newly produced by
 this documentation revision. Append future results under the new milestone IDs.
 The old phase labels and next-step statements below do not direct current work.
 
+## 2026-10-30: end-to-end completion, M3 catalog foundation
+
+Started at clean `0ed9277b` on `libzci-codex`. The user authorized all builds,
+tests and inspections with low audio volume for completing libzci and adopting
+it in izci-server and the existing Svelte shells. The source audit confirms
+that M2 is the implemented starting point; A1/A2 adoption remains outstanding.
+Earlier physical-device/lifecycle limitations remain explicitly unverified.
+
+This first slice implements shared SQL catalog identities, source revisions,
+Library membership, per-media/subsong favorites and half-star ratings,
+bookmarks, indexed sorts and bounded filtered pages. Catalog state is queried
+from SQL rather than copied into each playback snapshot. Catalog revisions
+advance independently of frequent queue/playback checkpoints. Both native and
+WASM public profile bindings expose the same mutations, queries and bookmarks.
+Queue occurrences and catalog membership are independent. Removing membership
+preserves identity/user facts; changing media metadata/revision preserves facts.
+Durable request receipts and profile revision checks cover catalog transactions.
+
+Schema 2 deliberately refuses schema 1 without changing it. Default crude-native
+profiles and the browser OPFS/capability/ownership namespaces use fresh v2 names;
+the prior profiles/grants are retained, with no migration or dual writing.
+
+Verification on Windows x64 MSVC and muted headless Chromium:
+
+- `cargo test --locked --manifest-path libzci/Cargo.toml -p libzci -p libzci-native`
+  passed the starting core/native output, transport and profile suites.
+- `cargo test --locked --manifest-path libzci/Cargo.toml -p libzci-native --test catalog --test profile`
+  passed new catalog identity/fact/reopen, fault/receipt/revision and 2,048-item
+  query checks plus the five existing profile checks.
+- `python libzci/consumers/crude-pwa/scripts/build-wasm.py` rebuilt control and
+  import-free audio WASM. `npm run typecheck` and `npm run test:storage` from the
+  crude PWA passed on actual OPFS SQLite, including catalog/favorite/subsong
+  rating/bookmark reopen, rollback, receipts and independent catalog revision.
+
+M3 remains in progress: managed scans, metadata/lyrics policy, play counts,
+artwork/images and the crude presentation controls still need implementation.
+M4-M6/A1/A2 remain open; this slice does not claim shell or server adoption.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

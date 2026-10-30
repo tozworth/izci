@@ -88,4 +88,55 @@ impl WebProfile {
     pub fn restore(&self) -> String {
         serde_json::to_string(&self.core.snapshot().restore()).unwrap()
     }
+    pub fn catalog_request(
+        &mut self,
+        command: &str,
+        request: Option<String>,
+    ) -> Result<String, JsValue> {
+        if command.len() > 4 * 1024 * 1024 {
+            return Err(typed(libzci::LibzciError::ResourceExhausted {
+                detail: "catalog command exceeds 4 MiB".into(),
+            }));
+        }
+        let command = serde_json::from_str(command).map_err(|e| {
+            typed(libzci::LibzciError::InvalidArgument {
+                detail: format!("{e}"),
+            })
+        })?;
+        serde_json::to_string(
+            &self
+                .core
+                .catalog_request(command, request.as_deref(), &mut self.db)
+                .map_err(typed)?,
+        )
+        .map_err(js)
+    }
+    pub fn catalog_query(&mut self, query: &str) -> Result<String, JsValue> {
+        if query.len() > 32 * 1024 {
+            return Err(typed(libzci::LibzciError::ResourceExhausted {
+                detail: "catalog query exceeds 32 KiB".into(),
+            }));
+        }
+        let query = serde_json::from_str(query).map_err(|e| {
+            typed(libzci::LibzciError::InvalidArgument {
+                detail: format!("{e}"),
+            })
+        })?;
+        serde_json::to_string(
+            &self
+                .core
+                .catalog_query(&query, &mut self.db)
+                .map_err(typed)?,
+        )
+        .map_err(js)
+    }
+    pub fn bookmarks(&mut self, media: u64, subsong: Option<u32>) -> Result<String, JsValue> {
+        serde_json::to_string(
+            &self
+                .core
+                .bookmarks(media, subsong, &mut self.db)
+                .map_err(typed)?,
+        )
+        .map_err(js)
+    }
 }
