@@ -64,7 +64,7 @@ impl ImageView {
                 });
             }
             self.status = row.source.display_path.clone();
-            ImageJob::from_path(
+            ImageJob::from_path_cached(
                 std::path::Path::new(&row.source.locator),
                 ImageJobRequest::Image {
                     spec: RenditionSpec {
@@ -72,6 +72,7 @@ impl ImageView {
                     },
                 },
                 &CancelFlag::default(),
+                c.image_cache.clone(),
             )
         })();
         match result {

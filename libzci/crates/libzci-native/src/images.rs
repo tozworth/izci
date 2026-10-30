@@ -21,6 +21,14 @@ impl ImageJob {
         request: ImageJobRequest,
         parent: &CancelFlag,
     ) -> Result<Self> {
+        Self::from_source_cached(source, request, parent, None)
+    }
+    pub fn from_source_cached(
+        source: Arc<dyn RuntimeSource>,
+        request: ImageJobRequest,
+        parent: &CancelFlag,
+        cache: Option<(Arc<crate::rendition_cache::RenditionCache>, String)>,
+    ) -> Result<Self> {
         parent.check()?;
         request.validate()?;
         let cancel = CancelFlag::child_of(parent);
@@ -29,7 +37,12 @@ impl ImageJob {
         std::thread::Builder::new()
             .name("libzci-image".into())
             .spawn(move || {
-                let _ = tx.send(run_image_job(source.as_ref(), request, &worker));
+                let result = if let Some((cache, key)) = cache {
+                    cache.run(source.as_ref(), &key, request, &worker)
+                } else {
+                    run_image_job(source.as_ref(), request, &worker)
+                };
+                let _ = tx.send(result);
             })
             .map_err(|e| LibzciError::ResourceExhausted {
                 detail: e.to_string(),
@@ -38,6 +51,20 @@ impl ImageJob {
     }
     pub fn from_path(path: &Path, request: ImageJobRequest, parent: &CancelFlag) -> Result<Self> {
         Self::from_source(Arc::new(NativeFileSource::open(path)?), request, parent)
+    }
+    pub fn from_path_cached(
+        path: &Path,
+        request: ImageJobRequest,
+        parent: &CancelFlag,
+        cache: Option<Arc<crate::rendition_cache::RenditionCache>>,
+    ) -> Result<Self> {
+        let reference = crate::source::native_reference(path)?;
+        Self::from_source_cached(
+            Arc::new(NativeFileSource::open(path)?),
+            request,
+            parent,
+            cache.map(|c| (c, reference.key)),
+        )
     }
     pub fn cancel(&self) {
         self.cancel.cancel();

@@ -15,6 +15,7 @@ pub mod playback;
 pub mod probe;
 pub mod profile;
 pub mod render;
+pub mod rendition_cache;
 pub mod runtime;
 pub mod scan;
 mod session_jobs;

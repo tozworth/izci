@@ -1,11 +1,16 @@
 //! Shared bounded still-image inspection, color conversion and renditions.
 //! Image jobs are independent of music transport. Original pixels/profile bytes
 //! remain transient; only bounded facts and rebuildable renditions may persist.
+mod cache;
 mod job;
 mod reader;
 mod rendition;
 mod session;
 use crate::{CancelFlag, LibzciError, Result, RuntimeSource};
+pub use cache::{
+    plan_cache, rendition_cache_key, restore_cached_rendition, CacheBudget, CacheEntry, CachePlan,
+    CachedRendition, MAX_CACHE_ENTRIES,
+};
 use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader};
 pub use job::{run_image_job, ImageJobRequest, ImageJobResult};
 pub use rendition::{ImageRendition, RenditionSpec};

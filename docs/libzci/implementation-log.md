@@ -507,7 +507,42 @@ renditions. Existing metadata/lyrics and production M3 offline checks pass.
 Separate rendition cache/eviction and broader visual format/color support remain
 open before the M3 acceptance gate can close.
 
+The next M3 slice adds shared revision/spec/pipeline cache identities, bounded
+LRU admission/eviction and integrity-checked derived PNG restoration. Defaults
+are 64 MiB / 256 entries; hard limits are 256 MiB / 4096 entries, with zero
+budgets disabling admission. Restoring preserves original facts while decoding
+already oriented sRGB PNGs without reapplying original EXIF/ICC. The worker
+validates requested size, checksum, dimensions, decode limits and removed tags.
+
+Native uses a separate `artwork-cache-v1.sqlite3` with atomic plan/PNG writes,
+serialized worker access and bounded SQLite page allocation. Browser uses a
+separate artwork-cache IndexedDB with atomic metadata/PNG Blob transactions;
+shared WASM supplies the same plan. No payload enters catalog, queue or handle
+records. Both paths resolve access and live source revisions before lookup and
+verify them after work. Stale/unavailable sources fail, while cache corruption,
+quota or write errors fall back to a usable fresh rendition. Caches can be
+cleared/rebuilt independently of durable facts. The crudes use caching for image
+viewing and artwork previews; native diagnostics expose hit/miss/failure counts.
+
+Core/native cache tests pass: deterministic LRU and byte/count/disabled budgets,
+identity separation, exact oriented pixel/fact restore, corruption/cancellation,
+SQLite reopen with zero original reads on hit, concurrent admissions, changed
+native files and injected cache-write rollback. The native tests include a small
+checked-in deterministic PNG rather than requiring generated media. The complete
+core/native/web/crude-native test suites pass (device tests remain ignored).
+
+Muted Chromium image tests pass real IDB reopen, corrupt PNG repair, live source
+replacement, concurrent byte/count eviction and clear. A worker-realm fault test
+uses the actual BrowserCatalog/FSA/IDB path, denies queryPermission and injects
+QuotaExceededError on PNG writes: cached access fails visibly and quota rollback
+still returns a rendition without changing domain state. These are explicit
+fault injections, not physical permission-revocation or disk-exhaustion evidence.
+The production PWA build, seven import-free audio-WASM checks and M3 cold-offline
+catalog/scan/playback checks pass. Broader visual format/color and the remaining
+M3 acceptance checks are still open; A1/A2 adoption has not begun.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
+
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to
 end and authorized builds and isolated runtime checks. Implementation milestones:

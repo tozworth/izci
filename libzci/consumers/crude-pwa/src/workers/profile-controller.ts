@@ -11,12 +11,12 @@ export class ProfileController {
   private staging=new CapabilityStaging();
   private epoch=0;
   access='';
-  private constructor(private core:WebProfile,private handles:Capabilities,private load:(file:File,options:QueueLoad)=>void,private stop:()=>void,private engine:WebEngine,private applied:()=>void,private publish:()=>void) {
-    this.catalog=new BrowserCatalog(core,handles,this.files,this.staging,()=>{this.cached=undefined;this.syncPlayback();this.publish();});
+  private constructor(name:string,private core:WebProfile,private handles:Capabilities,private load:(file:File,options:QueueLoad)=>void,private stop:()=>void,private engine:WebEngine,private applied:()=>void,private publish:()=>void) {
+    this.catalog=new BrowserCatalog(name,core,handles,this.files,this.staging,()=>{this.cached=undefined;this.syncPlayback();this.publish();});
   }
   static async open(name:string,load:(file:File,options:QueueLoad)=>void,stop:()=>void,engine:WebEngine,applied:()=>void,publish:()=>void):Promise<ProfileController> {
     const core=await openProfile(name),handles=new Capabilities(name);
-    const controller=new ProfileController(core,handles,load,stop,engine,applied,publish);
+    const controller=new ProfileController(name,core,handles,load,stop,engine,applied,publish);
     core.attach_playback(engine);controller.applied();
     await handles.recoverReferenced(key=>core.references_browser_capability(key));
     await controller.restore();return controller;

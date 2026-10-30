@@ -1,4 +1,5 @@
-import {known_extension,normalize_metadata,image_metadata,type WebProfile} from '../generated/libzci_web.js';
+import {known_extension,normalize_metadata,image_metadata,image_cache_key,type WebProfile} from '../generated/libzci_web.js';
+import {RenditionCache} from '../rendition-cache.js';
 import {Capabilities,type CapabilityStaging} from '../capabilities.js';
 import {ProbeWorker,type CatalogProbeFacts} from '../probe-worker.js';
 import {LyricsJob} from '../lyrics-job.js';
@@ -17,8 +18,9 @@ export class BrowserCatalog {
   private artworkJobs=new Set<ArtworkJob>();
   private artworkEpoch=0;
   private imageJobs=new Set<{scope?:string;cancelled:boolean;job?:ImageJob}>();
+  private imageCache:RenditionCache;
   observation:ScanObservation={state:'idle',root:null,visited:0,accepted:0,ignored:0,detail:''};
-  constructor(private core:WebProfile,private handles:Capabilities,private files:Map<string,File>,private staging:CapabilityStaging,private publish:()=>void){}
+  constructor(name:string,private core:WebProfile,private handles:Capabilities,private files:Map<string,File>,private staging:CapabilityStaging,private publish:()=>void){this.imageCache=new RenditionCache(name);}
   query(query:CatalogQuery={}):CatalogPage{return JSON.parse(this.core.catalog_query(JSON.stringify(query)));}
   groups(by:CatalogGroupBy,query:CatalogQuery={}):CatalogGroupPage{return JSON.parse(this.core.catalog_groups(by,JSON.stringify(query)));}
   imageSequence(query:CatalogQuery={}){return JSON.parse(this.core.image_sequence(JSON.stringify(query)));}
@@ -50,11 +52,24 @@ export class BrowserCatalog {
     const operation:{scope?:string;cancelled:boolean;job?:ImageJob}={scope,cancelled:false};this.imageJobs.add(operation);
     try{
     const row=this.query({collection:'all',media,limit:1,...(imageOnly?{kind:'image' as const}:{})}).rows[0];if(!row)throw new Error('Unknown visual media');
-    const source=row.source,file=source.kind==='browser_handle'?await this.handles.resolve(source.locator):this.files.get(source.key);
-    if(operation.cancelled)throw Object.assign(new Error('Image job cancelled'),{kind:'cancelled'});
+    const check=()=>{if(operation.cancelled)throw Object.assign(new Error('Image job cancelled'),{kind:'cancelled'});};
+    const source=row.source,resolve=()=>source.kind==='browser_handle'?this.handles.resolve(source.locator):Promise.resolve(this.files.get(source.key)),file=await resolve();check();
     if(!file)throw Object.assign(new Error('Visual source is not currently accessible'),{kind:'access-required'});
-    const job=new ImageJob(file,{kind:row.kind==='image'?'image':'artwork',spec:{max_edge}});operation.job=job;
-    return {...await job.result,displayPath:source.display_path};
+    const revision=`${file.size}:${file.lastModified}`,request={kind:row.kind==='image'?'image' as const:'artwork' as const,spec:{max_edge}};
+    const key=image_cache_key(source.key,revision,JSON.stringify(request));let status:'miss'|'unavailable'='miss';
+    const verify=async()=>{const after=await resolve();check();if(!after||`${after.size}:${after.lastModified}`!==revision)throw Object.assign(new Error('Visual source changed during rendition'),{kind:'unavailable'});};
+    try{
+      const cached=await this.imageCache.get(key);check();
+      if(cached){
+        const job=new ImageJob(new File([cached.png],'cached.png'),{kind:'cached',metadata:cached.metadata,spec:{max_edge}});operation.job=job;
+        try{const result=await job.result;check();await verify();this.imageCache.stats.hits++;return {...result,displayPath:source.display_path,cache:'hit' as const};}
+        catch(e){check();if((e as {kind?:string}).kind==='access-required'||(e as {kind?:string}).kind==='unavailable')throw e;await this.imageCache.remove(key);this.imageCache.stats.failures++;}
+      }
+    }catch(e){check();if((e as {kind?:string}).kind==='access-required'||(e as {kind?:string}).kind==='unavailable')throw e;this.imageCache.stats.failures++;status='unavailable';await this.imageCache.clear().catch(()=>{});}
+    check();this.imageCache.stats.misses++;
+    const job=new ImageJob(file,request);operation.job=job;const result=await job.result;check();await verify();
+    if(result.metadata&&result.rendition)try{await this.imageCache.put(key,result.metadata,result.png);}catch{this.imageCache.stats.failures++;status='unavailable';}
+    check();return {...result,displayPath:source.display_path,cache:status};
     }finally{this.imageJobs.delete(operation);}
   }
   cancelRenditions(scope?:string):void{for(const operation of this.imageJobs){if(scope!==undefined&&operation.scope!==scope)continue;operation.cancelled=true;operation.job?.cancel();this.imageJobs.delete(operation);}}

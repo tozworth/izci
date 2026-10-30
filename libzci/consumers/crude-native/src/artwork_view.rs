@@ -75,18 +75,35 @@ impl ArtworkView {
                     .add_enabled(c.source.is_some(), egui::Button::new("Current artwork"))
                     .clicked()
                 {
-                    self.start(c.runtime.start_image_job(
-                        c.source.unwrap(),
-                        ImageJobRequest::Artwork { spec },
-                        &CancelFlag::default(),
-                    ));
+                    let result = c
+                        .runtime
+                        .get_source(c.source.unwrap())
+                        .ok_or_else(|| libzci::LibzciError::Unavailable {
+                            detail: "current artwork source unavailable".into(),
+                        })
+                        .and_then(|source| {
+                            let cache = c.image_cache.clone().zip(
+                                c.snapshot()
+                                    .context
+                                    .as_ref()
+                                    .map(|context| context.reference.key.clone()),
+                            );
+                            ImageJob::from_source_cached(
+                                source,
+                                ImageJobRequest::Artwork { spec },
+                                &CancelFlag::default(),
+                                cache,
+                            )
+                        });
+                    self.start(result);
                 }
                 if ui.button("Artwork from media…").clicked() {
                     if let Some(path) = rfd::FileDialog::new().pick_file() {
-                        self.start(ImageJob::from_path(
+                        self.start(ImageJob::from_path_cached(
                             &path,
                             ImageJobRequest::Artwork { spec },
                             &CancelFlag::default(),
+                            c.image_cache.clone(),
                         ));
                     }
                 }
@@ -95,10 +112,11 @@ impl ArtworkView {
                         .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
                         .pick_file()
                     {
-                        self.start(ImageJob::from_path(
+                        self.start(ImageJob::from_path_cached(
                             &path,
                             ImageJobRequest::Image { spec },
                             &CancelFlag::default(),
+                            c.image_cache.clone(),
                         ));
                     }
                 }
@@ -106,6 +124,13 @@ impl ArtworkView {
                     self.close();
                 }
                 ui.label(&self.status);
+                if let Some(cache) = &c.image_cache {
+                    let stats = cache.stats();
+                    ui.label(format!(
+                        "Cache: {} hits / {} misses / {} failures",
+                        stats.hits, stats.misses, stats.failures
+                    ));
+                }
             });
             if let Some(texture) = &self.texture {
                 ui.add(egui::Image::new(texture).max_size(egui::vec2(384., 384.)));

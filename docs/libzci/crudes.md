@@ -43,6 +43,17 @@ viewport state stay local. Disable unsupported controls with a capability reason
 
 Editing/closing a window never owns playback progression, counts, matching, or DSP.
 
+Visual jobs use a separate rebuildable rendition cache: native stores PNGs in
+`artwork-cache-v1.sqlite3` beside the profile; browser stores PNG Blobs and bounded
+metadata in `libzci-artwork-cache-v1-<profile>` IndexedDB. Neither is domain SQL or
+the capability registry. Defaults are 64 MiB / 256 entries; the public cache
+budget permits disabling storage and caps it at 256 MiB / 4096 entries. Shared
+Rust owns revision/spec/pipeline keys, LRU admission/eviction and PNG validation.
+Source access and live revision checks precede a hit. Corrupt/unavailable caches
+fall back to fresh visual work; grant/source failures remain visible. Source
+pixels, raw ICC/artwork and surface RGBA never enter persistence. Native preview
+shows cache counters; browser rendition outcomes report hit/miss/unavailable.
+
 ## Browser lifecycle
 
 R4 proves actual reference Opus, worker File reads, shared Rust worklet output,

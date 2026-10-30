@@ -1,8 +1,9 @@
 export interface ImageFacts {mime:string;width:number;height:number;display_width:number;display_height:number;orientation:number;bits_per_pixel:number;alpha:boolean;icc_bytes:number;icc_sha256:string|null}
 export interface ImageSequence {revision:number;media:number[]}
 export interface ImageViewSnapshot {session:number;generation:number;origin_revision:number|null;media:number|null;index:number|null;count:number;facts:ImageFacts|null}
-export type ImageJobRequest={kind:'inspect'}|{kind:'image'|'artwork';spec:{max_edge:number}};
-export interface ImageJobResult {facts:ImageFacts|null;rendition:{width:number;height:number;mime:'image/png';bytes:number}|null;png:Uint8Array;displayPath?:string}
+export interface CachedRendition {spec:{max_edge:number};source:ImageFacts;width:number;height:number;bytes:number;sha256:string}
+export type ImageJobRequest={kind:'inspect'}|{kind:'image'|'artwork';spec:{max_edge:number}}|{kind:'cached';metadata:CachedRendition;spec:{max_edge:number}};
+export interface ImageJobResult {facts:ImageFacts|null;rendition:{width:number;height:number;mime:'image/png';bytes:number}|null;metadata:CachedRendition|null;png:Uint8Array;displayPath?:string;cache?:'hit'|'miss'|'unavailable'}
 /** Independent visual worker. Rust owns parsing, limits and rendition policy. */
 export class ImageJob {
   readonly result:Promise<ImageJobResult>;

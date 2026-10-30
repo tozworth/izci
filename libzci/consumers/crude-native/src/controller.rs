@@ -13,6 +13,7 @@ use std::{
     },
 };
 pub struct Controller {
+    pub image_cache: Option<Arc<libzci_native::rendition_cache::RenditionCache>>,
     pub profile: libzci_native::profile::NativeProfile,
     playback: Option<libzci::profile::ProfilePlayback>,
     ended_generation: Option<Generation>,
@@ -36,6 +37,10 @@ impl Controller {
     pub fn with_profile(path: &Path) -> Result<Self> {
         let profile = libzci_native::profile::NativeProfile::open(path)?;
         let mut controller = Self::assemble(profile);
+        match libzci_native::rendition_cache::RenditionCache::open(path, Default::default()) {
+            Ok(cache) => controller.image_cache = Some(Arc::new(cache)),
+            Err(e) => controller.error = format!("Rendition cache unavailable: {e}"),
+        }
         controller.playback = Some(
             controller
                 .profile
@@ -64,6 +69,7 @@ impl Controller {
             .unwrap();
         let session = runtime.create_session();
         Self {
+            image_cache: None,
             profile,
             playback: None,
             ended_generation: None,

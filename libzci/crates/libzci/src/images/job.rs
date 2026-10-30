@@ -1,18 +1,34 @@
 //! Explicit visual work requests. Adapters schedule these on independent workers;
 //! none of the operations create, select or command a music playback session.
 use super::*;
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ImageJobRequest {
     Inspect,
-    Image { spec: RenditionSpec },
-    Artwork { spec: RenditionSpec },
+    Image {
+        spec: RenditionSpec,
+    },
+    Artwork {
+        spec: RenditionSpec,
+    },
+    Cached {
+        metadata: CachedRendition,
+        spec: RenditionSpec,
+    },
 }
 impl ImageJobRequest {
-    pub fn validate(self) -> Result<()> {
+    pub fn validate(&self) -> Result<()> {
         match self {
             Self::Inspect => Ok(()),
             Self::Image { spec } | Self::Artwork { spec } => spec.validate(),
+            Self::Cached { metadata, spec } => metadata.validate_for(*spec),
+        }
+    }
+    pub fn rendition_spec(&self) -> Option<RenditionSpec> {
+        match self {
+            Self::Image { spec } | Self::Artwork { spec } => Some(*spec),
+            Self::Cached { spec, .. } => Some(*spec),
+            Self::Inspect => None,
         }
     }
 }
@@ -36,6 +52,19 @@ pub fn run_image_job(
     cancel.check()?;
     request.validate()?;
     match request {
+        ImageJobRequest::Cached { metadata, .. } => {
+            source.verify_snapshot()?;
+            if source.len() != Some(metadata.bytes as u64) {
+                return Err(invalid("cached rendition length mismatch"));
+            }
+            let mut png = vec![0; metadata.bytes];
+            for (i, block) in png.chunks_mut(32768).enumerate() {
+                source.read_exact_at((i * 32768) as u64, block, cancel)?;
+            }
+            source.verify_snapshot()?;
+            restore_cached_rendition(metadata, png, cancel)
+                .map(|r| ImageJobResult::Rendition(Some(r)))
+        }
         ImageJobRequest::Inspect => inspect_image(source, cancel).map(ImageJobResult::Facts),
         ImageJobRequest::Image { spec } => {
             render_image(source, spec, cancel).map(|r| ImageJobResult::Rendition(Some(r)))
