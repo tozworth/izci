@@ -168,6 +168,7 @@ pub struct PcmConsumer {
     clock_generation: Generation,
     latency: u64,
     prime_gain: bool,
+    prime_master: bool,
 }
 
 /// Preallocate before starting output. The returned endpoints have unique queue
@@ -236,6 +237,7 @@ pub fn pcm_transport(
             clock_generation: generation,
             latency: 0,
             prime_gain: true,
+            prime_master: true,
         },
         monitor,
     )
@@ -360,6 +362,11 @@ impl PcmConsumer {
                 let count = (out.len() / 2 - frames).min(slot.block.valid_frames - self.offset);
                 out[frames * 2..(frames + count) * 2]
                     .copy_from_slice(&slot.samples[self.offset * 2..(self.offset + count) * 2]);
+                if self.prime_master {
+                    self.processor
+                        .reset_master(self.processor.volume(), self.processor.muted());
+                    self.prime_master = false;
+                }
                 self.processor.process_source_block(
                     &mut out[frames * 2..(frames + count) * 2],
                     slot.block.slice(self.offset, count),

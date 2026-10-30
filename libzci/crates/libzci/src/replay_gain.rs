@@ -69,7 +69,10 @@ impl ReplayGainMetadata {
     pub fn from_comments(comments: &[(String, String)]) -> Self {
         let mut result = Self::default();
         let (mut track_r128, mut album_r128) = (0, 0);
-        for (key, value) in comments.iter().take(256) {
+        // Providers and bindings bound container bytes. Examine the complete
+        // bounded comment block: the text-display cap must not hide a valid
+        // gain or a duplicate R128 field later in that block.
+        for (key, value) in comments {
             match crate::provider::metadata_comment_key(key)
                 .to_ascii_uppercase()
                 .as_str()
@@ -265,6 +268,17 @@ mod tests {
     }
     #[test]
     fn strict_tags_first_valid_rg_and_duplicate_r128_policy() {
+        let mut late = vec![("other".to_owned(), String::new()); 300];
+        late.push(("R128_TRACK_GAIN".into(), "256".into()));
+        assert_eq!(
+            ReplayGainMetadata::from_comments(&late).r128_track_gain_q8,
+            Some(256)
+        );
+        late.push(("R128_TRACK_GAIN".into(), "256".into()));
+        assert_eq!(
+            ReplayGainMetadata::from_comments(&late).r128_track_gain_q8,
+            None
+        );
         let t = tags(&[
             ("replaygain_track_gain", "oops -3"),
             ("REPLAYGAIN_TRACK_GAIN", " -3 dB "),

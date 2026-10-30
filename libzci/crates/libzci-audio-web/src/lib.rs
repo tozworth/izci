@@ -30,6 +30,7 @@ pub struct Renderer {
     latency: u64,
     replay_gain: f32,
     prime_gain: bool,
+    prime_master: bool,
     gains: GainSchedule,
     gains_generation: Option<Generation>,
     pending_points: [GainPoint; MAX_GAIN_POINTS],
@@ -65,6 +66,7 @@ impl Renderer {
             latency: 0,
             replay_gain: 1.0,
             prime_gain: true,
+            prime_master: true,
             gains: GainSchedule::default(),
             gains_generation: None,
             pending_points: [GainPoint::default(); MAX_GAIN_POINTS],
@@ -120,6 +122,11 @@ impl Renderer {
             let n = (b.valid_frames - slot.offset).min(QUANTUM - at);
             self.output[at * 2..(at + n) * 2]
                 .copy_from_slice(&slot.samples[slot.offset * 2..(slot.offset + n) * 2]);
+            if self.prime_master {
+                self.processor
+                    .reset_master(self.processor.volume(), self.processor.muted());
+                self.prime_master = false;
+            }
             let fallback = [GainPoint {
                 source_frame: 0,
                 linear: self.replay_gain,

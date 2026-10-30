@@ -219,3 +219,29 @@ fn callback_primes_new_generations_and_retargets_normalization_without_stereo_or
     rx.render(&mut output);
     assert_eq!(output, [0.125; 256]);
 }
+#[test]
+fn callback_primes_initial_master_volume_and_mute_before_any_media() {
+    use libzci_native::pcm_transport::*;
+    for (volume, mute, expected) in [(0.02, false, 0.02), (0.8, true, 0.0)] {
+        let (mut tx, mut rx, monitor) = pcm_transport(2, Generation(1));
+        monitor.set_volume(volume);
+        monitor.set_mute(mute);
+        let block = OutputBlock {
+            generation: Generation(1),
+            source_start: 0,
+            source_end: 256,
+            source_rate: 48000,
+            output_start: 0,
+            layout: PcmLayout::stereo48k(),
+            valid_frames: 256,
+        };
+        tx.write(block, &[1.0; 512]);
+        let mut output = [0.0; 256];
+        rx.render(&mut output);
+        assert_eq!(output, [expected; 256]);
+        monitor.set_volume(0.5);
+        monitor.set_mute(false);
+        rx.render(&mut output);
+        assert!((output[0] - expected).abs() < 0.005);
+    }
+}

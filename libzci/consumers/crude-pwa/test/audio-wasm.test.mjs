@@ -13,6 +13,7 @@ test('real worklet WASM links stereo gain and smoothly retargets unfinished ramp
   try{
     const input=new Float32Array(w.memory.buffer,w.renderer_input(p),8192),output=new Float32Array(w.memory.buffer,w.renderer_output(p),256);
     input.fill(1);w.renderer_reset(p,1,0);assert.equal(w.renderer_enqueue(p,0,1,0,1024,0,48000,48000,1024),1);
+    w.renderer_settings(p,1,1,0,0);w.renderer_process(p);assert(output.every(n=>n===1));
     let last=1;
     for(const [volume,mute]of [[0,0],[0.8,0],[0.8,1],[0.4,1],[0.4,0],[NaN,0]]){
       w.renderer_settings(p,1,volume,mute,0);w.renderer_process(p);
@@ -20,8 +21,18 @@ test('real worklet WASM links stereo gain and smoothly retargets unfinished ramp
       for(let i=0;i<256;i+=2){assert.equal(output[i],output[i+1],'one gain per stereo frame');assert(Number.isFinite(output[i])&&output[i]>=0&&output[i]<=1);}
       last=output[254];
     }
-    assert.equal(w.renderer_position(p),128*6);
+    assert.equal(w.renderer_position(p),128*7);
   }finally{w.renderer_free(p);}
+});
+test('initial master volume and mute apply before the first rendered frame',()=>{
+  for(const [volume,mute,expected]of [[0.02,0,Math.fround(0.02)],[0.8,1,0]]){
+    const w=new WebAssembly.Instance(module,{}).exports,p=w.renderer_new();
+    try{
+      const input=new Float32Array(w.memory.buffer,w.renderer_input(p),8192),output=new Float32Array(w.memory.buffer,w.renderer_output(p),256);input.fill(1);
+      w.renderer_reset(p,1,0);w.renderer_settings(p,1,volume,mute,0);assert.equal(w.renderer_enqueue(p,0,1,0,512,0,48000,48000,512),1);w.renderer_process(p);assert(output.every(n=>n===expected));
+      w.renderer_settings(p,1,0.5,0,0);w.renderer_process(p);assert(Math.abs(output[0]-expected)<0.005,'later adjustments retain smoothing');
+    }finally{w.renderer_free(p);}
+  }
 });
 
 test('worklet ABI preserves source-rate positions within blocks and at final drain', () => {

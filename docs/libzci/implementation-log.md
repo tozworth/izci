@@ -326,6 +326,16 @@ Core/native/bindings/audio-WASM/crude-native suites, the seven reference Opus
 checks, metadata/lyrics, real OPFS storage, production build, M2 and M3
 owner/offline checks and the full M1 output/sample suite pass after this wiring.
 
+Startup master priming now honors volume/mute before the first actual media
+frame on native and worklet output, instead of briefly ramping from unity.
+Later changes remain anchored/smoothed, including after seek/source replacement.
+Native callback tests and all seven import-free audio-WASM ABI tests pass;
+actual muted browser normalization levels, chained boundaries, seek, controls
+and settings reopen also pass. Reference native render/output and zero-callback-
+allocation checks pass. Gain parsing now examines the complete byte-bounded
+comment block, so display-field limits cannot hide late gain tags or duplicate
+R128 fields. Unit checks cover those late-field cases.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to
