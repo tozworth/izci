@@ -114,8 +114,7 @@ async function perform(job: DecodeJob): Promise<void> {
     bytesRead = maxRead = callbackYields = 0;
     const hint=file.name.split('.').pop()?.toLowerCase()??'';
     if(job.mode==='probe'&&!known_extension(hint)&&!job.verifyUnknown)throw {kind:'unsupported',detail:'Unknown-extension verification is disabled'};
-    let kind=classify(readBytes(0,8192),hint);
-    if(kind==='unsupported'&&job.mode==='probe'&&job.verifyUnknown)kind='module';
+    const kind=job.mode==='probe'&&!known_extension(hint)?'module':classify(readBytes(0,8192),hint);
     if(kind==='unsupported')throw {kind:'unsupported',detail:'No provider claimed this File'};
     if(kind==='opus') {
       handle = codec._zci_create(source.id, file.size);

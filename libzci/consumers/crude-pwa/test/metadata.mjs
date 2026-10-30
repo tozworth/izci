@@ -38,6 +38,8 @@ try{
   const catalog=await page.evaluate(async()=>{const file=document.querySelector('#file').files[0];const added=await window.libzci.catalogAddFiles([file],[],false);return window.libzci.catalogQuery({media:added.media[0]});});
   assert.equal(catalog.rows[0].metadata.title,'Çığ / 曲');assert.equal(catalog.rows[0].metadata.artist,'İzci');assert(!JSON.stringify(catalog).includes('Transient lyric payload'),'embedded lyrics are not durable catalog metadata');
   assert.equal(await page.evaluate(()=>window.audioContexts),0);
+  const unknown=await page.evaluate(async()=>{const {ProbeWorker}=await import('/src/probe-worker.ts');const worker=new ProbeWorker();try{const input=document.querySelector('#file').files[0];try{return (await worker.inspect(new File([input],'unknown.bin'),true)).provider.id;}catch(e){return (e.kind==='unsupported'||e.kind==='corrupt')?'declined':String(e);}}finally{worker.close();}});
+  assert(['declined','org.openmpt.libopenmpt'].includes(unknown),`unknown verification must use OpenMPT or decline: ${unknown}`);
   results.push({test:'bounded Opus tag leases, UTF-8, reusable probe contexts, core normalization and transient lyrics',comments:facts.first.comments.length});
   const lyricIds={};
   for(const extension of containers){

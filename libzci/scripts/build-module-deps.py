@@ -46,7 +46,9 @@ for name in ['libopenmpt','hivelytracker-replay']:
         f'if(MSVC)\ntarget_compile_options({lib} PRIVATE /utf-8 /EHsc /bigobj /wd4996)\nendif()',
         f'install(TARGETS {lib} ARCHIVE DESTINATION lib)'])
     (project/'CMakeLists.txt').write_text(cmake+'\n')
-    flags = [f'-DCMAKE_TOOLCHAIN_FILE={em}/cmake/Modules/Platform/Emscripten.cmake'] if args.browser else []
+    # OpenMPT's C boundary catches decoder exceptions. Enabling catches only in
+    # the final wrapper does not restore handlers omitted from archive objects.
+    flags = [f'-DCMAKE_TOOLCHAIN_FILE={em}/cmake/Modules/Platform/Emscripten.cmake','-DCMAKE_CXX_FLAGS=-fexceptions'] if args.browser else []
     run('cmake','-S',project,'-B',build,'-G','Ninja',f'-DCMAKE_INSTALL_PREFIX={prefix}','-DCMAKE_BUILD_TYPE=Release',*flags)
     run('cmake','--build',build,'--parallel','4'); run('cmake','--install',build)
     (prefix/'BUILD-RECORD.txt').write_text(json.dumps({'target':target,'compiler':version,'runtime':'/MD' if not args.browser else 'Emscripten','pin':pin,'recipe':'build-module-deps.py','sourceFiles':[str(p.relative_to(src)) if p.is_relative_to(src) else str(p.relative_to(ROOT)) for p in files]},indent=2)+'\n')

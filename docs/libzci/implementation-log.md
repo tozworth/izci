@@ -203,6 +203,17 @@ in automatic snapshots. Production cold offline tests execute the on-demand
 reader worker from cached assets. Remaining M3 work includes ReplayGain policy/
 processing, play counts and artwork/images; M4-M6/A1/A2 remain open.
 
+Unknown-extension verification now goes specifically through the background
+OpenMPT provider on native/browser. Ordinary provider magic cannot bypass this
+setting; known formats and normal playback retain their independent selection
+path. A regression exposed numeric C++ exceptions on invalid module input in the
+browser archive: the wrapper enabled exceptions, but archive objects had been
+compiled without catching enabled. The Emscripten module build now enables
+`-fexceptions` throughout the OpenMPT archive so its C boundary returns errors.
+The pinned archives/wrapper were rebuilt. Native provider selection tests,
+browser metadata/unknown verification checks and the full M1 ordinary/module
+output and native/browser sample comparisons pass with the rebuilt archive.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

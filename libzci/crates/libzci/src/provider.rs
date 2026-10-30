@@ -234,25 +234,24 @@ impl ProviderRegistry {
         verify_unknown: bool,
         cancel: &CancelFlag,
     ) -> Result<Inspection> {
+        cancel.check()?;
         let known = hint.is_some_and(crate::format::known_audio_extension);
         if !known && !verify_unknown {
             return Err(LibzciError::Unsupported {
                 detail: "unknown-extension verification is disabled".into(),
             });
         }
-        let instance = match self.open_best(source.clone(), hint, cancel) {
-            Ok((_, d)) => d,
-            Err(LibzciError::Unsupported { .. }) if !known && verify_unknown => {
-                let factory = self
-                    .factories
-                    .iter()
-                    .find(|f| f.info().id == ProviderId::OPENMPT)
-                    .ok_or_else(|| LibzciError::Unsupported {
-                        detail: "module verification provider unavailable".into(),
-                    })?;
-                factory.open(source, cancel)?
-            }
-            Err(e) => return Err(e),
+        let instance = if !known {
+            let factory = self
+                .factories
+                .iter()
+                .find(|f| f.info().id == ProviderId::OPENMPT)
+                .ok_or_else(|| LibzciError::Unsupported {
+                    detail: "module verification provider unavailable".into(),
+                })?;
+            factory.open(source, cancel)?
+        } else {
+            self.open_best(source, hint, cancel)?.1
         };
         cancel.check()?;
         Ok(Inspection {
@@ -600,6 +599,34 @@ mod tests {
                 .id,
             ProviderId::FAKE
         );
+    }
+    #[test]
+    fn unknown_verification_never_accepts_a_non_module_provider_by_magic() {
+        let mut registry = ProviderRegistry::new();
+        registry
+            .register(Arc::new(FakeFactory::new(16, PcmLayout::mono48k())))
+            .unwrap();
+        // Ordinary opens can use magic, but unknown-extension verification
+        // specifically requires the reusable background OpenMPT provider.
+        assert!(registry
+            .open_best(mem(b"FAKExyz"), Some("odd"), &CancelFlag::default())
+            .is_ok());
+        assert!(matches!(
+            registry.inspect(mem(b"FAKExyz"), Some("odd"), true, &CancelFlag::default()),
+            Err(LibzciError::Unsupported { .. })
+        ));
+        assert!(registry
+            .inspect(mem(b"FAKExyz"), Some("wav"), false, &CancelFlag::default())
+            .is_ok());
+        assert!(matches!(
+            registry.inspect(
+                mem(b"FAKExyz"),
+                Some("odd"),
+                false,
+                &CancelFlag::cancelled()
+            ),
+            Err(LibzciError::Cancelled)
+        ));
     }
 
     #[test]
