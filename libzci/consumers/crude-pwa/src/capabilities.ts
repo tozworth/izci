@@ -12,7 +12,7 @@ export class Capabilities {
   private db:Promise<IDBDatabase>;
   private identity=Promise.resolve();
   constructor(profile:string) {
-    this.db=new Promise((resolve,reject)=>{const request=indexedDB.open(`libzci-crude-capabilities-v2-${profile}`,2);
+    this.db=new Promise((resolve,reject)=>{const request=indexedDB.open(`libzci-crude-capabilities-v3-${profile}`,2);
       request.onupgradeneeded=()=>{
         const store=request.result.objectStoreNames.contains('handles')?request.transaction!.objectStore('handles'):request.result.createObjectStore('handles',{keyPath:'key'});
         if(!store.indexNames.contains('by-name'))store.createIndex('by-name',['name','key'],{unique:true});

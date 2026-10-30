@@ -145,9 +145,11 @@ fn filtered(query: &CatalogQuery) -> Result<(String, Vec<Value>)> {
     }
     if !query.search.is_empty() {
         // Literal substring, not SQL LIKE wildcard syntax. Bind all user input.
-        conditions.push("(instr(lower(m.title),lower(?))>0 OR instr(lower(m.artist),lower(?))>0 OR instr(lower(m.album),lower(?))>0)");
+        conditions
+            .push("(instr(m.title_key,?)>0 OR instr(m.artist_key,?)>0 OR instr(m.album_key,?)>0)");
+        let key = super::text::key(&query.search);
         for _ in 0..3 {
-            bind.push(json!(query.search));
+            bind.push(json!(key));
         }
     }
     if let Some(artist) = &query.artist {
@@ -186,12 +188,12 @@ fn revision(db: &mut dyn SqlBridge, expected: Option<u64>) -> Result<u64> {
 pub(crate) fn query(db: &mut dyn SqlBridge, query: &CatalogQuery) -> Result<CatalogPage> {
     let (from, bind) = filtered(query)?;
     let sort = match query.sort {
-        CatalogSort::Title => vec!["m.title COLLATE NOCASE"],
-        CatalogSort::Artist => vec!["m.artist COLLATE NOCASE", "m.album COLLATE NOCASE"],
-        CatalogSort::Album => vec!["m.album COLLATE NOCASE"],
+        CatalogSort::Title => vec!["m.title_key"],
+        CatalogSort::Artist => vec!["m.artist_key", "m.album_key"],
+        CatalogSort::Album => vec!["m.album_key"],
         CatalogSort::Rating => vec!["COALESCE(f.rating,0)"],
         CatalogSort::PlayCount => vec!["COALESCE(f.play_count,0)"],
-        CatalogSort::Path => vec!["json_extract(m.reference,'$.display_path') COLLATE NOCASE"],
+        CatalogSort::Path => vec!["m.path_key"],
     };
     let direction = if query.descending { "DESC" } else { "ASC" };
     // Each term gets the same direction; ID is a stable tie breaker.
@@ -252,22 +254,33 @@ pub(crate) fn groups(
         CatalogGroupBy::Genre => vec!["m.genre"],
         CatalogGroupBy::Kind => vec!["m.kind"],
     };
+    // Exact labels remain distinct groups. Every row in such a group has the
+    // same shared folded key; MIN exposes it for deterministic SQL ordering.
+    let keys = columns
+        .iter()
+        .enumerate()
+        .map(|(i, c)| {
+            let key = if by == CatalogGroupBy::Kind {
+                c.to_string()
+            } else {
+                format!("{c}_key")
+            };
+            format!("MIN({key}) AS sort{i}")
+        })
+        .collect::<Vec<_>>();
     let grouped = format!(
-        "SELECT {},count(*) AS item_count{from} GROUP BY {}",
+        "SELECT {},count(*) AS item_count,{}{from} GROUP BY {}",
         columns.join(","),
+        keys.join(","),
         columns.join(",")
     );
     let direction = if query.descending { "DESC" } else { "ASC" };
-    // Binary key tie breakers make exact metadata groups deterministic even
-    // when NOCASE compares their presentation labels equally.
+    // Binary label tie breakers keep distinct exact groups stable when their
+    // canonical full case-folded keys compare equally.
     let order = columns
         .iter()
-        .flat_map(|c| {
-            [
-                format!("{c} COLLATE NOCASE {direction}"),
-                format!("{c} {direction}"),
-            ]
-        })
+        .enumerate()
+        .flat_map(|(i, c)| [format!("sort{i} {direction}"), format!("{c} {direction}")])
         .collect::<Vec<_>>()
         .join(",");
     transaction(db, |db| {

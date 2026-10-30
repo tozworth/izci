@@ -23,7 +23,7 @@ Independent probe/render never changes playback. Raw render exports stereo
 float32 little-endian at 48000 Hz. Cancel jobs and Dispose release their work.
 Unknown-extension verification defaults off and affects only independent probing.
 
-The default profile is `.local/libzci/profiles/crude-native-v2/` relative to the
+The default profile is `.local/libzci/profiles/crude-native-v3/` relative to the
 launch directory. `--profile DIR` selects another independent libzci profile.
 The file lock is acquired before SQL/output ownership; a second process using
 the same profile fails visibly. Queue duplicates, moves, remove/play, up-next,

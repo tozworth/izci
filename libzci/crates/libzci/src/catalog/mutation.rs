@@ -30,9 +30,10 @@ pub(crate) fn upsert(db: &mut dyn SqlBridge, input: &MediaInput, manual: bool) -
         }
     }
     let metadata = &input.metadata;
+    let keys = super::text::Keys::new(input);
     db.statement(
-        "INSERT INTO media(source_key,reference,source_revision,kind,manual,title,artist,album,genre,metadata) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(source_key) DO UPDATE SET reference=excluded.reference,source_revision=excluded.source_revision,kind=excluded.kind,manual=MAX(media.manual,excluded.manual),title=excluded.title,artist=excluded.artist,album=excluded.album,genre=excluded.genre,metadata=excluded.metadata",
-        &[json!(input.source.key), json!(serde_json::to_string(&input.source).unwrap()), json!(input.source_revision),json!(input.kind.sql()),json!(manual),json!(metadata.title),json!(metadata.artist),json!(metadata.album),json!(metadata.genre),json!(serde_json::to_string(metadata).unwrap())],
+        "INSERT INTO media(source_key,reference,source_revision,kind,manual,title,artist,album,genre,metadata,title_key,artist_key,album_key,genre_key,path_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(source_key) DO UPDATE SET reference=excluded.reference,source_revision=excluded.source_revision,kind=excluded.kind,manual=MAX(media.manual,excluded.manual),title=excluded.title,artist=excluded.artist,album=excluded.album,genre=excluded.genre,metadata=excluded.metadata,title_key=excluded.title_key,artist_key=excluded.artist_key,album_key=excluded.album_key,genre_key=excluded.genre_key,path_key=excluded.path_key",
+        &[json!(input.source.key), json!(serde_json::to_string(&input.source).unwrap()), json!(input.source_revision),json!(input.kind.sql()),json!(manual),json!(metadata.title),json!(metadata.artist),json!(metadata.album),json!(metadata.genre),json!(serde_json::to_string(metadata).unwrap()),json!(keys.title),json!(keys.artist),json!(keys.album),json!(keys.genre),json!(keys.path)],
     )?;
     let rows = db.statement(
         "SELECT id FROM media WHERE source_key=?",

@@ -92,7 +92,29 @@ self.onmessage=async()=>{try {
   const albums=JSON.parse(profile.catalog_groups('album','{}'));
   assert(albums.total===1&&albums.groups[0].count===2&&albums.groups[0].key[0]==='Artist','shared OPFS album/artist grouping');
   assert(JSON.parse(profile.catalog_query(JSON.stringify({source_key:key}))).rows[0].source.key===key,'indexed source identity query');
+  const unicode=['Straße','STRASSE','ÉTÉ','zz','Çığ'].map(title=>({source:{...source,key:`unicode-${title}`,display_path:`/${title}.wav`},kind:'audio',source_revision:'1',metadata:{title,artist:title,album:title,genre:title}}));
+  const unicodeIds=JSON.parse(profile.catalog_request(JSON.stringify({kind:'add',media:unicode}))).media;
+  const query=(q:object)=>JSON.parse(profile.catalog_query(JSON.stringify(q)));
+  for(const [search,expected] of [['strasse',[unicodeIds[0],unicodeIds[1]]],['e\u0301te\u0301',[unicodeIds[2]]],['çığ',[unicodeIds[4]]],['ete',[]]] as const){
+    assert(JSON.stringify(query({search}).rows.map((r:{id:number})=>r.id))===JSON.stringify(expected),`OPFS Unicode folding/normalization: ${search}`);
+  }
+  for(const sort of ['title','artist','album','path']){
+    const ordered=query({sort}).rows.filter((r:{id:number})=>unicodeIds.includes(r.id)).map((r:{id:number})=>r.id);
+    assert(JSON.stringify(ordered)===JSON.stringify([unicodeIds[0],unicodeIds[1],unicodeIds[3],unicodeIds[4],unicodeIds[2]]),`OPFS Unicode indexed ${sort} order`);
+  }
+  assert(JSON.parse(profile.catalog_groups('artist',JSON.stringify({search:'strasse'}))).total===2,'folded equality retains distinct exact metadata groups');
+  scan=JSON.parse(profile.begin_scan(BigInt(root)));
+  const changed={...unicode[0],metadata:{title:'ÅNGSTRÖM'}};
+  profile.stage_scan(scan.token,JSON.stringify([changed]));profile.catalog_request(JSON.stringify({kind:'finish_scan',token:scan.token}));
+  assert(query({search:'ångström'}).rows[0].id===unicodeIds[0]&&query({search:'strasse'}).total===1,'OPFS scan upsert replaces all folded keys and retains identity');
+  profile.catalog_request(JSON.stringify({kind:'add',media:[{...changed,metadata:{title:'Σίσυφος'}}]}));
+  profile.free();profile=new WebProfile(bridge);
+  assert(query({search:'ΣΊΣΥΦΟΣ'}).rows[0].id===unicodeIds[0],'Unicode keys survive OPFS reopen and manual upsert');
+  for(const version of [1,2]){
+    statement(`PRAGMA user_version=${version}`,'[]');let refused=false;try{new WebProfile(bridge);}catch{refused=true;}
+    assert(refused&&JSON.parse(statement('PRAGMA user_version','[]'))[0][0]===version,'previous schemas are refused without mutation');
+  }
   statement('PRAGMA user_version=999','[]');profile.free();let schema=false;try{new WebProfile(bridge);}catch{schema=true;}assert(schema,'unknown schema rejected');
   assert(JSON.parse(statement('SELECT count(*) FROM queue_occurrences','[]'))[0][0]===2,'schema failure leaves rows intact');
-  db.close();self.postMessage({passed:['one shared SQL setting committed/reopened','duplicates','busy/quota/commit injection rollback','real SQLite page quota','durable retry receipt','schema refusal preserves data','catalog/favorites/subsong ratings/bookmarks OPFS reopen','catalog transaction rollback and durable receipts','independent catalog revision during playback checkpoints','managed root staging/reconciliation/cancellation and finish receipts','real capability identity sharing, overlapping staging, GC serialization and catalog liveness','shared grouped OPFS queries and indexed identity lookup']});
+  db.close();self.postMessage({passed:['one shared SQL setting committed/reopened','duplicates','busy/quota/commit injection rollback','real SQLite page quota','durable retry receipt','schema refusal preserves data','catalog/favorites/subsong ratings/bookmarks OPFS reopen','catalog transaction rollback and durable receipts','independent catalog revision during playback checkpoints','managed root staging/reconciliation/cancellation and finish receipts','real capability identity sharing, overlapping staging, GC serialization and catalog liveness','shared grouped OPFS queries and indexed identity lookup','Unicode canonical/full-fold search and ordering with exact groups, scan/manual upserts and reopen']});
 }catch(e){self.postMessage({error:String(e)});}};

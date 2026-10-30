@@ -4,6 +4,7 @@ mod metadata;
 pub(crate) mod mutation;
 pub(crate) mod query;
 pub(crate) mod scans;
+mod text;
 pub use query::{CatalogGroup, CatalogGroupBy, CatalogGroupPage};
 pub use query::{CatalogPage, CatalogQuery, CatalogRow, CatalogSort, Collection};
 pub use scans::{ManagedRoot, RootInput, ScanPlan, ScanSettings, ScanSummary};
@@ -172,10 +173,12 @@ pub(crate) fn subsong(n: Option<u32>) -> i64 {
 }
 
 pub(crate) const SCHEMA: &[&str] = &[
-    "CREATE TABLE media (id INTEGER PRIMARY KEY AUTOINCREMENT CHECK(id<=9007199254740991), source_key TEXT NOT NULL UNIQUE, reference TEXT NOT NULL, source_revision TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('audio','module','video','image')), manual INTEGER NOT NULL CHECK(manual IN (0,1)), title TEXT NOT NULL, artist TEXT NOT NULL, album TEXT NOT NULL, genre TEXT NOT NULL, metadata TEXT NOT NULL)",
-    "CREATE INDEX media_title ON media(title COLLATE NOCASE,id)",
-    "CREATE INDEX media_artist ON media(artist COLLATE NOCASE,album COLLATE NOCASE,id)",
-    "CREATE INDEX media_album ON media(album COLLATE NOCASE,id)",
+    "CREATE TABLE media (id INTEGER PRIMARY KEY AUTOINCREMENT CHECK(id<=9007199254740991), source_key TEXT NOT NULL UNIQUE, reference TEXT NOT NULL, source_revision TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('audio','module','video','image')), manual INTEGER NOT NULL CHECK(manual IN (0,1)), title TEXT NOT NULL, artist TEXT NOT NULL, album TEXT NOT NULL, genre TEXT NOT NULL, metadata TEXT NOT NULL, title_key TEXT NOT NULL, artist_key TEXT NOT NULL, album_key TEXT NOT NULL, genre_key TEXT NOT NULL, path_key TEXT NOT NULL)",
+    "CREATE INDEX media_title ON media(title_key,id)",
+    "CREATE INDEX media_artist ON media(artist_key,album_key,id)",
+    "CREATE INDEX media_album ON media(album_key,id)",
+    "CREATE INDEX media_genre ON media(genre_key,id)",
+    "CREATE INDEX media_path ON media(path_key,id)",
     "CREATE TABLE user_facts (media_id INTEGER NOT NULL REFERENCES media(id), subsong INTEGER NOT NULL CHECK(subsong>=-1), favorite INTEGER NOT NULL DEFAULT 0 CHECK(favorite IN (0,1)), rating INTEGER NOT NULL DEFAULT 0 CHECK(rating BETWEEN 0 AND 10), play_count INTEGER NOT NULL DEFAULT 0 CHECK(play_count>=0), last_played_ms INTEGER, PRIMARY KEY(media_id,subsong))",
     "CREATE INDEX favorites ON user_facts(subsong,favorite,media_id)",
     "CREATE TABLE bookmarks (id INTEGER PRIMARY KEY AUTOINCREMENT CHECK(id<=9007199254740991), media_id INTEGER NOT NULL REFERENCES media(id), subsong INTEGER NOT NULL CHECK(subsong>=-1), position_seconds REAL NOT NULL CHECK(position_seconds>=0), label TEXT NOT NULL)",

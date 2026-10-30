@@ -44,12 +44,12 @@ Open profile selects a named namespace (also `?profile=NAME`; default `default`)
 Shared Rust owns occurrence IDs, duplicate append/order/remove/play, up-next,
 shuffle cycles/history, repeat, previous restart threshold, settings and SQL.
 Native SQLite and official SQLite WASM 3.54.1-build1 execute those same bound
-statements. Browser SQL uses `opfs-sahpool` at `/libzci-crude-v2/NAME/` with
+statements. Schema 3 refuses earlier schemas without modifying them. Browser SQL uses `opfs-sahpool` at `/libzci-crude-v3/NAME/` with
 `preserveOnInitFailure: true`; no initialization/reset path deletes domain data.
 Schema mismatch, quota/busy/commit failures publish no durable success.
 
 Open restorable files uses the genuine FSA picker. Real handles are kept in IDB
-`libzci-crude-capabilities-v2-NAME`, separate from SQL. The pending → SQL commit →
+`libzci-crude-capabilities-v3-NAME`, separate from SQL. The pending → SQL commit →
 completion protocol recovers referenced pending entries and removes orphaned
 registry entries. It preserves entries involved in concurrent imports. Startup
 only queries permission; Grant access and retry is an explicit user action.

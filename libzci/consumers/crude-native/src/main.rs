@@ -145,7 +145,7 @@ fn main() -> eframe::Result {
                 .expect("--profile requires a directory")
                 .clone()
         })
-        .unwrap_or_else(|| ".local/libzci/profiles/crude-native-v2".into());
+        .unwrap_or_else(|| ".local/libzci/profiles/crude-native-v3".into());
     let persistent = if hidden {
         None
     } else {

@@ -140,7 +140,7 @@ pub(crate) fn invalidate_root(db: &mut dyn SqlBridge, root: u64) -> Result<()> {
 }
 fn init(db: &mut dyn SqlBridge) -> Result<()> {
     exec(db,"CREATE TEMP TABLE IF NOT EXISTS scan_jobs (token TEXT PRIMARY KEY,root_id INTEGER NOT NULL UNIQUE,root_revision INTEGER NOT NULL,entries INTEGER NOT NULL DEFAULT 0 CHECK(entries>=0),bytes INTEGER NOT NULL DEFAULT 0 CHECK(bytes>=0))",&[])?;
-    exec(db,"CREATE TEMP TABLE IF NOT EXISTS scan_stage (token TEXT NOT NULL REFERENCES scan_jobs(token) ON DELETE CASCADE,source_key TEXT NOT NULL,reference TEXT NOT NULL,source_revision TEXT NOT NULL,kind TEXT NOT NULL,title TEXT NOT NULL,artist TEXT NOT NULL,album TEXT NOT NULL,genre TEXT NOT NULL,metadata TEXT NOT NULL,byte_cost INTEGER NOT NULL CHECK(byte_cost>=0),PRIMARY KEY(token,source_key))",&[])?;
+    exec(db,"CREATE TEMP TABLE IF NOT EXISTS scan_stage (token TEXT NOT NULL REFERENCES scan_jobs(token) ON DELETE CASCADE,source_key TEXT NOT NULL,reference TEXT NOT NULL,source_revision TEXT NOT NULL,kind TEXT NOT NULL,title TEXT NOT NULL,artist TEXT NOT NULL,album TEXT NOT NULL,genre TEXT NOT NULL,metadata TEXT NOT NULL,title_key TEXT NOT NULL,artist_key TEXT NOT NULL,album_key TEXT NOT NULL,genre_key TEXT NOT NULL,path_key TEXT NOT NULL,byte_cost INTEGER NOT NULL CHECK(byte_cost>=0),PRIMARY KEY(token,source_key))",&[])?;
     // Transactional credits avoid rescanning the staged corpus on each small
     // browser batch. Global accounting touches at most eight job records.
     for sql in [
@@ -216,6 +216,7 @@ pub(crate) fn stage(db: &mut dyn SqlBridge, token: &str, media: Vec<MediaInput>)
         job(db, token)?;
         for input in media {
             let m = &input.metadata;
+            let keys = super::text::Keys::new(&input);
             let reference = serde_json::to_string(&input.source).unwrap();
             let metadata = serde_json::to_string(m).unwrap();
             // Include duplicated scalar/JSON fields and primary-key storage,
@@ -230,8 +231,9 @@ pub(crate) fn stage(db: &mut dyn SqlBridge, token: &str, media: Vec<MediaInput>)
                 + m.artist.len()
                 + m.album.len()
                 + m.genre.len()
+                + keys.bytes()
                 + metadata.len();
-            exec(db,"INSERT INTO scan_stage(token,source_key,reference,source_revision,kind,title,artist,album,genre,metadata,byte_cost) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(token,source_key) DO UPDATE SET reference=excluded.reference,source_revision=excluded.source_revision,kind=excluded.kind,title=excluded.title,artist=excluded.artist,album=excluded.album,genre=excluded.genre,metadata=excluded.metadata,byte_cost=excluded.byte_cost",&[json!(token),json!(input.source.key),json!(reference),json!(input.source_revision),json!(input.kind.sql()),json!(m.title),json!(m.artist),json!(m.album),json!(m.genre),json!(metadata),json!(cost)])?;
+            exec(db,"INSERT INTO scan_stage(token,source_key,reference,source_revision,kind,title,artist,album,genre,metadata,title_key,artist_key,album_key,genre_key,path_key,byte_cost) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(token,source_key) DO UPDATE SET reference=excluded.reference,source_revision=excluded.source_revision,kind=excluded.kind,title=excluded.title,artist=excluded.artist,album=excluded.album,genre=excluded.genre,metadata=excluded.metadata,title_key=excluded.title_key,artist_key=excluded.artist_key,album_key=excluded.album_key,genre_key=excluded.genre_key,path_key=excluded.path_key,byte_cost=excluded.byte_cost",&[json!(token),json!(input.source.key),json!(reference),json!(input.source_revision),json!(input.kind.sql()),json!(m.title),json!(m.artist),json!(m.album),json!(m.genre),json!(metadata),json!(keys.title),json!(keys.artist),json!(keys.album),json!(keys.genre),json!(keys.path),json!(cost)])?;
         }
         let count = integer(&db.statement(
             "SELECT entries FROM scan_jobs WHERE token=?",
@@ -272,7 +274,7 @@ pub(crate) fn finish(db: &mut dyn SqlBridge, token: &str) -> Result<ScanSummary>
     )?)?;
     let added=integer(&db.statement("SELECT count(*) FROM scan_stage s LEFT JOIN media m ON m.source_key=s.source_key WHERE s.token=? AND NOT EXISTS (SELECT 1 FROM root_memberships rm WHERE rm.root_id=? AND rm.media_id=m.id)",&[json!(token),json!(root.id)])?)?;
     let removed=integer(&db.statement("SELECT count(*) FROM root_memberships rm JOIN media m ON m.id=rm.media_id WHERE rm.root_id=? AND NOT EXISTS (SELECT 1 FROM scan_stage s WHERE s.token=? AND s.source_key=m.source_key)",&[json!(root.id),json!(token)])?)?;
-    exec(db,"INSERT INTO media(source_key,reference,source_revision,kind,manual,title,artist,album,genre,metadata) SELECT source_key,reference,source_revision,kind,0,title,artist,album,genre,metadata FROM scan_stage WHERE token=? ON CONFLICT(source_key) DO UPDATE SET reference=excluded.reference,source_revision=excluded.source_revision,kind=excluded.kind,title=excluded.title,artist=excluded.artist,album=excluded.album,genre=excluded.genre,metadata=excluded.metadata",&[json!(token)])?;
+    exec(db,"INSERT INTO media(source_key,reference,source_revision,kind,manual,title,artist,album,genre,metadata,title_key,artist_key,album_key,genre_key,path_key) SELECT source_key,reference,source_revision,kind,0,title,artist,album,genre,metadata,title_key,artist_key,album_key,genre_key,path_key FROM scan_stage WHERE token=? ON CONFLICT(source_key) DO UPDATE SET reference=excluded.reference,source_revision=excluded.source_revision,kind=excluded.kind,title=excluded.title,artist=excluded.artist,album=excluded.album,genre=excluded.genre,metadata=excluded.metadata,title_key=excluded.title_key,artist_key=excluded.artist_key,album_key=excluded.album_key,genre_key=excluded.genre_key,path_key=excluded.path_key",&[json!(token)])?;
     exec(
         db,
         "DELETE FROM root_memberships WHERE root_id=?",

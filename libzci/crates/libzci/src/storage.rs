@@ -46,7 +46,7 @@ pub fn open(db: &mut dyn SqlBridge) -> Result<ProfileState> {
         .and_then(|r| r.first())
         .and_then(Value::as_u64)
         .ok_or_else(|| failure("init", "missing schema version"))?;
-    if version != 0 && version != 2 {
+    if version != 0 && version != 3 {
         return Err(failure(
             "schema",
             format!("unsupported libzci schema {version}; existing data preserved"),
@@ -74,7 +74,7 @@ pub fn open(db: &mut dyn SqlBridge) -> Result<ProfileState> {
             for sql in crate::catalog::SCHEMA {
                 exec(db, sql, &[])?;
             }
-            exec(db, "PRAGMA user_version=2", &[])?;
+            exec(db, "PRAGMA user_version=3", &[])?;
             write(db, &ProfileState::default(), None)
         })?;
     }

@@ -529,3 +529,211 @@ fn grouped_queries_share_filters_revisions_and_exact_album_artist_identity() {
         )
         .is_err());
 }
+
+#[test]
+fn unicode_queries_are_canonical_fully_folded_indexed_and_updated_by_scans() {
+    let dir = Temp::new();
+    let mut db = NativeDatabase::open(&dir.0).unwrap();
+    let mut p = Profile::open(&mut db).unwrap();
+    let media = ["Straße", "STRASSE", "ÉTÉ", "zz", "Çığ"].map(|label| {
+        let mut m = input(&format!("/{label}.wav"));
+        m.metadata.title = label.into();
+        m.metadata.artist = label.into();
+        m.metadata.album = label.into();
+        m.metadata.genre = label.into();
+        m
+    });
+    let ids = p
+        .catalog_request(
+            CatalogCommand::Add {
+                media: media.to_vec(),
+            },
+            None,
+            &mut db,
+        )
+        .unwrap()
+        .media;
+    for (search, expected) in [
+        ("strasse", vec![ids[0], ids[1]]),
+        ("e\u{301}te\u{301}", vec![ids[2]]),
+        ("çığ", vec![ids[4]]),
+        ("ete", vec![]),
+        ("%", vec![]),
+    ] {
+        let page = p
+            .catalog_query(
+                &CatalogQuery {
+                    search: search.into(),
+                    ..Default::default()
+                },
+                &mut db,
+            )
+            .unwrap();
+        assert_eq!(
+            page.rows.iter().map(|r| r.id).collect::<Vec<_>>(),
+            expected,
+            "search {search}"
+        );
+    }
+    for (sort, index) in [
+        (CatalogSort::Title, "media_title"),
+        (CatalogSort::Artist, "media_artist"),
+        (CatalogSort::Album, "media_album"),
+        (CatalogSort::Path, "media_path"),
+    ] {
+        for descending in [false, true] {
+            let mut expected = vec![ids[0], ids[1], ids[3], ids[4], ids[2]];
+            if descending {
+                expected.reverse();
+            }
+            let page = p
+                .catalog_query(
+                    &CatalogQuery {
+                        sort,
+                        descending,
+                        ..Default::default()
+                    },
+                    &mut db,
+                )
+                .unwrap();
+            assert_eq!(page.rows.iter().map(|r| r.id).collect::<Vec<_>>(), expected);
+        }
+        let column = match sort {
+            CatalogSort::Title => "title_key",
+            CatalogSort::Artist => "artist_key,album_key",
+            CatalogSort::Album => "album_key",
+            _ => "path_key",
+        };
+        let plan = db
+            .statement(
+                &format!("EXPLAIN QUERY PLAN SELECT id FROM media ORDER BY {column},id LIMIT 10"),
+                &[],
+            )
+            .unwrap();
+        assert!(
+            plan.iter()
+                .any(|r| r[3].as_str().is_some_and(|s| s.contains(index))),
+            "{plan:?}"
+        );
+        assert!(
+            !plan
+                .iter()
+                .any(|r| r[3].as_str().is_some_and(|s| s.contains("TEMP B-TREE"))),
+            "{plan:?}"
+        );
+    }
+    for by in [
+        CatalogGroupBy::Artist,
+        CatalogGroupBy::Album,
+        CatalogGroupBy::Genre,
+    ] {
+        let page = p
+            .catalog_groups(by, &CatalogQuery::default(), &mut db)
+            .unwrap();
+        assert_eq!(page.total, 5); // Folded equality must not merge original group keys.
+        assert_eq!(page.groups[0].key[0], "STRASSE");
+        assert_eq!(page.groups[1].key[0], "Straße");
+    }
+    assert_eq!(
+        p.catalog_query(
+            &CatalogQuery {
+                artist: Some("Straße".into()),
+                ..Default::default()
+            },
+            &mut db
+        )
+        .unwrap()
+        .total,
+        1
+    );
+    let root = p
+        .catalog_request(
+            CatalogCommand::Root {
+                root: RootInput {
+                    source: input("/root").source,
+                    settings: ScanSettings::default(),
+                },
+            },
+            None,
+            &mut db,
+        )
+        .unwrap()
+        .root
+        .unwrap();
+    let scan = p.begin_scan(root, &mut db).unwrap();
+    let mut changed = media[0].clone();
+    changed.metadata.title = "ÅNGSTRÖM".into();
+    changed.metadata.artist = String::new();
+    changed.metadata.album = String::new();
+    changed.source.display_path = "/ÅNGSTRÖM.wav".into();
+    p.stage_scan(&scan.token, vec![changed.clone()], &mut db)
+        .unwrap();
+    p.catalog_request(
+        CatalogCommand::FinishScan { token: scan.token },
+        None,
+        &mut db,
+    )
+    .unwrap();
+    assert_eq!(
+        p.catalog_query(
+            &CatalogQuery {
+                search: "ångström".into(),
+                ..Default::default()
+            },
+            &mut db
+        )
+        .unwrap()
+        .rows[0]
+            .id,
+        ids[0]
+    );
+    assert_eq!(
+        p.catalog_query(
+            &CatalogQuery {
+                search: "strasse".into(),
+                ..Default::default()
+            },
+            &mut db
+        )
+        .unwrap()
+        .total,
+        1
+    );
+    changed.metadata.title = "Σίσυφος".into();
+    p.catalog_request(
+        CatalogCommand::Add {
+            media: vec![changed],
+        },
+        None,
+        &mut db,
+    )
+    .unwrap();
+    drop(p);
+    let p = Profile::open(&mut db).unwrap();
+    assert_eq!(
+        p.catalog_query(
+            &CatalogQuery {
+                search: "ΣΊΣΥΦΟΣ".into(),
+                ..Default::default()
+            },
+            &mut db
+        )
+        .unwrap()
+        .rows[0]
+            .id,
+        ids[0]
+    );
+    for version in [1, 2, 999] {
+        db.statement(&format!("PRAGMA user_version={version}"), &[])
+            .unwrap();
+        assert!(Profile::open(&mut db).is_err());
+        assert_eq!(
+            db.statement("SELECT count(*) FROM media", &[]).unwrap(),
+            vec![vec![json!(5)]]
+        );
+        assert_eq!(
+            db.statement("PRAGMA user_version", &[]).unwrap(),
+            vec![vec![json!(version)]]
+        );
+    }
+}
