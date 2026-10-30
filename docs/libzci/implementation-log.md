@@ -136,6 +136,19 @@ WASM rebuild, PWA typecheck/build, real OPFS storage/group checks and production
 M3 owner/offline/catalog/group UI scenarios pass. Remaining M3 work excludes
 grouping but still includes metadata/ReplayGain/lyrics, counts and artwork/images.
 
+Browser reference Opus now exports bounded read-only tag leases from opusfile
+instead of validating and dropping all comments. Reusable probe/current/output
+facts carry UTF-8 container tags, and the optional WebCodecs provider retains
+the reference container facts. Core normalization persists only bounded catalog
+fields; embedded lyric payloads remain transient. `build-browser-codecs.py`
+rebuilds the pinned C/WASM boundary. The new `npm run test:metadata` uses an
+FFmpeg 8.1.1 recipe over synthetic Opus to verify UTF-8 title/artist, ReplayGain,
+R128 and lyrics through repeated no-output probes and catalog normalization.
+PWA typecheck/build, optional WebCodecs sample/timeline and tag checks, native
+reference callback comparisons/cancellation and production M2 owner/offline
+regressions pass after rebuilding the codec. This exposes tags; ReplayGain
+processing and on-demand lyric reader/timeline support still remain open.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

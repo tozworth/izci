@@ -61,6 +61,24 @@ EMSCRIPTEN_KEEPALIVE int zci_open(ZciOpus *c) {
 }
 EMSCRIPTEN_KEEPALIVE double zci_total(ZciOpus *c) { return (double)op_pcm_total(c->file, -1); }
 EMSCRIPTEN_KEEPALIVE int zci_links(ZciOpus *c) { return op_link_count(c->file); }
+/* Read-only leases are valid until zci_close. Lengths, not NUL terminators,
+ * bound tag copies; open already enforces the aggregate 64 KiB budget. */
+static const OpusTags *tags_at(ZciOpus *c, int link) {
+  if (!c || !c->file || link < 0 || link >= op_link_count(c->file)) return NULL;
+  return op_tags(c->file, link);
+}
+EMSCRIPTEN_KEEPALIVE int zci_comment_count(ZciOpus *c, int link) {
+  const OpusTags *t = tags_at(c, link);
+  return t ? t->comments : 0;
+}
+EMSCRIPTEN_KEEPALIVE int zci_comment_length(ZciOpus *c, int link, int index) {
+  const OpusTags *t = tags_at(c, link);
+  return t && index >= 0 && index < t->comments ? t->comment_lengths[index] : -1;
+}
+EMSCRIPTEN_KEEPALIVE const char *zci_comment_data(ZciOpus *c, int link, int index) {
+  const OpusTags *t = tags_at(c, link);
+  return t && index >= 0 && index < t->comments ? t->user_comments[index] : NULL;
+}
 EMSCRIPTEN_KEEPALIVE double zci_position(ZciOpus *c) { return c->at_eof ? (double)op_pcm_total(c->file, -1) : (double)op_pcm_tell(c->file); }
 EMSCRIPTEN_KEEPALIVE int zci_read(ZciOpus *c, float *out, int samples) {
   if (c->at_eof) return 0;

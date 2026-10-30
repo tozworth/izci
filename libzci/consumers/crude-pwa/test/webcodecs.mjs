@@ -31,6 +31,7 @@ try {
   const player=await browser.newPage();await player.goto('http://localhost:5197');
   await player.locator('#prefer-webcodecs').check();await player.locator('#file').setInputFiles(path.join(root,'.local/libzci/media/r3/long.opus'));await player.locator('#open').click();
   await player.waitForFunction(()=>window.libzci.snapshot()?.snapshot.provider?.id==='browser.webcodecs.opus'&&!window.libzci.snapshot()?.snapshot.pending_operation);
+  assert((await player.evaluate(()=>window.libzci.snapshot().snapshot.metadata)).some(([key,value])=>key==='R128_TRACK_GAIN'&&value==='256'),'optional provider retains reference container tags');
   await player.locator('#play').click();await player.waitForFunction(()=>window.libzci.snapshot()?.snapshot.position_frames>1000);
   await player.evaluate(async()=>{await window.libzci.command('seek',20);await window.libzci.command('seek',0.1);await window.libzci.command('stop');});
   await player.waitForFunction(()=>window.libzci.snapshot()?.snapshot.position_frames===0&&window.libzci.snapshot()?.snapshot.requested==='Held'&&!window.libzci.snapshot()?.snapshot.pending_operation);

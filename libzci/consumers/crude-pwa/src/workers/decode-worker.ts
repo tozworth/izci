@@ -16,6 +16,7 @@ let handle = 0;
 let handleInstance = 0;
 let backend:Backend|null=null;
 let facts:Facts|null=null;
+let opusComments:[string,string][]=[];
 let requestedFile: File | null = null;
 let wantClose = false;
 let source: {file: File; id: number; error: unknown; reads: number} | null = null;
@@ -55,8 +56,8 @@ Object.assign(globalThis,{libzciRead:(id:number,position:number,length:number)=>
 const position=():number=>backend?.position()??(handle?codec._zci_position(handle):0);
 const total=():number|null=>facts?facts.total:handle?codec._zci_total(handle):null;
 function currentFacts():Facts {
-  if(backend)return backend.facts();
-  return {provider:{id:'org.xiph.opus',name:'Reference Opus (libopusfile)',version:'libopusfile-0.12/libopus-1.5.2/r4'},rate:48000,channels:2,total:codec._zci_total(handle),comments:[],capabilities:{subsongs:0,channels:0},module:null,
+  if(backend){const result=backend.facts();if(opusComments.length)result.comments=opusComments;return result;}
+  return {provider:{id:'org.xiph.opus',name:'Reference Opus (libopusfile)',version:'libopusfile-0.12/libopus-1.5.2/r4'},rate:48000,channels:2,total:codec._zci_total(handle),comments:opusComments,capabilities:{subsongs:0,channels:0},module:null,
     applied:{trimmed_preskip:true,trimmed_end:true,applied_header_gain:true}};
 }
 
@@ -96,7 +97,7 @@ async function call(name: string, args: number[]): Promise<number> {
 }
 function close(): void {
   if (handle) codec._zci_close(handle);
-  backend?.close();backend=null;facts=null;
+  backend?.close();backend=null;facts=null;opusComments=[];
   handle = 0; handleInstance = 0; source = null; preparation?.free(); preparation = null;
 }
 async function perform(job: DecodeJob): Promise<void> {
@@ -120,6 +121,14 @@ async function perform(job: DecodeJob): Promise<void> {
       handle = codec._zci_create(source.id, file.size);
       if (!handle) throw {kind: 'resource-exhausted', detail: 'codec context allocation failed'};
       await call('zci_open', [handle]);
+      const text=new TextDecoder();let commentBytes=0;
+      for(let link=0;link<codec._zci_links(handle);link++)for(let index=0;index<codec._zci_comment_count(handle,link);index++){
+        const length=codec._zci_comment_length(handle,link,index),pointer=codec._zci_comment_data(handle,link,index);
+        if(length<0||length>65536-commentBytes||length&&!pointer)throw {kind:'corrupt',detail:'Invalid bounded Opus comment'};
+        commentBytes+=length;
+        const value=text.decode(codec.HEAPU8.subarray(pointer,pointer+length)),separator=value.indexOf('=');
+        if(separator>=0)opusComments.push([value.slice(0,separator).replace(/[a-z]/g,c=>c.toUpperCase()),value.slice(separator+1)]);
+      }
       if(job.preferWebCodecs&&codec._zci_links(handle)===1) {
         try {backend=await openWebCodecs(source.id,file,codec._zci_total(handle),yieldTask,check);}
         catch(e){check();post({type:'capability',detail:`Optional WebCodecs declined; using reference: ${failure(e).detail}`});}
