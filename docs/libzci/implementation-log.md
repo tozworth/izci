@@ -149,6 +149,27 @@ reference callback comparisons/cancellation and production M2 owner/offline
 regressions pass after rebuilding the codec. This exposes tags; ReplayGain
 processing and on-demand lyric reader/timeline support still remain open.
 
+Foundation audit found two master-envelope defects: ramps advanced separately
+for left/right samples (240 samples instead of 240 stereo frames), and a new
+volume/mute target anchored to the last completed setting instead of the last
+rendered gain. The shared processor now advances one envelope per frame and
+retargets from the current finite value, preserving stereo balance and avoiding
+steps during rapid changes. Muted volume updates with an unchanged effective
+target do not restart the envelope. All playback providers use this master stage;
+raw source renders remain independent of master settings.
+
+Native core/output/transport/catalog/profile suites pass, including new frame
+duration, linked-stereo and interrupted-ramp checks. Rebuilt import-free audio
+WASM passes four real ABI tests, including stereo/retarget regression coverage.
+After building the current native CLI, `npm run test:m1` passes real output for
+ordinary formats and OpenMPT/Hively modules and all-sample native/browser
+comparisons through 44.1/48/96/192 kHz input and unknown-duration FLAC. Its live
+File invalidation case now accepts failure arriving before or after Play while
+requiring the same typed unavailable outcome; it also waits for current-generation
+prefill rather than an earlier output report. Missing native executables report
+the actual spawn error. One intermediate validation run was invalidated by a
+concurrent generated-WASM reload; the final pass used fixed generated assets.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

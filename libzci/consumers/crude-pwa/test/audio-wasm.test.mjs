@@ -8,6 +8,22 @@ test('audio-only WASM has no host imports or transport/catalog entry points',()=
   assert(!WebAssembly.Module.exports(module).some(e=>/session|command|sqlite|decoder/i.test(e.name)));
 });
 
+test('real worklet WASM links stereo gain and smoothly retargets unfinished ramps',()=>{
+  const w=new WebAssembly.Instance(module,{}).exports,p=w.renderer_new();
+  try{
+    const input=new Float32Array(w.memory.buffer,w.renderer_input(p),8192),output=new Float32Array(w.memory.buffer,w.renderer_output(p),256);
+    input.fill(1);w.renderer_reset(p,1,0);assert.equal(w.renderer_enqueue(p,0,1,0,1024,0,48000,48000,1024),1);
+    let last=1;
+    for(const [volume,mute]of [[0,0],[0.8,0],[0.8,1],[0.4,1],[0.4,0],[NaN,0]]){
+      w.renderer_settings(p,1,volume,mute,0);w.renderer_process(p);
+      assert(Math.abs(output[0]-last)<0.005,'retarget anchors to the previous audible frame');
+      for(let i=0;i<256;i+=2){assert.equal(output[i],output[i+1],'one gain per stereo frame');assert(Number.isFinite(output[i])&&output[i]>=0&&output[i]<=1);}
+      last=output[254];
+    }
+    assert.equal(w.renderer_position(p),128*6);
+  }finally{w.renderer_free(p);}
+});
+
 test('worklet ABI preserves source-rate positions within blocks and at final drain', () => {
   for (const sourceRate of [44100, 96000, 192000]) {
     const wasm = new WebAssembly.Instance(module, {}).exports;

@@ -17,14 +17,12 @@
 /// Master gain/mute stage with ramp smoothing and a raw tap.
 #[derive(Debug)]
 pub struct AudioProcessor {
-    /// Currently rendered gain (linear, finite, anchored).
-    current_gain: f32,
+    /// Last rendered effective gain, including mute. Every retarget anchors here.
+    rendered_gain: f32,
     /// Gain target for the next blocks.
     target_gain: f32,
     /// Mute target (ramps to/from silence like a gain move).
     target_mute: bool,
-    /// Currently rendered mute.
-    current_mute: bool,
     /// Ramp length in frames for gain/mute moves.
     ramp_frames: usize,
     /// Frames remaining in the active ramp.
@@ -39,10 +37,9 @@ impl AudioProcessor {
     /// Create at unity gain, unmuted, with a 5 ms ramp at 48 kHz.
     pub fn new() -> Self {
         Self {
-            current_gain: 1.0,
+            rendered_gain: 1.0,
             target_gain: 1.0,
             target_mute: false,
-            current_mute: false,
             ramp_frames: 240,
             ramp_left: 0,
             ramp_from: 1.0,
@@ -59,18 +56,18 @@ impl AudioProcessor {
             self.target_gain
         };
         if (clamped - self.target_gain).abs() > f32::EPSILON {
+            let previous = self.target_effective();
             self.target_gain = clamped;
-            self.ramp_from = self.effective_gain();
-            self.ramp_left = self.ramp_frames;
+            self.retarget(previous);
         }
     }
 
     /// Set mute. Unmuting from silence ramps like a gain move.
     pub fn set_mute(&mut self, mute: bool) {
         if mute != self.target_mute {
+            let previous = self.target_effective();
             self.target_mute = mute;
-            self.ramp_from = self.effective_gain();
-            self.ramp_left = self.ramp_frames;
+            self.retarget(previous);
         }
     }
 
@@ -89,11 +86,10 @@ impl AudioProcessor {
         self.last_raw_peak
     }
 
-    fn effective_gain(&self) -> f32 {
-        if self.current_mute {
-            0.0
-        } else {
-            self.current_gain
+    fn retarget(&mut self, previous: f32) {
+        if (previous - self.target_effective()).abs() > f32::EPSILON {
+            self.ramp_from = self.rendered_gain;
+            self.ramp_left = self.ramp_frames;
         }
     }
 
@@ -112,26 +108,31 @@ impl AudioProcessor {
         debug_assert_eq!(input.len(), output.len());
         debug_assert!(input.len().is_multiple_of(2));
         let mut peak = 0.0f32;
-        for (index, sample) in input.iter().enumerate() {
-            peak = peak.max(sample.abs());
+        for (source, destination) in input
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .zip(output.as_chunks_mut::<2>().0)
+        {
+            peak = peak.max(source[0].abs()).max(source[1].abs());
             let mut gain = self.target_effective();
             if self.ramp_left > 0 {
-                let done = (self.ramp_frames - self.ramp_left) as f32 / self.ramp_frames as f32;
+                let done = (self.ramp_frames - self.ramp_left + 1) as f32 / self.ramp_frames as f32;
                 gain = self.ramp_from + (self.target_effective() - self.ramp_from) * done;
                 self.ramp_left -= 1;
                 if self.ramp_left == 0 {
-                    self.current_gain = self.target_gain;
-                    self.current_mute = self.target_mute;
                     gain = self.target_effective();
                 }
             }
-            output[index] = sample * gain;
+            self.rendered_gain = gain;
+            destination[0] = source[0] * gain;
+            destination[1] = source[1] * gain;
         }
         self.last_raw_peak = peak;
     }
 
     /// Same shared master stage over callback-owned storage, without scratch
-    /// allocation. Preserve the existing gain/mute ramp semantics.
+    /// allocation. Each stereo frame advances one shared gain envelope.
     pub fn process_stereo_in_place(&mut self, samples: &mut [f32]) {
         let mut peak = 0.0f32;
         for frame in samples.as_chunks_mut::<2>().0 {
@@ -232,6 +233,55 @@ mod tests {
             renderer.process_stereo_in_place(&mut output);
             assert_eq!(output, expected);
             assert_eq!(renderer.last_raw_peak(), reference.last_raw_peak());
+        }
+    }
+    #[test]
+    fn envelope_is_stereo_linked_and_measured_in_frames() {
+        let mut processor = AudioProcessor::new();
+        processor.set_volume(0.);
+        let mut output = vec![0.; 480];
+        processor.process_stereo(&vec![1.; 480], &mut output);
+        for frame in output.as_chunks::<2>().0 {
+            assert_eq!(
+                frame[0], frame[1],
+                "master ramp must preserve stereo balance"
+            );
+        }
+        assert!(output[476] > 0.);
+        assert_eq!(
+            &output[478..],
+            &[0., 0.],
+            "5 ms at 48 kHz is 240 stereo frames"
+        );
+    }
+    #[test]
+    fn interrupted_volume_and_mute_ramps_anchor_to_the_last_rendered_frame() {
+        let mut processor = AudioProcessor::new();
+        processor.set_volume(0.);
+        let mut initial = [0.; 120];
+        processor.process_stereo(&[1.; 120], &mut initial);
+        let mut last = initial[118];
+        assert!((last - 0.75).abs() < 1e-6);
+        for (volume, mute) in [
+            (0.5, false),
+            (0.5, true),
+            (0.9, true),
+            (0.9, false),
+            (f32::NAN, false),
+        ] {
+            processor.set_volume(volume);
+            processor.set_mute(mute);
+            let mut output = [0.; 40];
+            processor.process_stereo(&[1.; 40], &mut output);
+            assert!(
+                (output[0] - last).abs() < 0.005,
+                "retarget must not step back to a previous envelope origin"
+            );
+            for frame in output.as_chunks::<2>().0 {
+                assert_eq!(frame[0], frame[1]);
+                assert!(frame[0].is_finite() && (0.0..=1.).contains(&frame[0]));
+            }
+            last = output[38];
         }
     }
 }

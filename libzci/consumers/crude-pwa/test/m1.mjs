@@ -82,13 +82,17 @@ try {
   results.push({test:'cancel export while sink is blocked',...exportCancelled});
   const access=path.join(media,'access.wav');await copyFile(path.join(media,'48000-2.wav'),access);
   await page.locator('#file').setInputFiles(access);await page.locator('#open').click();
-  await page.waitForFunction(()=>window.libzci.snapshot()?.sourceName==='access.wav'&&window.libzci.snapshot()?.output.highWater===8);
-  await writeFile(access,Buffer.alloc(48000*4));await command('play');
+  await page.waitForFunction(()=>{const s=window.libzci.snapshot();return s?.sourceName==='access.wav'&&s.snapshot.state==='Ready'&&!s.snapshot.pending_operation&&s.output.generation===s.snapshot.generation&&s.output.highWater===8;});
+  await writeFile(access,Buffer.alloc(48000*4));
+  // File invalidation can reach the owner before or after the Play request.
+  // Both orders must expose the same typed failure, not assume Play wins it.
+  const playError=await page.evaluate(async()=>{try{await window.libzci.command('play');return '';}catch(e){return String(e);}});
+  if(playError)assert(playError.includes('unavailable'),playError);
   await wait(()=>window.libzci.snapshot()?.snapshot.state==='Failed');assert((await snap()).snapshot.error.includes('unavailable'));
   results.push({test:'Symphonia live File access loss stays typed',snapshot:(await snap()).snapshot});
   const reference=await browser.newPage();await reference.goto('http://localhost:5197/test/reference.html');await reference.waitForFunction(()=>!!window.referenceHarness);
   for(const name of [...names,'no-duration.flac']) {
-    const rendered=path.join(media,name+'.native.f32');const run=spawnSync(cli,[path.join(media,name),'--render-pcm',rendered],{encoding:'utf8'});assert.equal(run.status,0,run.stderr);
+    const rendered=path.join(media,name+'.native.f32');const run=spawnSync(cli,[path.join(media,name),'--render-pcm',rendered],{encoding:'utf8'});assert.ifError(run.error);assert.equal(run.status,0,run.stderr);
     const bytes=await readFile(path.join(media,name));const pcm=await readFile(rendered);
     const expected=Array.from(new Float32Array(pcm.buffer,pcm.byteOffset,pcm.byteLength/4));
     const report=await reference.evaluate(async({name,bytes,expected,sourceRate})=>window.referenceHarness.run(new File([new Uint8Array(bytes)],name),new Float32Array(expected),0,3,48000,sourceRate),{name,bytes:Array.from(bytes),expected,sourceRate:Number(name.split('-')[0])||48000});
