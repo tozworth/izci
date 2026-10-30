@@ -38,6 +38,8 @@ pub struct Snapshot {
     pub mute: bool,
     pub replay_gain: crate::ReplayGainSettings,
     pub normalization: crate::Normalization,
+    pub normalization_revision: Revision,
+    pub normalization_program: std::sync::Arc<Vec<crate::NormalizationPoint>>,
     pub requested: crate::RequestedState,
     pub running: crate::RunningState,
     pub decoding_eof: bool,

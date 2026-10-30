@@ -66,6 +66,11 @@ impl Session {
                 mute: false,
                 replay_gain: ReplayGainSettings::default(),
                 normalization: Normalization::default(),
+                normalization_revision: Revision::INITIAL,
+                normalization_program: std::sync::Arc::new(vec![NormalizationPoint {
+                    source_frame: 0,
+                    normalization: Normalization::default(),
+                }]),
                 requested: RequestedState::Held,
                 running: RunningState::Closed,
                 decoding_eof: false,
@@ -153,6 +158,12 @@ impl Session {
                 self.snapshot.layout = None;
                 self.snapshot.metadata = None;
                 self.snapshot.normalization = Normalization::default();
+                self.snapshot.normalization_revision.bump();
+                self.snapshot.normalization_program =
+                    std::sync::Arc::new(vec![NormalizationPoint {
+                        source_frame: 0,
+                        normalization: Normalization::default(),
+                    }]);
                 self.snapshot.module = None;
                 self.snapshot.capabilities = ModuleCapabilities::default();
                 self.snapshot.total_frames = None;
@@ -288,6 +299,10 @@ impl Session {
         if !self.accepts(tag) {
             return false;
         }
+        if let Err(error) = metadata.normalization_program(self.snapshot.replay_gain) {
+            self.failed(tag, error);
+            return false;
+        }
         self.snapshot.provider = Some(metadata.info);
         self.snapshot.layout = Some(metadata.layout);
         self.snapshot.total_frames = metadata.total_frames;
@@ -297,16 +312,26 @@ impl Session {
         self.landed(tag, position)
     }
     fn normalize(&mut self) {
-        self.snapshot.normalization =
-            self.snapshot
-                .metadata
-                .as_ref()
-                .map_or_else(Normalization::default, |m| {
-                    self.snapshot
-                        .replay_gain
-                        .resolve(&ReplayGainMetadata::from_comments(&m.comments))
-                        .expect("validated settings and parsed tags")
-                });
+        let program = self.snapshot.metadata.as_ref().map_or_else(
+            || {
+                vec![NormalizationPoint {
+                    source_frame: 0,
+                    normalization: Normalization::default(),
+                }]
+            },
+            |m| {
+                m.normalization_program(self.snapshot.replay_gain)
+                    .expect("validated provider timeline and settings")
+            },
+        );
+        self.snapshot.normalization_program = std::sync::Arc::new(program);
+        self.snapshot.normalization_revision.bump();
+        self.observe_normalization();
+    }
+    fn observe_normalization(&mut self) {
+        let program = &self.snapshot.normalization_program;
+        let at = program.partition_point(|p| p.source_frame <= self.snapshot.position_frames);
+        self.snapshot.normalization = program[at.saturating_sub(1)].normalization;
     }
     pub fn observed(&mut self, tag: JobTag, observation: Option<crate::ModuleObservation>) {
         if self.accepts(tag) {
@@ -318,6 +343,7 @@ impl Session {
             return false;
         }
         self.snapshot.position_frames = position;
+        self.observe_normalization();
         self.snapshot.pending_operation = false;
         self.snapshot.state = if self.snapshot.requested == RequestedState::Running {
             TransportState::Playing
@@ -352,6 +378,7 @@ impl Session {
         if self.snapshot.requested == RequestedState::Running {
             self.snapshot.position_frames =
                 position.min(self.snapshot.total_frames.unwrap_or(u64::MAX));
+            self.observe_normalization();
             if final_consumed && self.snapshot.decoding_eof {
                 self.snapshot.state = TransportState::Ended;
                 self.snapshot.requested = RequestedState::Held;
@@ -384,6 +411,102 @@ fn invalid(detail: &str) -> LibzciError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn normalization_program_tracks_audible_position_seeks_and_settings_without_read_ahead_updates()
+    {
+        let mut s = Session::new(SessionId::fresh());
+        let settings = ReplayGainSettings {
+            mode: ReplayGainMode::Track,
+            ..Default::default()
+        };
+        s.accept(&Command::SetReplayGain {
+            session: s.id(),
+            request_id: RequestId::fresh(),
+            settings,
+        })
+        .unwrap();
+        s.accept(&Command::Load {
+            session: s.id(),
+            request_id: RequestId::fresh(),
+            source: SourceId::fresh(),
+            extension_hint: None,
+            options: LoadOptions::default(),
+        })
+        .unwrap();
+        let mut metadata = crate::provider::FakeFactory::new(96000, PcmLayout::mono48k())
+            .open(
+                std::sync::Arc::new(MemSource::new(b"FAKE".to_vec())),
+                &CancelFlag::default(),
+            )
+            .unwrap()
+            .metadata();
+        metadata.normalization_points = vec![
+            ReplayGainPoint {
+                source_frame: 0,
+                tags: ReplayGainMetadata {
+                    r128_track_gain_q8: Some(256),
+                    ..Default::default()
+                },
+            },
+            ReplayGainPoint {
+                source_frame: 24000,
+                tags: ReplayGainMetadata {
+                    r128_track_gain_q8: Some(-256),
+                    ..Default::default()
+                },
+            },
+        ];
+        assert!(s.opened(s.tag(), metadata.clone(), ModuleCapabilities::default(), 0));
+        let program = s.snapshot().normalization_program;
+        let revision = s.snapshot().normalization_revision;
+        assert_eq!(s.snapshot().normalization.gain_db, 6.0);
+        assert_eq!(program[1].normalization.gain_db, 4.0);
+        s.accept(&Command::Play {
+            session: s.id(),
+            request_id: RequestId::fresh(),
+        })
+        .unwrap();
+        s.consumed(s.generation(), 25000, false);
+        assert_eq!(s.snapshot().normalization.gain_db, 4.0);
+        assert_eq!(s.snapshot().normalization_revision, revision);
+        let old = s.tag();
+        s.accept(&Command::Seek {
+            session: s.id(),
+            request_id: RequestId::fresh(),
+            time: MediaTime(0.25),
+        })
+        .unwrap();
+        assert!(!s.landed(old, 0));
+        assert!(s.landed(s.tag(), 12000));
+        assert_eq!(s.snapshot().normalization.gain_db, 6.0);
+        assert!(std::sync::Arc::ptr_eq(
+            &program,
+            &s.snapshot().normalization_program
+        ));
+        s.accept(&Command::SetReplayGain {
+            session: s.id(),
+            request_id: RequestId::fresh(),
+            settings: ReplayGainSettings {
+                preamp_db: 2.0,
+                ..settings
+            },
+        })
+        .unwrap();
+        assert_eq!(s.snapshot().normalization.gain_db, 8.0);
+        assert_ne!(s.snapshot().normalization_revision, revision);
+        s.accept(&Command::Load {
+            session: s.id(),
+            request_id: RequestId::fresh(),
+            source: SourceId::fresh(),
+            extension_hint: None,
+            options: LoadOptions::default(),
+        })
+        .unwrap();
+        metadata.normalization_points[1].source_frame = 0;
+        assert!(!s.opened(s.tag(), metadata, ModuleCapabilities::default(), 0));
+        assert_eq!(s.state(), TransportState::Failed);
+        assert_eq!(s.snapshot().error.unwrap().kind(), "invalid-argument");
+    }
     #[test]
     fn normalization_is_session_owned_validated_and_rejects_stale_source_facts() {
         let mut s = Session::new(SessionId::fresh());

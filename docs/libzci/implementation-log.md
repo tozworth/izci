@@ -291,6 +291,41 @@ chained Opus. Raw/header-gain chain playback is preserved. This is the next
 correction before M3 normalization is considered finished. Play-count accrual,
 artwork/images, M4-M6 and A1/A2 adoption remain open.
 
+The chained-Opus correction now carries bounded per-link normalization facts
+with source-frame boundaries. Shared control resolves them into a revisioned
+program; progress selects the displayed gain from actual consumption rather
+than decoder read-ahead. The program is transient and is not copied into every
+browser observation or stored in SQL. Catalog summaries keep the first audible
+link's normalization facts instead of rejecting flattened repeated R128 tags.
+
+Shared rendering splits blocks at the exact rational source/output frame
+boundaries and keeps five-millisecond ramps continuous across pieces. Seek
+primes the gain at its actual landed source position. Native output publishes
+programs through three fixed ownership-transfer slots, retains/retries the
+latest authoritative program under backpressure, and holds output until that
+program can be published. Callbacks only select/process/recycle; they do not
+lock, allocate or free schedules. The worklet stages/validates/commits bounded
+programs into preallocated WASM storage, with generation checks for stale input.
+Both retain at most 1,024 gain points. The native fixed schedule slots add about
+48 KiB of declared retained storage; the worklet adds current/staged schedules.
+
+Native sample-level checks pass for mixed mono/stereo chains with distinct
+R128 tags, gain changes inside output blocks, seek into a later link, raw/master
+separation and fixed-master processed renders. The real native output worker
+matches processed renders exactly under read-ahead, tiny pools and partial
+output at 48 kHz and 44.1 kHz. Callback allocation/deallocation remains zero,
+including schedule activation. Shared core checks cover canonical frame mapping,
+processing-chunk independence, validation, revision and audible-position rules.
+All six import-free audio-WASM ABI tests pass, including scheduled gains inside
+resampled blocks and stale-publication refusal. Actual muted Chromium signal
+checks pass across the earlier formats plus a chained file: scoped probe tags,
+first-link catalog facts, the audible link boundary and seek after a settings
+change. The measured 1 dB link ratio was 1.12251 (expected 1.12202); the -3 dB
+seek ratio was 0.70748 (expected 0.70795), within the 1.5% test tolerance.
+Core/native/bindings/audio-WASM/crude-native suites, the seven reference Opus
+checks, metadata/lyrics, real OPFS storage, production build, M2 and M3
+owner/offline checks and the full M1 output/sample suite pass after this wiring.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

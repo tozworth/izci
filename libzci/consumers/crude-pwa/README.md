@@ -225,8 +225,9 @@ and a stalled UI. Raw WASM tests verify exact marked samples and fixed memory.
 ReplayGain / R128 controls shared persisted session settings and displays the
 core's effective gain. Normalization precedes Raf/master, defaults off and is
 independent of raw jobs. The R128 target defaults to -18 LUFS; peak protection
-uses ReplayGain peak tags when available. Per-link normalization for chained
-Opus remains under development. `npm run test:normalization` generates synthetic
+uses ReplayGain peak tags when available. Reference Opus chains retain per-link
+normalization on the source timeline, including seek and settings changes.
+`npm run test:normalization` generates synthetic
 tagged fixtures and measures actual muted worklet output, settings rollback and
 SQL reopen across reference/WebCodecs Opus, MP3, FLAC and Vorbis.
 

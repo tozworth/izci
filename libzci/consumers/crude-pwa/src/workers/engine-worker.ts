@@ -13,6 +13,7 @@ let preferWebCodecs=false;
 let stats: Record<string, unknown> = {};
 let outputStats: Record<string, unknown> = {};
 let generation = -1;
+let gainProgramKey='';
 let disposed = false;
 let contextState = 'suspended';
 let latency = 0;
@@ -55,6 +56,8 @@ function settings(): void {
     output.postMessage({type:'reset',generation,position:s.position_frames});
   }
   output.postMessage({type:'settings',generation,running:s.requested === 'Running' && !s.pending_operation && s.state !== 'Failed',volume:s.volume,mute:s.mute,replayGain:s.normalization.linear,latency});
+  const key=`${s.generation}/${s.normalization_revision}`;
+  if(key!==gainProgramKey){output.postMessage({type:'gain-schedule',generation,...JSON.parse(web.gain_schedule())});gainProgramKey=key;}
 }
 function profileSettings(s:QueueSettings):void {
   const observed=snapshot();
@@ -115,7 +118,7 @@ self.onmessage = async e => {
     }
     if(profileReady)await profileReady;
     if (m.type === 'attach') {
-      output = m.control; latency = m.latency;
+      output = m.control; latency = m.latency;gainProgramKey='';
       output.onmessage = event => {
         const o = event.data;
         if (o.type === 'report') {

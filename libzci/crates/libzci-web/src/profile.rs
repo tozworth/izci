@@ -204,6 +204,7 @@ pub fn normalize_metadata(
     comments: &str,
     duration_seconds: Option<f64>,
     display_path: &str,
+    normalization_points: Option<String>,
 ) -> Result<String, JsValue> {
     if comments.len() > 2 * 1024 * 1024 || display_path.len() > 8192 {
         return Err(typed(libzci::LibzciError::ResourceExhausted {
@@ -215,10 +216,30 @@ pub fn normalize_metadata(
             detail: e.to_string(),
         })
     })?;
-    serde_json::to_string(&libzci::catalog::Metadata::from_comments(
+    let points = if let Some(points) = normalization_points {
+        if points.len() > 256 * 1024 {
+            return Err(typed(libzci::LibzciError::ResourceExhausted {
+                detail: "normalization metadata byte budget exceeded".into(),
+            }));
+        }
+        let points: Vec<libzci::ReplayGainPoint> = serde_json::from_str(&points).map_err(js)?;
+        if points.len() > libzci::MAX_GAIN_POINTS {
+            return Err(typed(libzci::LibzciError::ResourceExhausted {
+                detail: "normalization metadata point budget exceeded".into(),
+            }));
+        }
+        for point in &points {
+            point.tags.validate().map_err(typed)?;
+        }
+        points
+    } else {
+        Vec::new()
+    };
+    serde_json::to_string(&libzci::catalog::Metadata::from_comments_with_points(
         &comments,
         duration_seconds,
         display_path,
+        &points,
     ))
     .map_err(js)
 }

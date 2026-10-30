@@ -65,7 +65,9 @@ pub struct RenderJob {
     preparation: Option<OutputPreparation>,
     progress: RenderProgress,
     complete: bool,
-    normalization: Normalization,
+    gain_points: Vec<GainPoint>,
+    processor: AudioProcessor,
+    prime_gain: bool,
 }
 impl NativeRuntime {
     pub fn start_render(
@@ -126,7 +128,9 @@ impl NativeRuntime {
                 retained_bytes: 0,
             },
             complete: false,
-            normalization: Normalization::default(),
+            gain_points: Vec::new(),
+            processor: AudioProcessor::new(),
+            prime_gain: true,
         })
     }
 }
@@ -151,23 +155,25 @@ impl RenderJob {
                 let mut output = None;
                 p.pump(|block, samples| {
                     let mut samples = samples.to_vec();
-                    if let ProcessingMode::Master { volume, mute }
-                    | ProcessingMode::Processed { volume, mute, .. } = self.options.processing
+                    if let ProcessingMode::Processed { .. } = self.options.processing {
+                        self.processor.process_source_block(
+                            &mut samples,
+                            block,
+                            &self.gain_points,
+                            self.prime_gain,
+                        );
+                        self.prime_gain = false;
+                    } else if let ProcessingMode::Master { volume, mute } = self.options.processing
                     {
                         // Offline jobs have a fixed master setting, so no startup ramp.
-                        AudioProcessor::apply_gain(
-                            &mut samples,
-                            if mute {
-                                0.0
-                            } else {
-                                self.normalization.linear * volume
-                            },
-                        );
+                        AudioProcessor::apply_gain(&mut samples, if mute { 0.0 } else { volume });
                     }
                     output = Some(RenderStep::Data { block, samples });
                     block.valid_frames
                 });
-                self.progress.retained_bytes = p.retained_bytes() + DECODE_SAMPLES * 12;
+                self.progress.retained_bytes = p.retained_bytes()
+                    + DECODE_SAMPLES * 12
+                    + self.gain_points.capacity() * size_of::<GainPoint>();
                 if let Some(RenderStep::Data { block, samples }) = output {
                     self.progress.output_frames += block.valid_frames as u64;
                     self.entry
@@ -200,10 +206,22 @@ impl RenderJob {
                 continue;
             }
             if self.preparation.is_none() {
-                if let ProcessingMode::Processed { replay_gain, .. } = self.options.processing {
+                if let ProcessingMode::Processed {
+                    replay_gain,
+                    volume,
+                    mute,
+                } = self.options.processing
+                {
                     let metadata = self.entry.snapshot().metadata.expect("opened decoder");
-                    self.normalization = replay_gain
-                        .resolve(&ReplayGainMetadata::from_comments(&metadata.comments))?;
+                    self.gain_points = metadata
+                        .normalization_program(replay_gain)?
+                        .into_iter()
+                        .map(|p| GainPoint {
+                            source_frame: p.source_frame,
+                            linear: p.normalization.linear,
+                        })
+                        .collect();
+                    self.processor.reset_master(volume, mute);
                 }
                 self.preparation = Some(OutputPreparation::new(
                     decoded.layout,

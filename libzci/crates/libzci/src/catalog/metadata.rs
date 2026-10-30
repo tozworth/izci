@@ -63,7 +63,24 @@ impl Metadata {
         result
     }
     pub fn from_provider(facts: &crate::ProviderMetadata, display_path: &str) -> Self {
-        Self::from_comments(&facts.comments, facts.duration_secs(), display_path)
+        Self::from_comments_with_points(
+            &facts.comments,
+            facts.duration_secs(),
+            display_path,
+            &facts.normalization_points,
+        )
+    }
+    pub fn from_comments_with_points(
+        comments: &[(String, String)],
+        duration_seconds: Option<f64>,
+        display_path: &str,
+        points: &[crate::ReplayGainPoint],
+    ) -> Self {
+        let mut metadata = Self::from_comments(comments, duration_seconds, display_path);
+        if let Some(point) = points.first() {
+            metadata.replay_gain = point.tags.clone();
+        }
+        metadata
     }
 }
 #[cfg(test)]

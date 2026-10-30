@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import init, { WebPreparation, classify, known_extension,metadata_tag_visible } from '../generated/libzci_web.js';
+import init, { WebPreparation, classify, known_extension,metadata_tag_visible,normalize_metadata } from '../generated/libzci_web.js';
 import { openProvider, type Backend, type Facts } from './browser-providers.js';
 import { openWebCodecs } from './webcodecs-opus.js';
 import createCodec from '../generated/opus-reference.js';
@@ -17,6 +17,7 @@ let handleInstance = 0;
 let backend:Backend|null=null;
 let facts:Facts|null=null;
 let opusComments:[string,string][]=[];
+let opusGainPoints:NonNullable<Facts['normalization_points']>=[];
 let requestedFile: File | null = null;
 let wantClose = false;
 let source: {file: File; id: number; error: unknown; reads: number} | null = null;
@@ -56,9 +57,9 @@ Object.assign(globalThis,{libzciRead:(id:number,position:number,length:number)=>
 const position=():number=>backend?.position()??(handle?codec._zci_position(handle):0);
 const total=():number|null=>facts?facts.total:handle?codec._zci_total(handle):null;
 function currentFacts():Facts {
-  if(backend){const result=backend.facts();if(opusComments.length)result.comments=opusComments;return result;}
+  if(backend){const result=backend.facts();if(opusComments.length)result.comments=opusComments;if(opusGainPoints.length)result.normalization_points=opusGainPoints;return result;}
   return {provider:{id:'org.xiph.opus',name:'Reference Opus (libopusfile)',version:'libopusfile-0.12/libopus-1.5.2/r4'},rate:48000,channels:2,total:codec._zci_total(handle),comments:opusComments,capabilities:{subsongs:0,channels:0},module:null,
-    applied:{trimmed_preskip:true,trimmed_end:true,applied_header_gain:true}};
+    applied:{trimmed_preskip:true,trimmed_end:true,applied_header_gain:true},normalization_points:opusGainPoints};
 }
 
 // This callback is awaited by Asyncify. It never calls back into the C module.
@@ -97,7 +98,7 @@ async function call(name: string, args: number[]): Promise<number> {
 }
 function close(): void {
   if (handle) codec._zci_close(handle);
-  backend?.close();backend=null;facts=null;opusComments=[];
+  backend?.close();backend=null;facts=null;opusComments=[];opusGainPoints=[];
   handle = 0; handleInstance = 0; source = null; preparation?.free(); preparation = null;
 }
 async function perform(job: DecodeJob): Promise<void> {
@@ -120,13 +121,20 @@ async function perform(job: DecodeJob): Promise<void> {
       handle = codec._zci_create(source.id, file.size);
       if (!handle) throw {kind: 'resource-exhausted', detail: 'codec context allocation failed'};
       await call('zci_open', [handle]);
-      const text=new TextDecoder();let commentBytes=0;
-      for(let link=0;link<codec._zci_links(handle);link++)for(let index=0;index<codec._zci_comment_count(handle,link);index++){
+      const text=new TextDecoder();let commentBytes=0,sourceFrame=0;
+      for(let link=0;link<codec._zci_links(handle);link++){
+      const start=opusComments.length;
+      for(let index=0;index<codec._zci_comment_count(handle,link);index++){
         const length=codec._zci_comment_length(handle,link,index),pointer=codec._zci_comment_data(handle,link,index);
         if(length<0||length>65536-commentBytes||length&&!pointer)throw {kind:'corrupt',detail:'Invalid bounded Opus comment'};
         commentBytes+=length;
         const bytes=codec.HEAPU8.subarray(pointer,pointer+length),separator=bytes.subarray(0,257).indexOf(61);
         if(separator>=0){const key=text.decode(bytes.subarray(0,separator));if(metadata_tag_visible(key))opusComments.push([key.replace(/[a-z]/g,c=>c.toUpperCase()),text.decode(bytes.subarray(separator+1))]);}
+      }
+      const frames=codec._zci_link_total(handle,link);
+      if(!Number.isSafeInteger(frames)||frames<0)throw {kind:'corrupt',detail:'Invalid Opus link timeline'};
+      if(frames>0)opusGainPoints.push({source_frame:sourceFrame,tags:JSON.parse(normalize_metadata(JSON.stringify(opusComments.slice(start)),undefined,'' )).replay_gain});
+      sourceFrame+=frames;
       }
       if(job.preferWebCodecs&&codec._zci_links(handle)===1) {
         try {backend=await openWebCodecs(source.id,file,codec._zci_total(handle),yieldTask,check);}

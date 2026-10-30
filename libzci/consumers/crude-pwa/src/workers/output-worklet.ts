@@ -10,6 +10,7 @@ type AudioWasm = WebAssembly.Exports & {
   renderer_reset(p:number,g:number,position:number):void;
   renderer_settings(p:number,r:number,v:number,m:number,l:number):void;
   renderer_replay_gain(p:number,gain:number):void;
+  renderer_gain_begin(p:number,generation:number):number;renderer_gain_point(p:number,frame:number,linear:number):number;renderer_gain_commit(p:number,generation:number):number;
   renderer_enqueue(p:number,id:number,g:number,start:number,end:number,output:number,sourceRate:number,rate:number,frames:number):number;
   renderer_eof(p:number,g:number):void; renderer_process(p:number):void;
   renderer_recycled_count(p:number):number; renderer_recycled(p:number,n:number):number;
@@ -83,6 +84,10 @@ class Output extends AudioWorkletProcessor {
       for (const id of this.buffers.keys()) this.recycle(id);
       this.wasm.renderer_reset(this.pointer,m.generation,m.position);
       this.control.postMessage({type:m.type==='anchor'?'anchor-ack':'reset-ack',generation:m.generation});
+    } else if(m.type==='gain-schedule' && m.generation===this.generation) {
+      let valid=Array.isArray(m.points)&&m.points.length>0&&m.points.length<=1024&&this.wasm.renderer_gain_begin(this.pointer,m.generation);
+      if(valid)for(const point of m.points)if(!this.wasm.renderer_gain_point(this.pointer,point.source_frame,point.linear)){valid=false;break;}
+      if(!valid||!this.wasm.renderer_gain_commit(this.pointer,m.generation))this.control.postMessage({type:'failed',detail:'invalid source gain schedule'});
     } else if (m.type==='settings' && m.generation===this.generation) {
       this.wasm.renderer_settings(this.pointer,Number(m.running),m.volume,Number(m.mute),m.latency);
       this.wasm.renderer_replay_gain(this.pointer,m.replayGain);

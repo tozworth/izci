@@ -8,6 +8,7 @@ export interface Snapshot {
   volume: number; mute: boolean; decoding_eof: boolean; pending_operation: boolean; error: string | null; tag: Tag;
   replay_gain:import('./profile-types.js').ReplayGainSettings;
   normalization:{origin:string;gain_db:number;linear:number;clipping_limited:boolean};
+  normalization_revision:number;
   capabilities: {subsongs:number;channels:number;interpolation:boolean;channel_mute:boolean;ramping:boolean;speed:boolean;pitch:boolean;loop_limit:boolean;patterns:boolean};
   metadata:[string,string][]|null;module:{selected_subsong:number;order:number;pattern:number;row:number;first_row:number;rows:number;channels:number;cells:number[][]}|null;
 }

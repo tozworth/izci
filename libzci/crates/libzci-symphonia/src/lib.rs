@@ -291,6 +291,7 @@ impl DecoderInstance for SymphoniaInstance {
                 applied_header_gain: false,
             },
             declared_channels: self.layout.layout.channels(),
+            normalization_points: Vec::new(),
             comments: self.comments.clone(),
         }
     }

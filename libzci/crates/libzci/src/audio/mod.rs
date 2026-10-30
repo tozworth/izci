@@ -8,6 +8,7 @@
 //!   and the raw-program tap point (Raf arrives in M4).
 
 pub mod clock;
+pub mod gain_schedule;
 pub mod output;
 pub mod pcm;
 pub mod processor;

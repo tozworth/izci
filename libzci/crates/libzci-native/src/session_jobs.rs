@@ -37,12 +37,20 @@ impl Control {
         if let Some(output) = &self.output {
             let s = self.owner.snapshot();
             output.request_generation(s.generation);
+            let program_ready = output
+                .set_gain_program(
+                    s.generation,
+                    s.normalization_revision.0,
+                    &s.normalization_program,
+                )
+                .expect("validated session gain schedule");
             output.set_held(
                 s.requested == RequestedState::Held
                     || s.pending_operation
                     || self.closed
                     || s.state == TransportState::Failed
-                    || s.running == RunningState::Suspended,
+                    || s.running == RunningState::Suspended
+                    || !program_ready,
             );
             output.set_volume(s.volume);
             output.set_mute(s.mute);

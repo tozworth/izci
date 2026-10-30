@@ -31,6 +31,7 @@ unsafe impl Sync for Pool {}
 /// Control and observations never wait for PCM capacity. This handle cannot
 /// access pool samples or either queue cursor.
 pub struct OutputMonitor {
+    gains: crate::gain_transport::GainPublisher,
     requested: AtomicU64,
     acknowledged: AtomicU64,
     held: AtomicBool,
@@ -49,6 +50,17 @@ pub struct OutputMonitor {
 }
 
 impl OutputMonitor {
+    /// Publish a bounded source-timeline schedule from a control thread. False
+    /// means no slot is available: retain and retry the same authoritative
+    /// program. The callback never locks/allocates/frees this schedule storage.
+    pub fn set_gain_program(
+        &self,
+        generation: Generation,
+        revision: u64,
+        program: &[libzci::NormalizationPoint],
+    ) -> libzci::Result<bool> {
+        self.gains.publish(generation, revision, program)
+    }
     pub fn request_generation(&self, generation: Generation) {
         self.requested.store(generation.0, Ordering::Release);
     }
@@ -134,6 +146,7 @@ impl OutputMonitor {
     /// Fixed PCM/descriptor and queue-element storage (excludes Arc/queue headers).
     pub fn retained_bytes(&self) -> usize {
         self.pool.slots.len() * (size_of::<Slot>() + 2 * size_of::<usize>())
+            + self.gains.retained_bytes()
     }
 }
 
@@ -144,6 +157,7 @@ pub struct PcmProducer {
 }
 
 pub struct PcmConsumer {
+    gains: crate::gain_transport::GainConsumer,
     ready: Consumer<usize>,
     recycle: Producer<usize>,
     monitor: Arc<OutputMonitor>,
@@ -185,7 +199,9 @@ pub fn pcm_transport(
             })
             .collect(),
     });
+    let (gain_publisher, gain_consumer) = crate::gain_transport::gain_transport();
     let monitor = Arc::new(OutputMonitor {
+        gains: gain_publisher,
         requested: AtomicU64::new(generation.0),
         acknowledged: AtomicU64::new(generation.0),
         held: AtomicBool::new(false),
@@ -209,6 +225,7 @@ pub fn pcm_transport(
             monitor: monitor.clone(),
         },
         PcmConsumer {
+            gains: gain_consumer,
             ready: ready_rx,
             recycle: recycle_tx,
             monitor: monitor.clone(),
@@ -312,6 +329,15 @@ impl PcmConsumer {
         self.monitor.render_epoch.fetch_add(1, Ordering::AcqRel);
         out.fill(0.0);
         let generation = self.monitor.generation();
+        self.gains.refresh();
+        self.processor
+            .set_volume(f32::from_bits(self.monitor.volume.load(Ordering::Relaxed)));
+        self.processor
+            .set_mute(self.monitor.mute.load(Ordering::Relaxed));
+        let fallback = [libzci::GainPoint {
+            source_frame: 0,
+            linear: f32::from_bits(self.monitor.replay_gain.load(Ordering::Relaxed)),
+        }];
         if self.clock_generation != generation {
             self.clock.reset();
             self.clock_generation = generation;
@@ -331,11 +357,16 @@ impl PcmConsumer {
                 let index = self.active.unwrap();
                 // SAFETY: producer cannot regain this index until release_active.
                 let slot = unsafe { &*self.monitor.pool.slots[index].get() };
-                self.processor
-                    .set_sample_rate(slot.block.layout.sample_rate);
                 let count = (out.len() / 2 - frames).min(slot.block.valid_frames - self.offset);
                 out[frames * 2..(frames + count) * 2]
                     .copy_from_slice(&slot.samples[self.offset * 2..(self.offset + count) * 2]);
+                self.processor.process_source_block(
+                    &mut out[frames * 2..(frames + count) * 2],
+                    slot.block.slice(self.offset, count),
+                    self.gains.points(generation).unwrap_or(&fallback),
+                    self.prime_gain,
+                );
+                self.prime_gain = false;
                 if !self
                     .clock
                     .submit(slot.block.slice(self.offset, count), frames as u64)
@@ -383,19 +414,6 @@ impl PcmConsumer {
         self.monitor
             .clock_drained
             .store(self.clock.drained(), Ordering::Release);
-        self.processor
-            .set_volume(f32::from_bits(self.monitor.volume.load(Ordering::Relaxed)));
-        self.processor
-            .set_mute(self.monitor.mute.load(Ordering::Relaxed));
-        let replay_gain = f32::from_bits(self.monitor.replay_gain.load(Ordering::Relaxed));
-        if frames > 0 && self.prime_gain {
-            self.processor.reset_replay_gain(replay_gain);
-            self.prime_gain = false;
-        } else {
-            self.processor.set_replay_gain(replay_gain);
-        }
-        self.processor
-            .process_stereo_in_place(&mut out[..frames * 2]);
         self.monitor.render_epoch.fetch_add(1, Ordering::Release);
         frames
     }

@@ -105,6 +105,14 @@ impl AudioProcessor {
         }
     }
 
+    /// Fixed master values for an offline render, without a startup ramp.
+    pub fn reset_master(&mut self, volume: f32, mute: bool) {
+        self.set_volume(volume);
+        self.set_mute(mute);
+        self.rendered_gain = self.target_effective();
+        self.ramp_left = 0;
+    }
+
     /// Current volume target (0..=1).
     pub fn volume(&self) -> f32 {
         self.target_gain
@@ -180,6 +188,65 @@ impl AudioProcessor {
         self.last_raw_peak = peak;
     }
 
+    /// Apply a prepared gain schedule at exact source-frame boundaries inside
+    /// this output block. Split processing only where a gain changes, retaining
+    /// finite anchored ramps across pieces and avoiding per-sample searches.
+    /// `points` is validated before publication; `prime` marks a new source.
+    pub fn process_source_block(
+        &mut self,
+        samples: &mut [f32],
+        block: crate::OutputBlock,
+        points: &[crate::GainPoint],
+        prime: bool,
+    ) {
+        debug_assert_eq!(samples.len(), block.valid_frames * 2);
+        if samples.is_empty() {
+            return;
+        }
+        self.set_sample_rate(block.layout.sample_rate);
+        let mut index = points.partition_point(|p| p.source_frame <= block.source_position(0));
+        let mut gain = if index == 0 {
+            1.0
+        } else {
+            points[index - 1].linear
+        };
+        if prime {
+            self.reset_replay_gain(gain);
+        }
+        let mut at = 0;
+        let mut peak = 0.0_f32;
+        while at < block.valid_frames {
+            while points
+                .get(index)
+                .is_some_and(|p| p.source_frame <= block.source_position(at))
+            {
+                gain = points[index].linear;
+                index += 1;
+            }
+            let mut end = block.valid_frames;
+            if let Some(next) = points.get(index) {
+                if next.source_frame <= block.source_position(end - 1) {
+                    let mut lo = at;
+                    let mut hi = end;
+                    while lo < hi {
+                        let mid = lo + (hi - lo) / 2;
+                        if block.source_position(mid) < next.source_frame {
+                            lo = mid + 1;
+                        } else {
+                            hi = mid;
+                        }
+                    }
+                    end = lo;
+                }
+            }
+            self.set_replay_gain(gain);
+            self.process_stereo_in_place(&mut samples[at * 2..end * 2]);
+            peak = peak.max(self.last_raw_peak);
+            at = end;
+        }
+        self.last_raw_peak = peak;
+    }
+
     /// Fixed master setting for an offline render (no startup ramp).
     pub fn apply_gain(samples: &mut [f32], gain: f32) {
         debug_assert!(gain.is_finite());
@@ -250,6 +317,59 @@ impl Default for AudioProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn source_gain_boundaries_follow_rational_frames_and_not_processing_chunk_size() {
+        use crate::{GainPoint, GainSchedule, Generation, OutputBlock, PcmLayout};
+        let points = [
+            GainPoint {
+                source_frame: 0,
+                linear: 0.25,
+            },
+            GainPoint {
+                source_frame: 147,
+                linear: 0.5,
+            },
+            GainPoint {
+                source_frame: 294,
+                linear: 2.0,
+            },
+        ];
+        GainSchedule::validate(&points).unwrap();
+        let block = OutputBlock {
+            generation: Generation(1),
+            source_start: 0,
+            source_end: 441,
+            source_rate: 44100,
+            output_start: 0,
+            layout: PcmLayout::stereo48k(),
+            valid_frames: 480,
+        };
+        let mut whole = AudioProcessor::new();
+        let mut out = [1.0; 960];
+        whole.process_source_block(&mut out, block, &points, true);
+        assert_eq!(&out[..320], &[0.25; 320]);
+        assert!((out[320] - (0.25 + 0.25 / 240.0)).abs() < 1e-7);
+        assert!(out.as_chunks::<2>().0.iter().all(|v| v[0] == v[1]));
+        assert_eq!(whole.last_raw_peak(), 1.0);
+        let mut split = AudioProcessor::new();
+        let mut fragmented = [1.0; 960];
+        let mut at = 0;
+        for size in [13, 147, 7, 159, 1, 153] {
+            split.process_source_block(
+                &mut fragmented[at * 2..(at + size) * 2],
+                block.slice(at, size),
+                &points,
+                at == 0,
+            );
+            at += size;
+        }
+        assert_eq!(at, 480);
+        assert_eq!(out, fragmented);
+        let mut seek = AudioProcessor::new();
+        let mut after_seek = [1.0; 64];
+        seek.process_source_block(&mut after_seek, block.slice(400, 32), &points, true);
+        assert_eq!(after_seek, [2.0; 64]);
+    }
 
     #[test]
     fn independent_normalization_keeps_raw_peak_headroom_and_actual_rate_ramps() {

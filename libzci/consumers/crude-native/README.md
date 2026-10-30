@@ -38,7 +38,8 @@ ReplayGain / R128 offers Off/Track/Album, fallback, tagged preamp, missing-tag
 gain, R128 target and peak-tag clipping prevention. Core sessions resolve the
 effective gain; normalization precedes Raf/master and does not alter raw renders.
 The default is off. R128 defaults to -18 LUFS (+5 dB from its tag reference).
-Per-link optional normalization for chained Opus is still under development.
+Reference Opus chains retain per-link normalization on the audible source
+timeline; seek primes the selected link and gain changes stay stereo linked.
 
 Expand Library / managed folders for catalog queries, Library/Favorites,
 ratings, bookmarks, queue append and root settings. Add folder starts bounded

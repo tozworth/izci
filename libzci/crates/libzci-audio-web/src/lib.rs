@@ -30,6 +30,11 @@ pub struct Renderer {
     latency: u64,
     replay_gain: f32,
     prime_gain: bool,
+    gains: GainSchedule,
+    gains_generation: Option<Generation>,
+    pending_points: [GainPoint; MAX_GAIN_POINTS],
+    pending_len: usize,
+    pending_generation: Option<Generation>,
 }
 impl Renderer {
     fn new() -> Self {
@@ -60,6 +65,11 @@ impl Renderer {
             latency: 0,
             replay_gain: 1.0,
             prime_gain: true,
+            gains: GainSchedule::default(),
+            gains_generation: None,
+            pending_points: [GainPoint::default(); MAX_GAIN_POINTS],
+            pending_len: 0,
+            pending_generation: None,
         }
     }
     fn reset(&mut self, generation: Generation, position: u64) {
@@ -110,6 +120,22 @@ impl Renderer {
             let n = (b.valid_frames - slot.offset).min(QUANTUM - at);
             self.output[at * 2..(at + n) * 2]
                 .copy_from_slice(&slot.samples[slot.offset * 2..(slot.offset + n) * 2]);
+            let fallback = [GainPoint {
+                source_frame: 0,
+                linear: self.replay_gain,
+            }];
+            let points = if self.gains_generation == Some(self.generation) {
+                self.gains.points()
+            } else {
+                &fallback
+            };
+            self.processor.process_source_block(
+                &mut self.output[at * 2..(at + n) * 2],
+                b.slice(slot.offset, n),
+                points,
+                self.prime_gain,
+            );
+            self.prime_gain = false;
             assert!(self.clock.submit(b.slice(slot.offset, n), at as u64));
             at += n;
             slot.offset += n;
@@ -121,14 +147,6 @@ impl Renderer {
                 self.len -= 1;
             }
         }
-        if at > 0 && self.prime_gain {
-            self.processor.reset_replay_gain(self.replay_gain);
-            self.prime_gain = false;
-        } else {
-            self.processor.set_replay_gain(self.replay_gain);
-        }
-        self.processor
-            .process_stereo_in_place(&mut self.output[..at * 2]);
         self.media += at as u64;
         self.silence += (QUANTUM - at) as u64;
         if let Some(p) = self.clock.advance(QUANTUM as u64, self.latency) {
@@ -226,6 +244,58 @@ pub unsafe extern "C" fn renderer_replay_gain(p: *mut Renderer, gain: f32) {
     if gain.is_finite() && (0.0..=1000.0).contains(&gain) {
         (*p).replay_gain = gain;
     }
+}
+#[no_mangle]
+/// # Safety
+/// `p` must be a live renderer exclusively owned by this caller.
+pub unsafe extern "C" fn renderer_gain_begin(p: *mut Renderer, g: f64) -> i32 {
+    if g != (*p).generation.0 as f64 {
+        return 0;
+    }
+    (*p).pending_len = 0;
+    (*p).pending_generation = Some((*p).generation);
+    1
+}
+#[no_mangle]
+/// # Safety
+/// `p` must be live and exclusive, after renderer_gain_begin.
+pub unsafe extern "C" fn renderer_gain_point(p: *mut Renderer, frame: f64, linear: f32) -> i32 {
+    let r = &mut *p;
+    if r.pending_generation != Some(r.generation)
+        || r.pending_len == MAX_GAIN_POINTS
+        || !frame.is_finite()
+        || !(0.0..=9_007_199_254_740_991.0).contains(&frame)
+        || frame.fract() != 0.0
+        || !linear.is_finite()
+        || !(0.0..=1000.0).contains(&linear)
+    {
+        return 0;
+    }
+    let point = GainPoint {
+        source_frame: frame as u64,
+        linear,
+    };
+    if r.pending_len > 0 && point.source_frame <= r.pending_points[r.pending_len - 1].source_frame {
+        return 0;
+    }
+    r.pending_points[r.pending_len] = point;
+    r.pending_len += 1;
+    1
+}
+#[no_mangle]
+/// # Safety
+/// `p` must be live and exclusive; appends describe one complete schedule.
+pub unsafe extern "C" fn renderer_gain_commit(p: *mut Renderer, g: f64) -> i32 {
+    let r = &mut *p;
+    if g != r.generation.0 as f64
+        || r.pending_generation != Some(r.generation)
+        || r.gains.replace(&r.pending_points[..r.pending_len]).is_err()
+    {
+        return 0;
+    }
+    r.gains_generation = Some(r.generation);
+    r.pending_generation = None;
+    1
 }
 #[no_mangle]
 /// # Safety

@@ -48,6 +48,7 @@ pub mod source;
 #[cfg(feature = "control")]
 pub mod storage;
 
+pub use audio::gain_schedule::{GainPoint, GainSchedule, MAX_GAIN_POINTS};
 pub use audio::pcm::{ChannelLayout, PcmChunk, PcmLayout};
 pub use audio::{
     AudioProcessor, MediaClock, OutputBlock, OutputPreparation, RateConverter, RequestedState,
@@ -78,7 +79,8 @@ pub use provider::{
 };
 #[cfg(feature = "control")]
 pub use replay_gain::{
-    GainOrigin, Normalization, ReplayGainMetadata, ReplayGainMode, ReplayGainSettings,
+    GainOrigin, Normalization, NormalizationPoint, ReplayGainMetadata, ReplayGainMode,
+    ReplayGainPoint, ReplayGainSettings,
 };
 #[cfg(feature = "control")]
 pub use session::{JobTag, Session, SessionAction, TransportState};

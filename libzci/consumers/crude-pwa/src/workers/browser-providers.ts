@@ -6,6 +6,7 @@ import moduleWasm from '../generated/modules-reference.wasm?url';
 export interface Facts {
   provider:{id:string;name:string;version:string};rate:number;channels:number;total:number|null;
   comments:[string,string][];capabilities:Record<string,number|boolean>;module:unknown;applied?:Record<string,boolean>;
+  normalization_points?:{source_frame:number;tags:NonNullable<import('../catalog-types.js').Metadata['replay_gain']>}[];
 }
 export interface Backend {
   facts():Facts;position():number;read():Float32Array|Promise<Float32Array>;seek(target:number):Promise<void>;

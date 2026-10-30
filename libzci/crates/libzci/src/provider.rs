@@ -137,9 +137,48 @@ pub struct ProviderMetadata {
     /// Declared channel count from the container.
     pub declared_channels: u16,
     pub comments: Vec<(String, String)>,
+    /// Empty means comments describe the whole source. Chained containers
+    /// report bounded per-link tags instead of flattening normalization scopes.
+    pub normalization_points: Vec<crate::ReplayGainPoint>,
 }
 
 impl ProviderMetadata {
+    pub fn normalization_program(
+        &self,
+        settings: crate::ReplayGainSettings,
+    ) -> Result<Vec<crate::NormalizationPoint>> {
+        let points = &self.normalization_points;
+        if points.is_empty() {
+            return Ok(vec![crate::NormalizationPoint {
+                source_frame: 0,
+                normalization: settings
+                    .resolve(&crate::ReplayGainMetadata::from_comments(&self.comments))?,
+            }]);
+        }
+        if points.len() > crate::MAX_GAIN_POINTS
+            || points[0].source_frame != 0
+            || points
+                .windows(2)
+                .any(|p| p[0].source_frame >= p[1].source_frame)
+            || points.iter().any(|p| {
+                self.total_frames
+                    .is_some_and(|total| p.source_frame >= total)
+            })
+        {
+            return Err(LibzciError::InvalidArgument {
+                detail: "invalid provider normalization timeline".into(),
+            });
+        }
+        points
+            .iter()
+            .map(|p| {
+                Ok(crate::NormalizationPoint {
+                    source_frame: p.source_frame,
+                    normalization: settings.resolve(&p.tags)?,
+                })
+            })
+            .collect()
+    }
     /// Audible duration in seconds, when the total is finite.
     pub fn duration_secs(&self) -> Option<f64> {
         self.total_frames
@@ -500,6 +539,7 @@ impl DecoderInstance for FakeInstance {
             total_frames: Some(self.total_frames),
             applied: AppliedAdjustments::default(),
             declared_channels: self.layout.layout.channels(),
+            normalization_points: Vec::new(),
             comments: Vec::new(),
         }
     }

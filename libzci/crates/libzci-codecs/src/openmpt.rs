@@ -607,6 +607,7 @@ impl DecoderInstance for OpenmptInstance {
             total_frames: self.total_frames,
             applied: AppliedAdjustments::default(),
             declared_channels: self.channels as u16,
+            normalization_points: Vec::new(),
             comments: ["title", "type", "tracker", "artist", "message"]
                 .iter()
                 .map(|key| {

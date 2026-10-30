@@ -18,6 +18,19 @@ pub struct ReplayGainMetadata {
     pub r128_track_gain_q8: Option<i16>,
     pub r128_album_gain_q8: Option<i16>,
 }
+/// A logical stream/link's optional tags, located on the provider's normalized
+/// source timeline. These are transient provider facts, never decoder read-ahead.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReplayGainPoint {
+    pub source_frame: u64,
+    pub tags: ReplayGainMetadata,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct NormalizationPoint {
+    pub source_frame: u64,
+    pub normalization: Normalization,
+}
 fn invalid(detail: &str) -> LibzciError {
     LibzciError::InvalidArgument {
         detail: detail.into(),

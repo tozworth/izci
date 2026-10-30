@@ -61,6 +61,10 @@ EMSCRIPTEN_KEEPALIVE int zci_open(ZciOpus *c) {
 }
 EMSCRIPTEN_KEEPALIVE double zci_total(ZciOpus *c) { return (double)op_pcm_total(c->file, -1); }
 EMSCRIPTEN_KEEPALIVE int zci_links(ZciOpus *c) { return op_link_count(c->file); }
+EMSCRIPTEN_KEEPALIVE double zci_link_total(ZciOpus *c, int link) {
+  if (!c || !c->file || link < 0 || link >= op_link_count(c->file)) return -1;
+  return (double)op_pcm_total(c->file, link);
+}
 /* Read-only leases are valid until zci_close. Lengths, not NUL terminators,
  * bound tag copies; open already enforces the aggregate 64 KiB budget. */
 static const OpusTags *tags_at(ZciOpus *c, int link) {

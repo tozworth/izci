@@ -49,6 +49,18 @@ impl WebEngine {
     pub fn snapshot(&self) -> String {
         self.inner.snapshot().to_string()
     }
+    pub fn gain_schedule(&self) -> String {
+        let s = self.inner.session.snapshot();
+        let points = s
+            .normalization_program
+            .iter()
+            .map(|p| GainPoint {
+                source_frame: p.source_frame,
+                linear: p.normalization.linear,
+            })
+            .collect::<Vec<_>>();
+        serde_json::json!({"revision":s.normalization_revision.0,"points":points}).to_string()
+    }
     pub fn replay_gain(&mut self, settings: &str) -> std::result::Result<String, JsValue> {
         let settings = serde_json::from_str(settings).map_err(js)?;
         Ok(self

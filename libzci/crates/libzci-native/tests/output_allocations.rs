@@ -150,6 +150,16 @@ fn allocation_high_water_is_independent_of_source_duration() {
 #[test]
 fn callback_render_reset_and_recycling_never_allocate_or_deallocate() {
     let (mut tx, mut rx, control) = pcm_transport(2, Generation(1));
+    let point = |frame, linear| libzci::NormalizationPoint {
+        source_frame: frame,
+        normalization: libzci::Normalization {
+            linear,
+            ..Default::default()
+        },
+    };
+    assert!(control
+        .set_gain_program(Generation(1), 1, &[point(0, 0.5), point(32, 2.0)])
+        .unwrap());
     let block = OutputBlock {
         generation: Generation(1),
         source_start: 0,

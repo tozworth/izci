@@ -237,7 +237,11 @@ pub(crate) fn pipeline_main(
             std::thread::sleep(Duration::from_millis(2));
             continue;
         }
-        let snap = entry.snapshot();
+        let snap = {
+            let c = entry.control.lock().unwrap();
+            c.refresh_output();
+            c.owner.snapshot()
+        };
         if snap.error.is_some() {
             std::thread::sleep(Duration::from_millis(2));
             continue;
@@ -476,7 +480,7 @@ mod tests {
             )))
             .unwrap();
             let source = rt.insert_source(Arc::new(MemSource::new(b"FAKE".to_vec())));
-            assert_worker(rt, source, 50_003, rate);
+            assert_worker(rt, source, 50_003, rate, None);
         }
     }
     #[cfg(feature = "provider-tests")]
@@ -489,16 +493,73 @@ mod tests {
             let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("../../../.local/libzci/media/r3/long.opus");
             let source = rt.insert_source(Arc::new(crate::NativeFileSource::open(&path).unwrap()));
-            assert_worker(rt, source, 1_440_006, rate);
+            assert_worker(rt, source, 1_440_006, rate, None);
         }
     }
-    fn assert_worker(rt: Arc<NativeRuntime>, source: SourceId, total: u64, rate: u32) {
+    #[cfg(feature = "provider-tests")]
+    #[test]
+    fn normalized_real_chain_stays_aligned_through_read_ahead_resampling_and_partial_output() {
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../.local/libzci/media/r3");
+        let mut chain = std::fs::read(root.join("mono.opus")).unwrap();
+        let mut second = std::fs::read(root.join("stereo.opus")).unwrap();
+        let tag = b"R128_TRACK_GAIN=256";
+        let at = second.windows(tag.len()).position(|w| w == tag).unwrap();
+        second[at + tag.len() - 3..at + tag.len()].copy_from_slice(b"512");
+        let mut at = 0;
+        while at < second.len() {
+            second[at + 14..at + 18].copy_from_slice(&42_u32.to_le_bytes());
+            let n = second[at + 26] as usize;
+            let len = 27
+                + n
+                + second[at + 27..at + 27 + n]
+                    .iter()
+                    .map(|v| *v as usize)
+                    .sum::<usize>();
+            second[at + 22..at + 26].fill(0);
+            let crc = ogg_crc(&second[at..at + len], &[], 22);
+            second[at + 22..at + 26].copy_from_slice(&crc.to_le_bytes());
+            at += len;
+        }
+        chain.extend(second);
+        for rate in [48000, 44100] {
+            let rt = NativeRuntime::new();
+            rt.register_provider(Arc::new(libzci_codecs::OpusFactory::default()))
+                .unwrap();
+            let source = rt.insert_source(Arc::new(MemSource::new(chain.clone())));
+            assert_worker(
+                rt,
+                source,
+                72012,
+                rate,
+                Some(ReplayGainSettings {
+                    mode: ReplayGainMode::Track,
+                    ..Default::default()
+                }),
+            );
+        }
+    }
+    fn assert_worker(
+        rt: Arc<NativeRuntime>,
+        source: SourceId,
+        total: u64,
+        rate: u32,
+        normalization: Option<ReplayGainSettings>,
+    ) {
         let mut reference = rt
             .start_render(
                 source,
                 None,
                 RenderOptions {
                     output_rate: rate,
+                    processing: normalization.map_or(
+                        crate::render::ProcessingMode::Raw,
+                        |replay_gain| crate::render::ProcessingMode::Processed {
+                            replay_gain,
+                            volume: 1.0,
+                            mute: false,
+                        },
+                    ),
                     ..Default::default()
                 },
                 &CancelFlag::default(),
@@ -515,6 +576,16 @@ mod tests {
         let session = rt.create_session();
         rt.load(session, source, None, &CancelFlag::default())
             .unwrap();
+        if let Some(settings) = normalization {
+            command(
+                &rt,
+                Command::SetReplayGain {
+                    session,
+                    request_id: RequestId::fresh(),
+                    settings,
+                },
+            );
+        }
         let entry = rt.entry(session).unwrap();
         let (producer, mut consumer, monitor) = pcm_transport(2, entry.snapshot().generation);
         {

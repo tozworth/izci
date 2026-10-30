@@ -505,6 +505,7 @@ impl DecoderInstance for HivelyInstance {
             total_frames: self.total_frames,
             applied: AppliedAdjustments::default(),
             declared_channels: self.channels as u16,
+            normalization_points: Vec::new(),
             comments: vec![
                 ("title".into(), self.title.clone()),
                 ("type".into(), format!("{:?}", self.kind)),

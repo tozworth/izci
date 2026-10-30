@@ -47,7 +47,7 @@ export class BrowserCatalog {
     }finally{this.release(staged);}
   }
   private media(source:SourceReference,file:File,facts:Facts):MediaInput{
-    return {source,source_revision:`${file.size}:${file.lastModified}`,kind:['org.openmpt.libopenmpt','hivelytracker.replay'].includes(facts.provider.id)?'module':'audio',metadata:JSON.parse(normalize_metadata(JSON.stringify(facts.comments),facts.total===null?undefined:facts.total/facts.rate,source.display_path))};
+    return {source,source_revision:`${file.size}:${file.lastModified}`,kind:['org.openmpt.libopenmpt','hivelytracker.replay'].includes(facts.provider.id)?'module':'audio',metadata:JSON.parse(normalize_metadata(JSON.stringify(facts.comments),facts.total===null?undefined:facts.total/facts.rate,source.display_path,JSON.stringify(facts.normalization_points??[])))};
   }
   async addFiles(files:File[],handles:RealFileHandle[],verifyUnknown:boolean,request:string):Promise<CatalogOutcome>{
     if(!files.length||files.length>256||handles.length&&handles.length!==files.length)throw new Error('Catalog batch must contain 1..256 files');

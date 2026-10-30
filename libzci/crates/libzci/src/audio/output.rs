@@ -20,20 +20,22 @@ pub struct OutputBlock {
 }
 
 impl OutputBlock {
+    /// Source position for a device-frame offset, including resampler tail
+    /// clamping. Source gain schedules and the audible clock share this mapping.
+    pub fn source_position(self, offset: usize) -> u64 {
+        assert!(offset <= self.valid_frames);
+        let start = self.output_start as u128;
+        let rate = self.layout.sample_rate as u128;
+        let source = self.source_rate as u128;
+        let delta = ((start + offset as u128) * source) / rate - (start * source) / rate;
+        (self.source_start as u128 + delta).min(self.source_end as u128) as u64
+    }
     /// Describe a frame-aligned suffix/prefix without losing its timeline origin.
     pub fn slice(self, offset: usize, frames: usize) -> Self {
         assert!(offset + frames <= self.valid_frames);
-        let source_at = |n: u64| {
-            ((n as u128 * self.source_rate as u128) / self.layout.sample_rate as u128) as u64
-        };
-        let base = source_at(self.output_start);
         Self {
-            source_start: (self.source_start + source_at(self.output_start + offset as u64) - base)
-                .min(self.source_end),
-            source_end: (self.source_start
-                + source_at(self.output_start + offset as u64 + frames as u64)
-                - base)
-                .min(self.source_end),
+            source_start: self.source_position(offset),
+            source_end: self.source_position(offset + frames),
             output_start: self.output_start + offset as u64,
             valid_frames: frames,
             ..self

@@ -736,6 +736,7 @@ impl DecoderInstance for OpusInstance {
                 applied_header_gain: true,
             },
             declared_channels: self.headers.channels as u16,
+            normalization_points: Vec::new(),
             comments: Vec::new(),
         }
     }

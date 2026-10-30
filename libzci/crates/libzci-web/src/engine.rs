@@ -118,7 +118,7 @@ impl Engine {
             "state":format!("{:?}",s.state),"requested":format!("{:?}",s.requested),"running":format!("{:?}",s.running),
             "position_frames":s.position_frames,"total_frames":s.total_frames,"sample_rate":s.layout.map(|l|l.sample_rate),
             "provider":s.provider.map(|p|json!({"id":p.id.0,"version":p.version,"name":p.display_name})),
-            "volume":s.volume,"mute":s.mute,"replay_gain":s.replay_gain,"normalization":s.normalization,"decoding_eof":s.decoding_eof,"pending_operation":s.pending_operation,
+            "volume":s.volume,"mute":s.mute,"replay_gain":s.replay_gain,"normalization":s.normalization,"normalization_revision":s.normalization_revision.0,"decoding_eof":s.decoding_eof,"pending_operation":s.pending_operation,
             "capabilities":crate::wire::capabilities(s.capabilities),"module":crate::wire::module(s.module.as_deref().cloned()),
             "metadata":s.metadata.as_ref().map(|m|&m.comments),
             "error":s.error.map(|e|e.to_string()),"tag":self.tag()})
@@ -201,6 +201,17 @@ impl Engine {
                 layout,
                 total_frames: f["total"].as_u64(),
                 declared_channels: channels,
+                normalization_points: f
+                    .get("normalization_points")
+                    .map(|v| {
+                        serde_json::from_value(v.clone()).map_err(|e| {
+                            LibzciError::InvalidArgument {
+                                detail: e.to_string(),
+                            }
+                        })
+                    })
+                    .transpose()?
+                    .unwrap_or_default(),
                 comments,
                 applied: AppliedAdjustments {
                     trimmed_preskip: a["trimmed_preskip"].as_bool().unwrap_or(false),
@@ -251,6 +262,7 @@ impl Engine {
                 layout: PcmLayout::stereo48k(),
                 total_frames: Some(total),
                 declared_channels: 2,
+                normalization_points: Vec::new(),
                 comments: vec![],
                 applied: AppliedAdjustments {
                     trimmed_preskip: true,

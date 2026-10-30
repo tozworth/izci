@@ -138,6 +138,7 @@ static CALLBACKS: ffi::OpusFileCallbacks = ffi::OpusFileCallbacks {
 };
 
 pub struct OpusInstance {
+    normalization_points: Vec<ReplayGainPoint>,
     handle: NonNull<ffi::OggOpusFile>,
     context: Box<Context>,
     layout: PcmLayout,
@@ -206,11 +207,12 @@ impl OpusInstance {
             layout: PcmLayout::mono48k(),
             total: 0,
             declared_channels: 1,
+            normalization_points: Vec::new(),
             comments: Vec::new(),
             at_eof: false,
         };
         let links = unsafe { ffi::op_link_count(handle.as_ptr()) };
-        if links <= 0 || links as usize > limits.max_links {
+        if links <= 0 || links as usize > limits.max_links.min(MAX_GAIN_POINTS) {
             return Err(LibzciError::ResourceExhausted {
                 detail: "Opus chain exceeds link budget".into(),
             });
@@ -218,6 +220,7 @@ impl OpusInstance {
         let mut channels = None;
         let mut mixed = false;
         let mut comment_bytes = 0usize;
+        let mut source_frame = 0_u64;
         for link in 0..links {
             cancel.check()?;
             let head = unsafe { ffi::op_head(handle.as_ptr(), link).as_ref() }
@@ -235,6 +238,7 @@ impl OpusInstance {
             if tags.comments < 0 || tags.comments as usize > limits.max_comment_bytes {
                 return Err(corrupt("invalid Opus comment count"));
             }
+            let comments_start = instance.comments.len();
             for i in 0..tags.comments as usize {
                 let size = unsafe { *tags.comment_lengths.add(i) };
                 if size < 0 {
@@ -264,6 +268,19 @@ impl OpusInstance {
                         .push((key.to_ascii_uppercase(), value.to_owned()));
                 }
             }
+            let frames = unsafe { ffi::op_pcm_total(handle.as_ptr(), link) };
+            if frames < 0 {
+                return Err(code_error("link total", frames as i32));
+            }
+            if frames > 0 {
+                instance.normalization_points.push(ReplayGainPoint {
+                    source_frame,
+                    tags: ReplayGainMetadata::from_comments(&instance.comments[comments_start..]),
+                });
+            }
+            source_frame = source_frame
+                .checked_add(frames as u64)
+                .ok_or_else(|| corrupt("chain timeline overflow"))?;
         }
         instance.layout = PcmLayout::new(
             if mixed || channels == Some(2) {
@@ -367,6 +384,7 @@ impl DecoderInstance for OpusInstance {
             layout: self.layout,
             total_frames: Some(self.total),
             declared_channels: self.declared_channels,
+            normalization_points: self.normalization_points.clone(),
             comments: self.comments.clone(),
             applied: AppliedAdjustments {
                 trimmed_preskip: true,
