@@ -462,6 +462,23 @@ load artwork/rendition workers and their decoder assets on a cold offline launch
 without creating an AudioContext. Catalog image import/scanning, captured
 navigation, separate cache/eviction and broader format/color support remain open.
 
+Image facts now participate in the shared catalog metadata contract. Native
+managed scans and the reusable browser probe distinguish images by content,
+without inventing an audio layout/provider or constructing output. Known-media
+extension policy includes images, while genuinely unknown-extension verification
+remains OpenMPT-only. PNG named `.wav` is cataloged as an image; audio named
+`.jpg` is still audio. Embedded pixels/profiles do not enter the stored facts.
+The shared queue transaction rejects catalog image identities atomically, and
+native/browser file ingestion checks image headers before appending anything.
+
+Native image scans pass with stable identities/favorites over rescan/reopen,
+content-versus-extension cases, and both image queue guards. Muted Chromium
+image checks pass for catalog facts/renditions, atomic queue rejection, real
+OPFS image-folder scans, corrupt-file scan preservation, favorite/handle/facts
+reopen and output-free rendition restoration. These extend the existing image
+evidence file. Image-session navigation and the separate rendition cache remain
+open; imports do not yet turn the ordinary Open action into image viewing.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 Baseline `b678df13` on `libzci-codex`, initially clean. User requested M2 end to

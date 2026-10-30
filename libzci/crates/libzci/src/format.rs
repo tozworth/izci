@@ -8,6 +8,18 @@
 use crate::error::{LibzciError, Result};
 
 pub const AUDIO_EXTENSIONS: &[&str] = &["wav", "wave", "mp3", "flac", "ogg", "oga", "opus"];
+pub const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp", "avif", "jxl"];
+pub fn known_media_extension(ext: &str) -> bool {
+    known_audio_extension(ext) || IMAGE_EXTENSIONS.contains(&ext)
+}
+pub fn require_playable_header(header: &[u8]) -> Result<()> {
+    if crate::artwork::raster_mime(header).is_some() {
+        return Err(LibzciError::Unsupported {
+            detail: "images belong to the independent image session, not the music queue".into(),
+        });
+    }
+    Ok(())
+}
 pub fn known_audio_extension(ext: &str) -> bool {
     AUDIO_EXTENSIONS.contains(&ext)
         || MODULE_EXTENSIONS.contains(&ext)

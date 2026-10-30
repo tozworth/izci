@@ -8,6 +8,12 @@ fn ordinal(value: &str) -> Option<u32> {
     value.split('/').next()?.trim().parse().ok()
 }
 impl Metadata {
+    pub fn from_image(facts: crate::images::ImageFacts, display_path: &str) -> crate::Result<Self> {
+        facts.validate()?;
+        let mut metadata = Self::from_comments(&[], None, display_path);
+        metadata.image = Some(facts);
+        Ok(metadata)
+    }
     /// Provider/container fields are ordered by precedence, first nonempty
     /// recognized value wins. Raw aliases do not escape into catalog consumers.
     /// No embedded lyrics/artwork/message payload is copied into durable facts.

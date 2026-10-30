@@ -228,6 +228,12 @@ impl NativeProfile {
     pub fn append_paths(&mut self, paths: &[std::path::PathBuf]) -> Result<ProfileOutcome> {
         let mut sources = vec![];
         for path in paths {
+            use libzci::RuntimeSource;
+            let source = crate::NativeFileSource::open(path)?;
+            let mut header = [0; 32];
+            let length = source.len().unwrap_or(32).min(32) as usize;
+            source.read_exact_at(0, &mut header[..length], &libzci::CancelFlag::default())?;
+            libzci::format::require_playable_header(&header[..length])?;
             sources.push(crate::source::native_reference(path)?);
         }
         self.command(QueueCommand::Append { sources })

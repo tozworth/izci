@@ -54,6 +54,7 @@ pub struct Metadata {
     pub disc: Option<u32>,
     pub duration_seconds: Option<f64>,
     pub replay_gain: crate::replay_gain::ReplayGainMetadata,
+    pub image: Option<crate::images::ImageFacts>,
 }
 impl Metadata {
     fn validate(&self) -> Result<()> {
@@ -63,7 +64,11 @@ impl Metadata {
         if let Some(n) = self.duration_seconds {
             crate::MediaTime(n).validate()?;
         }
-        self.replay_gain.validate()
+        self.replay_gain.validate()?;
+        if let Some(image) = &self.image {
+            image.validate()?;
+        }
+        Ok(())
     }
 }
 
@@ -84,7 +89,11 @@ impl MediaInput {
     pub fn validate(&self) -> Result<()> {
         self.source.validate()?;
         text(&self.source_revision, 1024, false)?;
-        self.metadata.validate()
+        self.metadata.validate()?;
+        if self.kind != MediaKind::Image && self.metadata.image.is_some() {
+            return Err(invalid("image facts require image catalog kind"));
+        }
+        Ok(())
     }
 }
 

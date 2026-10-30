@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import init, { WebPreparation, classify, known_extension,MetadataBudget,normalize_metadata } from '../generated/libzci_web.js';
+import init, { WebPreparation, classify, known_extension,WebImageJob,MetadataBudget,normalize_metadata } from '../generated/libzci_web.js';
 import { openProvider, type Backend, type Facts } from './browser-providers.js';
 import { openWebCodecs } from './webcodecs-opus.js';
 import createCodec from '../generated/opus-reference.js';
@@ -117,6 +117,12 @@ async function perform(job: DecodeJob): Promise<void> {
     if(job.mode==='probe'&&!known_extension(hint)&&!job.verifyUnknown)throw {kind:'unsupported',detail:'Unknown-extension verification is disabled'};
     const kind=job.mode==='probe'&&!known_extension(hint)?'module':classify(readBytes(0,8192),hint);
     if(kind==='unsupported')throw {kind:'unsupported',detail:'No provider claimed this File'};
+    if(kind==='image') {
+      if(job.mode!=='probe')throw {kind:'unsupported',detail:'Images use the independent image viewer'};
+      const result=WebImageJob.run(source.id,file.size,JSON.stringify({kind:'inspect'}));
+      try{probing=true;post({type:'image-probe-complete',image:JSON.parse(result.info()).facts});}
+      finally{result.free();close();active=null;}return;
+    }
     if(kind==='opus') {
       handle = codec._zci_create(source.id, file.size);
       if (!handle) throw {kind: 'resource-exhausted', detail: 'codec context allocation failed'};

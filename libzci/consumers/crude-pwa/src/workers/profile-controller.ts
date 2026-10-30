@@ -3,6 +3,7 @@ import {Capabilities,CapabilityStaging} from '../capabilities.js';
 import type {ProfileState,QueueCommand,QueueLoad,RealFileHandle,SourceReference} from '../profile-types.js';
 import type {WebProfile,WebEngine} from '../generated/libzci_web.js';
 import {BrowserCatalog} from './browser-catalog.js';
+import {require_playable_header} from '../generated/libzci_web.js';
 export class ProfileController {
   readonly catalog:BrowserCatalog;
   private cached:ProfileState|undefined;
@@ -58,6 +59,7 @@ export class ProfileController {
   }
   async ingest(files:File[],handles:RealFileHandle[]=[],open=true,request=crypto.randomUUID()):Promise<void> {
     if(!files.length||files.length>10000||handles.length&&handles.length!==files.length)throw new Error('Invalid source batch');
+    for(const file of files)require_playable_header(new Uint8Array(await file.slice(0,32).arrayBuffer()));
     const sources:SourceReference[]=[];
     const stagedKeys=new Set<string>();
     try {

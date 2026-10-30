@@ -1,6 +1,7 @@
 //! Durable mutations publish a revision only after the shared SQL transaction commits.
 mod playback;
 mod plays;
+mod queue_sources;
 use crate::{
     queue::*,
     storage::{self, SqlBridge},
@@ -297,6 +298,12 @@ impl Profile {
             // old mutation: fail visibly and require a fresh snapshot/request.
             validate_request_age(request, self.state.revision)?;
         }
+        let queued_sources = match &command {
+            QueueCommand::Append { sources } => {
+                sources.iter().map(|s| s.key.clone()).collect::<Vec<_>>()
+            }
+            _ => vec![],
+        };
         let mut next = self.state.clone();
         let outcome = next.apply(command)?;
         if let Some(db) = db {
@@ -305,7 +312,10 @@ impl Profile {
                 &next,
                 &self.state,
                 request.map(|id| (id, payload.as_str())),
-                |_| Ok(outcome.clone()),
+                |db| {
+                    queue_sources::require_playable(db, &queued_sources)?;
+                    Ok(outcome.clone())
+                },
             )?;
         }
         self.state = next;

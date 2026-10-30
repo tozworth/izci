@@ -304,3 +304,20 @@ pub fn normalize_metadata(
 pub fn metadata_tag_visible(key: &str) -> bool {
     key.len() <= 256 && !libzci::provider::is_embedded_payload_key(key)
 }
+#[wasm_bindgen]
+pub fn image_metadata(facts: &str, display_path: &str) -> Result<String, JsValue> {
+    if facts.len() > 4096 || display_path.len() > 8192 {
+        return Err(typed(libzci::LibzciError::ResourceExhausted {
+            detail: "image metadata input exceeds budget".into(),
+        }));
+    }
+    let facts = serde_json::from_str(facts).map_err(|e| {
+        typed(libzci::LibzciError::InvalidArgument {
+            detail: e.to_string(),
+        })
+    })?;
+    serde_json::to_string(
+        &libzci::catalog::Metadata::from_image(facts, display_path).map_err(typed)?,
+    )
+    .map_err(js)
+}

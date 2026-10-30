@@ -104,7 +104,9 @@ impl WebAudioDecoder {
 }
 #[wasm_bindgen]
 pub fn classify(header: &[u8], hint: &str) -> String {
-    if sniff_opus_head_page(header).is_some() {
+    if libzci::artwork::raster_mime(header).is_some() {
+        "image"
+    } else if sniff_opus_head_page(header).is_some() {
         "opus"
     } else if libzci::format::sniff_ordinary_audio(header) {
         "ordinary"
@@ -121,5 +123,9 @@ pub fn classify(header: &[u8], hint: &str) -> String {
 }
 #[wasm_bindgen]
 pub fn known_extension(hint: &str) -> bool {
-    libzci::format::known_audio_extension(hint)
+    libzci::format::known_media_extension(hint)
+}
+#[wasm_bindgen]
+pub fn require_playable_header(header: &[u8]) -> std::result::Result<(), JsValue> {
+    libzci::format::require_playable_header(header).map_err(crate::profile::typed)
 }

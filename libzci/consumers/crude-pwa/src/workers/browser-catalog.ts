@@ -1,12 +1,11 @@
-import {known_extension,normalize_metadata,type WebProfile} from '../generated/libzci_web.js';
+import {known_extension,normalize_metadata,image_metadata,type WebProfile} from '../generated/libzci_web.js';
 import {Capabilities,type CapabilityStaging} from '../capabilities.js';
-import {ProbeWorker} from '../probe-worker.js';
+import {ProbeWorker,type CatalogProbeFacts} from '../probe-worker.js';
 import {LyricsJob} from '../lyrics-job.js';
 import {ArtworkJob} from '../artwork-job.js';
 import {ImageJob} from '../image-job.js';
 import type {CatalogCommand,CatalogOutcome,CatalogPage,CatalogQuery,CatalogGroupBy,CatalogGroupPage,ManagedRoot,MediaInput,ScanObservation,ScanPlan,ScanSettings} from '../catalog-types.js';
 import type {RealDirectoryHandle,RealFileHandle,SourceReference} from '../profile-types.js';
-import type {Facts} from './browser-providers.js';
 interface Active {plan:ScanPlan;cancelled:boolean;pool:ProbeWorker[];staged:Set<string>}
 const extension=(name:string)=>name.split('.').pop()?.toLowerCase()??'';
 /** Browser mechanisms only. The shared Rust profile owns catalog queries,
@@ -75,7 +74,9 @@ export class BrowserCatalog {
       const outcome=this.mutate({kind:'root',root:{source,settings}},request);await this.handles.complete(key);return outcome;
     }finally{this.release(staged);}
   }
-  private media(source:SourceReference,file:File,facts:Facts):MediaInput{
+  private media(source:SourceReference,file:File,result:CatalogProbeFacts):MediaInput{
+    if(result.kind==='image')return {source,source_revision:`${file.size}:${file.lastModified}`,kind:'image',metadata:JSON.parse(image_metadata(JSON.stringify(result.facts),source.display_path))};
+    const facts=result.facts;
     return {source,source_revision:`${file.size}:${file.lastModified}`,kind:['org.openmpt.libopenmpt','hivelytracker.replay'].includes(facts.provider.id)?'module':'audio',metadata:JSON.parse(normalize_metadata(JSON.stringify(facts.comments),facts.total===null?undefined:facts.total/facts.rate,source.display_path,JSON.stringify(facts.normalization_points??[])))};
   }
   async addFiles(files:File[],handles:RealFileHandle[],verifyUnknown:boolean,request:string):Promise<CatalogOutcome>{
@@ -84,7 +85,7 @@ export class BrowserCatalog {
     try{
       for(const [index,file] of files.entries()){
         const handle=handles[index];const key=handle?await this.stage(handle,`${request}/${index}`,staged):`${request}/${index}`;
-        const facts=await worker.inspect(file,verifyUnknown);
+        const facts=await worker.inspectCatalog(file,verifyUnknown);
         media.push(this.media({key,locator:key,kind:handle?'browser_handle':'ephemeral',display_path:file.name},file,facts));
       }
       const outcome=this.mutate({kind:'add',media},request);
@@ -125,8 +126,8 @@ export class BrowserCatalog {
         let task:Promise<void>;
         task=(async()=>{
           const file=await handle.getFile();check();
-          let facts:Facts;
-          try{facts=await worker.inspect(file,active.plan.root.config.settings.verify_unknown);}
+          let facts:CatalogProbeFacts;
+          try{facts=await worker.inspectCatalog(file,active.plan.root.config.settings.verify_unknown);}
           catch(error){if(!known_extension(extension(file.name))&&['unsupported','corrupt'].includes((error as {kind?:string}).kind??'')){this.observation.ignored++;return;}throw error;}
           check();
           const after=await handle.getFile();check();if(after.size!==file.size||after.lastModified!==file.lastModified)throw new Error(`Source changed during scan: ${path}`);

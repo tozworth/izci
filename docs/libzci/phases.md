@@ -259,9 +259,12 @@ and physical-device lifecycle observations are recorded independently.
 Status: **in progress** (2026-10-30). Shared catalog identities, membership,
 favorites/ratings/bookmarks, bounded queries and atomic root reconciliation are
 implemented. Both crudes have real folder probes and catalog controls, including
-browser capability recovery, owner handoff and offline launch scans. Metadata
-policy, continuous-play counts, artwork/images and remaining
-acceptance work are still open. See the current implementation log.
+browser capability recovery, owner handoff and offline launch scans. Shared
+metadata/lyrics/ReplayGain and consumed-media counts are implemented. Bounded
+artwork/image jobs and previews work; image catalog imports/scans are being
+verified. Captured image navigation, separate rendition caching, broader visual
+format/color support and remaining acceptance work are still open. See the
+current implementation log.
 
 **Deliverable:** both crudes build/reopen a useful media library with working
 facts, scans, details, lyrics/patterns, artwork, and independent image navigation.

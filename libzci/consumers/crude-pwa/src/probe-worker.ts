@@ -1,3 +1,5 @@
+import type {ImageFacts} from './image-job.js';
+export type CatalogProbeFacts={kind:'audio';facts:Facts}|{kind:'image';facts:ImageFacts};
 import type {Facts} from './workers/browser-providers.js';
 /** Sequential reusable probe context. Scans create a bounded number of these;
  * no AudioContext, transport session or UI PCM forwarding is involved. */
@@ -5,7 +7,7 @@ export class ProbeWorker {
   private worker=new Worker(new URL('./workers/decode-worker.ts',import.meta.url),{type:'module'});
   private channel=new MessageChannel();
   private initialized:Promise<void>;
-  private pending:{resolve:(facts:Facts)=>void;reject:(e:unknown)=>void}|null=null;
+  private pending:{resolve:(facts:CatalogProbeFacts)=>void;reject:(e:unknown)=>void}|null=null;
   private closed=false;
   private sequence=0;
   private rejectInit:(e:unknown)=>void=()=>{};
@@ -15,7 +17,8 @@ export class ProbeWorker {
       this.worker.onmessage=e=>{
         const m=e.data;
         if(m.type==='ready')resolve();
-        if(m.type==='probe-complete'){const pending=this.pending;this.pending=null;pending?.resolve(m.facts);}
+        if(m.type==='probe-complete'){const pending=this.pending;this.pending=null;pending?.resolve({kind:'audio',facts:m.facts});}
+        if(m.type==='image-probe-complete'){const pending=this.pending;this.pending=null;pending?.resolve({kind:'image',facts:m.image});}
         if(m.type==='failed'){
           const error=Object.assign(new Error(m.detail),{kind:m.kind});
           reject(error);const pending=this.pending;this.pending=null;pending?.reject(error);
@@ -28,6 +31,11 @@ export class ProbeWorker {
     void this.initialized.catch(()=>{});
   }
   async inspect(file:File,verifyUnknown:boolean):Promise<Facts>{
+    const result=await this.inspectCatalog(file,verifyUnknown);
+    if(result.kind==='image')throw Object.assign(new Error('Images have no audio provider facts'),{kind:'unsupported'});
+    return result.facts;
+  }
+  async inspectCatalog(file:File,verifyUnknown:boolean):Promise<CatalogProbeFacts>{
     await this.initialized;
     if(this.closed)throw new Error('Probe worker closed');
     if(this.pending)throw new Error('Probe worker already has a job');

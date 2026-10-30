@@ -44,6 +44,32 @@ try{
     results.push({test:'shared ICC-to-sRGB worker path preserves color/alpha; raw ICC stays outside result facts',iccSha256:result.facts.icc_sha256});
   }else results.push({test:'browser ICC runtime check',status:'not-run',reason:'set LIBZCI_TEST_ICC to an sRGB ICC profile'});
   assert.equal(await page.evaluate(()=>window.outputs),0);assert.equal((await page.evaluate(()=>window.libzci.snapshot())).snapshot.state,'Idle');
+  const imported=await page.evaluate(async bytes=>{
+    const api=window.libzci,file=new File([new Uint8Array(bytes)],'renamed.wav');
+    const result=await api.catalogAddFiles([file],[],false);const row=(await api.catalogQuery({media:result.media[0]})).rows[0];
+    const before=api.snapshot().profile;let queueRejected=false;try{await api.queue({kind:'append',sources:[row.source]});}catch{queueRejected=true;}
+    const rendition=await api.catalogRendition(row.id,2);
+    let fileRejected=false;try{await api.load(file);}catch{fileRejected=true;}
+    return {row,queueRejected,fileRejected,before,after:api.snapshot().profile,rendition:rendition.rendition};
+  },Array.from(png(2,3,pixels,6)));
+  assert.equal(imported.row.kind,'image');assert.equal(imported.row.metadata.image.orientation,6);assert.equal(imported.row.metadata.duration_seconds,null);assert(imported.queueRejected&&imported.fileRejected);assert.deepEqual(imported.before,imported.after);assert.deepEqual([imported.rendition.width,imported.rendition.height],[2,1]);
+  results.push({test:'content-identified catalog image facts and renditions persist; both queue APIs reject images atomically'});
+  const managed=await page.evaluate(async bytes=>{
+    const directory=await(await navigator.storage.getDirectory()).getDirectoryHandle('pictures',{create:true});
+    for(const name of ['a.png','b.jpg']){const handle=await directory.getFileHandle(name,{create:true}),writer=await handle.createWritable();await writer.write(new Uint8Array(bytes));await writer.close();}
+    const root=(await window.libzci.catalogAddRoot(directory,{recursive:true,scan_on_launch:false,verify_unknown:false,probe_concurrency:2})).root;await window.libzci.catalogScan(root);return root;
+  },Array.from(png(2,3,pixels,6)));
+  await page.waitForFunction(()=>window.libzci.snapshot()?.scan?.state!=='scanning');
+  const scanned=await page.evaluate(root=>window.libzci.catalogQuery({root,kind:'image'}),managed);assert.equal(scanned.total,2);assert.equal(scanned.rows[0].metadata.image.orientation,6);
+  const imageId=scanned.rows[0].id;
+  await page.evaluate(async media=>{await window.libzci.catalogMutate({kind:'favorite',media,subsong:null,favorite:true});const directory=await(await navigator.storage.getDirectory()).getDirectoryHandle('pictures'),handle=await directory.getFileHandle('bad.png',{create:true}),writer=await handle.createWritable();await writer.write('corrupt image');await writer.close();},imageId);
+  await page.evaluate(root=>window.libzci.catalogScan(root),managed);await page.waitForFunction(()=>window.libzci.snapshot()?.scan?.state!=='scanning');assert.equal((await page.evaluate(()=>window.libzci.snapshot())).scan.state,'failed');
+  assert.equal((await page.evaluate(root=>window.libzci.catalogQuery({root,kind:'image'}),managed)).total,2);
+  await page.evaluate(async root=>{const directory=await(await navigator.storage.getDirectory()).getDirectoryHandle('pictures');await directory.removeEntry('bad.png');await window.libzci.catalogScan(root);},managed);await page.waitForFunction(()=>window.libzci.snapshot()?.scan?.state!=='scanning');
+  await page.reload();await page.waitForFunction(()=>!!window.libzci?.snapshot()?.profile);
+  const reopened=await page.evaluate(media=>window.libzci.catalogQuery({media}),imageId);assert.equal(reopened.rows[0].facts.favorite,true);assert.equal(reopened.rows[0].metadata.image.orientation,6);
+  const restored=await page.evaluate(media=>window.libzci.catalogRendition(media,2),imageId);assert.deepEqual([restored.rendition.width,restored.rendition.height],[2,1]);assert.equal(await page.evaluate(()=>window.outputs),0);
+  results.push({test:'real OPFS folder image scans, failed-scan preservation, favorites and capability-backed rendition reopen without output'});
   const corrupt=Buffer.from(png(1,1,Buffer.from([0,0,0,255])));corrupt.writeUInt32BE(32768,16);corrupt.writeUInt32BE(32768,20);corrupt.writeUInt32BE(crc32(corrupt.subarray(12,29)),29);
   const denied=await page.evaluate(async bytes=>{const {ImageJob}=await import('/src/image-job.ts');try{await new ImageJob(new File([new Uint8Array(bytes)],'bomb.png'),{kind:'image',spec:{max_edge:64}}).result;return false;}catch(e){return e.kind==='resource-exhausted';}},Array.from(corrupt));assert(denied);
   const cancelled=await page.evaluate(async bytes=>{const {ImageJob}=await import('/src/image-job.ts');const job=new ImageJob(new File([new Uint8Array(bytes)],'test.png'),{kind:'image',spec:{max_edge:64}});job.cancel();try{await job.result;return false;}catch(e){return e.kind==='cancelled';}},Array.from(png(2,3,pixels)));assert(cancelled);

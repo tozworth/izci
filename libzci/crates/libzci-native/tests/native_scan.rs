@@ -56,6 +56,151 @@ fn next(job: &mut NativeScanJob) -> ScanEvent {
         std::thread::sleep(Duration::from_millis(1));
     }
 }
+#[cfg(feature = "provider-tests")]
+#[test]
+fn images_scan_as_catalog_media_preserve_facts_and_cannot_enter_the_queue() {
+    use libzci::queue::QueueCommand;
+    let files = Temp::new();
+    let profile = Temp::new();
+    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../.local/libzci/media/m3/artwork.png");
+    std::fs::copy(&fixture, files.0.join("cover.png")).unwrap();
+    std::fs::copy(&fixture, files.0.join("picture.wav")).unwrap();
+    std::fs::copy(&fixture, files.0.join("unknown.bytes")).unwrap();
+    wave(&files.0.join("audio.jpg"));
+    let runtime = NativeRuntime::new();
+    runtime
+        .register_provider(Arc::new(libzci_symphonia::SymphoniaFactory))
+        .unwrap();
+    let mut db = NativeDatabase::open(&profile.0).unwrap();
+    let mut p = Profile::open(&mut db).unwrap();
+    let root = p
+        .catalog_request(
+            CatalogCommand::Root {
+                root: RootInput {
+                    source: native_reference(&files.0).unwrap(),
+                    settings: ScanSettings {
+                        verify_unknown: false,
+                        ..Default::default()
+                    },
+                },
+            },
+            None,
+            &mut db,
+        )
+        .unwrap()
+        .root
+        .unwrap();
+    let scan = |p: &mut Profile, db: &mut NativeDatabase| {
+        let plan = p.begin_scan(root, db).unwrap();
+        let mut job = runtime
+            .start_root_scan(&plan, &CancelFlag::default())
+            .unwrap();
+        loop {
+            match next(&mut job) {
+                ScanEvent::Media(media) => {
+                    p.stage_scan(&plan.token, vec![media], db).unwrap();
+                }
+                ScanEvent::Complete(progress) => {
+                    assert_eq!((progress.accepted, progress.ignored), (3, 1));
+                    p.catalog_request(CatalogCommand::FinishScan { token: plan.token }, None, db)
+                        .unwrap();
+                    return;
+                }
+                ScanEvent::Failed(error) => panic!("{error}"),
+            }
+        }
+    };
+    scan(&mut p, &mut db);
+    let images = p
+        .catalog_query(
+            &CatalogQuery {
+                kind: Some(MediaKind::Image),
+                ..Default::default()
+            },
+            &mut db,
+        )
+        .unwrap();
+    assert_eq!(images.total, 2);
+    let cover = images
+        .rows
+        .iter()
+        .find(|r| r.source.display_path.ends_with("cover.png"))
+        .unwrap();
+    assert_eq!(cover.metadata.image.as_ref().unwrap().width, 256);
+    assert_eq!(cover.metadata.duration_seconds, None);
+    let disguised = images
+        .rows
+        .iter()
+        .find(|r| r.source.display_path.ends_with("picture.wav"))
+        .unwrap();
+    let before = p.snapshot().clone();
+    assert_eq!(
+        p.command(
+            QueueCommand::Append {
+                sources: vec![disguised.source.clone()]
+            },
+            Some(&mut db)
+        )
+        .unwrap_err()
+        .kind(),
+        "unsupported"
+    );
+    assert_eq!(&before, p.snapshot());
+    p.catalog_request(
+        CatalogCommand::Favorite {
+            media: cover.id,
+            subsong: None,
+            favorite: true,
+        },
+        None,
+        &mut db,
+    )
+    .unwrap();
+    scan(&mut p, &mut db);
+    let favorites = p
+        .catalog_query(
+            &CatalogQuery {
+                collection: Collection::Favorites,
+                ..Default::default()
+            },
+            &mut db,
+        )
+        .unwrap();
+    assert_eq!(favorites.rows[0].id, cover.id);
+    let audio = p
+        .catalog_query(
+            &CatalogQuery {
+                kind: Some(MediaKind::Audio),
+                ..Default::default()
+            },
+            &mut db,
+        )
+        .unwrap();
+    assert_eq!(audio.total, 1);
+    assert!(audio.rows[0].metadata.image.is_none());
+    drop(db);
+    let mut native = libzci_native::profile::NativeProfile::open(&profile.0).unwrap();
+    let before = native.core.snapshot().clone();
+    assert_eq!(
+        native
+            .append_paths(&[files.0.join("cover.png")])
+            .unwrap_err()
+            .kind(),
+        "unsupported"
+    );
+    assert_eq!(native.core.snapshot(), &before);
+    assert_eq!(
+        native
+            .catalog_query(&CatalogQuery {
+                kind: Some(MediaKind::Image),
+                ..Default::default()
+            })
+            .unwrap()
+            .total,
+        2
+    );
+}
 #[test]
 fn real_folder_probe_reopen_rescan_and_nonrecursive_settings_use_same_catalog_api_without_output() {
     let files = Temp::new();

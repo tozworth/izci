@@ -329,7 +329,7 @@ impl ProviderRegistry {
         cancel: &CancelFlag,
     ) -> Result<Inspection> {
         cancel.check()?;
-        let known = hint.is_some_and(crate::format::known_audio_extension);
+        let known = hint.is_some_and(crate::format::known_media_extension);
         if !known && !verify_unknown {
             return Err(LibzciError::Unsupported {
                 detail: "unknown-extension verification is disabled".into(),

@@ -141,17 +141,40 @@ fn inspect(
         .and_then(|s| s.to_str())
         .unwrap_or("")
         .to_ascii_lowercase();
-    let known = libzci::format::known_audio_extension(&hint);
+    let known = libzci::format::known_media_extension(&hint);
     if !known && !verify_unknown {
         return Ok(None);
     }
     let reference = native_reference(path)?;
     let source = Arc::new(NativeFileSource::open(Path::new(&reference.locator))?);
     let revision = source.revision_key();
-    let inspection = match registry.inspect(source, Some(&hint), verify_unknown, cancel) {
-        Ok(facts) => facts,
-        Err(LibzciError::Unsupported { .. }) if !known => return Ok(None),
-        Err(e) => return Err(e),
+    let mut header = [0; 32];
+    let prefix = source.len().unwrap_or(32).min(32) as usize;
+    source.read_exact_at(0, &mut header[..prefix], cancel)?;
+    let (kind, metadata) = if known && libzci::artwork::raster_mime(&header[..prefix]).is_some() {
+        let facts = libzci::images::inspect_image(source.as_ref(), cancel)?;
+        (
+            MediaKind::Image,
+            Metadata::from_image(facts, &reference.display_path)?,
+        )
+    } else {
+        let inspection = match registry.inspect(source, Some(&hint), verify_unknown, cancel) {
+            Ok(facts) => facts,
+            Err(LibzciError::Unsupported { .. }) if !known => return Ok(None),
+            Err(e) => return Err(e),
+        };
+        let kind = if matches!(
+            inspection.metadata.info.id,
+            ProviderId::OPENMPT | ProviderId::HIVELY
+        ) {
+            MediaKind::Module
+        } else {
+            MediaKind::Audio
+        };
+        (
+            kind,
+            Metadata::from_provider(&inspection.metadata, &reference.display_path),
+        )
     };
     cancel.check()?;
     let after = NativeFileSource::open(Path::new(&reference.locator))?;
@@ -160,15 +183,6 @@ fn inspect(
             detail: format!("source changed during scan: {}", reference.display_path),
         });
     }
-    let kind = if matches!(
-        inspection.metadata.info.id,
-        ProviderId::OPENMPT | ProviderId::HIVELY
-    ) {
-        MediaKind::Module
-    } else {
-        MediaKind::Audio
-    };
-    let metadata = Metadata::from_provider(&inspection.metadata, &reference.display_path);
     Ok(Some(MediaInput {
         source: reference,
         source_revision: revision,
