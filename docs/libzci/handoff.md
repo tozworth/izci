@@ -1,5 +1,21 @@
 # Handoff â€” 2026-11-08
 
+## Progress update — 2026-11-09
+
+Continuation commits now on `libzci-codex`:
+
+| Commit | Behavior |
+| --- | --- |
+| `8bb886b8` | Ordinary Open routes content-identified images into the catalog and independent viewer in both crudes, without queue mutation or browser AudioContext construction |
+| `cb248f6c` | Rejected provider opens emit `Failed` rather than a spurious `Completed`; stale open work emits no terminal event |
+| `00a586a6` | `zci-play` retries/reports profile-sync outages without cutting active playback; final persistence failure is still surfaced after normal media completion |
+
+Checks run on 2026-11-09: full locked Cargo workspace tests, PWA typecheck and
+production build, muted `test:images`, `test:m3`, `test:m1`, and `test:m2`, plus
+an actual low-volume `zci-play` profile playback. M3 remains open on AVIF,
+broader non-ICC/HDR color handling and decoder resource hardening. The next
+ordered gap is still M3 acceptance; do not start A1/A2 early.
+
 The user paused and then cleared the end-to-end goal, and requested packing up
 for a new chat. Work is stopped, not complete. This is a checkpoint for a future
 explicit continuation; it does not start work or recreate the cleared goal.
