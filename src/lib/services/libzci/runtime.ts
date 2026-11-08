@@ -1,5 +1,5 @@
 import workletUrl from './playback.worklet.ts?worker&url';
-import audioWasmUrl from '../../../../libzci/consumers/crude-pwa/src/generated/libzci_audio_web.wasm?url';
+import audioWasmUrl from '../../../../libzci/generated/libzci_audio_web.wasm?url';
 import { audioBusService } from '$lib/services/audio-bus';
 import type {
   WorkerMessage,
@@ -11,11 +11,9 @@ import type {
 /**
  * Single import site for the production Svelte bridge's generated libzci
  * browser assets. These files are built by
- * `libzci/consumers/crude-pwa/scripts/build-wasm.py` into the crude
- * consumer's ignored `generated/` directory and bundled into the Svelte
- * shells from here. Extracting that shared runtime out of the crude
- * consumer (handoff item) touches this module and `playback.worker.ts`,
- * not every player service.
+ * `libzci/consumers/crude-pwa/scripts/build-wasm.py` (plus the browser
+ * codec/module recipes) into the workspace's ignored `libzci/generated/`
+ * directory and bundled into the Svelte shells from here.
  */
 export const LIBZCI_WORKLET_URL: string = workletUrl;
 export const LIBZCI_AUDIO_WASM_URL: string = audioWasmUrl;

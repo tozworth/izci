@@ -1,4 +1,4 @@
-import {WebImageSession} from './generated/libzci_web.js';
+import {WebImageSession} from '../../../generated/libzci_web.js';
 import {initializeControl} from './control-wasm.js';
 import type {BrowserRuntime} from './browser-runtime.js';
 import type {CatalogQuery,CatalogRow} from './catalog-types.js';

@@ -1,10 +1,10 @@
 import workletUrl from './workers/output-worklet.ts?worker&url';
-import audioWasm from './generated/libzci_audio_web.wasm?url';
+import audioWasm from '../../../generated/libzci_audio_web.wasm?url';
 import type { CommandKind, Snapshot } from './protocol.js';
 import { FileJob } from './file-job.js';
 import type {ProfileState,QueueCommand,RealFileHandle} from './profile-types.js';
 import type {CatalogOutcome,ScanObservation} from './catalog-types.js';
-import {classify} from './generated/libzci_web.js';
+import {classify} from '../../../generated/libzci_web.js';
 import {initializeControl} from './control-wasm.js';
 
 export interface Observation {snapshot:Snapshot; stats:Record<string,number>; output:Record<string,number>; disposed:boolean; sourceName?:string; sourceBytes?:number;profile?:ProfileState;access?:string;ownership?:string;scan?:ScanObservation}

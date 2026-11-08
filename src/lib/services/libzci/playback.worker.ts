@@ -6,11 +6,11 @@ import init, {
   classify,
   MetadataBudget,
   normalize_metadata
-} from '../../../../libzci/consumers/crude-pwa/src/generated/libzci_web.js';
-import createCodec from '../../../../libzci/consumers/crude-pwa/src/generated/opus-reference.js';
-import codecWasm from '../../../../libzci/consumers/crude-pwa/src/generated/opus-reference.wasm?url';
-import createModules from '../../../../libzci/consumers/crude-pwa/src/generated/modules-reference.js';
-import moduleWasm from '../../../../libzci/consumers/crude-pwa/src/generated/modules-reference.wasm?url';
+} from '../../../../libzci/generated/libzci_web.js';
+import createCodec from '../../../../libzci/generated/opus-reference.js';
+import codecWasm from '../../../../libzci/generated/opus-reference.wasm?url';
+import createModules from '../../../../libzci/generated/modules-reference.js';
+import moduleWasm from '../../../../libzci/generated/modules-reference.wasm?url';
 import {
   BLOCK_FRAMES,
   POOL_SIZE,

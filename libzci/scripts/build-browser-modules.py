@@ -8,7 +8,7 @@ env=os.environ.copy();em=Path(env.get('EMSDK',ROOT/'.local/libzci/emsdk'))/'upst
 env['PATH']=str(em)+os.pathsep+env['PATH']
 subprocess.run([sys.executable,str(Path(__file__).with_name('build-module-deps.py')),'--browser'],check=True,env=env)
 mpt,md,_=acq.acquire('libopenmpt');hvl,hd,_=acq.acquire('hivelytracker-replay')
-out=ROOT/'libzci/consumers/crude-pwa/src/generated';out.mkdir(exist_ok=True)
+out=ROOT/'libzci/generated';out.mkdir(exist_ok=True)
 exports=['_zcm_'+s for s in ['create','close','probe_step','total','position','read','seek_step','control','fact','text','cell']]+['_malloc','_free']
 subprocess.run([sys.executable,str(em/'em++.py'),'-O3','-std=c++17','-fexceptions',
     '-I'+str(mpt),'-I'+str(ROOT/'libzci/crates/libzci-codecs/c'),str(ROOT/'libzci/crates/libzci-codecs/c/modules_browser.cpp'),

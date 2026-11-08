@@ -1,6 +1,6 @@
 """Pinned reference browser codec recipe. Requires emsdk 4.0.10, CMake/Ninja.
 All acquisition/build output is isolated under .local/libzci; emitted files go
-only to the crude consumer's ignored generated directory. No global SDK changes.
+only to the workspace's ignored shared generated directory. No global SDK changes.
 """
 import hashlib
 import json
@@ -67,7 +67,7 @@ for name, folder in [('libogg', 'libogg-1.3.5'), ('libopus', 'opus-1.5.2'), ('li
         run('cmake', '--install', build)
     (prefix / 'BUILD-RECORD.txt').write_text(f'{name} {pin["pinnedRelease"]}\n{digest}\n{version}\nAsyncify; no HTTP/TLS; recipe: build-browser-codecs.py\n')
 
-out = ROOT / 'libzci/consumers/crude-pwa/src/generated'
+out = ROOT / 'libzci/generated'
 out.mkdir(parents=True, exist_ok=True)
 src = sources['libopusfile']
 exports = ['_zci_' + s for s in ['create', 'open', 'total', 'position', 'read', 'seek', 'close', 'links', 'link_total', 'comment_count', 'comment_length', 'comment_data']] + ['_malloc', '_free']

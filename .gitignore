@@ -11,7 +11,7 @@ src-tauri/target/
 src-tauri/gen/
 libzci/target/
 libzci/scripts/__pycache__/
-libzci/consumers/crude-pwa/src/generated/
+libzci/generated/
 .codex
 .vite
 coverage

@@ -1,4 +1,4 @@
-import {WebLyrics} from './generated/libzci_web.js';
+import {WebLyrics} from '../../../generated/libzci_web.js';
 import {initializeControl} from './control-wasm.js';
 import type {BrowserRuntime} from './browser-runtime.js';
 import type {CatalogRow} from './catalog-types.js';

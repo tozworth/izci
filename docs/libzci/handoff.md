@@ -121,7 +121,7 @@ npm run build
 ```
 
 The production shell imports generated browser assets from
-`libzci/consumers/crude-pwa/src/generated/`; those files are ignored and must be
+`libzci/generated/`; those files are ignored and must be
 built before a clean `npm run build`. Rust 1.98.1, Emscripten 4.0.10 and the
 matching wasm-bindgen CLI are recorded in the implementation log and vendor
 pins. Local audio fixtures live under `.local/libzci/media/` and

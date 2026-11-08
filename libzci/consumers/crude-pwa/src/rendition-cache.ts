@@ -1,4 +1,4 @@
-import {image_cache_plan} from './generated/libzci_web.js';
+import {image_cache_plan} from '../../../generated/libzci_web.js';
 import type {CachedRendition} from './image-job.js';
 export interface CacheBudget {bytes:number;entries:number}
 interface Entry {key:string;bytes:number;touched:number;metadata:CachedRendition}

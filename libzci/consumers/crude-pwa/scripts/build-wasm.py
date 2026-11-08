@@ -5,7 +5,7 @@ import shutil
 import subprocess
 
 root = Path(__file__).resolve().parents[4]
-out = root / 'libzci/consumers/crude-pwa/src/generated'
+out = root / 'libzci/generated'
 out.mkdir(parents=True, exist_ok=True)
 lock = (root / 'libzci/Cargo.lock').read_text()
 version = re.search(r'name = "wasm-bindgen"\nversion = "([^"]+)"', lock)[1]
