@@ -1,5 +1,8 @@
 # Runtime contracts
 
+> MVP note: M4-M6 contracts are post-MVP backlog. Svelte adoption does not wait
+> for full Raf parity, core video transport or a foreign C ABI.
+
 [Plan entry point](README.md) · [Ownership boundaries](boundaries.md) ·
 [Implementation design](scaffolding.md)
 

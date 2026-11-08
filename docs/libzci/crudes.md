@@ -38,8 +38,8 @@ viewport state stay local. Disable unsupported controls with a capability reason
 | M1 | Supported module subsong/interpolation/ramping/speed/pitch/channel controls; metadata/pattern inspection; separate probe/render job; codec capabilities |
 | M2 | Queue duplicates/remove/move/play/next/previous/up-next/shuffle/repeat; profile; restore/grants; attached client; install/offline/update |
 | M3 | Paged Library/Favorites sort/filter/group; roots/rescan/cancel; ratings/bookmarks/count threshold; details/lyrics/current line/pattern table; artwork; independent image navigation |
-| M4 | Rack CRUD/order/bypass/dry-wet/parameters; preset CRUD; loadout targets/priority/override/effective reasons; preparation/transition settings |
-| M5 | One video viewport, streams/seek/visibility/surface handoff; A/V offset, frame/queue/drop/resource diagnostics |
+| M4 (post-MVP) | Full rack/preset/loadout/preparation controls; not an adoption gate |
+| M5 (post-MVP) | Core video viewport and stream/surface diagnostics; existing browser video path stays functional meanwhile |
 
 Editing/closing a window never owns playback progression, counts, matching, or DSP.
 
@@ -66,9 +66,10 @@ Preserve grants through reload/update; plain File selections are non-restorable.
 
 Media Session actions become commands, metadata/position come from core. An
 adapter transport anchor may help OS controls; it never supplies media time.
-Show unlock/suspended/interrupted/failed states truthfully. Record tab/installed,
-desktop/physical Android, OS actions/audio continuity separately. A service
-worker is neither player nor database owner.
+Show unlock/suspended/interrupted/failed states truthfully. MVP requires
+tab/installed desktop Chromium evidence; physical Android, OS actions and
+background audio continuity are post-MVP evidence. A service worker is neither
+player nor database owner.
 
 Second windows attach to the owner and receive snapshots/events/outcomes. They
 never create another decoder/output/SQL instance for that session/profile.
@@ -79,6 +80,7 @@ Owner loss is visible; re-election may interrupt audio and restores paused.
 Expose session/generation/provider, command/job outcomes, requested vs running,
 audible vs decoded position, queued/pending frames/high-water marks, consumed
 media vs underrun silence, latency facts, grants/storage, and bounded errors.
-Add prepared-source and frame-resource counts with those features. These remain
-transient. Long playback, starving output, rapid seeks, and teardown should make
-dropped media, stale generations, false EOF, or retained resources observable.
+Prepared-source and frame-resource counts are post-MVP with their owning
+features. Diagnostics remain transient. Long playback, starving output, rapid
+seeks and teardown should make dropped media, stale generations, false EOF or
+retained resources observable.

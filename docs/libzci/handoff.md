@@ -1,6 +1,6 @@
 # Handoff — 2026-11-08
 
-## Progress update � 2026-11-09
+## Progress update — 2026-11-09
 
 Continuation commits now on `libzci-codex`:
 
@@ -12,9 +12,9 @@ Continuation commits now on `libzci-codex`:
 
 Checks run on 2026-11-09: full locked Cargo workspace tests, PWA typecheck and
 production build, muted `test:images`, `test:m3`, `test:m1`, and `test:m2`, plus
-an actual low-volume `zci-play` profile playback. M3 remains open on AVIF,
-broader non-ICC/HDR color handling and decoder resource hardening. The next
-ordered gap is still M3 acceptance; do not start A1/A2 early.
+an actual low-volume `zci-play` profile playback. M3 is complete for the MVP
+scope: AVIF, HDR/non-ICC color and formal decoder-heap accounting are explicitly
+deferred. The next milestone is A2 Svelte adoption, not M4-M6 or A1.
 
 The user paused and then cleared the end-to-end goal, and requested packing up
 for a new chat. Work is stopped, not complete. This is a checkpoint for a future
@@ -26,16 +26,17 @@ explicit continuation; it does not start work or recreate the cleared goal.
 - Implementation checkpoint: `bbf1f570`; this handoff is a later docs-only commit.
 - The worktree was clean at that checkpoint. No implementation was started after
   it: subsequent AVIF/provider-interface discussion was research and proposals.
-- The original objective remains unfinished: finalize libzci, then move
-  izci-server and the existing Svelte shells onto it. Neither adoption has begun.
-- Follow [phases.md](phases.md) and the [readiness matrix](validation.md#adoption-readiness).
-  Earlier historical phase labels are not completion evidence. Read current code
-  and verify the relevant behavior before relying on previous reports.
+- The original objective remains unfinished. The MVP order is now Svelte
+  adoption first; izci-server adoption and the M4-M6 backlog come later.
+- Follow [phases.md](phases.md) and the
+  [MVP readiness gate](validation.md#mvp-svelte-adoption-gate). Earlier
+  historical phase labels are not completion evidence. Read current code and
+  verify the relevant behavior before relying on previous reports.
 
 ## Current implementation
 
-R1–M2 have substantial native/browser evidence, with target-specific acceptance
-gaps retained in the roadmap. M3 is in progress. Both crude consumers exercise
+R1–M2 have substantial native/browser evidence. M3 is complete for the MVP
+scope. Both crude consumers exercise
 catalog identities/facts, paged/grouped queries, managed scans, metadata/lyrics,
 ReplayGain/R128, consumed-media play counts, artwork, image imports/scans,
 captured image navigation and separate bounded rendition caches.
@@ -57,31 +58,22 @@ access and current revisions before serving cached pixels.
 
 ## Remaining work and caveats
 
-1. Finish M3 acceptance, including AVIF, broader non-ICC/HDR color handling,
-   and decoder resource budgets. Ordinary Open now content-routes images into
-   the catalog and independent viewer in both crudes; catalog-only viewing is
-   no longer the only path.
-2. JPEG XL uses pinned `jxl` 0.8.0, first-frame still previews and straight-alpha
-   8-bit output; CMYK is explicitly unsupported. Codestream orientation and
-   reported output ICC pass a pinned orientation-5/BRG reference case. This is
-   not full floating-point conformance or proof of a strict 128 MiB codec heap
-   limit. Its internal ICC decompression ceiling is larger than the 1 MiB
-   returned-profile limit. Hardening/measurement remains required.
-3. AVIF research did not select or add a dependency/provider. A shared image
-   codec-provider seam plus pinned reference native/WASM decoding was being
-   considered; no interface, acquisition recipe or binding was implemented.
-   Reassess this against actual source/API/resource behavior before proceeding.
-4. Native open-job event and CLI profile-sync audits are fixed: rejected
-   provider metadata emits `Failed`, stale work emits no terminal event, and
-   `zci-play` retries/reports storage failures without cutting an active
-   playback session. Final persistence failure is still surfaced after the
-   normal media result.
-5. Finish M4 (all eight Raf effects, presets/contextual loadouts, prepared
-   playback and measured transitions), M5 (video), and M6 (C ABI, foreign caller,
-   resource/failure/lifecycle readiness). Then A1 adopts the core in izci-server,
-   and A2 replaces authority in the existing desktop/mobile/Oda Svelte shells.
-6. Physical Android/background/grant and GNU/Linux evidence remains incomplete.
-   Emulator/headless checks do not establish physical-device behavior.
+1. **A2 Svelte adoption is the next milestone.** Migrate ordinary audio/module
+   playback, queue/library/catalog, file access, lyrics/artwork/details and
+   window bindings in ownership slices. Preserve the existing browser video path
+   and any explicitly temporary Raf bridge while their core migrations wait.
+2. AVIF, broader non-ICC/HDR color handling and formal image-decoder heap
+   accounting are post-MVP backlog. They do not block Svelte adoption.
+3. M4 full Raf parity, presets/loadouts, gapless/crossfade and prepared-source
+   overlap are post-MVP backlog.
+4. M5 core WebCodecs/FFmpeg video transport and native surfaces are post-MVP
+   backlog. The existing browser `<video>` path must keep working during MVP.
+5. M6 C ABI/foreign-caller embedding is not needed for Svelte adoption.
+6. A1 izci-server adoption comes after A2 unless the user explicitly reprioritizes
+   multiplayer/server work.
+7. Physical Android/background, GNU/Linux, disk-exhaustion and exhaustive
+   performance/conformance evidence are post-MVP unless a concrete user need
+   changes scope.
 
 The original izci runtime and user profiles/grants must be preserved until the
 explicit adoption slices. The accepted libzci plan uses fresh Rust/SQLite state;

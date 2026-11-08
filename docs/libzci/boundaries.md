@@ -1,5 +1,11 @@
 # Ownership boundaries
 
+> MVP note: this is the eventual ownership map. The first Svelte adoption
+> prioritizes ordinary audio/module playback, queue/library state and
+> persistence. Full Raf parity and core video may remain explicit shell-side
+> compatibility bridges until their post-MVP migrations; see
+> [README](README.md#mvp-scope-2026-11-09).
+
 [Plan entry point](README.md) · [Runtime contracts](contracts.md) ·
 [Implementation design](scaffolding.md)
 

@@ -38,16 +38,12 @@ Record sample counts, target/landed seek, decode/queue/output ranges, applied
 trim/gain, and drain. Native/browser semantics and shared kernels use justified
 tolerances; old JS/storage/browser-node output is not the golden.
 
-DSP inputs include sweeps/tones/impulses/silence/transients/stereo. Check response,
-gain bounds/recovery/ceiling, width/pitch, mix/bypass, smoothing, latency/reset/
-tails, topology edits, finite output, rates/block sizes. Measure processing cost,
-queue/memory high-water marks, allocations/blocking, underruns and worst-case rack
-cost on declared hardware; establish budgets from evidence.
-
-Video checks cover seek/preroll, visible A/V sync/DSP latency, silent video,
-orientation/color, exclusive surface handoff, hidden-video/audio continuity,
-decoder reclamation, bounded leases, and cleanup. WebCodecs availability does
-not prove configuration support, acceleration, efficiency, or background survival.
+DSP sweeps/impulse/property checks, effect-by-effect stability, allocation
+measurements and worst-case rack cost are post-MVP M4 backlog. Full core-video
+checks are post-MVP M5 backlog. During MVP, preserve the existing browser
+`<video>` path and require basic real-file playback, seek, pause, EOF and error
+behavior. WebCodecs availability does not prove configuration support,
+acceleration, efficiency, or background survival.
 
 ## Persistence and installed behavior
 
@@ -55,35 +51,35 @@ Test real native SQLite and browser OPFS through shared SQL: commit/reopen,
 failed writes, busy/quota/schema/init failure, owner loss, and registry/SQL crash
 boundaries. Failures preserve data and publish no committed success. Scans
 preserve facts on cancellation/access loss and reconcile only their own root.
-Counts/loadouts/navigation do not depend on UI lifetime. Attach/reconnect clients
+Counts/navigation do not depend on UI lifetime. Attach/reconnect clients
 to one profile/session owner.
 
 Offline cold launch includes every emitted loader/WASM/worklet/provider/SQL
-asset; verify coherent updates. Record tab and installed PWA separately on
-desktop Chromium and physical Android Chrome: activation, transport, background/
-screen-off, lockscreen actions, interruption, return/recovery. Emulator or
-foreground success does not close physical-device checks. APK/SAF integration
-is a separate later adapter task.
+asset; verify coherent updates. MVP requires desktop Chromium tab and installed
+PWA checks with real local files. Physical Android/background/screen-off,
+lockscreen actions and APK/SAF integration are post-MVP evidence rather than
+adoption gates.
 
-## Adoption readiness
+## MVP Svelte-adoption gate
 
-Before A1 and then A2, required evidence is:
+Before calling A2 complete, required evidence is:
 
 | Area | Required result |
 | --- | --- |
-| Embedding | Native CLI/crude and C caller without JS/webview/WASM runtime; two sessions/device-free jobs |
-| Transport | Lossless bounded long output, audible clock, pending/drain, responsive cancel, prepared/outgoing overlap |
-| Formats | Reference Opus and declared regular/module families with audible seek/EOF/isolation on both targets |
-| Domain | Queue/catalog/facts/roots/scans/metadata/lyrics/patterns/artwork/images/settings through public API |
-| DSP | Useful eight-effect inventory, loadouts/presets, shared native/worklet/render code, measured properties/cost |
-| Video | Browser codecs, native declared support, shared timing, bounded frames/recovery |
-| Storage | Shared SQL, native/OPFS reopen/failure, real capability registry, single ownership/reconnect |
-| PWA | Installed offline/update and physical-device background/OS control evidence |
-| Portability | Reproducible target-aware recipes, required Windows/Linux gaps resolved |
-| Ownership | No second domain/DSP engine, direct domain SQL, or corrective media policy in crudes/bindings |
+| Playback | Ordinary stream formats and tracker modules open/play/pause/seek/EOF through the public API in native/browser targets used by izci |
+| Formats | MP3, WAV, FLAC, OGG/Vorbis, Opus, OpenMPT modules and AHX/HVL work with real files; unsupported cases are named, not guessed |
+| Video compatibility | The existing browser `<video>` playback path still works in the Svelte shell; core video migration is not required |
+| Domain | Queue, library, favorites/ratings, managed scans, metadata, lyrics, artwork/images, settings and play counts go through shared core rather than migrated Svelte stores |
+| Storage/access | Native SQLite and browser OPFS reopen correctly; real File/FSA/native access and one profile owner are preserved |
+| Browser/PWA | Typecheck/build, installed/offline launch and real local playback pass; headless checks are acceptable for MVP |
+| Ownership | Migrated Svelte stores are observation/binding facades; no second queue/library/transport implementation remains for adopted slices |
+| Compatibility bridges | Any temporary video or Raf bridge is explicit, isolated and outside the migrated domain authority |
 
-This is a finite acceptance target. Optional capabilities stay separate. Missing
-required checks stay open unless the user changes scope.
+Not required for MVP: AVIF, HDR/non-ICC color, strict codec heap accounting,
+full Raf effect parity/loadouts/gapless transitions, core WebCodecs/FFmpeg video,
+C ABI/foreign caller proof, izci-server adoption before the shells, physical
+Android/background, GNU/Linux targets, disk-exhaustion tests or exhaustive
+performance conformance. These are post-MVP backlog and do not block adoption.
 
 ## Recording evidence
 

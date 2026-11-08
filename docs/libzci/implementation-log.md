@@ -1,5 +1,16 @@
 # libzci implementation log
 
+## 2026-11-09: MVP rescope
+
+The user set the MVP goal to **Svelte adoption plus playback of most existing
+formats**. AVIF, HDR/non-ICC color and formal decoder-heap accounting are
+deferred and no longer keep M3 open. Full Raf parity/loadouts/gapless work
+(M4), core video transport (M5), the C ABI/foreign caller (M6), izci-server
+adoption (A1), physical Android/background and GNU/Linux evidence are post-MVP.
+The next milestone is A2 Svelte adoption. Historical entries below that describe
+these items as required are superseded by this scope decision; the detailed
+backlog remains in [phases.md](phases.md).
+
 ## Historical log notice: 2026-10-18 plan revision
 
 The entries below record the first attempt through `168874dd`. They are retained

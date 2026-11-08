@@ -3,20 +3,21 @@
 [Overview](README.md) · [Implementation design](scaffolding.md) ·
 [Review](review.md) · [Consumers](crudes.md) · [Checks](validation.md)
 
-Start at `168874dd` with recoverable code, not an empty workspace. The old log's
-Phase 2.2 is not this roadmap's starting gate. R1 is verified by the device-free
-checks recorded in the [implementation log](implementation-log.md#recovery-r1-bounded-lossless-output--verified).
-R2 and native reference Opus R3 are verified on Windows MSVC (2026-10-18);
-R4 is implemented with headless end-to-end evidence; hidden-tab/screen-off and
-physical-device validation keep its acceptance open. M1 has Windows native and
-headless Chromium and Android emulator Chrome evidence. M2 is implemented with
-Windows native, OPFS, multi-window, installed/offline and update evidence;
-physical-device lifecycle/grant checks remain pending. M3 is in progress with
-catalog/facts and native/browser managed scans; M4-M6 remain open.
-GNU/Linux R3 recovery remains unverified target work. Execute in order; numbered items within a milestone are commit-sized
-units where coherent. A milestone closes when its deliverable works and the
-listed checks pass, not when its file list exists. Pending verification is a
-real dependency, not a pass. See the build/runtime rule in [README](README.md).
+Start at `168874dd` with recoverable code, not an empty workspace. R1 and R2
+are verified, native reference Opus R3 is verified on Windows MSVC, and R4/M1/M2
+have real headless/native/installed evidence. M3 is complete for the MVP scope
+defined in [README](README.md#mvp-scope-2026-11-09): ordinary audio, tracker
+modules, catalog, scans, metadata/lyrics, artwork/images and both crudes work.
+The next milestone is **A2 Svelte adoption**. M4-M6 and A1 remain detailed
+post-MVP backlog, not prerequisites for the first adoption pass. Physical
+Android/background, GNU/Linux and exhaustive performance/conformance evidence
+are also post-MVP unless a concrete user need changes scope.
+
+Numbered items within a milestone remain commit-sized units where coherent. A
+milestone closes when its MVP deliverable works and the listed checks pass, not
+when its file list exists. Pending verification is a real dependency, not a
+pass; deferred work is not pending verification. See the build/runtime rule in
+[README](README.md).
 
 ## R1: make the output path lossless and bounded
 
@@ -137,11 +138,12 @@ evidence separately. Reproduce the clean-checkout recipe on each declared target
 
 ## R4: the same reference Opus player works in the browser
 
-Status: **implemented; checks pending** (2026-10-19). Windows headless Chromium
-passes real File/reference/output, native sample comparisons, starvation,
-backpressure, transport and failure checks. True background/screen-off, hardware
-listening and physical Android remain unverified; headless tabs remained visible.
-See [R4 evidence](implementation-log.md#recovery-r4-reference-browser-player--implemented-checks-pending).
+Status: **implemented; MVP checks pass** (2026-10-19). Windows headless
+Chromium passes real File/reference/output, native sample comparisons,
+starvation, backpressure, transport and failure checks. True background/
+screen-off, hardware listening and physical Android remain unverified and are
+post-MVP evidence, not adoption gates. See
+[R4 evidence](implementation-log.md#recovery-r4-reference-browser-player--implemented-checks-pending).
 
 **Deliverable:** the existing crude page opens a real File and audibly plays,
 pauses, seeks, stops, and renders diagnostics through the repaired core API.
@@ -177,14 +179,14 @@ Installed/offline behavior is added in M2, not claimed here.
 
 ## M1: useful file players, modules, and both crude UIs
 
-Status: **verified for Windows x64 native and headless Chromium** (2026-10-19).
-The [2026-10-23 validation pass](implementation-log.md#2026-10-23-m1-validation-and-cleanup)
-adds Android 16 emulator Chrome, high-rate/unknown-duration inputs, and regression fixes.
-Both crudes, the CLI, declared synthetic ordinary/module inputs, independent
-jobs and optional single-link WebCodecs Opus are covered. Native GUI checks
-include a hidden eframe window with muted real CPAL output. Linux, physical
-Android and new-format hardware listening are not inferred; R4's physical and
-background checks remain pending independently. See the [M1 evidence](implementation-log.md#m1-file-players-modules-and-both-crudes).
+Status: **verified for MVP** (Windows x64 native and headless Chromium;
+2026-10-19). The [2026-10-23 validation pass](implementation-log.md#2026-10-23-m1-validation-and-cleanup)
+adds Android emulator Chrome, high-rate/unknown-duration inputs and regression
+fixes. Both crudes, the CLI, declared ordinary/module inputs, independent jobs
+and optional single-link WebCodecs Opus are covered. Native GUI checks include a
+hidden eframe window with muted real CPAL output. Linux, physical Android and
+new-format hardware listening remain post-MVP evidence. See the
+[M1 evidence](implementation-log.md#m1-file-players-modules-and-both-crudes).
 
 **Deliverable:** the CLI, minimal native GUI, and browser page play supported
 ordinary audio and tracker formats through public operations.
@@ -214,13 +216,12 @@ being counted as a passed format. No database is necessary yet.
 
 ## M2: persistent queue and an installed offline PWA
 
-Status: **implemented; physical lifecycle checks pending** (2026-10-23).
-Windows native/SQLite, real browser SQLite/OPFS, two-window ownership/re-election,
-capability crash recovery, installed Chromium cold offline launch and controlled
-updates have automated evidence. External picker grant/denial, actual hidden-tab/
-screen-off continuity, OS media actions and physical Android remain unverified.
-Headless and headed minimization still reported `visible`; neither is counted as
-a hidden-document pass. See [M2 evidence](implementation-log.md#2026-10-23-m2-persistent-queue-and-installed-pwa).
+Status: **verified for MVP** (2026-10-23). Windows native/SQLite, real browser
+SQLite/OPFS, two-window ownership/re-election, capability crash recovery,
+installed Chromium cold offline launch and controlled updates have automated
+evidence. External picker grant/denial, hidden-tab/screen-off continuity, OS
+media actions and physical Android remain post-MVP evidence. See
+[M2 evidence](implementation-log.md#2026-10-23-m2-persistent-queue-and-installed-pwa).
 
 **Deliverable:** both crudes reopen the same kind of durable queue/settings state;
 the installed PWA launches offline, restores access references, and has one owner.
@@ -256,7 +257,7 @@ and physical-device lifecycle observations are recorded independently.
 
 ## M3: library, user facts, metadata, artwork, and images
 
-Status: **in progress** (2026-10-30). Shared catalog identities, membership,
+Status: **MVP-complete** (2026-11-09). Shared catalog identities, membership,
 favorites/ratings/bookmarks, bounded queries and atomic root reconciliation are
 implemented. Both crudes have real folder probes and catalog controls, including
 browser capability recovery, owner handoff and offline launch scans. Shared
@@ -264,9 +265,10 @@ metadata/lyrics/ReplayGain and consumed-media counts are implemented. Bounded
 artwork/image jobs, previews, image catalog imports/scans, captured image
 navigation and separate rendition caching are verified in both crudes.
 PNG/JPEG/WebP/JPEG XL previews and ordinary image-open routing are implemented.
-AVIF, broader color handling, codec resource hardening and remaining acceptance
-work are open. See the
-current implementation log.
+
+AVIF, broader non-ICC/HDR color handling and formal codec heap-accounting are
+explicitly deferred post-MVP. They no longer keep M3 or Svelte adoption open.
+See the current implementation log.
 
 **Deliverable:** both crudes build/reopen a useful media library with working
 facts, scans, details, lyrics/patterns, artwork, and independent image navigation.
@@ -303,7 +305,26 @@ facts, scans, details, lyrics/patterns, artwork, and independent image navigatio
 queries work on a larger corpus during playback, metadata inspection opens no
 output, caches stay bounded/rebuildable, and images navigate while audio plays.
 
-## M4: Raf, contextual loadouts, and prepared playback
+## A2 (MVP critical path): adopt the core in existing Svelte shells
+
+Write the browser/desktop/Android ownership-slice plan using real APIs. Replace
+each service/store authority in coherent slices; stores become observation/
+binding facades and components render/dispatch. Account for real FSA/native/SAF
+access, separate windows/settings and offline/install/update. Desktop/mobile/Oda
+remain presentations of the same runtime. Use fresh libzci state without dual
+writes or old-state conversion.
+
+MVP slices should land in this order: ordinary audio/module playback and
+transport; queue/library/catalog and file access; lyrics/artwork/details and
+window bindings; then mobile/Oda presentation wiring. Preserve the existing
+browser video path and any explicitly temporary Raf compatibility bridge while
+their core migrations remain post-MVP. Tools/tag writing are separate later
+plans.
+
+## M4 (post-MVP backlog): Raf, contextual loadouts, and prepared playback
+
+Status: **deferred**. Do not block Svelte adoption on full Raf parity. The first
+adoption may keep an explicit temporary shell-side compatibility bridge.
 
 **Deliverable:** both crudes edit/persist real Raf racks/loadouts and exercise
 measured gapless/transition behavior using shared native/WASM audio processing.
@@ -343,7 +364,10 @@ case cost/latency; matching/restore/reopen scenarios; sample-level joins across
 providers/rates and duplicate occurrences; no stale prepared source under rapid
 edits. List gapless limitations by provider. Old waveforms are not the golden.
 
-## M5: video transport and plain viewports
+## M5 (post-MVP backlog): video transport and plain viewports
+
+Status: **deferred**. Preserve the existing browser `<video>` playback path in
+the shells during MVP adoption; core video ownership can be revisited later.
 
 **Deliverable:** PWA video decodes with browser codecs and synchronizes to the
 shared audible clock; native viewport works through an optional linked provider.
@@ -370,7 +394,10 @@ video, orientation/color, hidden recovery and exclusive surface handoff. Measure
 resources/efficiency on representative clips and repeat installed/background
 checks. Unsupported codec configurations fail visibly.
 
-## M6: independent embedding and adoption readiness
+## M6 (post-MVP backlog): independent embedding
+
+Status: **deferred**. A C ABI/foreign caller is not needed for Svelte or current
+izci-server adoption.
 
 **Deliverable:** an actual C caller uses libzci without a device or UI, and all
 required core behavior is demonstrated by native/browser consumers.
@@ -379,8 +406,8 @@ required core behavior is demonstrated by native/browser consumers.
    explicit buffer ownership, bounded events, typed errors, panic/exception
    containment and shutdown. A tiny C executable opens/renders/seeks/closes two
    sessions, cancels a job, and frees everything through the public ABI.
-2. Close the [readiness matrix](validation.md#adoption-readiness). Audit crudes
-   for SQL/transport/shuffle/count/loadout/DSP logic that belongs in core. Exercise
+2. Close the [MVP readiness gate](validation.md#mvp-svelte-adoption-gate). Audit
+   crudes for SQL/transport/shuffle/count/loadout/DSP logic that belongs in core. Exercise
    independent sessions, no-device operation, playback+probe+render, prepared/
    outgoing overlap, access/database/device failures and restart.
 3. Reproduce target recipes and record formats/providers, limits, API/build
@@ -392,9 +419,9 @@ works, native remains JS independent, and browser audio/video/storage/offline
 requirements have real evidence. Readiness is finite required behavior, not an
 unbounded polish target or permission to skip hard browser requirements.
 
-## A1: replace izci-server's overlapping engine
+## A1 (post-MVP backlog): replace izci-server's overlapping engine
 
-After M6, write a focused adoption plan against the actual ABI and job API.
+After A2, write a focused adoption plan against the actual ABI and job API.
 Replace decoding, catalog/queue/facts, session/timeline, and device-free rendering
 at `internal/media` and host session/storage seams. Specify handle/thread/job
 ownership and shutdown; keep Go signaling/admission/pairing/permissions/Pion and
@@ -403,13 +430,3 @@ render/cache invalidation, source-file/buffered Opus-WebM delivery, and
 listener-owned processing. Preserve sensitive-data handling and protocol fixtures.
 Format Go and run required vet/race tests after server changes. No old-state
 migration. A detailed integration design depends on the proven core API.
-
-## A2: adopt the core in existing Svelte shells
-
-After A1, write the browser/desktop/Android ownership-slice plan using real APIs.
-Replace each service/store authority completely; stores become observation/
-binding facades and components render/dispatch. Account for real FSA/native/SAF
-access, separate windows/settings, offline/install/update and listener DSP.
-Desktop/mobile/Oda remain presentations of the same runtime. Use fresh libzci
-state without dual writes or old-state conversion. Tools/tag writing are separate
-later plans. Detailed shell migration is not work to begin during recovery.
