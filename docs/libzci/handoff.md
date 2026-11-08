@@ -55,11 +55,10 @@ access and current revisions before serving cached pixels.
    codec-provider seam plus pinned reference native/WASM decoding was being
    considered; no interface, acquisition recipe or binding was implemented.
    Reassess this against actual source/API/resource behavior before proceeding.
-4. Native open-job audit: `session_jobs.rs` ignores the boolean from
-   `Session::opened` and emits `Completed` after a successful provider open;
-   inspect rejection/failure behavior before closing readiness. CLI profile
-   synchronization also propagates storage failures with `?`, unlike crude
-   retry/report behavior. These are outstanding audit items, not fixed issues.
+4. Native open-job event audit is fixed: rejected provider metadata now emits
+   `Failed`, not `Completed`, and stale work emits no terminal event. CLI
+   profile synchronization still propagates storage failures with `?`, unlike
+   crude retry/report behavior; that remains an outstanding audit item.
 5. Finish M4 (all eight Raf effects, presets/contextual loadouts, prepared
    playback and measured transitions), M5 (video), and M6 (C ABI, foreign caller,
    resource/failure/lifecycle readiness). Then A1 adopts the core in izci-server,

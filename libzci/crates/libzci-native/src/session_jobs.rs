@@ -218,17 +218,38 @@ impl SessionEntry {
                 let event = match result {
                     Ok(()) => {
                         let d = decoder.as_ref().unwrap();
-                        c.owner.opened(
+                        let opened = c.owner.opened(
                             plan.tag,
                             d.metadata(),
                             d.capabilities(),
                             d.position_frames(),
                         );
-                        c.owner.observed(plan.tag, d.module_observation());
-                        Event::Completed {
-                            session: plan.tag.session,
-                            request_id: plan.tag.operation,
-                            generation: plan.tag.generation,
+                        if !c.owner.accepts(plan.tag) {
+                            // A newer generation superseded this open while the
+                            // provider was working. It owns no completion event.
+                            continue;
+                        }
+                        if opened {
+                            c.owner.observed(plan.tag, d.module_observation());
+                            Event::Completed {
+                                session: plan.tag.session,
+                                request_id: plan.tag.operation,
+                                generation: plan.tag.generation,
+                            }
+                        } else {
+                            // Session::opened rejects invalid provider facts by
+                            // failing the session. Report that failure, never a
+                            // completion for an open that did not become current.
+                            Event::Failed {
+                                session: plan.tag.session,
+                                request_id: Some(plan.tag.operation),
+                                generation: plan.tag.generation,
+                                error: c.owner.snapshot().error.unwrap_or_else(|| {
+                                    LibzciError::DecoderFailure {
+                                        detail: "provider metadata was rejected".into(),
+                                    }
+                                }),
+                            }
                         }
                     }
                     Err(e) => {

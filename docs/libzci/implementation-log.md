@@ -594,6 +594,16 @@ cache scenarios. TypeScript typechecking and the production build pass.
 AVIF, broader non-ICC/HDR color handling, decoder resource hardening and the
 remaining M3 acceptance work stay open.
 
+The native decode-job audit also closed a rejected-open event bug. The worker
+previously ignored `Session::opened`'s boolean and emitted `Completed` after a
+provider returned successful frames but invalid normalization metadata caused
+the session to reject the open. It now distinguishes stale tags from rejected
+provider facts: stale work emits no terminal event, successful opens emit
+`Completed`, and metadata rejection emits the authoritative `Failed` event with
+the session's typed error. A transport regression uses a fake provider whose
+normalization timeline does not start at frame zero and verifies the failed
+state, one failure event and no spurious completion for the load request.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 

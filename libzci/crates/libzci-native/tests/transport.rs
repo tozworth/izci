@@ -283,6 +283,93 @@ fn starvation_is_pending_then_data_and_final_completion() {
     }
     assert_eq!(frames, 100_003);
 }
+struct BadMetadataFactory;
+struct BadMetadataDecoder(Box<dyn DecoderInstance>);
+impl ProviderFactory for BadMetadataFactory {
+    fn info(&self) -> ProviderInfo {
+        provider::FakeFactory::new(1, PcmLayout::mono48k()).info()
+    }
+    fn probe(&self, input: &ProbeInput<'_>) -> ProbeScore {
+        if input.header.starts_with(b"FAKE") {
+            ProbeScore::Magic
+        } else {
+            ProbeScore::No
+        }
+    }
+    fn open(
+        &self,
+        source: Arc<dyn RuntimeSource>,
+        cancel: &CancelFlag,
+    ) -> Result<Box<dyn DecoderInstance>> {
+        Ok(Box::new(BadMetadataDecoder(
+            provider::FakeFactory::new(1000, PcmLayout::mono48k()).open(source, cancel)?,
+        )))
+    }
+}
+impl DecoderInstance for BadMetadataDecoder {
+    fn info(&self) -> ProviderInfo {
+        self.0.info()
+    }
+    fn layout(&self) -> PcmLayout {
+        self.0.layout()
+    }
+    fn total_frames(&self) -> Option<u64> {
+        self.0.total_frames()
+    }
+    fn position_frames(&self) -> u64 {
+        self.0.position_frames()
+    }
+    fn decode_into(&mut self, out: &mut [f32], cancel: &CancelFlag) -> Result<usize> {
+        self.0.decode_into(out, cancel)
+    }
+    fn seek_to_frame(&mut self, frame: u64, cancel: &CancelFlag) -> Result<u64> {
+        self.0.seek_to_frame(frame, cancel)
+    }
+    fn metadata(&self) -> ProviderMetadata {
+        let mut metadata = self.0.metadata();
+        // A timeline must start at frame zero. This makes Session::opened reject
+        // otherwise successful provider work during normalization validation.
+        metadata.normalization_points = vec![ReplayGainPoint {
+            source_frame: 1,
+            tags: ReplayGainMetadata::default(),
+        }];
+        metadata
+    }
+}
+#[test]
+fn rejected_provider_metadata_reports_failure_without_a_spurious_completion() {
+    let rt = NativeRuntime::new();
+    rt.register_provider(Arc::new(BadMetadataFactory)).unwrap();
+    let source = rt.insert_source(Arc::new(MemSource::new(b"FAKE".to_vec())));
+    let session = rt.create_session();
+    let request = RequestId::fresh();
+    rt.submit(
+        &Command::Load {
+            session,
+            request_id: request,
+            source,
+            extension_hint: None,
+            options: LoadOptions::default(),
+        },
+        &CancelFlag::default(),
+    )
+    .unwrap();
+    let error = rt
+        .wait_ready(session, &CancelFlag::default())
+        .expect_err("invalid metadata must fail the open");
+    assert_eq!(error.kind(), "invalid-argument");
+    let batch = rt.events(session).unwrap();
+    assert_eq!(batch.snapshot.state, TransportState::Failed);
+    assert!(!batch.events.iter().any(|event| matches!(
+        event,
+        Event::Completed { request_id, .. } if *request_id == request
+    )));
+    assert!(batch.events.iter().any(|event| matches!(
+        event,
+        Event::Failed { request_id: Some(id), .. } if *id == request
+    )));
+}
+
 #[test]
 fn duplicate_old_load_does_not_cancel_a_new_timeline_even_after_source_release() {
     let rt = NativeRuntime::new();
