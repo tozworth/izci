@@ -30,6 +30,10 @@ remain open; see the [M2 evidence](implementation-log.md#2026-10-23-m2-persisten
 
 ## Start here
 
+Work was paused and the goal cleared on 2026-11-08. See the
+[handoff](handoff.md) for the checkout, verified checkpoint, outstanding work and
+local setup before continuing in a new chat.
+
 Current work (2026-10-31): M3 catalog/facts, native/browser root enumeration,
 atomic reconciliation, metadata/lyrics/ReplayGain, consumed-media counts,
 artwork, captured image navigation and bounded separate rendition caches work
@@ -39,13 +43,12 @@ acceptance checks keep M3 open. M4-M6/A1/A2 remain open. The user's
 end-to-end completion request authorizes builds, tests and inspections with
 audio kept low; preserve ordinary izci profiles/grants throughout adoption.
 
-1. Read [the review](review.md) for the actual starting code.
-2. Read [the implementation design](scaffolding.md) for the command, decoder,
-   buffer, and output flow to implement.
-3. Execute [R1](phases.md#r1-make-the-output-path-lossless-and-bounded): a long,
-   marked signal must survive a slow output sink exactly, with bounded memory.
-4. Continue through the repaired native Opus CLI and an audible browser Opus
-   consumer before broadening engine features.
+1. Read the [handoff](handoff.md), [roadmap](phases.md) and
+   [readiness matrix](validation.md#adoption-readiness) for the current frontier.
+2. Use [the review](review.md) as historical context and
+   [the implementation design](scaffolding.md) for ownership and API constraints.
+3. Inspect current source and relevant evidence, then continue the open milestone.
+   Do not restart completed recovery work or infer adoption from passing crude tests.
 
 ```text
 lossless bounded pipeline -> one transport owner -> native reference Opus CLI
