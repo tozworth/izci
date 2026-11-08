@@ -604,6 +604,14 @@ the session's typed error. A transport regression uses a fake provider whose
 normalization timeline does not start at frame zero and verifies the failed
 state, one failure event and no spurious completion for the load request.
 
+CLI profile synchronization is now advisory to playback rather than a `?` that
+can cut audio mid-stream. `zci-play` retries qualified-play/settings sync on its
+normal loop, reports distinct storage failures once, and keeps the session's
+pending state available for a later retry. Shutdown still attempts both the
+final sync and binding close, then reports a storage failure after normal
+playback has finished instead of turning an in-flight media session into a
+transport failure.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 

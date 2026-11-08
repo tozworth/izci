@@ -185,6 +185,36 @@ fn main() {
         report(&error, &args.path);
     }
 }
+/// Profile synchronization is advisory to playback: a storage outage must not
+/// cut audio. The session retains qualified/pending state so later loop ticks can
+/// retry; identical failures are reported once rather than every 20 ms. A final
+/// sync/close error is still surfaced after playback has reached its normal end.
+fn sync_profile(
+    profile: &mut Option<libzci_native::profile::NativeProfile>,
+    binding: &mut Option<libzci::profile::ProfilePlayback>,
+    runtime: &NativeRuntime,
+    session: libzci::SessionId,
+    reported: &mut Option<String>,
+) -> Option<LibzciError> {
+    let (Some(profile), Some(binding)) = (profile.as_mut(), binding.as_mut()) else {
+        return None;
+    };
+    match profile.sync_playback(binding, runtime, session) {
+        Ok(_) => {
+            *reported = None;
+            None
+        }
+        Err(error) => {
+            let message = error.to_string();
+            if reported.as_deref() != Some(&message) {
+                eprintln!("zci-play: profile sync deferred: {error}");
+                *reported = Some(message);
+            }
+            Some(error)
+        }
+    }
+}
+
 fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
     use libzci::queue::QueueCommand;
     let mut profile = args
@@ -306,9 +336,14 @@ fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
         .as_mut()
         .map(|p| p.attach_playback(&runtime, session))
         .transpose()?;
-    if let (Some(p), Some(b)) = (&mut profile, &mut binding) {
-        p.sync_playback(b, &runtime, session)?;
-    }
+    let mut sync_reported = None;
+    sync_profile(
+        &mut profile,
+        &mut binding,
+        &runtime,
+        session,
+        &mut sync_reported,
+    );
 
     runtime.submit(
         &Command::SetVolume {
@@ -357,9 +392,13 @@ fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
     }
     let playback_result = (|| -> libzci::Result<()> {
         loop {
-            if let (Some(p), Some(b)) = (&mut profile, &mut binding) {
-                p.sync_playback(b, &runtime, session)?;
-            }
+            sync_profile(
+                &mut profile,
+                &mut binding,
+                &runtime,
+                session,
+                &mut sync_reported,
+            );
             let snapshot = runtime.snapshot(session)?;
             if let Some(p) = &mut profile {
                 let seconds = MediaTime::from_frames(
@@ -405,9 +444,24 @@ fn run(args: &Args, cancel: &CancelFlag) -> libzci::Result<()> {
         &CancelFlag::default(),
     );
     let finish = (|| -> libzci::Result<()> {
-        if let (Some(p), Some(b)) = (&mut profile, &mut binding) {
-            p.sync_playback(b, &runtime, session)?;
-            p.close_playback(b)?;
+        let sync_error = sync_profile(
+            &mut profile,
+            &mut binding,
+            &runtime,
+            session,
+            &mut sync_reported,
+        );
+        let close_error = match (&mut profile, &mut binding) {
+            (Some(profile), Some(binding)) => profile.close_playback(binding).err(),
+            _ => None,
+        };
+        // Always attempt both operations, then surface the most specific failure
+        // after the audio result. Neither one can invalidate completed playback.
+        if let Some(error) = close_error {
+            return Err(error);
+        }
+        if let Some(error) = sync_error {
+            return Err(error);
         }
         Ok(())
     })();
