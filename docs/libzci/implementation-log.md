@@ -11,6 +11,65 @@ The next milestone is A2 Svelte adoption. Historical entries below that describe
 these items as required are superseded by this scope decision; the detailed
 backlog remains in [phases.md](phases.md).
 
+## 2026-11-09: A2 first slice — ordinary stream playback in the Svelte shell
+
+Status: **implemented; muted Chromium checks passed**. Implementation commit:
+`d528fc2e`. Modules, video, the queue/library authority and native/SAF adoption
+remain open. This slice does not close A2.
+
+The production main window now routes ordinary stream files (`mp3`, `wav`,
+`flac`, `ogg`, `opus`) through libzci instead of Howler:
+
+- `LibzciStreamPlayerService` owns browser ordinary-stream transport. It drives
+  the shared Rust `WebEngine` session in a worker, uses the pinned reference
+  Opus provider for Opus and the shared Symphonia provider for other streams,
+  and feeds bounded PCM pool blocks to the shared audio-only worklet renderer.
+- The worklet node joins the existing `audioBusService` source route, so the
+  current master volume, transition/fade gain, Raf compatibility graph,
+  visualizer analyser and Media Session facade remain shell-side bridges rather
+  than a second transport. Playback position comes from consumed output; the UI
+  does not advance it.
+- Seek replaces the generation-scoped `WebPreparation` before resuming, so
+  retained converter/PCM state cannot cross the seek boundary. Decoder reads use
+  the Asyncify-safe `ccall` path; completion, anchor, recycle and snapshot
+  generations are fenced.
+- Stream ReplayGain remains an explicit shell-side bridge through the shared bus
+  local gain until metadata normalization ownership moves in the queue/library
+  slice. Ordinary-stream global playback-rate changes are not yet adopted and
+  are logged as an explicit temporary gap.
+- The unused Howler service, dependency, ambient types and test were removed;
+  modules still use their existing libopenmpt/Hively services and video still
+  uses the native `<video>` path. The production stream path no longer has a
+  second decoder/transport implementation.
+- The Vite PWA precache ceiling rose from 4 MiB to 8 MiB because the emitted
+  libzci control WASM is about 5.46 MiB. Audio worklet WASM and reference Opus
+  WASM are emitted alongside it. Browser runtime assets are still generated
+  under `libzci/consumers/crude-pwa/src/generated`; extracting that shared
+  runtime from the crude consumer remains A2 follow-up work.
+
+Verification on Windows x64, muted headless Chromium, production `dist/` on a
+temporary local preview:
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm test`: 229 files / 1,455 tests passed.
+- `npm run build`: passed; PWA precache 171 entries, emitted
+  `libzci_web_bg`, `libzci_audio_web` and `opus-reference` WASM plus the worker
+  and output worklet.
+- Real `44100-1.flac`, `44100-1.mp3`, `44100-1.ogg`, `44100-1.wav` and
+  `48000-2.wav`: playback advanced, pause held position across repeated reads,
+  seek to 1.5 s landed at 1.5 s, resume advanced to about 2.0–2.2 s, and no page
+  or console errors occurred.
+- Real 30 s `long.opus`: playback advanced, pause held, seek to 15 s landed at
+  15 s, and resume advanced to 15.8 s with no errors.
+- Snapshot mapping tests cover core state vocabulary and frame-to-time mapping.
+
+Not yet evidenced/implemented: tracker and Hively migration to the Svelte
+bridge, video ownership migration, queue/library/catalog and persistence
+adoption, full ReplayGain/normalization ownership, stream playback-rate support,
+mobile/Oda wiring, real FSA/native/SAF checks through the adopted bridge, and
+shared-runtime extraction from the crude consumer. Physical Android/background
+and GNU/Linux remain post-MVP evidence.
+
 ## Historical log notice: 2026-10-18 plan revision
 
 The entries below record the first attempt through `168874dd`. They are retained

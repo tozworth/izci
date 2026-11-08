@@ -1,105 +1,97 @@
-# Handoff — 2026-11-08
-
-## Progress update — 2026-11-09
-
-Continuation commits now on `libzci-codex`:
-
-| Commit | Behavior |
-| --- | --- |
-| `8bb886b8` | Ordinary Open routes content-identified images into the catalog and independent viewer in both crudes, without queue mutation or browser AudioContext construction |
-| `cb248f6c` | Rejected provider opens emit `Failed` rather than a spurious `Completed`; stale open work emits no terminal event |
-| `00a586a6` | `zci-play` retries/reports profile-sync outages without cutting active playback; final persistence failure is still surfaced after normal media completion |
-
-Checks run on 2026-11-09: full locked Cargo workspace tests, PWA typecheck and
-production build, muted `test:images`, `test:m3`, `test:m1`, and `test:m2`, plus
-an actual low-volume `zci-play` profile playback. M3 is complete for the MVP
-scope: AVIF, HDR/non-ICC color and formal decoder-heap accounting are explicitly
-deferred. The next milestone is A2 Svelte adoption, not M4-M6 or A1.
-
-The user paused and then cleared the end-to-end goal, and requested packing up
-for a new chat. Work is stopped, not complete. This is a checkpoint for a future
-explicit continuation; it does not start work or recreate the cleared goal.
+# Handoff — 2026-11-09 (A2 first slice)
 
 ## Checkout and scope
 
 - Workspace: `C:\Users\Toz\Projects\izci`, branch `libzci-codex`.
-- Implementation checkpoint: `bbf1f570`; this handoff is a later docs-only commit.
-- The worktree was clean at that checkpoint. No implementation was started after
-  it: subsequent AVIF/provider-interface discussion was research and proposals.
-- The original objective remains unfinished. The MVP order is now Svelte
-  adoption first; izci-server adoption and the M4-M6 backlog come later.
-- Follow [phases.md](phases.md) and the
-  [MVP readiness gate](validation.md#mvp-svelte-adoption-gate). Earlier
-  historical phase labels are not completion evidence. Read current code and
-  verify the relevant behavior before relying on previous reports.
+- Implementation commit: `d528fc2e` (`Route Svelte stream playback through libzci`).
+- Worktree: clean after this documentation checkpoint; no task-owned preview,
+  browser, Cargo or audio process should remain running.
+- The MVP is **Svelte adoption with working playback for most existing formats**,
+  not full parity with every research goal. A2 is now in progress; it is not
+  complete.
+- Follow [phases.md](phases.md), the
+  [MVP readiness gate](validation.md#mvp-svelte-adoption-gate), and the current
+  [implementation log](implementation-log.md). Historical phase labels are not
+  completion evidence.
 
 ## Current implementation
 
-R1–M2 have substantial native/browser evidence. M3 is complete for the MVP
-scope. Both crude consumers exercise
-catalog identities/facts, paged/grouped queries, managed scans, metadata/lyrics,
-ReplayGain/R128, consumed-media play counts, artwork, image imports/scans,
-captured image navigation and separate bounded rendition caches.
+R1–M3 have substantial native/browser evidence. M3 is complete for the MVP
+scope. Both crudes exercise catalog identities/facts, paged/grouped queries,
+managed scans, metadata/lyrics, ReplayGain/R128, consumed-media play counts,
+artwork, image imports/scans, captured image navigation and separate bounded
+rendition caches.
 
-Recent coherent commits:
+A2's first ownership slice is implemented in the production Svelte main window:
+
+- Ordinary stream formats (`mp3`, `wav`, `flac`, `ogg`, `opus`) load and play
+  through the libzci `WebEngine`, reference Opus/Symphonia providers, a bounded
+  decode worker and the shared audio-only worklet.
+- PCM is routed through the existing `audioBusService` source route. Master
+  volume, transition/fade gain, the Raf compatibility graph, visualizer analyser
+  and Media Session facade remain explicit shell-side bridges, not a second
+  transport.
+- Audible position comes from worklet consumption. Pause, seek, EOF, output
+  backpressure, generation fences and Asyncify-safe decoder reads are wired.
+- Seek rebuilds the generation-scoped `WebPreparation`; retained PCM/converter
+  tails cannot cross the seek boundary.
+- The old Howler transport, dependency, ambient types and test were removed.
+  Tracker/Hively playback still uses the existing libopenmpt/Hively services,
+  and video still uses the native `<video>` path.
+- Ordinary-stream ReplayGain remains a shell-side shared-bus local-gain bridge.
+  Global playback-rate changes for ordinary streams are not adopted yet and log
+  an explicit warning; both are known temporary gaps.
+
+Recent commits:
 
 | Commit | Behavior |
 | --- | --- |
-| `ef29a81b` | Images enter the catalog/scans and are excluded from the music queue |
-| `3b02523d` | Independent captured image navigation, generations and scoped visual cancellation |
-| `68c37fdf` | Shared cache identity/integrity/LRU policy; separate native SQLite and browser IndexedDB caches |
-| `bbf1f570` | Shared native/WASM JPEG XL decoding, catalog integration and reference-image checks |
-
-Core image jobs currently decode PNG/JPEG/WebP/JPEG XL. Original images, embedded
-artwork/lyrics, raw ICC, decoded RGBA and presentation surfaces remain transient.
-The cache stores derived PNGs and bounded facts only. Defaults: 64 MiB / 256
-entries; configurable hard limits: 256 MiB / 4096 entries. It resolves source
-access and current revisions before serving cached pixels.
+| `d528fc2e` | Production Svelte ordinary-stream transport moved to libzci; Howler removed |
+| `02dc264e` | Roadmap rescoped around Svelte MVP adoption |
+| `d0f1589d` | Previous M3 continuation/evidence checkpoint |
+| `bbf1f570` | Shared native/WASM JPEG XL and catalog/image adoption evidence |
 
 ## Remaining work and caveats
 
-1. **A2 Svelte adoption is the next milestone.** Migrate ordinary audio/module
-   playback, queue/library/catalog, file access, lyrics/artwork/details and
-   window bindings in ownership slices. Preserve the existing browser video path
-   and any explicitly temporary Raf bridge while their core migrations wait.
-2. AVIF, broader non-ICC/HDR color handling and formal image-decoder heap
-   accounting are post-MVP backlog. They do not block Svelte adoption.
-3. M4 full Raf parity, presets/loadouts, gapless/crossfade and prepared-source
-   overlap are post-MVP backlog.
-4. M5 core WebCodecs/FFmpeg video transport and native surfaces are post-MVP
-   backlog. The existing browser `<video>` path must keep working during MVP.
-5. M6 C ABI/foreign-caller embedding is not needed for Svelte adoption.
-6. A1 izci-server adoption comes after A2 unless the user explicitly reprioritizes
-   multiplayer/server work.
-7. Physical Android/background, GNU/Linux, disk-exhaustion and exhaustive
-   performance/conformance evidence are post-MVP unless a concrete user need
-   changes scope.
+1. **Continue A2 in ownership slices.** Next is tracker/Hively transport through
+   the same browser bridge while preserving subsong/pattern behavior. After that:
+   queue/library/catalog and file-access authority, lyrics/artwork/details,
+   window bindings, then mobile/Oda presentation wiring.
+2. **Extract the shared browser runtime from the crude consumer.** The new
+   production bridge currently imports generated control/audio/codec assets and
+   provider helpers under `libzci/consumers/crude-pwa/src/`. This is one owner
+   and one transport, but the shared runtime should move to a proper reusable
+   location before A2 closes.
+3. **Close explicit compatibility gaps before claiming parity:** ordinary-stream
+   playback rate, full core normalization/ReplayGain ownership, and any
+   crossfade/prepared-source behavior not yet re-evidenced on the new backend.
+4. **Preserve the browser video path.** `VideoPlayerService` remains the
+   presentation-owned native `<video>` implementation. Core video is post-MVP.
+5. AVIF, broader HDR/color handling and formal image-decoder heap accounting
+   remain post-MVP backlog. Full Raf parity/loadouts/gapless work, C ABI,
+   izci-server adoption, physical Android/background and GNU/Linux stay
+   post-MVP unless the user reprioritizes them.
 
-The original izci runtime and user profiles/grants must be preserved until the
-explicit adoption slices. The accepted libzci plan uses fresh Rust/SQLite state;
-do not introduce legacy migrations or dual authorities. Keep domain policy in
-core/services, not in crude or production components.
+## Last verification (not rerun while packing docs)
 
-## Last verification, not rerun during packing
+Windows x64, muted headless Chromium, production `dist/` served from a temporary
+local preview:
 
-The implementation log records successful Windows MSVC checks on 2026-10-31:
+- `npm run check`: 0 errors, 0 warnings.
+- `npm test`: 229 files / 1,455 tests passed.
+- `npm run build`: passed. PWA precache: 171 entries, including emitted
+  `libzci_web_bg`, `libzci_audio_web` and `opus-reference` WASM plus the worker
+  and output worklet.
+- Real `44100-1.flac`, `44100-1.mp3`, `44100-1.ogg`, `44100-1.wav` and
+  `48000-2.wav`: playback advanced; pause held position; seek to 1.5 s landed;
+  resume advanced to about 2.0–2.2 s; no page or console errors.
+- Real 30 s `long.opus`: playback advanced; pause held; seek to 15 s landed;
+  resume advanced to 15.8 s; no errors.
+- `snapshot.test.ts` covers core state vocabulary and frame-to-time mapping.
 
-- `cargo test --locked --manifest-path libzci/Cargo.toml --workspace`.
-- Provider-enabled native image scans, core image/cache tests and crude-native
-  viewer/controller tests. Device-access smoke remained ignored.
-- Rebuilt control/audio WASM; crude PWA `typecheck`, `test:images`, `build`,
-  seven audio-WASM ABI checks (`test`) and production `test:m3` cold-offline tests.
-- Native lossless JXL pixels and upstream orientation/profile reference:
-  at most one full-size 8-bit code-value difference; resized WASM: at most two.
-- Real separate-cache reopen/eviction/corruption/revision checks. Denied-grant
-  and quota rollback cases include explicit worker-realm fault injection, not
-  physical permission revocation or disk exhaustion.
-
-Local evidence JSON is under `.local/libzci/`, especially
-`m3-images-evidence.json`, `m3-browser-evidence.json`, `m3-artwork-evidence.json`,
-`m3-play-counts-evidence.json` and `m3-normalization-evidence.json`. These are
-ignored artifacts, not portable proof. Recipes/tests and reference fixtures are
-tracked; inspect [implementation-log.md](implementation-log.md) for detail.
+These are foreground headless results. They do not establish physical
+Android/background, GNU/Linux, installed-PWA lifecycle, or long-duration
+ownership-loss behavior for the adopted path.
 
 ## Local setup for continuation
 
@@ -110,26 +102,27 @@ $env:CARGO_HOME="$PWD/.local/desktop-toolchain/cargo"
 $env:RUSTUP_HOME="$PWD/.local/desktop-toolchain/rustup"
 $env:PATH="$env:CARGO_HOME/bin;$env:PATH"
 . ./libzci/scripts/windows-toolchain.ps1
-cargo test --locked --manifest-path libzci/Cargo.toml --workspace
+python libzci/scripts/build-browser-codecs.py
+python libzci/scripts/build-browser-modules.py
 python libzci/consumers/crude-pwa/scripts/build-wasm.py
+npm run check
+npm test
+npm run build
 ```
 
-Rust 1.98.1 and Emscripten 4.0.10 were used; pins/recipes live in
-`libzci/vendor/dependencies.json` and `libzci/scripts/`. The WASM build requires
-the wasm-bindgen CLI version matching `Cargo.lock`. Generated codecs, SDKs,
-target output, fixtures generated during testing and browser profiles are under
-ignored `.local/`, `libzci/target/` and consumer generated/build directories.
-Some older tests need the generated media described in their recipes.
+The production shell imports generated browser assets from
+`libzci/consumers/crude-pwa/src/generated/`; those files are ignored and must be
+built before a clean `npm run build`. Rust 1.98.1, Emscripten 4.0.10 and the
+matching wasm-bindgen CLI are recorded in the implementation log and vendor
+pins. Local audio fixtures live under `.local/libzci/media/` and
+`C:\Users\Toz\Music\izci-tests`.
 
-PWA npm commands run from `libzci/consumers/crude-pwa`. Browser tests share port
-5197: run them sequentially, and build production assets before `test:m3`.
-Do not edit browser source/generated WASM while its dev-server tests are running;
-HMR can invalidate the evidence. No listener on 5197 or libzci cargo/rustc/player
-process was found during packing. No task-owned process needed termination.
+For browser checks, build first, serve `dist/` on a temporary port, use muted
+Chromium/Helium, and stop the preview server afterward. Do not edit generated
+WASM or browser source while an evidence run is active. Preserve ordinary izci
+profiles/grants; this adoption uses the same application origin but has not yet
+migrated queue/library persistence.
 
-The prior user request authorized builds/tests/inspections with audio kept low.
-Use muted Chromium (`--mute-audio`) and low master volume (tests use 0.02) when
-resuming authorized work. Do not start routine builds merely to edit these docs.
-
-Commit coherent milestones, keep `AGENTS.md` small, and preserve the original
-scope. Update the roadmap/readiness evidence as behavior is actually proven.
+Commit coherent A2 slices. Record actual browser interactions and measurements
+in the implementation log; do not infer a closed milestone from typecheck or a
+single short fixture.

@@ -72,11 +72,18 @@ local setup before continuing in a new chat.
 Current work (2026-11-09): M3 is complete for the MVP scope above. Catalog,
 scans, metadata/lyrics/ReplayGain, play counts, artwork and image navigation work
 through both crudes with SQLite/OPFS and muted Chromium evidence. Optional image
-hardening (AVIF/HDR/codec memory accounting) is deferred. The next milestone is
-A2: migrate the existing Svelte shells onto libzci in ownership slices while
-preserving ordinary audio/module playback and the existing browser video path.
-The user's end-to-end completion request authorizes builds, tests and inspections
-with audio kept low; preserve ordinary izci profiles/grants throughout adoption.
+hardening (AVIF/HDR/codec memory accounting) is deferred.
+
+A2 is now **in progress**. The first ownership slice is implemented in the
+Svelte main window: ordinary stream formats (`mp3`, `wav`, `flac`, `ogg`,
+`opus`) use the libzci `WebEngine`, reference Opus/Symphonia providers, bounded
+decode worker and shared audio worklet, routed through the existing audio bus.
+Howler has been removed. Tracker/Hively playback, queue/library/catalog and
+persistence, full ReplayGain ownership, mobile/Oda wiring and the existing
+browser video path remain subsequent slices. See the
+[A2 implementation-log entry](implementation-log.md#2026-11-09-a2-first-slice--ordinary-stream-playback-in-the-svelte-shell).
+Preserve ordinary izci profiles/grants throughout adoption; sound checks use
+muted/low output.
 
 1. Read the [handoff](handoff.md), [roadmap](phases.md) and
    [MVP readiness gate](validation.md#mvp-svelte-adoption-gate) for the current
