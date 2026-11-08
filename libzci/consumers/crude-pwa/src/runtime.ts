@@ -3,7 +3,9 @@ import audioWasm from './generated/libzci_audio_web.wasm?url';
 import type { CommandKind, Snapshot } from './protocol.js';
 import { FileJob } from './file-job.js';
 import type {ProfileState,QueueCommand,RealFileHandle} from './profile-types.js';
-import type {ScanObservation} from './catalog-types.js';
+import type {CatalogOutcome,ScanObservation} from './catalog-types.js';
+import {classify} from './generated/libzci_web.js';
+import {initializeControl} from './control-wasm.js';
 
 export interface Observation {snapshot:Snapshot; stats:Record<string,number>; output:Record<string,number>; disposed:boolean; sourceName?:string; sourceBytes?:number;profile?:ProfileState;access?:string;ownership?:string;scan?:ScanObservation}
 /** Document adapter: activation/AudioContext/MediaSession and worker assembly.
@@ -85,6 +87,28 @@ export class LocalRuntime {
   }
   catalog(operation:string,args:unknown[],request?:string):Promise<unknown>{return this.request({type:'catalog',operation,args},request);}
   async ingest(files:File[],handles:RealFileHandle[]=[],open=true,request?:string):Promise<void> {await this.ensureOutput();await this.request({type:'ingest',files,handles,open},request);this.file=files[0]??this.file;}
+  /** Ordinary Open: images become catalog/viewer inputs without constructing audio
+   * output; playable files retain the existing queue/play path. */
+  async openFiles(files:File[],handles:RealFileHandle[]=[],preferWebCodecs=false):Promise<{images:number[];audio:number}> {
+    if(!files.length||files.length>10000||handles.length&&handles.length!==files.length)throw new Error('Invalid source batch');
+    await this.initialized;await initializeControl();
+    const imageIndexes:number[]=[],audioIndexes:number[]=[];
+    for(const [index,file] of files.entries()) {
+      const header=new Uint8Array(await file.slice(0,32).arrayBuffer());
+      const hint=file.name.split('.').pop()?.toLowerCase()??'';
+      (classify(header,hint)==='image'?imageIndexes:audioIndexes).push(index);
+    }
+    const select=<T>(values:T[],indexes:number[]):T[]=>indexes.map(i=>values[i]!);
+    let images:number[]=[];
+    if(imageIndexes.length) {
+      const imageHandles=handles.length?select(handles,imageIndexes):[];
+      const outcome=await this.catalog('add-files',[select(files,imageIndexes),imageHandles,true]) as CatalogOutcome;
+      images=outcome.media;
+    }
+    if(audioIndexes.length===1&&!imageIndexes.length)await this.load(files[audioIndexes[0]!]!,preferWebCodecs);
+    else if(audioIndexes.length)await this.ingest(select(files,audioIndexes),handles.length?select(handles,audioIndexes):[],true);
+    return {images,audio:audioIndexes.length};
+  }
   async queue(command:QueueCommand,request?:string):Promise<void> {if(['play','next','previous'].includes(command.kind))await this.ensureOutput();await this.request({type:'queue',command},request);}
   async restore():Promise<void> {await this.ensureOutput();await this.request({type:'restore'});}
   startJob(mode:'probe'|'render',verifyUnknown=false,sink?:(bytes:ArrayBuffer)=>Promise<void>):FileJob {

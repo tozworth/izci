@@ -574,6 +574,26 @@ pass with the new local runtime asset.
 device-access smoke remains ignored. The provider-enabled native image-scan
 test and the rebuilt WASM/Chromium image suite pass separately.
 
+Ordinary image opening now uses a content-identified adapter route instead of
+trying to append an image to the music queue. Native Open inspects a bounded
+raster file into the shared catalog, captures an image-navigation sequence and
+hands it to the independent viewer without creating an audio layout or output.
+Browser Open classifies the selected bytes through the shared WASM classifier,
+imports image files through the normal catalog probe/capability path and opens
+the same captured viewer session; image-only batches never construct an
+AudioContext. Mixed batches retain the playable queue path for audio, while
+restorable image handles use the existing catalog capability lifecycle.
+
+Verification: the native controller test opens a real PNG through its ordinary
+path, confirms catalog facts and viewer capture, and reopens the image as an
+image-only Library record with no queue occurrence or output. Muted Chromium
+`npm run test:images` clicks the ordinary Open control with a real PNG and
+asserts zero AudioContext construction, an Idle music session and an empty
+queue before continuing through the existing JXL, rendition, navigation and
+cache scenarios. TypeScript typechecking and the production build pass.
+AVIF, broader non-ICC/HDR color handling, decoder resource hardening and the
+remaining M3 acceptance work stay open.
+
 ## 2026-10-23: M2 persistent queue and installed PWA
 
 

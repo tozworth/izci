@@ -34,12 +34,14 @@ Work was paused and the goal cleared on 2026-11-08. See the
 [handoff](handoff.md) for the checkout, verified checkpoint, outstanding work and
 local setup before continuing in a new chat.
 
-Current work (2026-10-31): M3 catalog/facts, native/browser root enumeration,
+Current work (2026-11-09): M3 catalog/facts, native/browser root enumeration,
 atomic reconciliation, metadata/lyrics/ReplayGain, consumed-media counts,
 artwork, captured image navigation and bounded separate rendition caches work
 through both crudes with SQLite/OPFS and muted Chromium evidence. Shared image
-decoding covers PNG/JPEG/WebP/JPEG XL. AVIF, broader color handling and remaining
-acceptance checks keep M3 open. M4-M6/A1/A2 remain open. The user's
+decoding covers PNG/JPEG/WebP/JPEG XL, and ordinary Open routes images through
+the catalog into the independent viewer without audio output. AVIF, broader
+color handling and remaining acceptance checks keep M3 open. M4-M6/A1/A2 remain
+open. The user's
 end-to-end completion request authorizes builds, tests and inspections with
 audio kept low; preserve ordinary izci profiles/grants throughout adoption.
 

@@ -5,7 +5,7 @@ import {normalizationView} from './normalization-view.js';
 let revision=-1;
 let rendered='';
 const el=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
-export function queueView(o:Observation,runtime:BrowserRuntime,log:(s:string)=>void):void {
+export function queueView(o:Observation,runtime:BrowserRuntime,log:(s:string)=>void,openImage:(media:number)=>Promise<void>):void {
   const send=(command:QueueCommand)=>void runtime.queue(command).catch(e=>log(String(e)));
   el('profile-status').textContent=`Profile ${runtime.profile} · ${o.ownership??'connecting'} · access ${o.access??'none'} · ${o.profile?.revision??'—'}`;
   if(!o.profile)return;const s=o.profile;
@@ -16,7 +16,7 @@ export function queueView(o:Observation,runtime:BrowserRuntime,log:(s:string)=>v
   el('open-handle').onclick=()=>{
     const picker=(globalThis as unknown as {showOpenFilePicker?:(o:unknown)=>Promise<RealFileHandle[]>}).showOpenFilePicker;
     if(!picker){log('Restorable File System Access pickers unavailable; plain File input remains usable');return;}
-    void (async()=>{const handles=await picker({multiple:true});const files=await Promise.all(handles.map(h=>h.getFile()));await runtime.ingest(files,handles);})().catch(e=>log(String(e)));
+    void (async()=>{const handles=await picker({multiple:true});const files=await Promise.all(handles.map(h=>h.getFile()));const opened=await runtime.openFiles(files,handles);if(opened.images.length&&!opened.audio)await openImage(opened.images[0]!);})().catch(e=>log(String(e)));
   };
   el('append-files').onclick=()=>{const files=Array.from(el<HTMLInputElement>('file').files??[]);void runtime.ingest(files,[],false).catch(e=>log(String(e)));};
   el('clear-up-next').onclick=()=>send({kind:'clear_up_next'});

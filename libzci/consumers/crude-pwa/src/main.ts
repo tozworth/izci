@@ -19,6 +19,11 @@ const lines:string[]=[];
 function log(message:string):void {
   lines.push(message);if(lines.length>40) lines.shift();byId('diagnostics').textContent=lines.join('\n');
 }
+async function openImage(media:number):Promise<void> {
+  const row=(await runtime.catalogQuery({collection:'all',kind:'image',media,limit:1})).rows[0];
+  if(!row)throw new Error('Unknown opened image');
+  await images!.open(row,{collection:'all',kind:'image'});
+}
 function table(id:string,rows:[string,unknown][]):void {
   const target=byId(id);target.replaceChildren();
   for(const [name,value] of rows) {
@@ -35,7 +40,7 @@ function create():void {
   runtime.onError=log;
   runtime.onObservation=o=>{
     latest=o;disposed=o.disposed;
-    queueView(o,runtime,log);
+    queueView(o,runtime,log,openImage);
     catalog.observe(o);
     lyrics?.observe(o);
     const s=o.snapshot;
@@ -66,7 +71,7 @@ installPwa(log);
 function run(p:Promise<unknown>):void {void p.catch(e=>log(String(e)));}
 byId('open').onclick=()=>{
   const file=byId<HTMLInputElement>('file').files?.[0];if(!file) {log('Select a media File');return;}
-  run((async()=>{if(disposed){await runtime.close();latest=null;create();}await runtime.load(file,byId<HTMLInputElement>('prefer-webcodecs').checked);})());
+  run((async()=>{if(disposed){await runtime.close();latest=null;create();}const opened=await runtime.openFiles([file],[],byId<HTMLInputElement>('prefer-webcodecs').checked);if(opened.images.length&&!opened.audio)await openImage(opened.images[0]!);})());
 };
 for(const kind of ['play','pause','stop','dispose'] as CommandKind[]) byId(kind).onclick=()=>{
   if(kind==='dispose')for(const job of jobs)job.cancel();run(runtime.command(kind));
@@ -101,6 +106,7 @@ Object.assign(window,{libzci:{load:(file:File)=>runtime.load(file),command:(kind
   snapshot:()=>latest,suspend:()=>runtime.suspend(),resume:()=>runtime.resume(),
   queue:(command:import('./profile-types.js').QueueCommand)=>runtime.queue(command),
   ingest:(files:File[],handles:import('./profile-types.js').RealFileHandle[]=[],open=true)=>runtime.ingest(files,handles,open),
+  openFiles:(files:File[],handles:import('./profile-types.js').RealFileHandle[]=[],prefer=false)=>runtime.openFiles(files,handles,prefer),
   catalogQuery:(query:import('./catalog-types.js').CatalogQuery={})=>runtime.catalogQuery(query),catalogMutate:(command:import('./catalog-types.js').CatalogCommand)=>runtime.catalogMutate(command),catalogRoots:()=>runtime.catalogRoots(),catalogBookmarks:(media:number,subsong:number|null=null)=>runtime.catalogBookmarks(media,subsong),
   catalogGroups:(by:import('./catalog-types.js').CatalogGroupBy,query:import('./catalog-types.js').CatalogQuery={})=>runtime.catalogGroups(by,query),
   catalogLyrics:(media:number)=>runtime.catalogLyrics(media),catalogCancelLyrics:()=>runtime.catalogCancelLyrics(),

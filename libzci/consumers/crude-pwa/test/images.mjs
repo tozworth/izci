@@ -29,6 +29,14 @@ async function job(bytes,request){return page.evaluate(async({bytes,request})=>{
 },{bytes:Array.from(bytes),request});}
 try{
   await page.goto('http://localhost:5197/?profile=images');await page.waitForFunction(()=>!!window.libzci?.snapshot()?.profile);
+  await page.setInputFiles('#file',{name:'ordinary-open.png',mimeType:'image/png',buffer:png(2,3,pixels,6)});
+  await page.click('#open');
+  await page.waitForFunction(()=>{const s=window.libzci.imageSnapshot();return !!s?.media&&document.querySelector('#image-stage')?.hidden===false;});
+  const ordinaryOpen=await page.evaluate(()=>({snapshot:window.libzci.snapshot(),image:window.libzci.imageSnapshot(),caption:document.querySelector('#image-caption')?.textContent}));
+  assert.equal(ordinaryOpen.snapshot.snapshot.state,'Idle');assert.equal(ordinaryOpen.snapshot.profile.queue.items.length,0);assert.equal(ordinaryOpen.image.count,1);assert.equal(await page.evaluate(()=>window.outputs),0);assert.match(ordinaryOpen.caption,/1 \/ 1/);
+  await page.click('#image-close');
+  results.push({test:'ordinary Open routes a content-identified image into the catalog and independent viewer without queue mutation or AudioContext construction'});
+
   const jxlBytes=await readFile(path.join(root,'libzci/crates/libzci/tests/fixtures/lossless.jxl')),jxl=await job(jxlBytes,{kind:'image',spec:{max_edge:128}});
   assert.equal(jxl.facts.mime,'image/jxl');assert.equal(jxl.facts.bits_per_pixel,32);assert.deepEqual([jxl.rendition.width,jxl.rendition.height],[128,128]);
   for(let y=0;y<128;y++)for(let x=0;x<128;x++)for(const [channel,value]of [y,100,200,255].entries())assert(Math.abs(jxl.pixels[(y*128+x)*4+channel]-value)<=1);

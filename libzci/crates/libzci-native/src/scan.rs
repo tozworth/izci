@@ -152,11 +152,7 @@ fn inspect(
     let prefix = source.len().unwrap_or(32).min(32) as usize;
     source.read_exact_at(0, &mut header[..prefix], cancel)?;
     let (kind, metadata) = if known && libzci::artwork::raster_mime(&header[..prefix]).is_some() {
-        let facts = libzci::images::inspect_image(source.as_ref(), cancel)?;
-        (
-            MediaKind::Image,
-            Metadata::from_image(facts, &reference.display_path)?,
-        )
+        return crate::images::inspect_native_image(path, cancel).map(Some);
     } else {
         let inspection = match registry.inspect(source, Some(&hint), verify_unknown, cancel) {
             Ok(facts) => facts,

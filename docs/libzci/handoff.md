@@ -42,9 +42,9 @@ access and current revisions before serving cached pixels.
 ## Remaining work and caveats
 
 1. Finish M3 acceptance, including AVIF, broader non-ICC/HDR color handling,
-   decoder resource budgets, and ordinary image-open routing. Ordinary music
-   Open currently rejects images; catalog viewing and the native standalone
-   preview work. Do not count these as equivalent workflows.
+   and decoder resource budgets. Ordinary Open now content-routes images into
+   the catalog and independent viewer in both crudes; catalog-only viewing is
+   no longer the only path.
 2. JPEG XL uses pinned `jxl` 0.8.0, first-frame still previews and straight-alpha
    8-bit output; CMYK is explicitly unsupported. Codestream orientation and
    reported output ICC pass a pinned orientation-5/BRG reference case. This is

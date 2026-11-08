@@ -87,7 +87,7 @@ export class BrowserRuntime {
   }
   private async execute(action:string,args:any[],request?:string):Promise<unknown> {
     const r=this.local;if(!r)throw new Error('No owner');
-    switch(action){case 'catalog':return r.catalog(args[0],args[1],request);case 'load':return r.load(args[0],args[1],request);case 'ingest':return r.ingest(args[0],args[1],args[2],request);case 'command':return r.command(args[0],args[1],request);case 'queue':return r.queue(args[0],request);case 'restore':return r.restore();case 'suspend':return r.suspend();case 'resume':return r.resume();case 'job':return r.startJob(args[0],args[1]).result;case 'cancelJobs':return r.cancelJobs();default:throw new Error('Unknown owner request');}
+    switch(action){case 'catalog':return r.catalog(args[0],args[1],request);case 'load':return r.load(args[0],args[1],request);case 'ingest':return r.ingest(args[0],args[1],args[2],request);case 'openFiles':return r.openFiles(args[0],args[1],args[2]);case 'command':return r.command(args[0],args[1],request);case 'queue':return r.queue(args[0],request);case 'restore':return r.restore();case 'suspend':return r.suspend();case 'resume':return r.resume();case 'job':return r.startJob(args[0],args[1]).result;case 'cancelJobs':return r.cancelJobs();default:throw new Error('Unknown owner request');}
   }
   private async request(action:string,args:unknown[]=[]):Promise<any> {
     await this.connected;
@@ -99,6 +99,7 @@ export class BrowserRuntime {
   }
   load(file:File,prefer=false):Promise<void> {return this.request('load',[file,prefer]);}
   ingest(files:File[],handles:RealFileHandle[]=[],open=true):Promise<void> {return this.request('ingest',[files,handles,open]);}
+  openFiles(files:File[],handles:RealFileHandle[]=[],preferWebCodecs=false):Promise<{images:number[];audio:number}> {return this.request('openFiles',[files,handles,preferWebCodecs]);}
   command(kind:CommandKind,value=0):Promise<void> {return this.request('command',[kind,value]);}
   queue(command:QueueCommand):Promise<void> {return this.request('queue',[command]);}
   catalogQuery(query:CatalogQuery={}):Promise<CatalogPage>{return this.request('catalog',['query',[query]]);}

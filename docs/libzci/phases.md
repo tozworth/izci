@@ -263,8 +263,9 @@ browser capability recovery, owner handoff and offline launch scans. Shared
 metadata/lyrics/ReplayGain and consumed-media counts are implemented. Bounded
 artwork/image jobs, previews, image catalog imports/scans, captured image
 navigation and separate rendition caching are verified in both crudes.
-PNG/JPEG/WebP/JPEG XL previews are implemented. AVIF, broader color handling,
-codec resource hardening and remaining acceptance work are open. See the
+PNG/JPEG/WebP/JPEG XL previews and ordinary image-open routing are implemented.
+AVIF, broader color handling, codec resource hardening and remaining acceptance
+work are open. See the
 current implementation log.
 
 **Deliverable:** both crudes build/reopen a useful media library with working

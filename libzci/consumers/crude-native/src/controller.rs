@@ -1,4 +1,5 @@
 //! Consumer assembly/jobs. Domain and transport decisions remain in libzci.
+use libzci::catalog::{CatalogCommand, CatalogQuery, Collection, MediaKind};
 use libzci::*;
 use libzci_native::{
     probe::ProbeJob,
@@ -29,6 +30,7 @@ pub struct Controller {
     pub inspection: Option<Inspection>,
     pub render: Option<(CancelFlag, Receiver<Result<u64>>)>,
     pub render_status: String,
+    pending_image_open: Option<(libzci::images::ImageSequence, u64)>,
 }
 impl Controller {
     pub fn new() -> Self {
@@ -85,10 +87,15 @@ impl Controller {
             inspection: None,
             render: None,
             render_status: String::new(),
+            pending_image_open: None,
         }
     }
     pub fn open(&mut self, path: &Path) {
+        self.pending_image_open = None;
         let result = (|| -> Result<()> {
+            if native_header_is_image(path)? {
+                return self.open_image(path);
+            }
             self.profile.append_paths(&[path.to_path_buf()])?;
             let id = self.profile.core.snapshot().queue.items.last().unwrap().id;
             let outcome = self
@@ -99,6 +106,29 @@ impl Controller {
             self.load_occurrence(load)
         })();
         self.record(result);
+    }
+    fn open_image(&mut self, path: &Path) -> Result<()> {
+        let media = libzci_native::images::inspect_native_image(path, &CancelFlag::default())?;
+        let outcome = self
+            .profile
+            .catalog_request(CatalogCommand::Add { media: vec![media] }, None)?;
+        let id = outcome
+            .media
+            .first()
+            .copied()
+            .ok_or_else(|| LibzciError::Unavailable {
+                detail: "catalog did not return the opened image".into(),
+            })?;
+        let sequence = self.profile.image_sequence(&CatalogQuery {
+            collection: Collection::All,
+            kind: Some(MediaKind::Image),
+            ..Default::default()
+        })?;
+        self.pending_image_open = Some((sequence, id));
+        Ok(())
+    }
+    pub fn take_image_open(&mut self) -> Option<(libzci::images::ImageSequence, u64)> {
+        self.pending_image_open.take()
     }
     pub fn append(&mut self, paths: &[std::path::PathBuf]) {
         let result = self.profile.append_paths(paths).map(|_| ());
@@ -438,6 +468,15 @@ impl Controller {
         }
     }
 }
+fn native_header_is_image(path: &Path) -> Result<bool> {
+    use libzci::RuntimeSource;
+    let source = NativeFileSource::open(path)?;
+    let mut header = [0; 32];
+    let length = source.len().unwrap_or(32).min(32) as usize;
+    source.read_exact_at(0, &mut header[..length], &CancelFlag::default())?;
+    Ok(libzci::artwork::raster_mime(&header[..length]).is_some())
+}
+
 impl Drop for Controller {
     fn drop(&mut self) {
         self.save_position();

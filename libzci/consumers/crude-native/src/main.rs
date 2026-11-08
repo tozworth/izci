@@ -74,6 +74,7 @@ impl App {
             queue_view::draw(ui,&mut self.controller);
             self.catalog.draw(ui,&mut self.controller);
             if let Some((sequence,media))=self.catalog.take_image_open(){self.images.open(sequence,media,&mut self.controller);}
+            if let Some((sequence,media))=self.controller.take_image_open(){self.images.open(sequence,media,&mut self.controller);}
             self.images.draw(ui,&mut self.controller);
             self.lyrics.draw(ui,&mut self.controller);
             self.artwork.draw(ui,&self.controller);
@@ -253,6 +254,60 @@ mod tests {
         }
         std::fs::remove_dir_all(dir).unwrap();
     }
+    #[test]
+    fn ordinary_open_routes_images_to_catalog_viewer_without_queue_or_output() {
+        let dir = std::env::temp_dir().join(format!(
+            "libzci-controller-image-open-{}",
+            RequestId::fresh().0
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../crates/libzci-native/tests/fixtures/cache-source.png");
+        let source = dir.join("ordinary-open.png");
+        std::fs::copy(fixture, &source).unwrap();
+        let profile = dir.join("profile");
+        {
+            let mut c = Controller::with_profile(&profile).unwrap();
+            c.open(&source);
+            assert!(c.error.is_empty(), "{}", c.error);
+            assert!(c.profile.core.snapshot().queue.items.is_empty());
+            assert!(c.snapshot().layout.is_none());
+            assert!(c.output().is_none());
+            let (sequence, media) = c.take_image_open().expect("image route");
+            assert_eq!(sequence.media, vec![media]);
+            let row = c
+                .profile
+                .catalog_query(&libzci::catalog::CatalogQuery {
+                    collection: libzci::catalog::Collection::All,
+                    kind: Some(libzci::catalog::MediaKind::Image),
+                    media: Some(media),
+                    limit: 1,
+                    ..Default::default()
+                })
+                .unwrap()
+                .rows
+                .pop()
+                .unwrap();
+            assert_eq!(row.kind, libzci::catalog::MediaKind::Image);
+            assert_eq!(row.metadata.image.as_ref().unwrap().mime, "image/png");
+            assert_eq!(row.facts.play_count, 0);
+        }
+        {
+            let mut c = Controller::with_profile(&profile).unwrap();
+            let page = c
+                .profile
+                .catalog_query(&libzci::catalog::CatalogQuery {
+                    collection: libzci::catalog::Collection::All,
+                    kind: Some(libzci::catalog::MediaKind::Image),
+                    ..Default::default()
+                })
+                .unwrap();
+            assert_eq!(page.total, 1);
+            assert!(c.profile.core.snapshot().queue.items.is_empty());
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn headless_egui_draw_and_public_controller_jobs() {
         let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))

@@ -1,6 +1,7 @@
 //! Native scheduling for shared visual work. No SQL or audio session ownership.
 use crate::{NativeFileSource, NativeRuntime};
 use libzci::{
+    catalog::{MediaInput, MediaKind, Metadata},
     images::{run_image_job, ImageJobRequest, ImageJobResult},
     *,
 };
@@ -11,6 +12,40 @@ use std::{
         Arc,
     },
 };
+/// Inspect one native raster path into a catalog input without opening audio
+/// output or retaining the encoded source. Shared image limits/facts remain
+/// authoritative; the adapter only supplies a live file source and revision.
+pub fn inspect_native_image(path: &Path, cancel: &CancelFlag) -> Result<MediaInput> {
+    cancel.check()?;
+    let reference = crate::source::native_reference(path)?;
+    let source = Arc::new(NativeFileSource::open(Path::new(&reference.locator))?);
+    let revision = source.revision_key();
+    let mut header = [0; 32];
+    let prefix = source.len().unwrap_or(32).min(32) as usize;
+    source.read_exact_at(0, &mut header[..prefix], cancel)?;
+    if libzci::artwork::raster_mime(&header[..prefix]).is_none() {
+        return Err(LibzciError::Unsupported {
+            detail: "ordinary Open did not identify a raster image".into(),
+        });
+    }
+    let facts = libzci::images::inspect_image(source.as_ref(), cancel)?;
+    let after = NativeFileSource::open(Path::new(&reference.locator))?;
+    if after.revision_key() != revision {
+        return Err(LibzciError::Unavailable {
+            detail: format!(
+                "source changed during image inspection: {}",
+                reference.display_path
+            ),
+        });
+    }
+    Ok(MediaInput {
+        source: reference.clone(),
+        source_revision: revision,
+        kind: MediaKind::Image,
+        metadata: Metadata::from_image(facts, &reference.display_path)?,
+    })
+}
+
 pub struct ImageJob {
     cancel: CancelFlag,
     result: Receiver<Result<ImageJobResult>>,
