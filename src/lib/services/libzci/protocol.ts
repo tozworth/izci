@@ -9,6 +9,17 @@ export interface CoreTag {
   generation: number;
 }
 
+export interface CoreModuleObservation {
+  selected_subsong: number;
+  order: number;
+  pattern: number;
+  row: number;
+  first_row: number;
+  rows: number;
+  channels: number;
+  cells: number[][];
+}
+
 export interface CoreSnapshot {
   session: number;
   revision: number;
@@ -28,6 +39,9 @@ export interface CoreSnapshot {
   pending_operation: boolean;
   error: string | null;
   tag: CoreTag;
+  subsong?: number | null;
+  capabilities?: Record<string, number | boolean>;
+  module?: CoreModuleObservation | null;
 }
 
 export interface CoreFacts {
@@ -37,7 +51,7 @@ export interface CoreFacts {
   total: number | null;
   comments: Array<[string, string]>;
   capabilities: Record<string, number | boolean>;
-  module: unknown;
+  module: CoreModuleObservation | null;
   applied?: Record<string, boolean>;
   normalization_points?: Array<{ source_frame: number; tags: Record<string, unknown> }>;
 }

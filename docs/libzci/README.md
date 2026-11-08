@@ -74,14 +74,16 @@ scans, metadata/lyrics/ReplayGain, play counts, artwork and image navigation wor
 through both crudes with SQLite/OPFS and muted Chromium evidence. Optional image
 hardening (AVIF/HDR/codec memory accounting) is deferred.
 
-A2 is now **in progress**. The first ownership slice is implemented in the
-Svelte main window: ordinary stream formats (`mp3`, `wav`, `flac`, `ogg`,
-`opus`) use the libzci `WebEngine`, reference Opus/Symphonia providers, bounded
-decode worker and shared audio worklet, routed through the existing audio bus.
-Howler has been removed. Tracker/Hively playback, queue/library/catalog and
-persistence, full ReplayGain ownership, mobile/Oda wiring and the existing
-browser video path remain subsequent slices. See the
-[A2 implementation-log entry](implementation-log.md#2026-11-09-a2-first-slice--ordinary-stream-playback-in-the-svelte-shell).
+A2 is now **in progress**. Ordinary streams (`mp3`, `wav`, `flac`, `ogg`,
+`opus`) and OpenMPT tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) use the
+libzci `WebEngine`, reference Opus/Symphonia/modules-reference providers,
+bounded decode worker and shared audio worklet, routed through the existing
+audio bus. Howler has been removed; the old OpenMPT audio transport is
+superseded (its inspection worker remains for full pattern songs). Hively
+playback, queue/library/catalog and persistence, full ReplayGain ownership,
+mobile/Oda wiring and the existing browser video path remain subsequent
+slices. See the
+[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-second-slice--openmpt-tracker-playback-in-the-svelte-shell).
 Preserve ordinary izci profiles/grants throughout adoption; sound checks use
 muted/low output.
 

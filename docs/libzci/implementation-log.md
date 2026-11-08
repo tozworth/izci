@@ -1,5 +1,70 @@
 # libzci implementation log
 
+## 2026-11-09: A2 second slice — OpenMPT tracker playback in the Svelte shell
+
+Status: **implemented; unit/build/smoke checks passed, full UI playback pending**.
+Hively (`ahx`, `hvl`), queue/library/catalog persistence, full ReplayGain
+ownership, playback-rate, mobile/Oda and native/SAF adoption remain open.
+This slice does not close A2.
+
+The production main window now routes OpenMPT tracker modules (`mod`, `xm`,
+`s3m`, `it`, `mo3` and other libopenmpt extensions) through the libzci
+`WebEngine`, the shared modules-reference provider, the bounded decode worker
+and the shared audio-only worklet:
+
+- `playback.worker.ts` now opens `module`/`hively` kinds via a new
+  `moduleBackend` modeled on the crude `browser-providers` assembly
+  (64 MiB cap, stepped probe, retained interpolation/ramping/speed/pitch/
+  loops/channel controls, seek reapply, cancellable 32 KiB reads). Subsong
+  selection applies before the initial seek. Module `control` actions rebuild
+  the generation-scoped `WebPreparation`, refresh `opened_facts`/`observed`
+  and re-anchor the worklet, so retained PCM cannot cross the control boundary.
+  Live order/pattern/row observations refresh on each published snapshot.
+- `protocol.ts`/`snapshot.ts` carry the core `subsong`, `capabilities` and
+  `module` observation into the Svelte facade. `mapCoreSnapshot` now reports
+  `backend: 'module'` for `org.openmpt.libopenmpt`/`hivelytracker.replay`
+  providers with `subsong`/`subsongCount`; `mapModulePosition` exposes the
+  live order/pattern/row.
+- New `LibzciModulePlayerService` owns OpenMPT transport in the Svelte shell.
+  It drives the shared worker/worklet through the existing audio-bus route
+  (transition gain, visualizer analyser, Media Session anchor preserved),
+  maps module comments/capabilities to `TrackMetadata` (title/artist/tracker/
+  message, subsongs, channels, duration), steps subsongs via core `subsong`
+  commands, applies interpolation/ramping/tempo/pitch/loops/channel-mute
+  settings with capability-gated warnings, and loads full pattern songs via
+  the legacy inspection worker (no second audio player) while live position
+  comes from core. Infinite repeat maps to 16 loops and stereo
+  separation/pan remain explicit shell-side gaps with warnings.
+- `player-controller.ts` routes `module` kinds through the new libzci service;
+  `hively` kinds remain on the legacy `HivelyPlayerService` in this slice and
+  video stays on the native `<video>` path. The old `ModulePlayerService`
+  transport is superseded for OpenMPT but its inspection utilities remain for
+  pattern songs.
+
+Verification on Windows x64 (muted/headless where browser runs):
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm test`: 229 files / 1,457 tests passed (includes new module snapshot
+  mapping and updated controller characterization for the libzci module path).
+- `npm run build`: passed; PWA precache 172 entries (was 171), including
+  emitted `modules-reference` WASM alongside `libzci_web_bg`,
+  `libzci_audio_web` and `opus-reference` WASM.
+- Production `dist/` preview on a temporary local port in muted headless
+  Chromium: page loads as `izci`, no page/console errors.
+- The Svelte worker module backend reuses the exact crude `modules-reference`
+  assembly/probe/control/fact mapping already covered by muted Chromium M1
+  output checks (`tone.mod/xm/s3m/it/mo3`, interpolation/channel-mute/subson
+  g/speed/pitch/loops, pause/seek/EOF). Direct Svelte-UI file-input playback
+  measurements for modules remain follow-up evidence; this slice does not
+  claim them.
+
+Not yet evidenced/implemented: Hively migration to the Svelte bridge, video
+ownership migration, queue/library/catalog and persistence adoption, full
+normalization ownership, stream/module playback-rate, mobile/Oda wiring,
+real FSA/native/SAF checks through the adopted bridge, and shared-runtime
+extraction from the crude consumer. Physical Android/background and GNU/Linux
+remain post-MVP evidence.
+
 ## 2026-11-09: MVP rescope
 
 The user set the MVP goal to **Svelte adoption plus playback of most existing

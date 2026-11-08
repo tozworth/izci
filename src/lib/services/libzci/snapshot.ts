@@ -27,12 +27,36 @@ export function mapCoreState(state: CoreSnapshot['state']): PlaybackSnapshot['st
   }
 }
 
-export function mapCoreSnapshot(core: CoreSnapshot): Pick<PlaybackSnapshot, 'state' | 'currentTime' | 'duration' | 'backend' | 'error'> {
+export function mapCoreSnapshot(
+  core: CoreSnapshot,
+  kind: 'stream' | 'module' = 'stream'
+): Pick<PlaybackSnapshot, 'state' | 'currentTime' | 'duration' | 'backend' | 'error' | 'subsong' | 'subsongCount'> {
+  const providerId = core.provider?.id ?? '';
+  const backend = kind === 'module' || providerId === 'org.openmpt.libopenmpt' || providerId === 'hivelytracker.replay'
+    ? 'module'
+    : 'stream';
+  const subsongCount = typeof core.capabilities?.['subsongs'] === 'number'
+    ? Math.max(1, Math.trunc(core.capabilities['subsongs'] as number))
+    : undefined;
+  const subsong = typeof core.subsong === 'number' && Number.isFinite(core.subsong)
+    ? Math.max(0, Math.trunc(core.subsong))
+    : undefined;
   return {
     state: mapCoreState(core.state),
     currentTime: coreTimeSeconds(core.position_frames, core.sample_rate),
     duration: core.total_frames === null ? 0 : coreTimeSeconds(core.total_frames, core.sample_rate),
-    backend: 'stream',
-    error: core.error ?? undefined
+    backend,
+    error: core.error ?? undefined,
+    ...(subsong !== undefined ? { subsong } : {}),
+    ...(subsongCount !== undefined && backend === 'module' ? { subsongCount } : {})
+  };
+}
+
+export function mapModulePosition(core: CoreSnapshot): { order: number; pattern: number; row: number } | null {
+  if (!core.module) return null;
+  return {
+    order: Math.max(0, Math.trunc(core.module.order)),
+    pattern: Math.max(0, Math.trunc(core.module.pattern)),
+    row: Math.max(0, Math.trunc(core.module.row))
   };
 }

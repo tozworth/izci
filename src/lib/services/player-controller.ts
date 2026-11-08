@@ -1,10 +1,10 @@
 import { writable } from 'svelte/store';
 import { audioBusService } from '$lib/services/audio-bus';
 import { HivelyPlayerService } from '$lib/services/ahx-player';
+import { LibzciModulePlayerService } from '$lib/services/libzci/module-player';
 import { LibzciStreamPlayerService } from '$lib/services/libzci/stream-player';
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import { mediaSessionService } from '$lib/services/media-session';
-import { ModulePlayerService } from '$lib/services/module-player';
 import { createPatternChannelControls } from '$lib/services/pattern-channel-controls';
 import { patternChannelMemory } from '$lib/stores/pattern-channel-memory';
 import { loadTrackMetadata } from '$lib/services/stream-artwork';
@@ -47,7 +47,7 @@ interface PlaybackBundle {
   snapshot: PlaybackSnapshot;
   transitionGain: number;
   stream: LibzciStreamPlayerService;
-  module: ModulePlayerService;
+  module: LibzciModulePlayerService;
   hively: HivelyPlayerService;
   video: VideoPlayerService;
 }
@@ -231,7 +231,7 @@ function createPlayerController() {
       (metadata) => updateBundleMetadata(bundle, metadata),
       () => handleBundleEnded(bundle)
     );
-    bundle.module = new ModulePlayerService(
+    bundle.module = new LibzciModulePlayerService(
       (partial) => updateBundleSnapshot(bundle, partial),
       (metadata) => updateBundleMetadata(bundle, metadata),
       (partial) => updateBundlePattern(bundle, partial),

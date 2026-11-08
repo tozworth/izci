@@ -9,6 +9,8 @@ import init, {
 } from '../../../../libzci/consumers/crude-pwa/src/generated/libzci_web.js';
 import createCodec from '../../../../libzci/consumers/crude-pwa/src/generated/opus-reference.js';
 import codecWasm from '../../../../libzci/consumers/crude-pwa/src/generated/opus-reference.wasm?url';
+import createModules from '../../../../libzci/consumers/crude-pwa/src/generated/modules-reference.js';
+import moduleWasm from '../../../../libzci/consumers/crude-pwa/src/generated/modules-reference.wasm?url';
 import {
   BLOCK_FRAMES,
   POOL_SIZE,
@@ -23,6 +25,7 @@ interface DecoderBackend {
   position(): number;
   read(): Float32Array | Promise<Float32Array>;
   seek(target: number): Promise<void>;
+  control?(kind: string, value: number): Promise<void>;
   close(): void;
   interrupt?(): void;
 }
@@ -238,15 +241,163 @@ async function opusBackend(id: number, file: File): Promise<DecoderBackend> {
   };
 }
 
-async function openBackend(file: File, startSeconds: number): Promise<DecoderBackend> {
+let modules: any = null;
+
+async function moduleBackend(id: number, file: File, kind: string): Promise<DecoderBackend> {
+  if (file.size > 64 * 1024 * 1024) throw { kind: 'resource-exhausted', detail: 'Module exceeds 64 MiB' };
+  const instance = (modules ??= await createModules({ locateFile: () => new URL(moduleWasm, import.meta.url).href }));
+  checkCancelled();
+  const input = instance._malloc(file.size);
+  if (!input) throw { kind: 'resource-exhausted', detail: 'module buffer allocation' };
+  let handle = 0;
+  let pointer = 0;
+  try {
+    for (let offset = 0; offset < file.size; offset += 32768) {
+      checkCancelled();
+      const data = readBytes(offset, Math.min(32768, file.size - offset));
+      if (!data.length) throw { kind: 'source-access', detail: 'Module File became unavailable' };
+      instance.HEAPU8.set(data, input + offset);
+      if (offset % 524288 === 0) await yieldTask();
+    }
+    handle = instance._zcm_create(input, file.size, Number(kind === 'hively'));
+    if (!handle) throw { kind: 'corrupt', detail: 'Module could not be opened' };
+  } finally {
+    instance._free(input);
+  }
+  const probe = async (): Promise<void> => {
+    for (;;) {
+      checkCancelled();
+      const step = instance._zcm_probe_step(handle);
+      if (step < 0) throw { kind: step === -2 ? 'resource-exhausted' : 'corrupt', detail: 'Module duration exceeded finite scan limit' };
+      if (step === 1) break;
+      await yieldTask();
+    }
+  };
+  try {
+    await probe();
+    pointer = instance._malloc(4096 * 8);
+    if (!pointer) throw { kind: 'resource-exhausted', detail: 'module decode buffer' };
+  } catch (error) {
+    try { instance._zcm_close(handle); } catch { /* best effort */ }
+    throw error;
+  }
+  const fact = (key: number): number => Math.max(0, instance._zcm_fact(handle, key));
+  const parameters = ['subsong', 'interpolation', 'ramping', 'speed', 'pitch', 'loops', 'channel-mute', 'channel-unmute'];
+  const retained = new Map<string, { kind: string; value: number }>();
+  const apply = (controlKind: string, value: number): void => {
+    if (instance._zcm_control(handle, parameters.indexOf(controlKind), value) !== 1) {
+      throw { kind: 'unsupported', detail: `Module control rejected: ${controlKind}` };
+    }
+  };
+  const textDecoder = new TextDecoder();
+  const readText = (key: number): string => {
+    try {
+      const pointer = instance._zcm_text(handle, key);
+      return pointer ? instance.UTF8ToString(pointer) : '';
+    } catch {
+      return '';
+    }
+  };
+  return {
+    facts: () => {
+      const channels = Math.min(32, fact(1));
+      const row = fact(4);
+      const first = Math.max(0, row - 4);
+      const rows = Math.min(16, Math.max(0, fact(6) - first));
+      const cells: number[][] = [];
+      for (let r = first; r < first + rows; r += 1) {
+        for (let channel = 0; channel < channels; channel += 1) {
+          cells.push(Array.from({ length: 6 }, (_, command) => instance._zcm_cell(handle, r, channel, command)));
+        }
+      }
+      const isHively = kind === 'hively';
+      const comments: Array<[string, string]> = isHively
+        ? [['title', readText(0)]]
+        : (['title', 'type', 'tracker', 'artist', 'message'] as const).map((key, index) => [key, readText(index)] as [string, string]);
+      return {
+        provider: {
+          id: isHively ? 'hivelytracker.replay' : 'org.openmpt.libopenmpt',
+          name: isHively ? 'HivelyTracker' : 'libopenmpt',
+          version: isHively ? 'hivelytracker-f393ca7/m1' : 'libopenmpt-0.8.4/m1'
+        },
+        rate: 48_000,
+        channels: 2,
+        total: instance._zcm_total(handle),
+        comments,
+        capabilities: {
+          subsongs: fact(0),
+          channels: fact(1),
+          interpolation: true,
+          channel_mute: Boolean(fact(9)),
+          ramping: kind === 'module',
+          speed: Boolean(fact(7)),
+          pitch: Boolean(fact(8)),
+          loop_limit: kind === 'module',
+          patterns: true
+        },
+        module: {
+          selected_subsong: fact(2),
+          order: fact(3),
+          pattern: fact(5),
+          row,
+          first_row: first,
+          rows,
+          channels,
+          cells
+        },
+        applied: { trimmed_preskip: false, trimmed_end: false, applied_header_gain: false }
+      };
+    },
+    position: () => instance._zcm_position(handle),
+    read: () => {
+      const frames = instance._zcm_read(handle, pointer, 4096);
+      if (frames < 0) throw { kind: 'decoder-failure', detail: 'module render failed' };
+      return instance.HEAPF32.slice(pointer / 4, pointer / 4 + frames * 2);
+    },
+    seek: async (target) => {
+      for (;;) {
+        checkCancelled();
+        const step = instance._zcm_seek_step(handle, target);
+        if (step < 0) throw { kind: 'decoder-failure', detail: 'module seek failed' };
+        if (step === 1) break;
+        await yieldTask();
+      }
+      for (const control of retained.values()) apply(control.kind, control.value);
+    },
+    control: async (controlKind, value) => {
+      checkCancelled();
+      apply(controlKind, value);
+      if (controlKind === 'subsong') {
+        await probe();
+        return;
+      }
+      const key = controlKind.startsWith('channel-') ? `channel-${value}` : controlKind;
+      retained.set(key, { kind: controlKind, value });
+    },
+    close: () => {
+      try { if (pointer) instance._free(pointer); } catch { /* best effort */ }
+      try { if (handle) instance._zcm_close(handle); } catch { /* best effort */ }
+    },
+    interrupt: () => undefined
+  };
+}
+
+async function openBackend(file: File, startSeconds: number, subsong: number | null = null): Promise<DecoderBackend> {
   const id = nextSourceId++;
   source = { file, id, error: null, reads: 0 };
   const hint = file.name.split('.').pop()?.toLowerCase() ?? '';
   const kind = classify(readBytes(0, 8192), hint);
-  if (kind !== 'ordinary' && kind !== 'opus') {
-    throw { kind: 'unsupported', detail: kind === 'module' || kind === 'hively' ? 'Tracker playback is not yet on the Svelte libzci bridge' : 'No ordinary-audio provider claimed this File' };
+  if (kind !== 'ordinary' && kind !== 'opus' && kind !== 'module' && kind !== 'hively') {
+    throw { kind: 'unsupported', detail: 'No provider claimed this File' };
   }
-  const backend = kind === 'opus' ? await opusBackend(id, file) : ordinaryBackend(id, file);
+  const backend = kind === 'opus'
+    ? await opusBackend(id, file)
+    : kind === 'ordinary'
+      ? ordinaryBackend(id, file)
+      : await moduleBackend(id, file, kind);
+  if (subsong !== null && subsong !== undefined && backend.control) {
+    await backend.control('subsong', subsong);
+  }
   const facts = backend.facts();
   if (startSeconds > 0 && facts.total !== 0) {
     const target = Math.min(facts.total ?? Number.POSITIVE_INFINITY, Math.round(startSeconds * facts.rate));
@@ -273,6 +424,18 @@ function closeCurrent(): void {
 
 function publish(force = false): void {
   if (!web) return;
+  const active = current;
+  if (active && !active.cancelled) {
+    try {
+      const latest = active.backend.facts();
+      active.facts = latest;
+      if (latest.module) {
+        web.observed(tagString(active.tag), JSON.stringify(latest.module));
+      }
+    } catch {
+      // Observation refresh is best effort; transport snapshots remain authoritative.
+    }
+  }
   const core = snapshot();
   const now = performance.now();
   if (!force && core.revision === lastPublishedRevision && now - lastPublishedAt < 100) return;
@@ -319,15 +482,20 @@ function waitForAnchor(value: number): Promise<void> {
   });
 }
 
-async function performOpen(action: { tag: Tag; start_seconds?: number }, file: File, startSeconds: number): Promise<void> {
+async function performOpen(action: { tag: Tag; start_seconds?: number; subsong?: number | null }, file: File, startSeconds: number): Promise<void> {
   closeCurrent();
   endedPublished = false;
-  const backend = await openBackend(file, startSeconds);
+  const requestedSubsong = action.subsong ?? null;
+  const requestedStart = action.start_seconds ?? startSeconds;
+  const backend = await openBackend(file, requestedStart, requestedSubsong);
   const facts = backend.facts();
   const position = backend.position();
   if (!web!.opened_facts(tagString(action.tag), JSON.stringify(facts), position)) {
     backend.close();
     return;
+  }
+  if (facts.module) {
+    try { web!.observed(tagString(action.tag), JSON.stringify(facts.module)); } catch { /* best effort */ }
   }
   const preparation = WebPreparation.for_layout(facts.rate, facts.channels, outputRate, action.tag.generation);
   current = { tag: action.tag, backend, facts, preparation, sourceEof: false, eofSent: false, cancelled: false };
@@ -363,6 +531,32 @@ async function performSeek(action: { tag: Tag; frame?: number }): Promise<void> 
   void drive();
 }
 
+async function performModule(action: { tag: Tag; control: { kind: string; value: number }; frame?: number }): Promise<void> {
+  const active = current;
+  if (!active || !active.backend.control) throw { kind: 'cancelled', detail: 'module not loaded' };
+  current = null;
+  active.sourceEof = false;
+  active.eofSent = false;
+  await active.backend.control(action.control.kind, action.control.value);
+  const facts = active.backend.facts();
+  active.facts = facts;
+  active.preparation.free();
+  active.preparation = WebPreparation.for_layout(facts.rate, facts.channels, outputRate, action.tag.generation);
+  current = active;
+  active.tag = action.tag;
+  const position = active.backend.position();
+  if (!web!.opened_facts(tagString(action.tag), JSON.stringify(facts), position)) return;
+  if (facts.module) {
+    try { web!.observed(tagString(action.tag), JSON.stringify(facts.module)); } catch { /* best effort */ }
+  }
+  generation = action.tag.generation;
+  control?.postMessage({ type: 'anchor', generation, position });
+  await waitForAnchor(generation);
+  syncOutput();
+  publish(true);
+  void drive();
+}
+
 function runCommand(kind: string, value: number): any {
   if (!web) throw new Error('Engine not initialized');
   const response = JSON.parse(web.command(kind, value));
@@ -377,6 +571,8 @@ async function settleActions(response: any, file: File | null, autoPlay: boolean
       await performOpen(action, file, startSeconds);
     } else if (action.kind === 'seek') {
       await performSeek(action);
+    } else if (action.kind === 'module') {
+      await performModule(action);
     } else if (action.kind === 'close') {
       closeCurrent();
     }
