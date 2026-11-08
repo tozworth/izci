@@ -1,6 +1,65 @@
 # libzci implementation log
 
-## 2026-11-09: A2 second slice — OpenMPT tracker playback in the Svelte shell
+## 2026-11-09: A2 third slice — Hively playback in the Svelte shell
+
+Status: **implemented; unit/build/headless-UI checks passed**. Queue/library/
+catalog persistence, full ReplayGain ownership, playback-rate, mobile/Oda and
+native/SAF adoption remain open. This slice does not close A2.
+
+The production main window now routes Hively tracker modules (`ahx`, `hvl`)
+through the libzci `WebEngine` alongside ordinary streams and OpenMPT modules:
+
+- `LibzciModulePlayerService` accepts `ahx`/`hvl` through the shared
+  modules-reference provider in the existing `playback.worker.ts` bridge
+  (stepped probe, 64 MiB cap, cancellable 32 KiB reads, generation-scoped
+  `WebPreparation`, subsong selection before initial seek). The legacy
+  `HivelyPlayerService` audio transport is superseded; `player-controller.ts`
+  routes every `module` kind through the libzci service and no longer owns a
+  second Hively worklet path.
+- Hively settings are capability-gated: interpolation, subsongs and channel
+  mutes go to core; ramping/tempo/pitch/loop counts log explicit one-time gaps
+  instead of spamming per-command rejections (the shared provider reports
+  `ramping`/`speed`/`pitch`/`loop_limit` false for Hively). Stereo
+  separation/pan remain explicit shell-side gaps as before.
+- Hively pattern songs come from new output-free replay-core inspection
+  (`hively-pattern-inspect.ts` + worker over `public/vendor/hively-replay.wasm`,
+  bounded 32-channel/1024-position/1024-track/256-row limits, 15 s timeout,
+  abortable) instead of a second audio worklet. Transport metadata carries only
+  the title; inspection upgrades it with instruments/orders/duration. Live
+  order/pattern/row continues to come from core observations. OpenMPT pattern
+  songs still use the legacy inspection worker.
+- `player-controller.characterization.test.ts` now models three services per
+  bundle (stream/module/video); `hively` tracks map to the `module` service
+  role. `snapshot.test.ts` asserts Hively subsong mapping. New
+  `hively-pattern-inspect.test.ts` covers the NUL-terminated string reader.
+
+Verification on Windows x64 (muted/headless where browser runs):
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm test`: 230 files / 1,459 tests passed (was 229 / 1,457).
+- `npm run build`: passed; PWA precache 172 entries, including the new
+  `hively-pattern-inspect.worker` chunk alongside `libzci_web_bg`,
+  `libzci_audio_web`, `opus-reference` and `modules-reference` WASM.
+- Production `dist/` preview on a temporary local port in muted headless
+  Chromium with real file-input imports (no page/console errors):
+  - `tone.ahx`: 0.20 s -> 1.04 s advanced; pause held 1.04 s; seek to 1 s
+    landed at 1.00 s; resume reached 1.92 s.
+  - `tone.hvl`: 0.21 s -> 1.05 s advanced; pause held 1.11 s; seek landed at
+    1.00 s; resume reached 1.92 s.
+  - `tone.mod` (OpenMPT regression): 0.17 s -> 1.01 s; pause held; seek
+    landed at 1.08 s (module seek granularity); resume reached 2.47 s.
+  - `44100-1.mp3` (stream regression): 0.27 s -> 1.11 s; pause held; seek
+    landed at 1.00 s; resume reached 2.35 s.
+- The Patterns workspace tab is absent from the default headless layout for
+  all module fixtures (including OpenMPT), so pattern-grid UI visibility was
+  not re-evidenced here; pattern data flows through the inspection/unit path
+  and live position through core observations.
+
+Not yet evidenced/implemented: queue/library/catalog and persistence adoption,
+full normalization ownership, stream/module playback-rate, mobile/Oda wiring,
+real FSA/native/SAF checks through the adopted bridge, and shared-runtime
+extraction from the crude consumer. Physical Android/background and GNU/Linux
+remain post-MVP evidence.
 
 Status: **implemented; unit/build/smoke checks passed, full UI playback pending**.
 Hively (`ahx`, `hvl`), queue/library/catalog persistence, full ReplayGain

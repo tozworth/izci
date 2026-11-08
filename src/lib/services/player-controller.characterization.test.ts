@@ -13,7 +13,7 @@ const harness = vi.hoisted(() => {
   const instances: MockBackend[] = [];
   const pendingLoads: PendingLoad[] = [];
   class MockBackend {
-    role: 'stream' | 'module' | 'hively' | 'video';
+    role: 'stream' | 'module' | 'video';
     snapshotCallback: ((partial: Partial<PlaybackSnapshot>) => void) | undefined;
     metadataCallback: ((metadata: TrackMetadata) => void) | undefined;
     endedCallback: (() => void) | undefined;
@@ -40,11 +40,11 @@ const harness = vi.hoisted(() => {
     pictureInPictureActive = false;
 
     constructor(...callbacks: unknown[]) {
-      this.role = (['stream', 'module', 'hively', 'video'] as const)[instances.length % 4];
+      this.role = (['stream', 'module', 'video'] as const)[instances.length % 3];
       if (this.role === 'video') this.element = {} as HTMLVideoElement;
       this.snapshotCallback = callbacks[0] as ((partial: Partial<PlaybackSnapshot>) => void);
       this.metadataCallback = callbacks[1] as ((metadata: TrackMetadata) => void);
-      if (this.role === 'module' || this.role === 'hively') {
+      if (this.role === 'module') {
         this.patternCallback = callbacks[2] as ((partial: Partial<ModulePatternSnapshot> | null) => void);
       }
       this.endedCallback = callbacks.at(-1) as (() => void);
@@ -109,7 +109,6 @@ const harness = vi.hoisted(() => {
 
 vi.mock('$lib/services/libzci/stream-player', () => ({ LibzciStreamPlayerService: harness.MockBackend }));
 vi.mock('$lib/services/libzci/module-player', () => ({ LibzciModulePlayerService: harness.MockBackend }));
-vi.mock('$lib/services/ahx-player', () => ({ HivelyPlayerService: harness.MockBackend }));
 vi.mock('$lib/services/video-player', () => ({ VideoPlayerService: harness.MockBackend }));
 vi.mock('$lib/services/audio-bus', () => ({ audioBusService: harness.audioBus }));
 vi.mock('$lib/services/media-session', () => ({ mediaSessionService: harness.mediaSession }));
@@ -149,6 +148,14 @@ function track(id: string): TrackItem {
 }
 
 type BackendRole = 'stream' | 'module' | 'hively' | 'video';
+type ServiceRole = 'stream' | 'module' | 'video';
+
+function serviceRoleFor(backend: BackendRole): ServiceRole {
+  // Hively (AHX/HVL) now shares the libzci module service; there is no second
+  // Hively transport.
+  if (backend === 'hively') return 'module';
+  return backend;
+}
 
 function backendTrack(id: string, backend: BackendRole): TrackItem {
   const facts = {
@@ -385,7 +392,7 @@ describe('player controller supersession characterization', () => {
       const incoming = resolvePending(target.id);
       await transition;
 
-      expect(incoming.instance.role).toBe(to);
+      expect(incoming.instance.role).toBe(serviceRoleFor(to));
       expect(incoming.instance.play).toHaveBeenCalledOnce();
       expect(get(playerController.currentTrack)?.id).toBe(target.id);
     }

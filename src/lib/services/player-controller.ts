@@ -1,6 +1,5 @@
 import { writable } from 'svelte/store';
 import { audioBusService } from '$lib/services/audio-bus';
-import { HivelyPlayerService } from '$lib/services/ahx-player';
 import { LibzciModulePlayerService } from '$lib/services/libzci/module-player';
 import { LibzciStreamPlayerService } from '$lib/services/libzci/stream-player';
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
@@ -15,7 +14,6 @@ import { playbackSettings } from '$lib/stores/playback-settings';
 import { DEFAULT_PLAYER_VOLUME, playerVolume } from '$lib/stores/player-volume';
 import { sliderVolumeToGain } from '$lib/services/volume';
 import {
-  HIVELY_MODULE_EXTENSIONS,
   type ModulePatternSnapshot,
   type PlaybackSnapshot,
   type PlaybackState,
@@ -48,7 +46,6 @@ interface PlaybackBundle {
   transitionGain: number;
   stream: LibzciStreamPlayerService;
   module: LibzciModulePlayerService;
-  hively: HivelyPlayerService;
   video: VideoPlayerService;
 }
 
@@ -83,12 +80,6 @@ const initialModulePatternSnapshot: ModulePatternSnapshot = {
   pattern: 0,
   row: 0
 };
-
-function isHivelyModule(track: TrackItem): boolean {
-  return HIVELY_MODULE_EXTENSIONS.includes(
-    track.extension.toLowerCase() as (typeof HIVELY_MODULE_EXTENSIONS)[number]
-  );
-}
 
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -128,8 +119,7 @@ function createPlayerController() {
   const patternChannels = createPatternChannelControls((mutedChannels) => {
     const track = activeBundle?.track;
     if (track?.kind !== 'module') return;
-    (isHivelyModule(track) ? activeBundle.hively : activeBundle.module)
-      .setChannelMutes(mutedChannels);
+    activeBundle.module.setChannelMutes(mutedChannels);
   }, patternChannelMemory);
 
   function publishActiveMediaElements(): void {
@@ -237,12 +227,6 @@ function createPlayerController() {
       (partial) => updateBundlePattern(bundle, partial),
       () => handleBundleEnded(bundle)
     );
-    bundle.hively = new HivelyPlayerService(
-      (partial) => updateBundleSnapshot(bundle, partial),
-      (metadata) => updateBundleMetadata(bundle, metadata),
-      (partial) => updateBundlePattern(bundle, partial),
-      () => handleBundleEnded(bundle)
-    );
     bundle.video = new VideoPlayerService(
       (partial) => updateBundleSnapshot(bundle, partial),
       (metadata) => updateBundleMetadata(bundle, metadata),
@@ -270,7 +254,7 @@ function createPlayerController() {
   function bundleService(bundle: PlaybackBundle) {
     const track = bundle.track;
     if (!track) return null;
-    if (track.kind === 'module') return isHivelyModule(track) ? bundle.hively : bundle.module;
+    if (track.kind === 'module') return bundle.module;
     if (track.kind === 'stream') return bundle.stream;
     if (track.kind === 'video') return bundle.video;
     return null;
@@ -279,7 +263,6 @@ function createPlayerController() {
   function applyBundleTransitionGain(bundle: PlaybackBundle, durationSeconds = 0): void {
     bundle.stream.setTransitionGain(bundle.transitionGain, durationSeconds);
     bundle.module.setTransitionGain(bundle.transitionGain, durationSeconds);
-    bundle.hively.setTransitionGain(bundle.transitionGain, durationSeconds);
     bundle.video.setTransitionGain(bundle.transitionGain, durationSeconds);
   }
 
@@ -330,7 +313,6 @@ function createPlayerController() {
     bundle.loadSequence += 1;
     bundle.stream.destroy();
     bundle.module.stop({ silent: true });
-    bundle.hively.stop({ silent: true });
     bundle.video.unload();
     bundle.track = null;
     bundle.ready = false;
@@ -396,7 +378,6 @@ function createPlayerController() {
     bundle.ready = false;
     bundle.stream.destroy();
     bundle.module.stop({ silent: true });
-    bundle.hively.stop({ silent: true });
     const preserveVideoPiP = bundle === activeBundle && track.kind === 'video' &&
       bundle.track?.kind === 'video' && bundle.video.pictureInPictureActive;
     if (!preserveVideoPiP) bundle.video.unload();
@@ -428,7 +409,7 @@ function createPlayerController() {
       await bundle.stream.load(preparedTrack, { autoPlay, initialPosition });
       if (loadId !== bundle.loadSequence) return false;
     } else if (preparedTrack.kind === 'module') {
-      const service = isHivelyModule(preparedTrack) ? bundle.hively : bundle.module;
+      const service = bundle.module;
       await service.load(preparedTrack);
       if (loadId !== bundle.loadSequence) return false;
       if (bundle === activeBundle && bundle.track) restorePatternChannels(bundle.track);
@@ -575,7 +556,6 @@ function createPlayerController() {
   const unsubscribeModuleSettings = modulePlaybackSettings.subscribe((settings) => {
     for (const bundle of bundles) {
       void bundle.module.applySettings(settings);
-      void bundle.hively.applySettings(settings);
     }
   });
   const unsubscribeMetadataSettings = metadataSettings.subscribe((settings) => {
@@ -690,8 +670,7 @@ function createPlayerController() {
     stepSubsong(direction: -1 | 1) {
       const track = activeBundle.track;
       if (!track || track.kind !== 'module') return;
-      const subsong = (isHivelyModule(track) ? activeBundle.hively : activeBundle.module)
-        .stepSubsong(direction);
+      const subsong = activeBundle.module.stepSubsong(direction);
       if (subsong === null) return;
       activeBundle.track = { ...track, subsong };
       currentTrack.set(activeBundle.track);

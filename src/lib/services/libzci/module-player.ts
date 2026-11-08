@@ -1,6 +1,7 @@
 import workletUrl from './playback.worklet.ts?worker&url';
 import audioWasm from '../../../../libzci/consumers/crude-pwa/src/generated/libzci_audio_web.wasm?url';
 import { audioBusService } from '$lib/services/audio-bus';
+import { inspectHivelyPatterns } from '$lib/services/hively-pattern-inspect';
 import { logInfo, logWarning } from '$lib/services/logging';
 import { mediaSessionService } from '$lib/services/media-session';
 import { moduleDecoder } from '$lib/services/openmpt/decoder';
@@ -49,7 +50,12 @@ function normalizeCommentKey(key: string): string {
   return key.replace(/[^a-z0-9]/gi, '').toUpperCase();
 }
 
-function metadataFromModuleFacts(facts: CoreFacts, track: TrackItem, duration: number): TrackMetadata {
+function metadataFromModuleFacts(
+  facts: CoreFacts,
+  track: TrackItem,
+  duration: number,
+  isHively: boolean
+): TrackMetadata {
   const metadata: TrackMetadata = {};
   for (const [rawKey, value] of facts.comments) {
     if (!value.trim()) continue;
@@ -73,6 +79,13 @@ function metadataFromModuleFacts(facts: CoreFacts, track: TrackItem, duration: n
         break;
     }
   }
+  if (isHively) {
+    // The libzci Hively provider reports only the song title; synthesize the
+    // presentation facts the legacy worklet supplied so Track Details and the
+    // inspector keep working without a second transport.
+    metadata.trackerType ??= 'HivelyTracker';
+    metadata.originalType ??= track.extension.toLowerCase();
+  }
   const subsongs = typeof facts.capabilities['subsongs'] === 'number'
     ? Math.max(1, Math.trunc(facts.capabilities['subsongs'] as number))
     : 1;
@@ -92,11 +105,13 @@ function metadataFromModuleFacts(facts: CoreFacts, track: TrackItem, duration: n
 const HIVELY_EXTENSIONS = new Set(['ahx', 'hvl']);
 
 /**
- * Production Svelte binding for OpenMPT tracker modules. libzci owns
+ * Production Svelte binding for tracker modules. libzci owns
  * classification, provider selection, transport, conversion and audible
- * position. Full pattern songs still come from the legacy inspection worker
- * (no audio player), while live order/pattern/row comes from core observations.
- * Hively modules remain on the legacy worklet path in this slice.
+ * position for both OpenMPT modules and Hively (AHX/HVL) modules through the
+ * shared modules-reference provider. Full OpenMPT pattern songs still come
+ * from the legacy inspection worker (no audio player); Hively pattern songs
+ * come from output-free replay-core inspection. Live order/pattern/row comes
+ * from core observations in both cases.
  */
 export class LibzciModulePlayerService {
   #worker: Worker | null = null;
@@ -117,8 +132,11 @@ export class LibzciModulePlayerService {
   #subsongCount = 1;
   #channelMutes: boolean[] = [];
   #settingsApplied: ModulePlaybackSettings | null = null;
+  #isHively = false;
   #loggedSeparationGap = false;
   #loggedRepeatGap = false;
+  #loggedHivelyRateGap = false;
+  #loggedHivelyRepeatGap = false;
 
   constructor(
     private readonly onSnapshot: SnapshotHandler,
@@ -129,13 +147,10 @@ export class LibzciModulePlayerService {
 
   async load(track: TrackItem): Promise<void> {
     if (!track.file) throw new Error('Expected a File for tracker module playback.');
-    const extension = track.extension.toLowerCase();
-    if (HIVELY_EXTENSIONS.has(extension)) {
-      throw new Error('Hively modules remain on the legacy bridge in this slice.');
-    }
     this.#resetForLoad();
     const token = ++this.#loadToken;
     this.#track = track;
+    this.#isHively = HIVELY_EXTENSIONS.has(track.extension.toLowerCase());
     this.#subsong = Number.isFinite(track.subsong) ? Math.max(0, Math.trunc(track.subsong!)) : 0;
     this.#subsongCount = Math.max(1, track.metadata?.subsongs ?? 1);
     this.onSnapshot({
@@ -147,7 +162,7 @@ export class LibzciModulePlayerService {
       subsongCount: this.#subsongCount,
       error: undefined
     });
-    logInfo('playback', 'libzci module load started', { id: track.id, name: track.name, subsong: this.#subsong });
+    logInfo('playback', 'libzci module load started', { id: track.id, name: track.name, subsong: this.#subsong, hively: this.#isHively });
     try {
       await this.#ensureRuntime();
       if (token !== this.#loadToken) return;
@@ -173,7 +188,7 @@ export class LibzciModulePlayerService {
       this.#loadPatterns(token);
       mediaSessionService.activateTransportAnchor();
       mediaSessionService.pauseTransportAnchor();
-      logInfo('playback', 'libzci module loaded', { id: track.id, name: track.name });
+      logInfo('playback', 'libzci module loaded', { id: track.id, name: track.name, hively: this.#isHively });
     } catch (error) {
       if (token !== this.#loadToken) return;
       const message = error instanceof Error ? error.message : String(error);
@@ -234,19 +249,40 @@ export class LibzciModulePlayerService {
     if (Number.isFinite(settings.interpolationFilter)) {
       commands.push(['interpolation', settings.interpolationFilter]);
     }
-    commands.push(['ramping', getOpenMptRampingStrength(settings.ramping)]);
-    if (Number.isFinite(settings.tempoFactor)) commands.push(['speed', settings.tempoFactor]);
-    if (Number.isFinite(settings.pitchFactor)) commands.push(['pitch', settings.pitchFactor]);
-    let loops = Math.trunc(settings.repeatCount);
-    if (!Number.isFinite(loops)) loops = 0;
-    if (loops < 0) {
-      loops = 16;
-      if (!this.#loggedRepeatGap) {
-        this.#loggedRepeatGap = true;
-        logWarning('playback', 'libzci module infinite repeat mapped to 16 loops', { repeatCount: settings.repeatCount });
+    if (this.#isHively) {
+      // The shared Hively provider supports interpolation, subsongs and
+      // channel mutes. Ramping, tempo/pitch factors and loop counts remain
+      // legacy-worklet behavior with no core equivalent in this slice.
+      if (settings.tempoFactor !== 1 || settings.pitchFactor !== 1) {
+        if (!this.#loggedHivelyRateGap) {
+          this.#loggedHivelyRateGap = true;
+          logWarning('playback', 'libzci Hively tempo/pitch is not adopted yet', {
+            tempoFactor: settings.tempoFactor,
+            pitchFactor: settings.pitchFactor
+          });
+        }
       }
+      let loops = Math.trunc(settings.repeatCount);
+      if (!Number.isFinite(loops)) loops = 0;
+      if (loops !== 0 && !this.#loggedHivelyRepeatGap) {
+        this.#loggedHivelyRepeatGap = true;
+        logWarning('playback', 'libzci Hively repeat is not adopted yet', { repeatCount: settings.repeatCount });
+      }
+    } else {
+      commands.push(['ramping', getOpenMptRampingStrength(settings.ramping)]);
+      if (Number.isFinite(settings.tempoFactor)) commands.push(['speed', settings.tempoFactor]);
+      if (Number.isFinite(settings.pitchFactor)) commands.push(['pitch', settings.pitchFactor]);
+      let loops = Math.trunc(settings.repeatCount);
+      if (!Number.isFinite(loops)) loops = 0;
+      if (loops < 0) {
+        loops = 16;
+        if (!this.#loggedRepeatGap) {
+          this.#loggedRepeatGap = true;
+          logWarning('playback', 'libzci module infinite repeat mapped to 16 loops', { repeatCount: settings.repeatCount });
+        }
+      }
+      commands.push(['loops', Math.min(Math.max(loops, 0), 16)]);
     }
-    commands.push(['loops', Math.min(Math.max(loops, 0), 16)]);
     for (const [kind, value] of commands) {
       try {
         await this.#command(kind, value);
@@ -331,8 +367,33 @@ export class LibzciModulePlayerService {
     const job = new AbortController();
     this.#patternJob = job;
     const subsong = this.#subsong;
+    const isHively = this.#isHively;
     void track.file.arrayBuffer().then((buffer) => {
       if (job.signal.aborted || token !== this.#loadToken) return;
+      if (isHively) {
+        // Hively pattern songs come from output-free replay-core inspection,
+        // not from a second audio player.
+        return inspectHivelyPatterns(buffer.slice(0), subsong, job.signal).then((inspection) => {
+          if (job.signal.aborted || token !== this.#loadToken || subsong !== this.#subsong) return;
+          this.#patternSong = inspection.song;
+          this.onPattern({ song: inspection.song });
+          // Upgrade the title-only transport metadata with the richer
+          // inspection facts (instruments/orders/duration).
+          if (this.#track) {
+            this.#metadataPublished = true;
+            this.#subsongCount = Math.max(1, inspection.metadata.subsongs);
+            this.onMetadata({
+              title: inspection.metadata.title || undefined,
+              trackerType: 'HivelyTracker',
+              originalType: this.#track.extension.toLowerCase(),
+              duration: inspection.metadata.duration || undefined,
+              channels: inspection.metadata.channels,
+              subsongs: inspection.metadata.subsongs
+            });
+            this.onSnapshot({ subsong: this.#subsong, subsongCount: this.#subsongCount });
+          }
+        });
+      }
       return moduleDecoder.inspect(buffer.slice(0), { patterns: true, subsong, signal: job.signal }).then((inspection) => {
         if (job.signal.aborted || token !== this.#loadToken || subsong !== this.#subsong || !inspection.song) return;
         this.#patternSong = inspection.song;
@@ -441,7 +502,7 @@ export class LibzciModulePlayerService {
     this.onSnapshot(mapped);
     if (message.facts && this.#track && !this.#metadataPublished) {
       this.#metadataPublished = true;
-      const metadata = metadataFromModuleFacts(message.facts, this.#track, mapped.duration ?? 0);
+      const metadata = metadataFromModuleFacts(message.facts, this.#track, mapped.duration ?? 0, this.#isHively);
       this.#subsongCount = Math.max(1, metadata.subsongs ?? 1);
       this.onMetadata(metadata);
       this.onSnapshot({ subsong: this.#subsong, subsongCount: this.#subsongCount });

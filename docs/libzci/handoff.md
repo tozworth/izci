@@ -1,9 +1,9 @@
-# Handoff — 2026-11-09 (A2 first slice)
+# Handoff — 2026-11-09 (A2 third slice)
 
 ## Checkout and scope
 
 - Workspace: `C:\Users\Toz\Projects\izci`, branch `libzci-codex`.
-- Implementation commit: `d528fc2e` (`Route Svelte stream playback through libzci`).
+- Implementation commit: pending (`Route Svelte Hively playback through libzci`).
 - Worktree: clean after this documentation checkpoint; no task-owned preview,
   browser, Cargo or audio process should remain running.
 - The MVP is **Svelte adoption with working playback for most existing formats**,
@@ -22,11 +22,13 @@ managed scans, metadata/lyrics, ReplayGain/R128, consumed-media play counts,
 artwork, image imports/scans, captured image navigation and separate bounded
 rendition caches.
 
-A2's first ownership slice is implemented in the production Svelte main window:
+A2's transport slices are implemented in the production Svelte main window:
 
-- Ordinary stream formats (`mp3`, `wav`, `flac`, `ogg`, `opus`) load and play
-  through the libzci `WebEngine`, reference Opus/Symphonia providers, a bounded
-  decode worker and the shared audio-only worklet.
+- Ordinary stream formats (`mp3`, `wav`, `flac`, `ogg`, `opus`), OpenMPT
+  tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) and Hively modules (`ahx`,
+  `hvl`) load and play through the libzci `WebEngine`, reference
+  Opus/Symphonia/modules-reference providers, a bounded decode worker and the
+  shared audio-only worklet.
 - PCM is routed through the existing `audioBusService` source route. Master
   volume, transition/fade gain, the Raf compatibility graph, visualizer analyser
   and Media Session facade remain explicit shell-side bridges, not a second
@@ -36,35 +38,38 @@ A2's first ownership slice is implemented in the production Svelte main window:
 - Seek rebuilds the generation-scoped `WebPreparation`; retained PCM/converter
   tails cannot cross the seek boundary.
 - The old Howler transport, dependency, ambient types and test were removed.
-  Tracker/Hively playback still uses the existing libopenmpt/Hively services,
-  and video still uses the native `<video>` path.
+  The legacy OpenMPT and Hively audio transports are superseded (OpenMPT
+  pattern songs still use the legacy inspection worker; Hively pattern songs
+  use output-free replay-core inspection). Video still uses the native
+  `<video>` path.
 - Ordinary-stream ReplayGain remains a shell-side shared-bus local-gain bridge.
   Global playback-rate changes for ordinary streams are not adopted yet and log
-  an explicit warning; both are known temporary gaps.
+  an explicit warning; Hively tempo/pitch/repeat log their own explicit gaps.
+  These are known temporary gaps.
 
 Recent commits:
 
 | Commit | Behavior |
 | --- | --- |
+| pending | Production Svelte Hively transport moved to libzci; legacy Hively service retired from the controller |
+| `f5049254` | Production Svelte OpenMPT module transport moved to libzci |
+| `250a3a1d` | A2 ordinary-stream adoption checkpoint |
 | `d528fc2e` | Production Svelte ordinary-stream transport moved to libzci; Howler removed |
-| `02dc264e` | Roadmap rescoped around Svelte MVP adoption |
-| `d0f1589d` | Previous M3 continuation/evidence checkpoint |
-| `bbf1f570` | Shared native/WASM JPEG XL and catalog/image adoption evidence |
 
 ## Remaining work and caveats
 
-1. **Continue A2 in ownership slices.** Next is tracker/Hively transport through
-   the same browser bridge while preserving subsong/pattern behavior. After that:
-   queue/library/catalog and file-access authority, lyrics/artwork/details,
-   window bindings, then mobile/Oda presentation wiring.
+1. **Continue A2 in ownership slices.** Next is queue/library/catalog and
+   file-access authority. After that: lyrics/artwork/details, window bindings,
+   then mobile/Oda presentation wiring.
 2. **Extract the shared browser runtime from the crude consumer.** The new
    production bridge currently imports generated control/audio/codec assets and
    provider helpers under `libzci/consumers/crude-pwa/src/`. This is one owner
    and one transport, but the shared runtime should move to a proper reusable
    location before A2 closes.
 3. **Close explicit compatibility gaps before claiming parity:** ordinary-stream
-   playback rate, full core normalization/ReplayGain ownership, and any
-   crossfade/prepared-source behavior not yet re-evidenced on the new backend.
+   playback rate, Hively tempo/pitch/repeat, full core normalization/ReplayGain
+   ownership, and any crossfade/prepared-source behavior not yet re-evidenced
+   on the new backend.
 4. **Preserve the browser video path.** `VideoPlayerService` remains the
    presentation-owned native `<video>` implementation. Core video is post-MVP.
 5. AVIF, broader HDR/color handling and formal image-decoder heap accounting
@@ -78,16 +83,19 @@ Windows x64, muted headless Chromium, production `dist/` served from a temporary
 local preview:
 
 - `npm run check`: 0 errors, 0 warnings.
-- `npm test`: 229 files / 1,455 tests passed.
-- `npm run build`: passed. PWA precache: 171 entries, including emitted
-  `libzci_web_bg`, `libzci_audio_web` and `opus-reference` WASM plus the worker
-  and output worklet.
-- Real `44100-1.flac`, `44100-1.mp3`, `44100-1.ogg`, `44100-1.wav` and
-  `48000-2.wav`: playback advanced; pause held position; seek to 1.5 s landed;
-  resume advanced to about 2.0–2.2 s; no page or console errors.
-- Real 30 s `long.opus`: playback advanced; pause held; seek to 15 s landed;
-  resume advanced to 15.8 s; no errors.
-- `snapshot.test.ts` covers core state vocabulary and frame-to-time mapping.
+- `npm test`: 230 files / 1,459 tests passed.
+- `npm run build`: passed. PWA precache: 172 entries, including emitted
+  `libzci_web_bg`, `libzci_audio_web`, `opus-reference` and `modules-reference`
+  WASM plus the workers and output worklet.
+- Real file-input playback with no page/console errors: `tone.ahx` (0.20 s ->
+  1.04 s, pause held, seek to 1 s landed, resume to 1.92 s), `tone.hvl`
+  (0.21 s -> 1.05 s, pause held, seek landed, resume to 1.92 s), `tone.mod`
+  regression (0.17 s -> 1.01 s, pause held, seek landed at 1.08 s, resume to
+  2.47 s), `44100-1.mp3` regression (0.27 s -> 1.11 s, pause held, seek landed,
+  resume to 2.35 s).
+- `snapshot.test.ts` covers core state vocabulary, frame-to-time mapping and
+  Hively subsong mapping; `hively-pattern-inspect.test.ts` covers the
+  output-free inspection string reader.
 
 These are foreground headless results. They do not establish physical
 Android/background, GNU/Linux, installed-PWA lifecycle, or long-duration

@@ -307,16 +307,17 @@ output, caches stay bounded/rebuildable, and images navigate while audio plays.
 
 ## A2 (MVP critical path): adopt the core in existing Svelte shells
 
-Status: **in progress**. The first ownership slice adopts ordinary stream
-playback (`mp3`, `wav`, `flac`, `ogg`, `opus`) in the production Svelte main
-window through the libzci `WebEngine`, reference Opus/Symphonia providers, a
+Status: **in progress**. Ordinary streams, OpenMPT tracker modules and Hively
+(`ahx`, `hvl`) playback now run in the production Svelte main window through
+the libzci `WebEngine`, reference Opus/Symphonia/modules-reference providers, a
 bounded decode worker and the shared audio worklet. Howler was removed; the
-worklet feeds the existing audio-bus/Raf/visualizer compatibility graph and
-Media Session facade. Tracker/Hively transport, queue/library/catalog and
+legacy OpenMPT and Hively audio transports are superseded (OpenMPT pattern
+songs still come from the legacy inspection worker; Hively pattern songs come
+from output-free replay-core inspection). Queue/library/catalog and
 persistence, stream playback-rate, full normalization ownership, mobile/Oda and
 window wiring remain to be adopted. Video stays on the native `<video>` path.
 See the
-[A2 first-slice evidence](implementation-log.md#2026-11-09-a2-first-slice--ordinary-stream-playback-in-the-svelte-shell).
+[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-third-slice--hively-playback-in-the-svelte-shell).
 
 Write the browser/desktop/Android ownership-slice plan using real APIs. Replace
 each service/store authority in coherent slices; stores become observation/

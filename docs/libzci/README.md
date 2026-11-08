@@ -75,15 +75,16 @@ through both crudes with SQLite/OPFS and muted Chromium evidence. Optional image
 hardening (AVIF/HDR/codec memory accounting) is deferred.
 
 A2 is now **in progress**. Ordinary streams (`mp3`, `wav`, `flac`, `ogg`,
-`opus`) and OpenMPT tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) use the
-libzci `WebEngine`, reference Opus/Symphonia/modules-reference providers,
-bounded decode worker and shared audio worklet, routed through the existing
-audio bus. Howler has been removed; the old OpenMPT audio transport is
-superseded (its inspection worker remains for full pattern songs). Hively
-playback, queue/library/catalog and persistence, full ReplayGain ownership,
-mobile/Oda wiring and the existing browser video path remain subsequent
-slices. See the
-[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-second-slice--openmpt-tracker-playback-in-the-svelte-shell).
+`opus`), OpenMPT tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) and Hively
+modules (`ahx`, `hvl`) use the libzci `WebEngine`, reference
+Opus/Symphonia/modules-reference providers, bounded decode worker and shared
+audio worklet, routed through the existing audio bus. Howler has been removed;
+the old OpenMPT and Hively audio transports are superseded (the OpenMPT
+inspection worker remains for full pattern songs; Hively pattern songs come
+from output-free replay-core inspection). Queue/library/catalog and
+persistence, full ReplayGain ownership, mobile/Oda wiring and the existing
+browser video path remain subsequent slices. See the
+[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-third-slice--hively-playback-in-the-svelte-shell).
 Preserve ordinary izci profiles/grants throughout adoption; sound checks use
 muted/low output.
 

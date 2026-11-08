@@ -86,6 +86,27 @@ describe('libzci playback snapshot mapping', () => {
         })
       ).backend
     ).toBe('module');
+    const hively = mapCoreSnapshot(
+      core({
+        state: 'Playing',
+        position_frames: 48_000,
+        total_frames: 240_000,
+        sample_rate: 48_000,
+        provider: { id: 'hivelytracker.replay', version: 'hivelytracker-f393ca7/m1', name: 'HivelyTracker' },
+        subsong: 1,
+        capabilities: { subsongs: 2, channels: 4 }
+      }),
+      'module'
+    );
+    expect(hively).toEqual({
+      state: 'playing',
+      currentTime: 1,
+      duration: 5,
+      backend: 'module',
+      subsong: 1,
+      subsongCount: 2,
+      error: undefined
+    });
   });
 
   it('maps live module order/pattern/row observations', () => {
