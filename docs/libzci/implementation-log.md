@@ -1,5 +1,22 @@
 # libzci implementation log
 
+## 2026-11-09: A2 next slice — read-only core queue facade
+
+Status: **implemented; check/focused-test evidence passed**. The facade is
+not yet fed by a live owner worker; queue commands, persistence and owner
+election remain open.
+
+- New `queue-facade.ts` exposes the core queue snapshot as Svelte readable
+  stores (`view`, `revision`) behind `pushObservation`. First observations
+  apply; duplicates and out-of-order revisions are ignored so late owner
+  handoff deliveries stay harmless. Components can render from `view`
+  without a mutation path through this module.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`queue-facade/snapshot/runtime`): 8 passed.
+
 ## 2026-11-09: A2 headstart — shared runtime relocation and queue-snapshot probe
 
 Status: **implemented; check/focused-test evidence passed**. Clean-checkout
