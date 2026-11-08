@@ -1,5 +1,31 @@
 # libzci implementation log
 
+## 2026-11-09: A2 headstart — shared runtime relocation and queue-snapshot probe
+
+Status: **implemented; check/focused-test evidence passed**. Clean-checkout
+WASM regeneration, `npm run build`, and any browser evidence remain pending
+(no build or browser run authorized in this session).
+
+- The three browser recipes (`build-wasm.py`, `build-browser-codecs.py`,
+  `build-browser-modules.py`) now emit to the workspace-ignored
+  `libzci/generated/`. The Svelte bridge (`runtime.ts`, `playback.worker.ts`)
+  and the five crude importers reference the shared directory; the crude is
+  no longer the production shell's build-output owner. No transport,
+  protocol, or emitted bytes change, and the single-import-site test still
+  passes unmodified.
+- New read-only `queue-snapshot.ts` probe pins the core queue JSON shape
+  (revision, source references, occurrence items, current/up_next, position)
+  and maps it to render rows with restorable flags plus a revision render
+  guard mirroring the crude view. No Svelte store is touched.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`queue-snapshot.test.ts`, `runtime.test.ts`): 5 passed.
+- The new ignored `libzci/generated/` was populated locally by copying the
+  previous recipe output so typecheck/tests resolve; a clean checkout must
+  run the three recipes before `npm run build` (handoff setup order).
+
 ## 2026-11-09: A2 fourth slice — shared Svelte engine runtime
 
 Status: **implemented; unit/build/headless-bridge checks passed**.
