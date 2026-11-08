@@ -116,7 +116,7 @@
     {/if}
 
     <p class="about-credits">
-      {$t('options.about.credits', { default: "izci wouldn't be possible without libopenmpt, HivelyTracker, Howler.js, and Mediabunny." })}
+      {$t('options.about.credits', { default: "izci wouldn't be possible without libzci, libopenmpt, HivelyTracker, and Mediabunny." })}
       <br />
       <a
         href={buildOptionsWindowPath('licenses')}

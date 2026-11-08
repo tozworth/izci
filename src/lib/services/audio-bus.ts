@@ -49,7 +49,7 @@ export class AudioBusService {
       this.#connectSource(source);
       return source;
     } catch (error) {
-      // If Web Audio cannot adopt the element, leave Howler's native output untouched.
+      // If Web Audio cannot adopt the element, leave its native output untouched.
       logWarning('playback', 'Media element Web Audio routing unavailable', error);
       return null;
     }

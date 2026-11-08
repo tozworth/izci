@@ -46,8 +46,6 @@ in the notice inventory without being present in every application binary.
   removed; the MIT notice for retained loader support is preserved in
   docs/THIRD-PARTY-NOTICES.md alongside libopenmpt’s BSD-3-Clause notice.
 
-- Howler.js 2.2.4: MIT. Copyright (c) 2013-2020 James Simpson and GoldFire
-  Studios, Inc. Source: https://github.com/goldfire/howler.js
 - Svelte 5.56.1: MIT. Copyright (c) 2016-2025 Svelte Contributors.
   Source: https://github.com/sveltejs/svelte
 - svelte-i18n 4.0.1: MIT. Copyright 2017 Christian Kaisermann.

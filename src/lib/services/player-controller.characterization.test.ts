@@ -107,7 +107,7 @@ const harness = vi.hoisted(() => {
   };
 });
 
-vi.mock('$lib/services/howler-player', () => ({ HowlerPlayerService: harness.MockBackend }));
+vi.mock('$lib/services/libzci/stream-player', () => ({ LibzciStreamPlayerService: harness.MockBackend }));
 vi.mock('$lib/services/module-player', () => ({ ModulePlayerService: harness.MockBackend }));
 vi.mock('$lib/services/ahx-player', () => ({ HivelyPlayerService: harness.MockBackend }));
 vi.mock('$lib/services/video-player', () => ({ VideoPlayerService: harness.MockBackend }));

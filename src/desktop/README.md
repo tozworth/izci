@@ -53,11 +53,11 @@ to show the player. Tray-only taskbar suppression depends on the compositor.
 Browser audio/video codec availability depends on installed GStreamer plugins;
 tracker and Hively decoding still use their existing WASM/worklet pipelines.
 On the tested WebKitGTK runtime, routing an HTML media element through Web Audio
-stalls its playback clock. Linux therefore uses Howler's HTML5 native-output
-fallback for regular audio and native output for video. Volume, mute, seeking,
-and stream ReplayGain remain available; Raf, program capture, and analyser-based
-visualization are unavailable for these media on Linux. Modules still use the
-shared Web Audio graph, including Raf and visualization.
+stalls its playback clock. The preserved browser video path therefore uses native
+output on Linux. Ordinary audio is migrating to the libzci AudioWorklet graph;
+GNU/Linux playback remains post-MVP evidence. Do not infer Raf, program capture,
+or analyser support for these media from Windows WebView2 results. Modules still
+use the shared Web Audio graph, including Raf and visualization.
 
 Native validation: `cargo test --bin izci` from `src-tauri/`. The existing
 WebView2 examples remain Windows-only. Frontend validation uses `npm run check`
@@ -333,7 +333,7 @@ a directory under the workspace's `.local/`, retaining the `EBWebView` folder.
 Pass its parent directory to `cargo run --example profile_restoration_debug -- <copy>`
 to inspect checkpoints, queue records, and real handle permissions. After
 `npm run desktop:frontend`, `profile_playback_smoke` accepts the same argument
-and verifies the packaged Howler backend resumes beyond the saved position.
+and verifies the packaged playback backend resumes beyond the saved position.
 Both require a workspace-local copy; the playback check disables native shell
 side effects and keeps its window hidden. The copied checkpoint advances during playback.
 `cargo run --example shell_smoke` checks repeated opener-linked Options creation

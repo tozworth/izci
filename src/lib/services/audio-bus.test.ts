@@ -222,7 +222,7 @@ describe('AudioBusService', () => {
     expect(curve?.values[Math.floor((curve?.values.length ?? 0) / 2)]).toBeLessThan(0.5);
   });
 
-  it('reuses the media source tied to a Howler media element', () => {
+  it('reuses the media source tied to a media element', () => {
     const element = {} as HTMLMediaElement;
     const first = bus.connectHtmlMediaElement(element);
 

@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 import { audioBusService } from '$lib/services/audio-bus';
 import { HivelyPlayerService } from '$lib/services/ahx-player';
-import { HowlerPlayerService } from '$lib/services/howler-player';
+import { LibzciStreamPlayerService } from '$lib/services/libzci/stream-player';
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import { mediaSessionService } from '$lib/services/media-session';
 import { ModulePlayerService } from '$lib/services/module-player';
@@ -46,7 +46,7 @@ interface PlaybackBundle {
   track: TrackItem | null;
   snapshot: PlaybackSnapshot;
   transitionGain: number;
-  stream: HowlerPlayerService;
+  stream: LibzciStreamPlayerService;
   module: ModulePlayerService;
   hively: HivelyPlayerService;
   video: VideoPlayerService;
@@ -226,7 +226,7 @@ function createPlayerController() {
       transitionGain: 1
     } as PlaybackBundle;
 
-    bundle.stream = new HowlerPlayerService(
+    bundle.stream = new LibzciStreamPlayerService(
       (partial) => updateBundleSnapshot(bundle, partial),
       (metadata) => updateBundleMetadata(bundle, metadata),
       () => handleBundleEnded(bundle)

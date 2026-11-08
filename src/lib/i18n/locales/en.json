@@ -657,7 +657,7 @@
       "amigaBall": "Amiga ball",
       "openOnGitHub": "Open tozworth/izci on GitHub",
       "openHostedPwa": "Open izci.ağla.net, the publicly hosted PWA",
-      "credits": "izci wouldn't be possible without libopenmpt, HivelyTracker, Howler.js, and Mediabunny.",
+      "credits": "izci wouldn't be possible without libzci, libopenmpt, HivelyTracker, and Mediabunny.",
       "seeFull": "See full",
       "thirdPartyLicenses": "third-party licenses"
     },

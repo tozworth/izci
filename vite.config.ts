@@ -157,7 +157,7 @@ export default defineConfig(({ mode }) => {
             /^\/(?:options|audio-compare|editor|converter|logs|troubadour|troubadour-options)\.html(?:\?|$)/
           ],
           ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^view$/],
-          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
+          maximumFileSizeToCacheInBytes: 8 * 1024 * 1024
         }
       })] : [])
     ]
