@@ -21,7 +21,11 @@ WASM regeneration, `npm run build`, and any browser evidence remain pending
 Evidence on Windows x64 (no browser, no device):
 
 - `npm run check`: 0 errors, 0 warnings.
-- Focused vitest (`queue-snapshot.test.ts`, `runtime.test.ts`): 5 passed.
+- Full `npm test`: 232 files / 1,464 tests passed.
+- `npm run build`: passed; PWA precache 172 entries, unchanged. `dist/`
+  contains the shared control/audio/opus/modules WASM plus the worker and
+  output worklet emitted from `libzci/generated/` (byte-identical sizes to
+  the previous crude-owned output).
 - The new ignored `libzci/generated/` was populated locally by copying the
   previous recipe output so typecheck/tests resolve; a clean checkout must
   run the three recipes before `npm run build` (handoff setup order).
