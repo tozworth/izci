@@ -313,11 +313,12 @@ the libzci `WebEngine`, reference Opus/Symphonia/modules-reference providers, a
 bounded decode worker and the shared audio worklet. Howler was removed; the
 legacy OpenMPT and Hively audio transports are superseded (OpenMPT pattern
 songs still come from the legacy inspection worker; Hively pattern songs come
-from output-free replay-core inspection). Queue/library/catalog and
+from output-free replay-core inspection). Both Svelte transports share one
+engine-link runtime with a single generated-asset import site. Queue/library/catalog and
 persistence, stream playback-rate, full normalization ownership, mobile/Oda and
 window wiring remain to be adopted. Video stays on the native `<video>` path.
 See the
-[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-third-slice--hively-playback-in-the-svelte-shell).
+[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-fourth-slice--shared-svelte-engine-runtime).
 
 Write the browser/desktop/Android ownership-slice plan using real APIs. Replace
 each service/store authority in coherent slices; stores become observation/

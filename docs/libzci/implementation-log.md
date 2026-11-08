@@ -1,5 +1,45 @@
 # libzci implementation log
 
+## 2026-11-09: A2 fourth slice — shared Svelte engine runtime
+
+Status: **implemented; unit/build/headless-bridge checks passed**.
+Queue/library/catalog persistence, full ReplayGain ownership, playback-rate,
+mobile/Oda and native/SAF adoption remain open. This slice does not close A2.
+
+The two production Svelte transports (`LibzciStreamPlayerService`,
+`LibzciModulePlayerService`) now share one engine-link owner in
+`src/lib/services/libzci/runtime.ts` instead of duplicating worker/worklet
+bootstrap (~250 lines removed across both services). The shared link owns the
+single generated-asset import site (crude-pwa `generated/` control/audio/codec
+WASM, worklet chunk), per-`AudioContext` worklet registration, decode/control
+port assembly, ready/result/snapshot/error multiplexing and teardown; the
+services keep only metadata/pattern/settings mapping. Request/response routing
+is covered by a new `runtime.test.ts` (`EngineRequestTable` resolve/reject/
+reject-all). No transport, worker, worklet or protocol bytes changed.
+
+Verification on Windows x64 (muted/headless where browser runs):
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm test`: 231 files, 1,462 tests — one unrelated
+  `multiplayer-server-integration` file failed on a server-startup timeout in
+  the full run and passed alone on retry; everything else passed.
+- `npm run build`: passed; PWA precache 172 entries, unchanged.
+- Temporary scratch page driving the refactored services through vite dev in
+  muted headless Chromium (deleted after the run; production `dist/` behavior
+  is unchanged): `44100-1.mp3` (0.24 s -> held, seek to 1 s landed, resume to
+  1.24 s, backend `stream`), `tone.mod` (0.27 s -> held, seek landed, resume
+  to 1.25 s, backend `module`), `tone.ahx` (0.29 s -> held, seek landed,
+  resume to 1.23 s, backend `module`); no page/console errors in two
+  consecutive runs. Only one engine stays live at a time, mirroring the
+  production bundle switch (`loadIntoBundle` destroys the idle service).
+
+Not yet evidenced/implemented: queue/library/catalog and persistence adoption,
+full normalization ownership, stream/module playback-rate, mobile/Oda wiring,
+real FSA/native/SAF checks through the adopted bridge. The generated assets
+still build into `libzci/consumers/crude-pwa/src/generated/`; relocating that
+build output to a shared runtime directory remains follow-up work. Physical
+Android/background and GNU/Linux remain post-MVP evidence.
+
 ## 2026-11-09: A2 third slice — Hively playback in the Svelte shell
 
 Status: **implemented; unit/build/headless-UI checks passed**. Queue/library/

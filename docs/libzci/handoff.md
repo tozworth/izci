@@ -51,6 +51,7 @@ Recent commits:
 
 | Commit | Behavior |
 | --- | --- |
+| pending | Svelte stream/module players share one engine-link runtime |
 | pending | Production Svelte Hively transport moved to libzci; legacy Hively service retired from the controller |
 | `f5049254` | Production Svelte OpenMPT module transport moved to libzci |
 | `250a3a1d` | A2 ordinary-stream adoption checkpoint |
@@ -61,11 +62,12 @@ Recent commits:
 1. **Continue A2 in ownership slices.** Next is queue/library/catalog and
    file-access authority. After that: lyrics/artwork/details, window bindings,
    then mobile/Oda presentation wiring.
-2. **Extract the shared browser runtime from the crude consumer.** The new
-   production bridge currently imports generated control/audio/codec assets and
-   provider helpers under `libzci/consumers/crude-pwa/src/`. This is one owner
-   and one transport, but the shared runtime should move to a proper reusable
-   location before A2 closes.
+2. **Extract the shared browser runtime from the crude consumer.** The Svelte
+   bridge now owns one engine-link module (`src/lib/services/libzci/runtime.ts`)
+   as the single generated-asset import site with shared bootstrap/teardown,
+   but the WASM build output still lands in `libzci/consumers/crude-pwa/src/
+   generated/`. Relocating that output to a shared runtime directory remains
+   open before A2 closes.
 3. **Close explicit compatibility gaps before claiming parity:** ordinary-stream
    playback rate, Hively tempo/pitch/repeat, full core normalization/ReplayGain
    ownership, and any crossfade/prepared-source behavior not yet re-evidenced

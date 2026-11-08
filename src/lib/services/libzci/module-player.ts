@@ -1,5 +1,3 @@
-import workletUrl from './playback.worklet.ts?worker&url';
-import audioWasm from '../../../../libzci/consumers/crude-pwa/src/generated/libzci_audio_web.wasm?url';
 import { audioBusService } from '$lib/services/audio-bus';
 import { inspectHivelyPatterns } from '$lib/services/hively-pattern-inspect';
 import { logInfo, logWarning } from '$lib/services/logging';
@@ -16,35 +14,15 @@ import type {
 } from '$lib/types';
 import {
   type CoreFacts,
-  type WorkerMessage,
-  type WorkerRequest,
   type WorkerSnapshotMessage
 } from './protocol';
+import { type EngineLink, createLibzciEngineLink } from './runtime';
 import { mapCoreSnapshot } from './snapshot';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
 type MetadataHandler = (metadata: TrackMetadata) => void;
 type PatternHandler = (snapshot: Partial<ModulePatternSnapshot> | null) => void;
 type EndHandler = () => void;
-
-interface PendingRequest {
-  resolve: (value: unknown) => void;
-  reject: (error: Error) => void;
-}
-
-const workletLoads = new WeakMap<AudioContext, Promise<void>>();
-
-function ensureWorklet(context: AudioContext): Promise<void> {
-  let pending = workletLoads.get(context);
-  if (!pending) {
-    pending = context.audioWorklet.addModule(workletUrl).catch((error) => {
-      workletLoads.delete(context);
-      throw error;
-    });
-    workletLoads.set(context, pending);
-  }
-  return pending;
-}
 
 function normalizeCommentKey(key: string): string {
   return key.replace(/[^a-z0-9]/gi, '').toUpperCase();
@@ -111,20 +89,17 @@ const HIVELY_EXTENSIONS = new Set(['ahx', 'hvl']);
  * shared modules-reference provider. Full OpenMPT pattern songs still come
  * from the legacy inspection worker (no audio player); Hively pattern songs
  * come from output-free replay-core inspection. Live order/pattern/row comes
- * from core observations in both cases.
+ * from core observations in both cases. Engine bootstrapping lives in the
+ * shared `./runtime` link.
  */
 export class LibzciModulePlayerService {
-  #worker: Worker | null = null;
-  #node: AudioWorkletNode | null = null;
-  #runtimeReady: Promise<void> | null = null;
-  #pending = new Map<string, PendingRequest>();
+  #link: EngineLink | null = null;
+  #linkReady: Promise<EngineLink> | null = null;
   #transitionGain = 1;
   #metadataPublished = false;
   #ended = false;
   #destroyed = false;
   #track: TrackItem | null = null;
-  #context: AudioContext | null = null;
-  #onContextStateChange: (() => void) | null = null;
   #loadToken = 0;
   #patternJob: AbortController | undefined;
   #patternSong: ModulePatternSong | null = null;
@@ -164,9 +139,9 @@ export class LibzciModulePlayerService {
     });
     logInfo('playback', 'libzci module load started', { id: track.id, name: track.name, subsong: this.#subsong, hively: this.#isHively });
     try {
-      await this.#ensureRuntime();
+      const link = await this.#ensureLink();
       if (token !== this.#loadToken) return;
-      await this.#request({
+      await link.request({
         type: 'load',
         request: crypto.randomUUID(),
         file: track.file,
@@ -225,7 +200,7 @@ export class LibzciModulePlayerService {
     this.#subsongCount = 1;
     this.#channelMutes = [];
     this.onPattern(null);
-    this.#teardownRuntime();
+    this.#teardownLink();
     mediaSessionService.deactivateTransportAnchor();
     if (!options.silent) this.onSnapshot({ state: 'paused', currentTime: 0, error: undefined });
   }
@@ -244,7 +219,7 @@ export class LibzciModulePlayerService {
 
   async applySettings(settings: ModulePlaybackSettings): Promise<void> {
     this.#settingsApplied = settings;
-    if (!this.#worker) return;
+    if (!this.#link) return;
     const commands: Array<[string, number]> = [];
     if (Number.isFinite(settings.interpolationFilter)) {
       commands.push(['interpolation', settings.interpolationFilter]);
@@ -308,12 +283,12 @@ export class LibzciModulePlayerService {
 
   setTransitionGain(gain: number, durationSeconds = 0): void {
     this.#transitionGain = Number.isFinite(gain) ? Math.max(gain, 0) : 1;
-    if (this.#node) audioBusService.setSourceGain(this.#node, this.#transitionGain, durationSeconds);
+    if (this.#link) audioBusService.setSourceGain(this.#link.node, this.#transitionGain, durationSeconds);
   }
 
   setChannelMutes(muted: boolean[]): void {
     this.#channelMutes = [...muted];
-    if (!this.#worker) return;
+    if (!this.#link) return;
     muted.forEach((mute, channel) => {
       const kind = mute ? 'channel-mute' : 'channel-unmute';
       void this.#command(kind, channel).catch((error) => {
@@ -333,22 +308,15 @@ export class LibzciModulePlayerService {
     this.onPattern(null);
   }
 
-  #teardownRuntime(): void {
+  #teardownLink(): void {
     this.#destroyed = true;
-    for (const pending of this.#pending.values()) pending.reject(new Error('libzci module playback closed'));
-    this.#pending.clear();
-    const worker = this.#worker;
-    this.#worker = null;
-    if (worker) {
-      worker.postMessage({ type: 'close' } satisfies WorkerRequest);
-      setTimeout(() => worker.terminate(), 50);
+    this.#linkReady = null;
+    const link = this.#link;
+    this.#link = null;
+    if (link) {
+      audioBusService.disconnect(link.node);
+      link.close();
     }
-    this.#runtimeReady = null;
-    if (this.#context && this.#onContextStateChange) this.#context.removeEventListener('statechange', this.#onContextStateChange);
-    this.#context = null;
-    this.#onContextStateChange = null;
-    if (this.#node) audioBusService.disconnect(this.#node);
-    this.#node = null;
     this.#destroyed = false;
   }
 
@@ -404,96 +372,38 @@ export class LibzciModulePlayerService {
     });
   }
 
-  async #ensureRuntime(): Promise<void> {
-    if (this.#runtimeReady) return this.#runtimeReady;
-    this.#runtimeReady = (async () => {
-      const context = audioBusService.context;
-      await ensureWorklet(context);
-      const response = await fetch(audioWasm);
-      if (!response.ok) throw new Error(`libzci audio WASM HTTP ${response.status}`);
-      const module = await WebAssembly.compileStreaming(response);
-      const worker = new Worker(new URL('./playback.worker.ts', import.meta.url), { type: 'module' });
-      const node = new AudioWorkletNode(context, 'libzci-output', {
-        numberOfInputs: 0,
-        numberOfOutputs: 1,
-        outputChannelCount: [2],
-        processorOptions: { module }
-      });
-      const decode = new MessageChannel();
-      const control = new MessageChannel();
-      let resolveReady!: () => void;
-      let rejectReady!: (error: Error) => void;
-      const ready = new Promise<void>((resolve, reject) => {
-        resolveReady = resolve;
-        rejectReady = reject;
-      });
-      let readySettled = false;
-      worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
-        const message = event.data;
-        if (message.type === 'ready') {
-          readySettled = true;
-          resolveReady();
-          return;
+  async #ensureLink(): Promise<EngineLink> {
+    if (this.#link) return this.#link;
+    if (!this.#linkReady) {
+      this.#linkReady = (async () => {
+        const context = audioBusService.context;
+        const link = await createLibzciEngineLink(
+          context,
+          {
+            onSnapshot: (message) => this.#receiveSnapshot(message),
+            onError: (error) => this.#reportError(error)
+          },
+          'module playback'
+        );
+        if (this.#destroyed) {
+          audioBusService.disconnect(link.node);
+          link.close();
+          throw new Error('libzci module playback closed during startup');
         }
-        if (message.type === 'result') {
-          const pending = this.#pending.get(message.request);
-          if (!pending) return;
-          this.#pending.delete(message.request);
-          if (message.error) pending.reject(new Error(message.error));
-          else pending.resolve(message.value);
-          return;
-        }
-        if (message.type === 'snapshot') {
-          this.#receiveSnapshot(message);
-          return;
-        }
-        if (message.type === 'error') {
-          if (!readySettled) {
-            readySettled = true;
-            rejectReady(new Error(message.detail));
-          }
-          this.#reportError(new Error(message.detail));
-        }
-      };
-      worker.onerror = (event) => {
-        const error = new Error(event.message || 'libzci module worker failed');
-        if (!readySettled) {
-          readySettled = true;
-          rejectReady(error);
-        }
-        for (const pending of this.#pending.values()) pending.reject(error);
-        this.#pending.clear();
-        this.#reportError(error);
-      };
-      node.onprocessorerror = () => this.#reportError(new Error('libzci module processor failed'));
-      node.port.postMessage({ type: 'attach', control: control.port2, decode: decode.port2 }, [control.port2, decode.port2]);
-      worker.postMessage({
-        type: 'init',
-        rate: context.sampleRate,
-        latency: (context.baseLatency + (context.outputLatency ?? 0)) * context.sampleRate,
-        control: control.port1,
-        decode: decode.port1
-      } satisfies WorkerRequest, [control.port1, decode.port1]);
-      await ready;
-      if (this.#destroyed) {
-        worker.terminate();
-        throw new Error('libzci module playback closed during startup');
+        this.#link = link;
+        link.notifyContextState();
+        audioBusService.connectAudioNode(link.node);
+        audioBusService.setSourceGain(link.node, this.#transitionGain);
+        return link;
+      })();
+      try {
+        await this.#linkReady;
+      } catch (error) {
+        this.#linkReady = null;
+        throw error;
       }
-      this.#worker = worker;
-      this.#context = context;
-      this.#onContextStateChange = () => worker.postMessage({ type: 'context', state: context.state } satisfies WorkerRequest);
-      context.addEventListener('statechange', this.#onContextStateChange);
-      this.#onContextStateChange();
-      this.#node = node;
-      audioBusService.connectAudioNode(node);
-      audioBusService.setSourceGain(node, this.#transitionGain);
-    })();
-    try {
-      await this.#runtimeReady;
-    } catch (error) {
-      this.#runtimeReady = null;
-      throw error;
     }
+    return this.#linkReady;
   }
 
   #receiveSnapshot(message: WorkerSnapshotMessage): void {
@@ -522,16 +432,8 @@ export class LibzciModulePlayerService {
   }
 
   async #command(kind: string, value = 0): Promise<void> {
-    await this.#ensureRuntime();
-    await this.#request({ type: 'command', request: crypto.randomUUID(), kind, value });
-  }
-
-  #request(request: Extract<WorkerRequest, { request: string }>): Promise<unknown> {
-    if (!this.#worker) return Promise.reject(new Error('libzci module playback is not initialized'));
-    return new Promise((resolve, reject) => {
-      this.#pending.set(request.request, { resolve, reject });
-      this.#worker!.postMessage(request);
-    });
+    const link = await this.#ensureLink();
+    await link.request({ type: 'command', request: crypto.randomUUID(), kind, value });
   }
 
   #reportError(error: unknown): void {

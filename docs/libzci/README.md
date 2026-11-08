@@ -81,10 +81,12 @@ Opus/Symphonia/modules-reference providers, bounded decode worker and shared
 audio worklet, routed through the existing audio bus. Howler has been removed;
 the old OpenMPT and Hively audio transports are superseded (the OpenMPT
 inspection worker remains for full pattern songs; Hively pattern songs come
-from output-free replay-core inspection). Queue/library/catalog and
+from output-free replay-core inspection). Both Svelte transports share one
+engine-link runtime (`src/lib/services/libzci/runtime.ts`); the generated WASM
+build output still lives under the crude consumer. Queue/library/catalog and
 persistence, full ReplayGain ownership, mobile/Oda wiring and the existing
 browser video path remain subsequent slices. See the
-[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-third-slice--hively-playback-in-the-svelte-shell).
+[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-fourth-slice--shared-svelte-engine-runtime).
 Preserve ordinary izci profiles/grants throughout adoption; sound checks use
 muted/low output.
 
