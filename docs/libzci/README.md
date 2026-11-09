@@ -84,18 +84,18 @@ inspection worker remains for full pattern songs; Hively pattern songs come
 from output-free replay-core inspection). Both Svelte transports share one
 engine-link runtime (`src/lib/services/libzci/runtime.ts`); generated WASM
 now emits to workspace-ignored `libzci/generated/`. Forty-four pure Svelte seams
-plus the first stub worker file pin the queue/library adoption contract
-(commands, queries, groups, bookmarks, image sequences, scan roots/
-observations/batches, settings, source registry, facades, owner-client
-channels including ingest/restore, playback resolution, play-count/
-normalization/lyrics/rendition observations, capability/ingest/durable/access/
-namespace/transport-guard boundaries, 17-channel worker protocol, unified
-store, stub `profile-owner.worker.ts` + spawn helper) with typecheck/unit/
-build evidence but no live execution yet.
+plus the stub worker file pin the queue/library adoption contract (commands,
+queries, groups, bookmarks, image sequences, scan roots/observations/batches,
+settings, source registry, facades, owner-client channels including ingest/
+restore/attach/context/ack/output-error/close, playback resolution,
+play-count/normalization/lyrics/rendition observations, capability/ingest/
+durable/access/namespace/transport-guard boundaries, 17-channel worker
+protocol, unified store, stub `profile-owner.worker.ts` + spawn helper) with
+typecheck/unit/build evidence but no live execution yet.
 Queue/library persistence cutover, file-access ownership, and the remaining
 domain/transport/mobile/Oda wiring are the next slices; the browser video path
 stays native. See the latest
-[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-forty-fifth-slice--stub-profile-owner-worker).
+[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-forty-eighth-slice--owner-client-close-notification).
 Preserve ordinary izci profiles/grants throughout adoption; sound checks use
 muted/low output.
 

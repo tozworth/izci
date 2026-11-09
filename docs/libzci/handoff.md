@@ -1,9 +1,9 @@
-# Handoff — 2026-11-09 (A2 forty-fifth slice)
+# Handoff — 2026-11-09 (A2 forty-eighth slice)
 
 ## Checkout and scope
 
 - Workspace: `C:\Users\Toz\Projects\izci`, branch `libzci-codex`.
-- Implementation commit: `39b24796` (`Add stub profile owner worker for A2`).
+- Implementation commit: `b9dc2058` (`Add owner-client close notification for A2`).
 - Worktree: clean after this documentation checkpoint; no task-owned preview,
   browser, Cargo or audio process should remain running.
 - The MVP is **Svelte adoption with working playback for most existing formats**,
@@ -41,7 +41,7 @@ A2's transport slices are implemented in the production Svelte main window
   pattern songs still use the legacy inspection worker; Hively pattern songs
   use output-free replay-core inspection).
 
-Since then, forty-four pure Svelte seams plus the first stub worker file pin
+Since then, forty-four pure Svelte seams plus the stub worker file pin
 the queue/library adoption contract (all typechecked, unit-tested, built; no
 browser run claims for the worker yet):
 
@@ -58,14 +58,16 @@ browser run claims for the worker yet):
   builders, capability stage keys, ingest request boundary, scan observation,
   rendition requests, lyrics documents + active-cue lookup, play-count and
   normalization observations.
-- Owner client (document side, no worker file yet): queue + catalog mutate +
-  catalog_query + catalog_groups + bookmarks + image_sequence + roots +
-  begin_scan + cancel_scan + finish_scan + ingest + restore through one shared
-  32-request table, with snapshot → queue-facade (+ `access`/`scan` tracking)
-  and catalog-page → catalog-facade routing; unified profile store composes
-  facades + registry + client + `access`/`scan` readables; worker protocol
-  pins all seventeen channels (including lifecycle: ingest/restore/attach/
-  context/ack/output-error).
+- Owner client (document side; stub worker file exists but owns no storage
+  yet): queue + catalog mutate + catalog_query + catalog_groups + bookmarks +
+  image_sequence + roots + begin_scan + cancel_scan + finish_scan + ingest +
+  restore + attach/context/ack/output-error/close through one shared 32-request
+  table (attach/context/ack/output-error/close are fire-and-forget), with
+  snapshot → queue-facade (+ `access`/`scan` tracking) and catalog-page →
+  catalog-facade routing; unified profile store composes facades + registry +
+  client + `access`/`scan` readables; worker protocol pins all channels
+  including lifecycle; stub worker validates envelopes and answers
+  `profile-init`/`close`/`ack`, stubbing the rest as `not-implemented`.
 - Profile ownership: fresh `izci-v1` namespaces (OPFS/channel/lock/IDB) with
   name validation, access contract + UI-action mapping, transport guards.
 - Explicit bridges: native-video + shell-Raf + playback-gap registry +
@@ -97,6 +99,7 @@ Recent commits (this session, oldest first):
 | `7cfe2907` / `4dc71e09` / `0afdffe4` | Worker lifecycle channels + owner ingest/restore |
 | `afe27103` | Scan batch bounds |
 | `39b24796` | Stub profile owner worker + spawn helper |
+| `c2774b7f` / `42db93aa` / `b9dc2058` | Owner attach/context/ack/output-error/close |
 
 ## Remaining work and caveats
 
@@ -131,16 +134,16 @@ Recent commits (this session, oldest first):
    izci-server adoption, physical Android/background and GNU/Linux stay
    post-MVP unless the user reprioritizes them.
 
-## Last verification (rerun for the forty-fifth slice)
+## Last verification (rerun for the forty-eighth slice)
 
 Windows x64 (no browser, no device for the pure seams + stub worker; transport
 evidence below is retained history, not rerun):
 
 - `npm run check`: 0 errors, 0 warnings.
-- `npm test`: 261 files / 1,553 tests passed.
+- `npm test`: 261 files / 1,556 tests passed.
 - `npm run build`: passed. PWA precache: 172 entries, unchanged (stub worker
   unreferenced; chunk lands with the first construction site).
-- Focused vitest (`profile-owner`): 2 passed.
+- Focused vitest (`owner-client`): 17 passed.
 - Retained transport history (muted headless Chromium, production `dist/`
   preview): `tone.ahx`/`tone.hvl`/`tone.mod`/`44100-1.mp3` play/pause/seek/
   resume with no page/console errors; `snapshot.test.ts` + Hively inspection
