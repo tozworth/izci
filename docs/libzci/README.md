@@ -83,15 +83,17 @@ the old OpenMPT and Hively audio transports are superseded (the OpenMPT
 inspection worker remains for full pattern songs; Hively pattern songs come
 from output-free replay-core inspection). Both Svelte transports share one
 engine-link runtime (`src/lib/services/libzci/runtime.ts`); generated WASM
-now emits to workspace-ignored `libzci/generated/`. Thirty pure Svelte seams
+now emits to workspace-ignored `libzci/generated/`. Forty pure Svelte seams
 since then pin the queue/library adoption contract (commands, queries, groups,
-bookmarks, image sequences, scan roots, settings, source registry, facades,
-owner-client channels, playback resolution, observations, capability/ingest
-keys) with typecheck/unit/build evidence but no live worker yet.
+bookmarks, image sequences, scan roots/observations, settings, source registry,
+facades, owner-client channels, playback resolution, play-count/normalization/
+lyrics/rendition observations, capability/ingest/durable/access/namespace/
+transport-guard boundaries, worker protocol, unified store) with
+typecheck/unit/build evidence but no live worker yet.
 Queue/library persistence cutover, file-access ownership, and the remaining
 domain/transport/mobile/Oda wiring are the next slices; the browser video path
 stays native. See the latest
-[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-thirtieth-slice--ingest-request-boundary).
+[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-fortieth-slice--transport-command-guards).
 Preserve ordinary izci profiles/grants throughout adoption; sound checks use
 muted/low output.
 

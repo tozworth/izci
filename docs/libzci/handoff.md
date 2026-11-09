@@ -1,9 +1,9 @@
-# Handoff — 2026-11-09 (A2 thirtieth slice)
+# Handoff — 2026-11-09 (A2 fortieth slice)
 
 ## Checkout and scope
 
 - Workspace: `C:\Users\Toz\Projects\izci`, branch `libzci-codex`.
-- Implementation commit: `421fc304` (`Pin ingest request boundary for A2`).
+- Implementation commit: `c2d2ca8c` (`Pin transport command guards for A2`).
 - Worktree: clean after this documentation checkpoint; no task-owned preview,
   browser, Cargo or audio process should remain running.
 - The MVP is **Svelte adoption with working playback for most existing formats**,
@@ -41,26 +41,31 @@ A2's transport slices are implemented in the production Svelte main window
   pattern songs still use the legacy inspection worker; Hively pattern songs
   use output-free replay-core inspection).
 
-Since then, thirty pure Svelte seams pin the queue/library adoption contract
+Since then, forty pure Svelte seams pin the queue/library adoption contract
 without a live worker yet (all typechecked, unit-tested, built; no browser
 run claims):
 
 - Queue: snapshot probe + read-only facade (+ `catalog_revision`), command
-  boundary (all 12 `QueueCommand`s, settings mapping, durable request ids),
-  live-`File` source registry, `QueueLoad` → playback resolution
-  (`access-required` vs `unsupported`), Svelte→core settings mapping.
+  boundary (all 12 `QueueCommand`s, settings mapping), durable request ids
+  (revision-prefixed + 128-revision window), live-`File` source registry,
+  `QueueLoad` → playback resolution (`access-required` vs `unsupported`),
+  Svelte→core settings mapping, transport guards.
 - Catalog/library: snapshot probe + read-only facade (rating `0..10` →
   half-star), user-facts commands (favorite/rate/bookmark/remove) + rating
   mapping, query boundary, groups boundary + view mapping (years/folders
   shell-side), bookmarks boundary + sorting, image-sequence boundary +
   stepping, managed scan-roots boundary + folder mapping, root command
-  builders, capability stage keys, ingest request boundary.
+  builders, capability stage keys, ingest request boundary, scan observation,
+  rendition requests, lyrics documents + active-cue lookup, play-count and
+  normalization observations.
 - Owner client (document side, no worker file yet): queue + catalog mutate +
   catalog_query + catalog_groups + bookmarks + image_sequence + roots +
   begin_scan + cancel_scan + finish_scan through one shared 32-request table,
-  with snapshot → queue-facade and catalog-page → catalog-facade routing.
-- Observations: play-count snapshots, normalization snapshots, lyrics
-  documents + active-cue lookup.
+  with snapshot → queue-facade (+ `access`/`scan` tracking) and catalog-page →
+  catalog-facade routing; unified profile store composes facades + registry +
+  client + `access`/`scan` readables; worker protocol pins all channels.
+- Profile ownership: fresh `izci-v1` namespaces (OPFS/channel/lock/IDB) with
+  name validation, access contract + UI-action mapping, transport guards.
 - Explicit bridges: native-video + shell-Raf + playback-gap registry +
   mobile/Oda/window consumer contract.
 
@@ -82,6 +87,11 @@ Recent commits (this session, oldest first):
 | `8660847f` / `421fc304` | Capability keys + ingest request boundary |
 | `cc01e530` / `47cd1e8b` / `1d6ba791` | Play-count/normalization/lyrics boundaries |
 | `b19934ef` | Queue observation carries catalog revision |
+| `1f9c2349` / `e65e3d92` | Worker protocol + unified profile store |
+| `8b224a4b` / `c7ee9f53` / `2247043a` | Durable ids + access contract/wiring |
+| `c371c37c` / `40e40a15` | Scan observation boundary + wiring |
+| `5f746b2c` | Rendition request boundary |
+| `83b7c4e1` / `c2d2ca8c` | Profile namespaces + transport guards |
 
 ## Remaining work and caveats
 
@@ -113,15 +123,15 @@ Recent commits (this session, oldest first):
    izci-server adoption, physical Android/background and GNU/Linux stay
    post-MVP unless the user reprioritizes them.
 
-## Last verification (rerun for the thirtieth slice)
+## Last verification (rerun for the fortieth slice)
 
 Windows x64 (no browser, no device for the pure seams; transport evidence
 below is retained history, not rerun):
 
 - `npm run check`: 0 errors, 0 warnings.
-- `npm test`: 251 files / 1,530 tests passed.
+- `npm test`: 259 files / 1,547 tests passed.
 - `npm run build`: passed. PWA precache: 172 entries, unchanged.
-- Focused vitest (`ingest-request/capability-keys`): 5 passed.
+- Focused vitest (`transport-guard/access-status`): 5 passed.
 - Retained transport history (muted headless Chromium, production `dist/`
   preview): `tone.ahx`/`tone.hvl`/`tone.mod`/`44100-1.mp3` play/pause/seek/
   resume with no page/console errors; `snapshot.test.ts` + Hively inspection
