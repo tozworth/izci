@@ -1,5 +1,24 @@
 # libzci implementation log
 
+## 2026-11-09: A2 fortieth slice — transport command guards
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; restore execution and transport wiring remain open. This slice does
+not close A2.
+
+- New `transport-guard.ts` pins the worker `command` gate (`play` restores
+  first unless granted; `pause`/`stop`/`dispose` always run; every other
+  transport command requires granted access) with `allowed`/`restoreFirst`
+  decisions. Queue navigation stays in the command layer; nothing posts or
+  resolves here.
+- New `transport-guard.test.ts` pins pause/stop/dispose passthrough,
+  play restore-first behavior, and granted-only seeks/controls.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`transport-guard/access-status`): 5 passed.
+
 ## 2026-11-09: A2 thirty-ninth slice — profile storage namespaces
 
 Status: **implemented; check/focused-test evidence passed**. No worker file,
