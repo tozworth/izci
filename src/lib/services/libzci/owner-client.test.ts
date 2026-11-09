@@ -33,6 +33,28 @@ describe('core owner client', () => {
     ).toThrow();
   });
 
+  it('prefixes request ids with the observed revision once snapshots arrive', async () => {
+    const posted: OwnerOutgoingMessage[] = [];
+    const facade = createCoreQueueFacade();
+    const client = new CoreOwnerClient({
+      post: (message) => posted.push(message),
+      queueFacade: facade
+    });
+    const before = client.queue({ kind: 'clear_up_next' }, 'before');
+    const beforeRequest = (posted[0] as { request: string }).request;
+    expect(beforeRequest.includes(':')).toBe(false);
+    client.handleMessage({ type: 'result', request: beforeRequest, value: { duplicate: false, appended: [], revision: 1, load: null, stop: false } });
+    await expect(before).resolves.toBeDefined();
+
+    client.handleMessage({ type: 'snapshot', profile: profile(4) });
+    const after = client.queue({ kind: 'clear_up_next' }, 'after');
+    const afterRequest = (posted[1] as { request: string }).request;
+    expect(afterRequest.startsWith('4:')).toBe(true);
+    expect(afterRequest.endsWith('/after')).toBe(true);
+    client.handleMessage({ type: 'result', request: afterRequest, value: { duplicate: false, appended: [], revision: 5, load: null, stop: false } });
+    await expect(after).resolves.toBeDefined();
+  });
+
   it('tracks access strings from snapshots', () => {
     const accesses: string[] = [];
     const client = new CoreOwnerClient({

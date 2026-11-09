@@ -1,9 +1,11 @@
+import { get } from 'svelte/store';
 import { EngineRequestTable } from './runtime';
 import {
   makeQueueRequestId,
   serializeQueueCommand,
   validateQueueRequestId
 } from './queue-commands';
+import { makeDurableRequestId } from './durable-request';
 import { validateQueueLoad, type QueueLoadLike } from './source-registry';
 import { serializeCatalogCommand, type CoreCatalogCommand } from './catalog-commands';
 import { serializeCatalogQuery, type CoreCatalogQuery } from './catalog-query';
@@ -47,8 +49,9 @@ import type { CoreProfileQueueState } from './queue-snapshot';
  * document-side wire before any worker file exists:
  *
  * - `queue(command)` posts `{type:'queue', command, request}` with a bounded
- *   `${uuid}/${scope}` durable id and multiplexes the `result` through the
- *   shared `EngineRequestTable`.
+ *   durable id (`${uuid}/${scope}` before the first snapshot,
+ *   `${revision}:${uuid}/${scope}` after, enabling core receipt-age checks)
+ *   and multiplexes the `result` through the shared `EngineRequestTable`.
  * - `catalog(command)` posts `{type:'catalog', command, request}` for core
  *   catalog mutations (favorite/rate/bookmark/remove) through the same table.
  *   Scan/probe-owned commands (`add`/`root`/`finish_scan`) have no client
@@ -249,12 +252,23 @@ export class CoreOwnerClient {
     return this.#scan;
   }
 
+  /**
+   * New request id: revision-prefixed once a profile snapshot has been
+   * observed (enabling core receipt-age checks), prefix-less before that.
+   * Both shapes satisfy the `1..256 chars` bound and end with `/scope`.
+   */
+  #newRequest(scope: string): string {
+    const revision = this.#queueFacade ? get(this.#queueFacade.revision) : null;
+    const request = revision === null ? makeQueueRequestId(scope) : makeDurableRequestId(revision, scope);
+    validateQueueRequestId(request);
+    return request;
+  }
+
   #issue<T>(type: 'queue' | 'catalog', command: CoreQueueCommand | CoreCatalogCommand, scope: string): Promise<T> {
     if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
       throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
     }
-    const request = makeQueueRequestId(scope);
-    validateQueueRequestId(request);
+    const request = this.#newRequest(scope);
     if (type === 'queue') serializeQueueCommand(command as CoreQueueCommand);
     else serializeCatalogCommand(command as CoreCatalogCommand);
     const pending = new Promise<T>((resolve, reject) => {
@@ -298,8 +312,7 @@ export class CoreOwnerClient {
     }
     const normalizedSubsong = subsong ?? null;
     validateBookmarkTarget(media, normalizedSubsong);
-    const request = makeQueueRequestId(scope);
-    validateQueueRequestId(request);
+    const request = this.#newRequest(scope);
     const pending = new Promise<CoreBookmark[]>((resolve, reject) => {
       this.#table.add(request, {
         resolve: (value) => resolve(value as CoreBookmark[]),
@@ -321,8 +334,7 @@ export class CoreOwnerClient {
     if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
       throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
     }
-    const request = makeQueueRequestId(scope);
-    validateQueueRequestId(request);
+    const request = this.#newRequest(scope);
     const pending = new Promise<CoreManagedRoot[]>((resolve, reject) => {
       this.#table.add(request, {
         resolve: (value) => resolve(value as CoreManagedRoot[]),
@@ -347,8 +359,7 @@ export class CoreOwnerClient {
     if (!Number.isSafeInteger(root) || root <= 0 || root > SCAN_MAX_ID) {
       throw new Error(`Invalid scan root id: ${String(root)}`);
     }
-    const request = makeQueueRequestId(scope);
-    validateQueueRequestId(request);
+    const request = this.#newRequest(scope);
     const pending = new Promise<CoreScanPlan>((resolve, reject) => {
       this.#table.add(request, {
         resolve: (value) => resolve(value as CoreScanPlan),
@@ -371,8 +382,7 @@ export class CoreOwnerClient {
     if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
       throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
     }
-    const request = makeQueueRequestId(scope);
-    validateQueueRequestId(request);
+    const request = this.#newRequest(scope);
     const pending = new Promise<void>((resolve, reject) => {
       this.#table.add(request, {
         resolve: () => resolve(),
@@ -393,8 +403,7 @@ export class CoreOwnerClient {
     if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
       throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
     }
-    const request = makeQueueRequestId(scope);
-    validateQueueRequestId(request);
+    const request = this.#newRequest(scope);
     const pending = new Promise<CoreScanSummary>((resolve, reject) => {
       this.#table.add(request, {
         resolve: (value) => resolve(value as CoreScanSummary),
@@ -425,7 +434,7 @@ export class CoreOwnerClient {
     if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
       throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
     }
-    const built = buildIngestRequest(files, handles, open, `${crypto.randomUUID()}/${scope}`);
+    const built = buildIngestRequest(files, handles, open, this.#newRequest(scope));
     const pending = new Promise<CoreProfileOutcome>((resolve, reject) => {
       this.#table.add(built.request, {
         resolve: (value) => resolve(value as CoreProfileOutcome),
@@ -447,8 +456,7 @@ export class CoreOwnerClient {
     if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
       throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
     }
-    const request = makeQueueRequestId(scope);
-    validateQueueRequestId(request);
+    const request = this.#newRequest(scope);
     const pending = new Promise<QueueLoadLike | null>((resolve, reject) => {
       this.#table.add(request, {
         resolve: (value) => resolve(value as QueueLoadLike | null),
@@ -524,8 +532,7 @@ export class CoreOwnerClient {
     if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
       throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
     }
-    const request = makeQueueRequestId(scope);
-    validateQueueRequestId(request);
+    const request = this.#newRequest(scope);
     serializeCatalogQuery(query);
     const pending = new Promise<CoreImageSequence>((resolve, reject) => {
       this.#table.add(request, {
@@ -551,8 +558,7 @@ export class CoreOwnerClient {
     if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
       throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
     }
-    const request = makeQueueRequestId(scope);
-    validateQueueRequestId(request);
+    const request = this.#newRequest(scope);
     serializeCatalogGroupBy(by);
     serializeCatalogQuery(query);
     const pending = new Promise<CoreCatalogGroupPage>((resolve, reject) => {
@@ -575,8 +581,7 @@ export class CoreOwnerClient {
     if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
       throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
     }
-    const request = makeQueueRequestId(scope);
-    validateQueueRequestId(request);
+    const request = this.#newRequest(scope);
     serializeCatalogQuery(query);
     const pending = new Promise<CoreCatalogPage>((resolve, reject) => {
       this.#table.add(request, {

@@ -1,5 +1,24 @@
 # libzci implementation log
 
+## 2026-11-09: A2 fifty-third slice — durable ids wired into the owner client
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+execution, locks, channels, OPFS/SQLite, or audio yet. This slice does not
+close A2.
+
+- `owner-client.ts` now issues revision-prefixed durable ids
+  (`${revision}:${uuid}/${scope}`) once a profile snapshot has been observed
+  (enabling core receipt-age checks) and prefix-less ids before that. All
+  channels share one `#newRequest` helper reading the queue facade revision;
+  ingest builds on the same helper instead of a local UUID.
+- Extended `owner-client.test.ts` with prefix-less-before-snapshot and
+  prefixed-after-snapshot coverage.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client`): 18 passed.
+
 ## 2026-11-09: A2 fifty-second slice — observation folded into the store
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
