@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CoreOwnerClient, OWNER_MAX_IN_FLIGHT, type OwnerOutgoingMessage } from './owner-client';
+import { createCoreCatalogFacade } from './catalog-facade';
 import { createCoreQueueFacade } from './queue-facade';
 import { get } from 'svelte/store';
+import type { CoreCatalogPage } from './catalog-snapshot';
 import type { CoreProfileQueueState } from './queue-snapshot';
 
 function profile(revision: number): CoreProfileQueueState {
@@ -131,5 +133,42 @@ describe('core owner client', () => {
     client.close('owner lost');
     await Promise.all(pendings);
     expect(client.pending).toBe(0);
+  });
+
+  it('queries catalog pages into the catalog facade', async () => {
+    const posted: OwnerOutgoingMessage[] = [];
+    const catalogFacade = createCoreCatalogFacade();
+    const client = new CoreOwnerClient({
+      post: (message) => posted.push(message),
+      catalogFacade
+    });
+    const page: CoreCatalogPage = {
+      revision: 21,
+      total: 1,
+      rows: [
+        {
+          id: 1,
+          kind: 'audio',
+          in_library: true,
+          source: { key: 'a', kind: 'browser_handle', locator: 'fs:a', display_path: '/music/one.mp3' },
+          metadata: { title: 'One', artist: 'Artist', album: 'Album', duration_seconds: 180 },
+          facts: { favorite: true, rating: 8, play_count: 2, last_played_ms: null }
+        }
+      ]
+    };
+    const pending = client.queryCatalog({ collection: 'library', search: '', sort: 'title', descending: false, offset: 0, limit: 100 }, 'lib');
+    expect(posted).toHaveLength(1);
+    expect(posted[0].type).toBe('catalog_query');
+    client.handleMessage({ type: 'result', request: posted[0].request, value: page });
+    await expect(pending).resolves.toEqual(page);
+    expect(get(catalogFacade.revision)).toBe(21);
+    expect(get(catalogFacade.view)?.rows[0].rating).toBe(4);
+
+    // Late pages with stale revisions stay harmless through the facade guard.
+    const stale = client.queryCatalog({ collection: 'library', search: '', sort: 'title', descending: false, offset: 0, limit: 100 }, 'stale');
+    client.handleMessage({ type: 'result', request: posted[1].request, value: { ...page, revision: 20, total: 99 } });
+    await stale;
+    expect(get(catalogFacade.revision)).toBe(21);
+    expect(get(catalogFacade.view)?.total).toBe(1);
   });
 });

@@ -1,5 +1,24 @@
 # libzci implementation log
 
+## 2026-11-09: A2 thirteenth slice — owner-client catalog query channel
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+yet; query execution, scans, groups, and materialization remain open. This
+slice does not close A2.
+
+- Extended `owner-client.ts` with `queryCatalog(query)` posting
+  `{type:'catalog_query', query, request}` through the shared 32-request
+  table and feeding the returned page into the catalog facade (newer
+  revisions win). Full rows are projected to the facade's
+  title/artist/album/duration subset for MVP observation.
+- Extended `owner-client.test.ts` with query multiplexing plus stale-page
+  guard coverage through the facade.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client/catalog-query`): 8 passed.
+
 ## 2026-11-09: A2 twelfth slice — catalog query boundary
 
 Status: **implemented; check/focused-test evidence passed**. No live owner

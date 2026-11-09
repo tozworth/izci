@@ -1,8 +1,11 @@
 import { EngineRequestTable } from './runtime';
 import { makeQueueRequestId, serializeQueueCommand, validateQueueRequestId } from './queue-commands';
 import { serializeCatalogCommand, type CoreCatalogCommand } from './catalog-commands';
+import { serializeCatalogQuery, type CoreCatalogQuery } from './catalog-query';
 import type { CoreQueueCommand } from './queue-commands';
 import type { CoreQueueFacade } from './queue-facade';
+import type { CoreCatalogFacade } from './catalog-facade';
+import type { CoreCatalogPage } from './catalog-snapshot';
 import type { CoreProfileQueueState } from './queue-snapshot';
 
 /**
@@ -20,13 +23,16 @@ import type { CoreProfileQueueState } from './queue-snapshot';
  *   catalog mutations (favorite/rate/bookmark/remove) through the same table.
  *   Scan/probe-owned commands (`add`/`root`/`finish_scan`) have no client
  *   helper yet.
+ * - `queryCatalog(query)` posts `{type:'catalog_query', query, request}` and
+ *   feeds the returned page into the read-only catalog facade (newer
+ *   revisions win). Full Rust rows are projected to the facade's
+ *   title/artist/album/duration subset for MVP observation.
  * - `handleMessage` routes `snapshot` into the read-only queue facade
  *   (newer revisions win) and `result`/`error` into pending requests.
  *
  * Budgets mirror the crude owner: at most 32 in-flight requests shared by
- * both channels. Catalog queries (`catalog_query` pages) belong to the next
- * slice; ingest/restore/transport/materialization remain open A2 work. This
- * client never touches `File` objects, handles, or audio nodes.
+ * all channels. Ingest/restore/transport/materialization remain open A2 work.
+ * This client never touches `File` objects, handles, or audio nodes.
  */
 
 export const OWNER_MAX_IN_FLIGHT = 32;
@@ -64,6 +70,11 @@ export type OwnerOutgoingMessage =
       type: 'catalog';
       command: CoreCatalogCommand;
       request: string;
+    }
+  | {
+      type: 'catalog_query';
+      query: CoreCatalogQuery;
+      request: string;
     };
 
 export type OwnerIncomingMessage =
@@ -74,18 +85,21 @@ export type OwnerIncomingMessage =
 export interface OwnerClientOptions {
   post: (message: OwnerOutgoingMessage) => void;
   queueFacade?: CoreQueueFacade;
+  catalogFacade?: CoreCatalogFacade;
   onError?: (error: Error) => void;
 }
 
 export class CoreOwnerClient {
   readonly #post: (message: OwnerOutgoingMessage) => void;
   readonly #queueFacade?: CoreQueueFacade;
+  readonly #catalogFacade?: CoreCatalogFacade;
   readonly #onError?: (error: Error) => void;
   readonly #table = new EngineRequestTable();
 
   constructor(options: OwnerClientOptions) {
     this.#post = options.post;
     this.#queueFacade = options.queueFacade;
+    this.#catalogFacade = options.catalogFacade;
     this.#onError = options.onError;
   }
 
@@ -126,6 +140,29 @@ export class CoreOwnerClient {
    */
   catalog(command: CoreCatalogCommand, scope = 'catalog'): Promise<CoreCatalogOutcome> {
     return this.#issue<CoreCatalogOutcome>('catalog', command, scope);
+  }
+
+  /**
+   * Query a core catalog page and feed it to the catalog facade.
+   * Shares the 32-request budget with all other channels.
+   */
+  async queryCatalog(query: CoreCatalogQuery, scope = 'catalog_query'): Promise<CoreCatalogPage> {
+    if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
+      throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
+    }
+    const request = makeQueueRequestId(scope);
+    validateQueueRequestId(request);
+    serializeCatalogQuery(query);
+    const pending = new Promise<CoreCatalogPage>((resolve, reject) => {
+      this.#table.add(request, {
+        resolve: (value) => resolve(value as CoreCatalogPage),
+        reject
+      });
+    });
+    this.#post({ type: 'catalog_query', query, request });
+    const page = await pending;
+    this.#catalogFacade?.pushObservation(page);
+    return page;
   }
 
   /** Route one owner-worker message. Unknown result ids stay harmless. */
