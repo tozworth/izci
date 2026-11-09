@@ -1,5 +1,24 @@
 # libzci implementation log
 
+## 2026-11-09: A2 twenty-seventh slice — capability stage keys
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; handle staging/completion/GC, IDB, and SQL remain open. This
+slice does not close A2.
+
+- New `capability-keys.ts` pins the stage-key scheme shared with the crude
+  (`<request>/<index>`, `<request>/root`, `<rootKey>/file/<sha256-hex>`) with
+  bounds (keys `1..8192` without NUL, requests `1..256` without `/`, digest
+  64 lowercase hex). Handles, IDB, and SQL stay in the future capabilities +
+  owner slice; nothing here resolves or persists.
+- New `capability-keys.test.ts` pins key construction and malformed
+  request/index/digest rejection.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`capability-keys/scan-roots`): 6 passed.
+
 ## 2026-11-09: A2 twenty-sixth slice — catalog root command builders
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
