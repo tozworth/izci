@@ -1,5 +1,25 @@
 # libzci implementation log
 
+## 2026-11-09: A2 twelfth slice — catalog query boundary
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; query execution, scans, groups, and materialization remain open.
+This slice does not close A2.
+
+- New `catalog-query.ts` pins the core `CatalogQuery` JSON contract
+  (`collection`, `kind`, `root`/`media`/`source_key`/`subsong`, `search`,
+  `artist`/`album`/`genre`, `sort`, `descending`, `offset`, `limit`,
+  `revision`) with Rust `filtered()` bounds (`limit 1..500`, `search 0..1024`,
+  filter text `0..4096`, ids `1..MAX_ID`) and Rust defaults (library/title/
+  limit 100). Groups stay open.
+- New `catalog-query.test.ts` pins defaults, the snake_case wire shape
+  (`source_key`, `play_count`, `descending`), and bounds/failure cases.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`catalog-query/catalog-commands`): 6 passed.
+
 ## 2026-11-09: A2 eleventh slice — owner-client catalog mutate channel
 
 Status: **implemented; check/focused-test evidence passed**. No worker file
