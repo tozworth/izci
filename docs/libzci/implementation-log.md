@@ -1,5 +1,26 @@
 # libzci implementation log
 
+## 2026-11-09: A2 sixth slice — explicit video/Raf compatibility bridges
+
+Status: **implemented; check/focused-test evidence passed**. The native
+`<video>` path and shell-side Raf graph remain the MVP bridges outside the
+migrated domain authority; core video (M5) and full Raf parity (M4) stay
+deferred. This slice does not close A2.
+
+- New `compat-bridges.ts` pins the video bridge (native element via
+  `VideoPlayerService`, single-element PiP guard), the Raf bridge
+  (shell-side graph with explicit `auto-amp` video bypass), the known
+  playback gaps (stream speed, module separation/pan, Hively tempo/pitch/
+  repeat, ReplayGain shell bridge), and the mobile/Oda/window consumer
+  contract that queue adoption must preserve.
+- New `compat-bridges.test.ts` guards the bridge identities and gap list so
+  future slices cannot silently widen them.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`compat-bridges/queue-commands`): 11 passed.
+
 ## 2026-11-09: A2 fifth slice — core queue command boundary
 
 Status: **implemented; check/full-test/build evidence passed**. No live owner
