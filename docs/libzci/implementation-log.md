@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 twenty-fourth slice — normalization observation boundary
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; gain-schedule application, settings persistence, and shell-bridge
+removal remain open. This slice does not close A2.
+
+- New `normalization.ts` pins the `Normalization` shape (`origin`,
+  `gain_db`, `linear`, `clipping_limited`) with the six Rust `GainOrigin`
+  values plus `isActive`/`effectiveLinearGain` helpers for surfacing effective
+  gain without owning policy. The Svelte bus-local gain bridge stays explicit
+  until the queue/library slice moves ownership fully into core.
+- New `normalization.test.ts` pins validation and helper behavior.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`normalization/play-counts`): 2 passed.
+
 ## 2026-11-09: A2 twenty-third slice — play-count observation boundary
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
