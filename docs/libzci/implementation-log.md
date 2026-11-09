@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 thirty-second slice — unified profile store composition
+
+Status: **implemented; check/focused-test evidence passed**. No worker file,
+locks, channels, OPFS/SQLite, or materialization yet. This slice does not
+close A2.
+
+- New `profile-store.ts` composes the pure seams into one construction site
+  for components: shared `queueFacade`/`catalogFacade`, live-`File`
+  `registry`, and `client` (multiplexing + facade routing). Nothing opens
+  workers, touches handles, or persists state.
+- New `profile-store.test.ts` pins snapshot→queue-facade, query→catalog-
+  facade, and registry resolution through the shared store.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`profile-store/owner-client`): 11 passed.
+
 ## 2026-11-09: A2 thirty-first slice — worker protocol boundary
 
 Status: **implemented; check/focused-test evidence passed**. No worker file
