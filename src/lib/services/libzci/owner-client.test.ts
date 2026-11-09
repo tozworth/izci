@@ -91,4 +91,45 @@ describe('core owner client', () => {
     expect(client.pending).toBe(0);
     expect(vi.fn()).toBeDefined();
   });
+
+  it('multiplexes catalog mutations through the shared budget', async () => {
+    const posted: OwnerOutgoingMessage[] = [];
+    const client = new CoreOwnerClient({ post: (message) => posted.push(message) });
+    const pending = client.catalog({ kind: 'favorite', media: 7, subsong: null, favorite: true }, 'fav');
+    expect(posted).toHaveLength(1);
+    expect(posted[0].type).toBe('catalog');
+    expect(posted[0].request.endsWith('/fav')).toBe(true);
+    expect(client.pending).toBe(1);
+
+    client.handleMessage({
+      type: 'result',
+      request: posted[0].request,
+      value: { duplicate: false, revision: 9, media: [7], bookmark: null, root: null, scan: null }
+    });
+    await expect(pending).resolves.toEqual({
+      duplicate: false,
+      revision: 9,
+      media: [7],
+      bookmark: null,
+      root: null,
+      scan: null
+    });
+
+    // Queue and catalog share the 32-request budget.
+    const pendings: Array<Promise<unknown>> = [];
+    for (let index = 0; index < OWNER_MAX_IN_FLIGHT; index += 1) {
+      const command =
+        index % 2 === 0
+          ? client.queue({ kind: 'clear_up_next' }, `q-${index}`)
+          : client.catalog({ kind: 'remove', media: [index + 1] }, `c-${index}`);
+      pendings.push(command.catch(() => null));
+    }
+    expect(client.pending).toBe(OWNER_MAX_IN_FLIGHT);
+    expect(() => client.catalog({ kind: 'remove', media: [1] }, 'overflow')).toThrow(
+      'Owner request budget exhausted'
+    );
+    client.close('owner lost');
+    await Promise.all(pendings);
+    expect(client.pending).toBe(0);
+  });
 });

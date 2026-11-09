@@ -1,5 +1,24 @@
 # libzci implementation log
 
+## 2026-11-09: A2 eleventh slice — owner-client catalog mutate channel
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+yet; catalog queries, scans, OPFS/SQLite, and materialization remain open.
+This slice does not close A2.
+
+- Extended `owner-client.ts` with `catalog(command)` posting
+  `{type:'catalog', command, request}` through the same 32-request
+  `EngineRequestTable` as the queue channel. Covers core catalog mutations
+  (favorite/rate/bookmark/remove); scan/probe-owned commands still have no
+  helper. Queue and catalog share one budget; `close()` rejects both.
+- Extended `owner-client.test.ts` with catalog result multiplexing and a
+  mixed queue/catalog budget-overflow case.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client/catalog-commands`): 7 passed.
+
 ## 2026-11-09: A2 tenth slice — Svelte to core settings mapping
 
 Status: **implemented; check/focused-test evidence passed**. No live owner

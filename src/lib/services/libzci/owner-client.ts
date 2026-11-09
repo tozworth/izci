@@ -1,5 +1,6 @@
 import { EngineRequestTable } from './runtime';
 import { makeQueueRequestId, serializeQueueCommand, validateQueueRequestId } from './queue-commands';
+import { serializeCatalogCommand, type CoreCatalogCommand } from './catalog-commands';
 import type { CoreQueueCommand } from './queue-commands';
 import type { CoreQueueFacade } from './queue-facade';
 import type { CoreProfileQueueState } from './queue-snapshot';
@@ -15,12 +16,17 @@ import type { CoreProfileQueueState } from './queue-snapshot';
  * - `queue(command)` posts `{type:'queue', command, request}` with a bounded
  *   `${uuid}/${scope}` durable id and multiplexes the `result` through the
  *   shared `EngineRequestTable`.
+ * - `catalog(command)` posts `{type:'catalog', command, request}` for core
+ *   catalog mutations (favorite/rate/bookmark/remove) through the same table.
+ *   Scan/probe-owned commands (`add`/`root`/`finish_scan`) have no client
+ *   helper yet.
  * - `handleMessage` routes `snapshot` into the read-only queue facade
  *   (newer revisions win) and `result`/`error` into pending requests.
  *
- * Budgets mirror the crude owner: at most 32 in-flight queue requests.
- * Ingest/restore/transport/materialization remain open A2 work; this client
- * never touches `File` objects, handles, or audio nodes.
+ * Budgets mirror the crude owner: at most 32 in-flight requests shared by
+ * both channels. Catalog queries (`catalog_query` pages) belong to the next
+ * slice; ingest/restore/transport/materialization remain open A2 work. This
+ * client never touches `File` objects, handles, or audio nodes.
  */
 
 export const OWNER_MAX_IN_FLIGHT = 32;
@@ -39,11 +45,26 @@ export interface CoreProfileOutcome {
   stop: boolean;
 }
 
-export type OwnerOutgoingMessage = {
-  type: 'queue';
-  command: CoreQueueCommand;
-  request: string;
-};
+export interface CoreCatalogOutcome {
+  duplicate: boolean;
+  revision: number;
+  media: number[];
+  bookmark: number | null;
+  root: number | null;
+  scan: { root: number; entries: number; added: number; removed: number } | null;
+}
+
+export type OwnerOutgoingMessage =
+  | {
+      type: 'queue';
+      command: CoreQueueCommand;
+      request: string;
+    }
+  | {
+      type: 'catalog';
+      command: CoreCatalogCommand;
+      request: string;
+    };
 
 export type OwnerIncomingMessage =
   | { type: 'snapshot'; profile: CoreProfileQueueState }
@@ -72,26 +93,39 @@ export class CoreOwnerClient {
     return this.#table.size;
   }
 
+  #issue<T>(type: 'queue' | 'catalog', command: CoreQueueCommand | CoreCatalogCommand, scope: string): Promise<T> {
+    if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
+      throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
+    }
+    const request = makeQueueRequestId(scope);
+    validateQueueRequestId(request);
+    if (type === 'queue') serializeQueueCommand(command as CoreQueueCommand);
+    else serializeCatalogCommand(command as CoreCatalogCommand);
+    const pending = new Promise<T>((resolve, reject) => {
+      this.#table.add(request, {
+        resolve: (value) => resolve(value as T),
+        reject
+      });
+    });
+    this.#post({ type, command, request } as OwnerOutgoingMessage);
+    return pending;
+  }
+
   /**
    * Issue a core queue command. Rejects when more than 32 requests are
    * already in flight so a stalled owner cannot grow an unbounded queue.
    */
   queue(command: CoreQueueCommand, scope = 'queue'): Promise<CoreProfileOutcome> {
-    if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
-      throw new Error('Owner request budget exhausted: 32 in-flight queue requests');
-    }
-    const request = makeQueueRequestId(scope);
-    validateQueueRequestId(request);
-    // Validate the JSON envelope early so malformed commands fail before post.
-    serializeQueueCommand(command);
-    const pending = new Promise<CoreProfileOutcome>((resolve, reject) => {
-      this.#table.add(request, {
-        resolve: (value) => resolve(value as CoreProfileOutcome),
-        reject
-      });
-    });
-    this.#post({ type: 'queue', command, request });
-    return pending;
+    return this.#issue<CoreProfileOutcome>('queue', command, scope);
+  }
+
+  /**
+   * Issue a core catalog mutation (favorite/rate/bookmark/remove).
+   * Shares the 32-request budget with the queue channel. Scan/probe-owned
+   * commands have no helper yet.
+   */
+  catalog(command: CoreCatalogCommand, scope = 'catalog'): Promise<CoreCatalogOutcome> {
+    return this.#issue<CoreCatalogOutcome>('catalog', command, scope);
   }
 
   /** Route one owner-worker message. Unknown result ids stay harmless. */
