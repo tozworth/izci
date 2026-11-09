@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 forty-third slice — owner-client restore channel
+
+Status: **implemented; check/focused-test evidence passed**. No worker file,
+locks, channels, OPFS/SQLite, or execution yet. This slice does not close A2.
+
+- Extended `owner-client.ts` with `restore()` posting `{type:'restore',
+  request}` through the shared 32-request table and validating the returned
+  `QueueLoad` (or `null` when no current occurrence). Feed the load to
+  `resolveQueuePlayback` with the source registry; a `null` file means
+  `access-required`.
+- Extended `owner-client.test.ts` with restore multiplexing, null-restore,
+  and invalid-load rejection coverage.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client/queue-playback`): 18 passed.
+
 ## 2026-11-09: A2 forty-second slice — owner-client ingest channel
 
 Status: **implemented; check/focused-test evidence passed**. No worker file,

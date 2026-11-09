@@ -349,4 +349,33 @@ describe('core owner client', () => {
 
     await expect(client.ingest([], [], true, 'empty')).rejects.toThrow('1..10000');
   });
+
+  it('restores the current queue load with validation', async () => {
+    const posted: OwnerOutgoingMessage[] = [];
+    const client = new CoreOwnerClient({ post: (message) => posted.push(message) });
+    const load = {
+      occurrence: 4,
+      source: { key: 'svelte/a', kind: 'ephemeral' as const, locator: 'svelte/a', display_path: 'one.mp3' },
+      position_seconds: 3,
+      subsong: null,
+      autoplay: false
+    };
+    const pending = client.restore('boot');
+    expect(posted).toHaveLength(1);
+    expect(posted[0].type).toBe('restore');
+    client.handleMessage({ type: 'result', request: (posted[0] as { request: string }).request, value: load });
+    await expect(pending).resolves.toEqual(load);
+
+    const empty = client.restore('empty-boot');
+    client.handleMessage({ type: 'result', request: (posted[1] as { request: string }).request, value: null });
+    await expect(empty).resolves.toBeNull();
+
+    const invalid = client.restore('bad-boot');
+    client.handleMessage({
+      type: 'result',
+      request: (posted[2] as { request: string }).request,
+      value: { ...load, occurrence: 0 }
+    });
+    await expect(invalid).rejects.toThrow();
+  });
 });

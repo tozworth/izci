@@ -1,5 +1,11 @@
 import { EngineRequestTable } from './runtime';
-import { makeQueueRequestId, serializeQueueCommand, validateQueueRequestId } from './queue-commands';
+import {
+  makeQueueRequestId,
+  serializeQueueCommand,
+  validateQueueRequestId,
+  validateSourceReference
+} from './queue-commands';
+import type { QueueLoadLike } from './source-registry';
 import { serializeCatalogCommand, type CoreCatalogCommand } from './catalog-commands';
 import { serializeCatalogQuery, type CoreCatalogQuery } from './catalog-query';
 import {
@@ -73,7 +79,7 @@ import type { CoreProfileQueueState } from './queue-snapshot';
  *   pending requests.
  *
  * Budgets mirror the crude owner: at most 32 in-flight requests shared by
- * all channels. Restore/transport/materialization remain open A2 work.
+ * all channels. Transport/materialization remain open A2 work.
  * Only `ingest` carries `File`/handle objects (for structured cloning);
  * no other method touches handles or audio nodes.
  */
@@ -83,6 +89,22 @@ export const OWNER_MAX_IN_FLIGHT = 32;
 function validateScanToken(token: string): void {
   if (typeof token !== 'string' || token.length === 0 || token.length > SCAN_MAX_TOKEN || token.includes('\0')) {
     throw new Error('Invalid scan token: expected 1..128 chars without NUL');
+  }
+}
+
+function validateQueueLoad(load: QueueLoadLike): void {
+  if (!Number.isSafeInteger(load.occurrence) || load.occurrence <= 0) {
+    throw new Error(`Invalid queue load occurrence: ${String(load.occurrence)}`);
+  }
+  validateSourceReference(load.source);
+  if (typeof load.position_seconds !== 'number' || !Number.isFinite(load.position_seconds) || load.position_seconds < 0) {
+    throw new Error(`Invalid queue load position: ${String(load.position_seconds)}`);
+  }
+  if (load.subsong !== null && (!Number.isSafeInteger(load.subsong) || load.subsong < 0)) {
+    throw new Error(`Invalid queue load subsong: ${String(load.subsong)}`);
+  }
+  if (typeof load.autoplay !== 'boolean') {
+    throw new Error('Invalid queue load autoplay: expected boolean');
   }
 }
 
@@ -166,6 +188,10 @@ export type OwnerOutgoingMessage =
       files: File[];
       handles: unknown[];
       open: boolean;
+      request: string;
+    }
+  | {
+      type: 'restore';
       request: string;
     };
 
@@ -402,6 +428,31 @@ export class CoreOwnerClient {
     });
     this.#post({ type: 'ingest', files: built.files, handles: built.handles, open: built.open, request: built.request });
     return pending;
+  }
+
+  /**
+   * Restore the current queue load (cold start, reload, owner handoff).
+   * Resolves with the `QueueLoad` to materialize, or `null` when there is
+   * no current occurrence. Feed the load to `resolveQueuePlayback` with the
+   * source registry; a `null` file means `access-required`. Shares the
+   * 32-request budget with all other channels.
+   */
+  async restore(scope = 'restore'): Promise<QueueLoadLike | null> {
+    if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
+      throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
+    }
+    const request = makeQueueRequestId(scope);
+    validateQueueRequestId(request);
+    const pending = new Promise<QueueLoadLike | null>((resolve, reject) => {
+      this.#table.add(request, {
+        resolve: (value) => resolve(value as QueueLoadLike | null),
+        reject
+      });
+    });
+    this.#post({ type: 'restore', request });
+    const load = await pending;
+    if (load !== null) validateQueueLoad(load);
+    return load;
   }
 
   /**
