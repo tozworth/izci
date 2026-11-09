@@ -1,5 +1,22 @@
 # libzci implementation log
 
+## 2026-11-09: A2 forty-fourth slice — scan batch bounds
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; per-entry metadata normalization, probing, enumeration, and
+reconciliation remain open. This slice does not close A2.
+
+- New `scan-batch.ts` pins the staging envelope (token `1..128` without NUL,
+  batches `1..256` entries) plus a batch-count helper. Full `MediaInput`
+  metadata belongs to the future probe slice; nothing here enumerates,
+  probes, or writes.
+- New `scan-batch.test.ts` pins envelope validation and batch counting.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`scan-batch/scan-roots`): 6 passed.
+
 ## 2026-11-09: A2 forty-third slice — owner-client restore channel
 
 Status: **implemented; check/focused-test evidence passed**. No worker file,
