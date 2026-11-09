@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 nineteenth slice — captured image sequence boundary
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; sequence capture, rendition jobs, viewer wiring, and
+materialization remain open. This slice does not close A2.
+
+- New `image-sequence.ts` pins `ImageSequence`/`ImageNavigation` with Rust
+  bounds (sequence `1..100000` unique ids, revision `0..MAX_ID`) and helpers
+  (`indexOf`, wrap-aware stepping, serialization). Neither sequence nor viewer
+  state is persisted or routed through music transport.
+- New `image-sequence.test.ts` pins validation, navigation validation/
+  serialization, and stepping with wrap on/off.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`image-sequence/bookmarks`): 6 passed.
+
 ## 2026-11-09: A2 eighteenth slice — core bookmarks boundary
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
