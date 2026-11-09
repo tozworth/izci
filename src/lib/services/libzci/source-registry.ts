@@ -1,5 +1,5 @@
 import type { TrackItem } from '$lib/types';
-import { sourceReferenceForTrack } from './queue-commands';
+import { sourceReferenceForTrack, validateSourceReference } from './queue-commands';
 import type { CoreSourceReference } from './queue-snapshot';
 
 /**
@@ -22,6 +22,23 @@ export interface QueueLoadLike {
   position_seconds: number;
   subsong: number | null;
   autoplay: boolean;
+}
+
+/** Validate a `QueueLoad` descriptor before materializing it. */
+export function validateQueueLoad(load: QueueLoadLike): void {
+  if (!Number.isSafeInteger(load.occurrence) || load.occurrence <= 0) {
+    throw new Error(`Invalid queue load occurrence: ${String(load.occurrence)}`);
+  }
+  validateSourceReference(load.source);
+  if (typeof load.position_seconds !== 'number' || !Number.isFinite(load.position_seconds) || load.position_seconds < 0) {
+    throw new Error(`Invalid queue load position: ${String(load.position_seconds)}`);
+  }
+  if (load.subsong !== null && (!Number.isSafeInteger(load.subsong) || load.subsong < 0)) {
+    throw new Error(`Invalid queue load subsong: ${String(load.subsong)}`);
+  }
+  if (typeof load.autoplay !== 'boolean') {
+    throw new Error('Invalid queue load autoplay: expected boolean');
+  }
 }
 
 export class CoreSourceRegistry {

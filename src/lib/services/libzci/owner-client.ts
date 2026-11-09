@@ -2,10 +2,9 @@ import { EngineRequestTable } from './runtime';
 import {
   makeQueueRequestId,
   serializeQueueCommand,
-  validateQueueRequestId,
-  validateSourceReference
+  validateQueueRequestId
 } from './queue-commands';
-import type { QueueLoadLike } from './source-registry';
+import { validateQueueLoad, type QueueLoadLike } from './source-registry';
 import { serializeCatalogCommand, type CoreCatalogCommand } from './catalog-commands';
 import { serializeCatalogQuery, type CoreCatalogQuery } from './catalog-query';
 import {
@@ -89,22 +88,6 @@ export const OWNER_MAX_IN_FLIGHT = 32;
 function validateScanToken(token: string): void {
   if (typeof token !== 'string' || token.length === 0 || token.length > SCAN_MAX_TOKEN || token.includes('\0')) {
     throw new Error('Invalid scan token: expected 1..128 chars without NUL');
-  }
-}
-
-function validateQueueLoad(load: QueueLoadLike): void {
-  if (!Number.isSafeInteger(load.occurrence) || load.occurrence <= 0) {
-    throw new Error(`Invalid queue load occurrence: ${String(load.occurrence)}`);
-  }
-  validateSourceReference(load.source);
-  if (typeof load.position_seconds !== 'number' || !Number.isFinite(load.position_seconds) || load.position_seconds < 0) {
-    throw new Error(`Invalid queue load position: ${String(load.position_seconds)}`);
-  }
-  if (load.subsong !== null && (!Number.isSafeInteger(load.subsong) || load.subsong < 0)) {
-    throw new Error(`Invalid queue load subsong: ${String(load.subsong)}`);
-  }
-  if (typeof load.autoplay !== 'boolean') {
-    throw new Error('Invalid queue load autoplay: expected boolean');
   }
 }
 

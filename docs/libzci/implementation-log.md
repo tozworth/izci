@@ -1,5 +1,25 @@
 # libzci implementation log
 
+## 2026-11-09: A2 forty-ninth slice — unified load validation and result checks
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+execution, locks, channels, OPFS/SQLite, or audio yet. This slice does not
+close A2.
+
+- Moved `validateQueueLoad` to `source-registry.ts` (single owner beside
+  `QueueLoadLike`); `owner-client.ts` now imports it instead of a private
+  copy. Extended `profile-protocol.ts` `validateResultPayload` to cover
+  `restore` (null or validated load), `ingest`/`queue`/`catalog` (object
+  envelope), and `finish_scan` (full summary validation instead of a
+  shape check).
+- Extended `source-registry.test.ts` (load validation) and
+  `profile-protocol.test.ts` (restore/finish/ingest/queue result checks).
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`profile-protocol/source-registry/owner-client`): 24 passed.
+
 ## 2026-11-09: A2 forty-eighth slice — owner-client close notification
 
 Status: **implemented; check/focused-test evidence passed**. No worker file

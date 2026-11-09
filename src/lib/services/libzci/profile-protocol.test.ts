@@ -35,5 +35,14 @@ describe('profile worker protocol', () => {
     expect(() =>
       validateResultPayload('image_sequence', { revision: 1, media: [5] })
     ).not.toThrow();
+    const load = { occurrence: 1, source: { key: 'a', kind: 'ephemeral', locator: 'a', display_path: 'one.mp3' }, position_seconds: 0, subsong: null, autoplay: false };
+    expect(() => validateResultPayload('restore', null)).not.toThrow();
+    expect(() => validateResultPayload('restore', load)).not.toThrow();
+    expect(() => validateResultPayload('restore', { ...load, occurrence: 0 })).toThrow();
+    expect(() =>
+      validateResultPayload('finish_scan', { root: 3, entries: 1, added: 1, removed: 0 })
+    ).not.toThrow();
+    expect(() => validateResultPayload('ingest', null)).toThrow();
+    expect(() => validateResultPayload('queue', null)).toThrow();
   });
 });

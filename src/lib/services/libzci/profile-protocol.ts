@@ -9,6 +9,8 @@ import { validateLyricsDocument } from './lyrics-document';
 import { validatePlayCountSnapshot } from './play-counts';
 import { validateCoreNormalization } from './normalization';
 import { validateIngestRequest } from './ingest-request';
+import { validateQueueLoad } from './source-registry';
+import { validateScanSummary } from './scan-roots';
 
 /**
  * Worker-side protocol boundary for the future Svelte profile owner worker.
@@ -207,8 +209,7 @@ export function validateResultPayload(channel: ProfileWorkerChannel, value: unkn
       validateScanPlan(value as never);
       break;
     case 'finish_scan':
-      // Validated by the caller via validateScanSummary; shape-check only here.
-      if (typeof value !== 'object' || value === null) throw new Error('Invalid finish_scan result');
+      validateScanSummary(value as never);
       break;
     case 'bookmarks':
       if (!Array.isArray(value)) throw new Error('Invalid bookmarks result: expected an array');
@@ -216,13 +217,19 @@ export function validateResultPayload(channel: ProfileWorkerChannel, value: unkn
     case 'image_sequence':
       validateImageSequence(value as never);
       break;
-    case 'catalog_groups':
-    case 'catalog_query':
+    case 'restore':
+      if (value !== null) validateQueueLoad(value as never);
+      break;
+    case 'ingest':
     case 'queue':
     case 'catalog':
+      // Outcome shape-checked by the caller (`CoreProfileOutcome` /
+      // `CoreCatalogOutcome`); the envelope gate above already pinned kinds.
+      if (typeof value !== 'object' || value === null) throw new Error(`Invalid ${channel} result`);
+      break;
+    case 'catalog_groups':
+    case 'catalog_query':
     case 'cancel_scan':
-    case 'ingest':
-    case 'restore':
     case 'attach':
     case 'context':
     case 'ack':

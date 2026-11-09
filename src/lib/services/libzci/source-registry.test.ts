@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CoreSourceRegistry } from './source-registry';
+import { CoreSourceRegistry, validateQueueLoad } from './source-registry';
 import type { TrackItem } from '$lib/types';
 
 function track(id: string, file?: File): TrackItem {
@@ -64,5 +64,12 @@ describe('core source registry', () => {
   it('rejects invalid keys', () => {
     const registry = new CoreSourceRegistry();
     expect(() => registry.register('', new File(['a'], 'a.mp3'))).toThrow();
+  });
+
+  it('validates queue loads', () => {
+    const source = { key: 'svelte/a', kind: 'ephemeral' as const, locator: 'svelte/a', display_path: 'one.mp3' };
+    expect(() => validateQueueLoad({ occurrence: 1, source, position_seconds: 0, subsong: null, autoplay: false })).not.toThrow();
+    expect(() => validateQueueLoad({ occurrence: 0, source, position_seconds: 0, subsong: null, autoplay: false })).toThrow();
+    expect(() => validateQueueLoad({ occurrence: 1, source, position_seconds: Number.NaN, subsong: null, autoplay: false })).toThrow();
   });
 });
