@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 thirty-ninth slice — profile storage namespaces
+
+Status: **implemented; check/focused-test evidence passed**. No worker file,
+locks, channels, OPFS/SQLite, or execution yet. This slice does not close A2.
+
+- New `profile-names.ts` pins the fresh Svelte namespace (`izci-v1`) for
+  OPFS directories, capability IndexedDB names, BroadcastChannels, and Web
+  Locks with profile-name validation (`1..64` of `[a-zA-Z0-9_-]`). Names
+  never collide with the crude `libzci-crude-v3-*` set, preventing split-brain
+  double owners. Fresh state only; no migration.
+- New `profile-names.test.ts` pins derivations, crude-name exclusion, and
+  malformed-name rejection.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`profile-names/scan-observation`): 3 passed.
+
 ## 2026-11-09: A2 thirty-eighth slice — scan observation through owner and store
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
