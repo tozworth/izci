@@ -243,4 +243,41 @@ describe('core owner client', () => {
     client.handleMessage({ type: 'result', request: posted[1].request, value: { revision: 1, media: [] } });
     await expect(invalid).rejects.toThrow();
   });
+
+  it('queries roots and begins scans with validation', async () => {
+    const posted: OwnerOutgoingMessage[] = [];
+    const client = new CoreOwnerClient({ post: (message) => posted.push(message) });
+    const source = { key: 'cap/root', kind: 'browser_handle' as const, locator: 'cap/root', display_path: 'Music' };
+    const root = {
+      id: 3,
+      revision: 5,
+      config: {
+        source,
+        settings: { recursive: true, scan_on_launch: false, verify_unknown: true, probe_concurrency: 2 }
+      }
+    };
+    const roots = client.queryRoots('list');
+    expect(posted).toHaveLength(1);
+    expect(posted[0].type).toBe('roots');
+    client.handleMessage({ type: 'result', request: posted[0].request, value: [root] });
+    await expect(roots).resolves.toEqual([root]);
+
+    const plan = {
+      token: 'scan-1-abc',
+      root,
+      max_batch: 256,
+      max_entries: 100_000,
+      max_bytes: 128 * 1024 * 1024,
+      max_total_bytes: 256 * 1024 * 1024
+    };
+    const begun = client.beginScan(3, 'start');
+    expect(posted[1].type).toBe('begin_scan');
+    client.handleMessage({ type: 'result', request: posted[1].request, value: plan });
+    await expect(begun).resolves.toEqual(plan);
+
+    await expect(client.beginScan(0, 'bad')).rejects.toThrow();
+    const invalid = client.beginScan(3, 'invalid-plan');
+    client.handleMessage({ type: 'result', request: posted[2].request, value: { ...plan, token: '' } });
+    await expect(invalid).rejects.toThrow();
+  });
 });

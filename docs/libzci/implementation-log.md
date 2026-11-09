@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 twenty-second slice — owner-client roots and scan channels
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+yet; scan staging/enumeration/reconciliation and roots facades remain open.
+This slice does not close A2.
+
+- Extended `owner-client.ts` with `queryRoots()` posting `{type:'roots',
+  request}` and validating each managed root, plus `beginScan(root)`
+  posting `{type:'begin_scan', root, request}` and validating the returned
+  scan plan. Both share the 32-request table with all other channels.
+- Extended `owner-client.test.ts` with roots/scan multiplexing, root-id
+  validation, and invalid-plan rejection coverage.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client/scan-roots`): 13 passed.
+
 ## 2026-11-09: A2 twenty-first slice — owner-client image sequence channel
 
 Status: **implemented; check/focused-test evidence passed**. No worker file

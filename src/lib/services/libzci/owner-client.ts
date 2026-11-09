@@ -15,6 +15,13 @@ import {
   type CoreBookmark
 } from './bookmarks';
 import { validateImageSequence, type CoreImageSequence } from './image-sequence';
+import {
+  SCAN_MAX_ID,
+  validateManagedRoot,
+  validateScanPlan,
+  type CoreManagedRoot,
+  type CoreScanPlan
+} from './scan-roots';
 import type { CoreQueueCommand } from './queue-commands';
 import type { CoreQueueFacade } from './queue-facade';
 import type { CoreCatalogFacade } from './catalog-facade';
@@ -48,6 +55,10 @@ import type { CoreProfileQueueState } from './queue-snapshot';
  * - `queryImageSequence(query)` posts `{type:'image_sequence', query,
  *   request}` and validates the returned captured sequence. No image facade
  *   exists yet; callers render from the returned sequence.
+ * - `queryRoots()` posts `{type:'roots', request}` and validates the
+ *   returned managed roots. `beginScan(root)` posts `{type:'begin_scan',
+ *   root, request}` and validates the returned scan plan. Staging,
+ *   enumeration, and reconciliation belong to the future scan slice.
  * - `handleMessage` routes `snapshot` into the read-only queue facade
  *   (newer revisions win) and `result`/`error` into pending requests.
  *
@@ -112,6 +123,15 @@ export type OwnerOutgoingMessage =
   | {
       type: 'image_sequence';
       query: CoreCatalogQuery;
+      request: string;
+    }
+  | {
+      type: 'roots';
+      request: string;
+    }
+  | {
+      type: 'begin_scan';
+      root: number;
       request: string;
     };
 
@@ -207,6 +227,54 @@ export class CoreOwnerClient {
     if (!Array.isArray(rows)) throw new Error('Invalid bookmarks result: expected an array');
     for (const row of rows) validateCoreBookmark(row);
     return sortCoreBookmarks(rows);
+  }
+
+  /**
+   * Query managed scan roots and validate each row.
+   * Shares the 32-request budget with all other channels.
+   */
+  async queryRoots(scope = 'roots'): Promise<CoreManagedRoot[]> {
+    if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
+      throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
+    }
+    const request = makeQueueRequestId(scope);
+    validateQueueRequestId(request);
+    const pending = new Promise<CoreManagedRoot[]>((resolve, reject) => {
+      this.#table.add(request, {
+        resolve: (value) => resolve(value as CoreManagedRoot[]),
+        reject
+      });
+    });
+    this.#post({ type: 'roots', request });
+    const roots = await pending;
+    if (!Array.isArray(roots)) throw new Error('Invalid roots result: expected an array');
+    for (const root of roots) validateManagedRoot(root);
+    return roots;
+  }
+
+  /**
+   * Begin a managed scan and validate the returned plan.
+   * Shares the 32-request budget with all other channels.
+   */
+  async beginScan(root: number, scope = 'begin_scan'): Promise<CoreScanPlan> {
+    if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
+      throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
+    }
+    if (!Number.isSafeInteger(root) || root <= 0 || root > SCAN_MAX_ID) {
+      throw new Error(`Invalid scan root id: ${String(root)}`);
+    }
+    const request = makeQueueRequestId(scope);
+    validateQueueRequestId(request);
+    const pending = new Promise<CoreScanPlan>((resolve, reject) => {
+      this.#table.add(request, {
+        resolve: (value) => resolve(value as CoreScanPlan),
+        reject
+      });
+    });
+    this.#post({ type: 'begin_scan', root, request });
+    const plan = await pending;
+    validateScanPlan(plan);
+    return plan;
   }
 
   /**
