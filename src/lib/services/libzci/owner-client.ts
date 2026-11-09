@@ -205,6 +205,13 @@ export type OwnerOutgoingMessage =
       type: 'context';
       state: 'running' | 'suspended' | 'closed';
       request?: string;
+    }
+  | {
+      type: 'ack';
+    }
+  | {
+      type: 'output-error';
+      detail: string;
     };
 
 export type OwnerIncomingMessage =
@@ -498,6 +505,25 @@ export class CoreOwnerClient {
       throw new Error(`Invalid context state: ${String(state)}`);
     }
     this.#post({ type: 'context', state });
+  }
+
+  /**
+   * Acknowledge a snapshot so the worker can coalesce the next one.
+   * Fire-and-forget; unknown or duplicate acks are harmless worker-side.
+   */
+  acknowledge(): void {
+    this.#post({ type: 'ack' });
+  }
+
+  /**
+   * Report an output/worklet failure to the worker so it can fail the session
+   * instead of stalling silently. Fire-and-forget.
+   */
+  reportOutputError(detail: string): void {
+    if (typeof detail !== 'string' || detail.length === 0) {
+      throw new Error('Invalid output-error detail: expected non-empty string');
+    }
+    this.#post({ type: 'output-error', detail });
   }
 
   /**

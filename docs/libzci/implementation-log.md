@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 forty-seventh slice — owner-client ack and output-error channels
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+execution, locks, channels, OPFS/SQLite, or audio yet. This slice does not
+close A2.
+
+- Extended `owner-client.ts` with fire-and-forget `acknowledge()` (snapshot
+  coalescing) and `reportOutputError(detail)` (fail the session instead of
+  stalling). Both post without table entries; the worker treats duplicates
+  as harmless.
+- Extended `owner-client.test.ts` with ack/output-error posting and
+  validation coverage.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client`): 16 passed.
+
 ## 2026-11-09: A2 forty-sixth slice — owner-client attach and context channels
 
 Status: **implemented; check/focused-test evidence passed**. No worker file

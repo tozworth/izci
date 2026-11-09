@@ -395,4 +395,14 @@ describe('core owner client', () => {
     expect(() => client.attach(control, decode, 0, 0)).toThrow();
     expect(() => client.notifyContextState('bogus' as never)).toThrow();
   });
+
+  it('acknowledges snapshots and reports output errors', () => {
+    const posted: OwnerOutgoingMessage[] = [];
+    const client = new CoreOwnerClient({ post: (message) => posted.push(message) });
+    client.acknowledge();
+    expect(posted).toEqual([{ type: 'ack' }]);
+    client.reportOutputError('processor failed');
+    expect(posted).toEqual([{ type: 'ack' }, { type: 'output-error', detail: 'processor failed' }]);
+    expect(() => client.reportOutputError('')).toThrow();
+  });
 });
