@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 forty-second slice — owner-client ingest channel
+
+Status: **implemented; check/focused-test evidence passed**. No worker file,
+locks, channels, OPFS/SQLite, or execution yet. This slice does not close A2.
+
+- Extended `owner-client.ts` with `ingest(files, handles, open)` posting
+  `{type:'ingest', files, handles, open, request}` for structured cloning
+  through the shared 32-request table. Plain batches become `ephemeral`;
+  handle batches become `browser_handle` in the worker. This is the only
+  client method that carries `File` objects.
+- Extended `owner-client.test.ts` with ingest multiplexing and empty-batch
+  rejection coverage.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client/ingest-request`): 16 passed.
+
 ## 2026-11-09: A2 forty-first slice — worker lifecycle channels
 
 Status: **implemented; check/focused-test evidence passed**. No worker file,

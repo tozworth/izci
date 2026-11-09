@@ -16,6 +16,7 @@ import {
 } from './bookmarks';
 import { validateImageSequence, type CoreImageSequence } from './image-sequence';
 import { validateScanObservation, type CoreScanObservation } from './scan-observation';
+import { buildIngestRequest } from './ingest-request';
 import {
   SCAN_MAX_ID,
   SCAN_MAX_TOKEN,
@@ -72,8 +73,9 @@ import type { CoreProfileQueueState } from './queue-snapshot';
  *   pending requests.
  *
  * Budgets mirror the crude owner: at most 32 in-flight requests shared by
- * all channels. Ingest/restore/transport/materialization remain open A2 work.
- * This client never touches `File` objects, handles, or audio nodes.
+ * all channels. Restore/transport/materialization remain open A2 work.
+ * Only `ingest` carries `File`/handle objects (for structured cloning);
+ * no other method touches handles or audio nodes.
  */
 
 export const OWNER_MAX_IN_FLIGHT = 32;
@@ -157,6 +159,13 @@ export type OwnerOutgoingMessage =
   | {
       type: 'finish_scan';
       token: string;
+      request: string;
+    }
+  | {
+      type: 'ingest';
+      files: File[];
+      handles: unknown[];
+      open: boolean;
       request: string;
     };
 
@@ -364,6 +373,35 @@ export class CoreOwnerClient {
     const summary = await pending;
     validateScanSummary(summary);
     return summary;
+  }
+
+  /**
+   * Ingest files through the owner worker. Genuine `File` objects (and
+   * parallel genuine handles when the picker provided them) are posted for
+   * structured cloning; the worker stages capability keys, probes, commits,
+   * and completes handles. Plain batches become `ephemeral`; handle batches
+   * become `browser_handle`. Resolves with the queue outcome; restores the
+   * current load when the worker reports one. Shares the 32-request budget.
+   * This is the only client method that carries `File` objects.
+   */
+  async ingest(
+    files: File[],
+    handles: unknown[] = [],
+    open = true,
+    scope = 'ingest'
+  ): Promise<CoreProfileOutcome> {
+    if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
+      throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
+    }
+    const built = buildIngestRequest(files, handles, open, `${crypto.randomUUID()}/${scope}`);
+    const pending = new Promise<CoreProfileOutcome>((resolve, reject) => {
+      this.#table.add(built.request, {
+        resolve: (value) => resolve(value as CoreProfileOutcome),
+        reject
+      });
+    });
+    this.#post({ type: 'ingest', files: built.files, handles: built.handles, open: built.open, request: built.request });
+    return pending;
   }
 
   /**

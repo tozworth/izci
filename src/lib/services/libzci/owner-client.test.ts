@@ -335,4 +335,18 @@ describe('core owner client', () => {
     client.handleMessage({ type: 'result', request: posted[2].request, value: { ...summary, root: 0 } });
     await expect(invalid).rejects.toThrow();
   });
+
+  it('ingests files through structured-clone posts', async () => {
+    const posted: OwnerOutgoingMessage[] = [];
+    const client = new CoreOwnerClient({ post: (message) => posted.push(message) });
+    const files = [new File(['audio'], 'one.mp3')];
+    const pending = client.ingest(files, [], true, 'pick');
+    expect(posted).toHaveLength(1);
+    expect(posted[0].type).toBe('ingest');
+    const outcome = { duplicate: false, appended: [1], revision: 6, load: null, stop: false };
+    client.handleMessage({ type: 'result', request: (posted[0] as { request: string }).request, value: outcome });
+    await expect(pending).resolves.toEqual(outcome);
+
+    await expect(client.ingest([], [], true, 'empty')).rejects.toThrow('1..10000');
+  });
 });
