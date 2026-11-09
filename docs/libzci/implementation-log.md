@@ -1,5 +1,24 @@
 # libzci implementation log
 
+## 2026-11-09: A2 fifty-first slice — unified profile observation
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; facades, materialization, and transport wiring remain open. This
+slice does not close A2.
+
+- New `profile-observation.ts` derives one read-only
+  `{queue, catalog, access, scan}` store from the unified profile store, so
+  adopting components subscribe once instead of tracking four sources. The
+  worker binding stays behind `CoreProfileStore`; nothing opens workers or
+  persists state.
+- New `profile-observation.test.ts` pins initial nulls/idle and snapshot/
+  query propagation through the shared store.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`profile-observation/profile-store`): 2 passed.
+
 ## 2026-11-09: A2 fiftieth slice — restore flow planning
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
