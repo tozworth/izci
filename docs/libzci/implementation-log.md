@@ -1,5 +1,26 @@
 # libzci implementation log
 
+## 2026-11-09: A2 fiftieth slice — restore flow planning
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; restore execution, handle resolution, and transport wiring remain
+open. This slice does not close A2.
+
+- New `restore-flow.ts` composes the cold-start/reload/handoff decision from
+  existing seams: `restore` load (or none) + `resolveQueuePlayback` + access
+  mapping + `play` transport guard. Returns `select-track` (no load or
+  unsupported kind), `wait`/`re-add`/`grant-and-retry` (mapped from access),
+  or `play` with the resolved file/position/subson/autoplay. Nothing posts,
+  resolves handles, or starts audio.
+- New `restore-flow.test.ts` pins no-load/unsupported selection, granted
+  playback, missing-file retry mapping, and granted-gating when the file
+  resolves before the access snapshot.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`restore-flow/queue-playback`): 8 passed.
+
 ## 2026-11-09: A2 forty-ninth slice — unified load validation and result checks
 
 Status: **implemented; check/focused-test evidence passed**. No worker file
