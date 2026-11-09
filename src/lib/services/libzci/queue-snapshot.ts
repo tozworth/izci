@@ -24,6 +24,7 @@ export interface CoreSourceReference {
 /** Minimal structural mirror of the core queue/profile state we observe. */
 export interface CoreProfileQueueState {
   revision: number;
+  catalog_revision: number;
   sources: CoreSourceReference[];
   queue: {
     items: CoreQueueItem[];
@@ -44,6 +45,7 @@ export interface QueueSnapshotRow {
 
 export interface QueueSnapshotView {
   revision: number;
+  catalogRevision: number;
   rows: QueueSnapshotRow[];
   currentId: number | null;
   upNext: number[];
@@ -78,6 +80,7 @@ export function toQueueSnapshotView(state: CoreProfileQueueState): QueueSnapshot
   });
   return {
     revision: state.revision,
+    catalogRevision: state.catalog_revision,
     rows,
     currentId: state.queue.current,
     upNext: [...state.queue.up_next],

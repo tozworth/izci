@@ -1,5 +1,24 @@
 # libzci implementation log
 
+## 2026-11-09: A2 twenty-ninth slice — queue observation carries catalog revision
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; persistence, owner election, and catalog execution remain open.
+This slice does not close A2.
+
+- Extended `CoreProfileQueueState`/`QueueSnapshotView` with `catalog_revision`
+  / `catalogRevision`, matching the core `ProfileState` shape consumed by the
+  crude `queueView`. Catalog mutations bump both revisions, so the facade's
+  newer-queue-revision guard stays sufficient; the view carries the catalog
+  revision for future library invalidation without a second channel.
+- Updated `queue-snapshot`/`queue-facade`/`owner-client` tests for the new
+  field.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`queue-snapshot/queue-facade/owner-client`): 15 passed.
+
 ## 2026-11-09: A2 twenty-eighth slice — owner-client scan cancel/finish channels
 
 Status: **implemented; check/focused-test evidence passed**. No worker file

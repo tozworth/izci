@@ -6,6 +6,7 @@ import type { CoreProfileQueueState } from './queue-snapshot';
 function observation(revision: number): CoreProfileQueueState {
   return {
     revision,
+    catalog_revision: revision,
     sources: [{ key: 'a', kind: 'browser_handle', locator: 'fs:a', display_path: '/music/one.mp3' }],
     queue: {
       items: [{ id: 1, source_key: 'a', subsong: null }],
@@ -25,6 +26,7 @@ describe('core queue facade', () => {
     facade.pushObservation(observation(4));
 
     expect(get(facade.revision)).toBe(4);
+    expect(get(facade.view)?.catalogRevision).toBe(4);
     expect(get(facade.view)?.rows).toEqual([
       { occurrenceId: 1, title: '/music/one.mp3', restorable: true, subsong: null, isCurrent: true }
     ]);

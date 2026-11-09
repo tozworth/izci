@@ -9,6 +9,7 @@ import type { CoreProfileQueueState } from './queue-snapshot';
 function profile(revision: number): CoreProfileQueueState {
   return {
     revision,
+    catalog_revision: revision,
     sources: [{ key: 'a', kind: 'browser_handle', locator: 'fs:a', display_path: '/music/one.mp3' }],
     queue: { items: [{ id: 1, source_key: 'a', subsong: null }], current: 1, up_next: [] },
     position_seconds: 0

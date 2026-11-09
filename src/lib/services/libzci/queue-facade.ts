@@ -8,8 +8,10 @@ import {
 /**
  * Read-only Svelte observation facade over core queue state. The future
  * owner-worker binding will push `WebProfile` observations here; components
- * render from `view` and never mutate through this module. Queue commands,
- * persistence and owner election remain open A2 work.
+ * render from `view` and never mutate through this module. The view also
+ * carries the core `catalog_revision` (catalog mutations bump both
+ * revisions, so gating on the queue revision stays sufficient). Queue
+ * commands, persistence and owner election remain open A2 work.
  */
 export interface CoreQueueFacade {
   readonly view: Readable<QueueSnapshotView | null>;

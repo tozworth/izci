@@ -7,6 +7,7 @@ import {
 
 const state: CoreProfileQueueState = {
   revision: 7,
+  catalog_revision: 4,
   sources: [
     { key: 'a', kind: 'browser_handle', locator: 'fs:a', display_path: '/music/one.mp3' },
     { key: 'b', kind: 'ephemeral', locator: 'blob:b', display_path: 'plain-file.ogg' }
@@ -27,6 +28,7 @@ describe('core queue snapshot probe', () => {
   it('joins occurrences with source references', () => {
     const view = toQueueSnapshotView(state);
     expect(view.revision).toBe(7);
+    expect(view.catalogRevision).toBe(4);
     expect(view.rows).toEqual([
       { occurrenceId: 1, title: '/music/one.mp3', restorable: true, subsong: null, isCurrent: false },
       { occurrenceId: 2, title: 'plain-file.ogg', restorable: false, subsong: 3, isCurrent: true },
