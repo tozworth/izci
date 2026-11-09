@@ -1,5 +1,26 @@
 # libzci implementation log
 
+## 2026-11-09: A2 fourteenth slice — QueueLoad to playback resolution
+
+Status: **implemented; check/focused-test evidence passed**. No owner worker
+or transport wiring yet; capability/native materialization, checkpoints, and
+image routing remain open. This slice does not close A2.
+
+- New `queue-playback.ts` resolves a core `QueueLoad` to a playback request
+  through the `CoreSourceRegistry`: live `File` plus occurrence, normalized
+  position/subsong/autoplay, inferred extension/kind, and display path.
+  Missing files report `access-required`; null/image kinds report
+  `unsupported` via `describeQueueLoadIssue`. Nothing posts commands or
+  starts audio.
+- New `queue-playback.test.ts` covers ephemeral resolution, access-required
+  vs unsupported classification, and defensive position/subson
+  normalization.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`queue-playback/source-registry`): 8 passed.
+
 ## 2026-11-09: A2 thirteenth slice — owner-client catalog query channel
 
 Status: **implemented; check/focused-test evidence passed**. No worker file
