@@ -1,5 +1,22 @@
 # libzci implementation log
 
+## 2026-11-09: A2 twenty-third slice — play-count observation boundary
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; syncPlayback acknowledgment, settings persistence, and timer
+wiring remain open. This slice does not close A2.
+
+- New `play-counts.ts` pins the `PlayCountSnapshot` shape (`settings`,
+  `credited_seconds`, `pending`, `overflowed`) with Rust bounds (threshold
+  `1..3600`, pending `0..64`) plus `hasPending`/`hasSkipped` helpers for
+  surfacing durable-acknowledgment backlogs and persistence outages.
+- New `play-counts.test.ts` pins validation and helper behavior.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`play-counts/image-sequence`): 4 passed.
+
 ## 2026-11-09: A2 twenty-second slice — owner-client roots and scan channels
 
 Status: **implemented; check/focused-test evidence passed**. No worker file
