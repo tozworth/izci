@@ -1,9 +1,9 @@
-# Handoff — 2026-11-09 (A2 fifty-first slice)
+# Handoff — 2026-11-09 (A2 fifty-second slice)
 
 ## Checkout and scope
 
 - Workspace: `C:\Users\Toz\Projects\izci`, branch `libzci-codex`.
-- Implementation commit: `40401d71` (`Compose unified profile observation for A2`).
+- Implementation commit: `5f25e20e` (`Fold unified observation into profile store for A2`).
 - Worktree: clean after this documentation checkpoint; no task-owned preview,
   browser, Cargo or audio process should remain running.
 - The MVP is **Svelte adoption with working playback for most existing formats**,
@@ -105,6 +105,7 @@ Recent commits (this session, oldest first):
 | `a9e206a9` | Unified load validation + complete result checks |
 | `f497bcfb` | Restore flow planning |
 | `40401d71` | Unified profile observation |
+| `5f25e20e` | Fold unified observation into profile store |
 
 ## Remaining work and caveats
 
@@ -139,7 +140,7 @@ Recent commits (this session, oldest first):
    izci-server adoption, physical Android/background and GNU/Linux stay
    post-MVP unless the user reprioritizes them.
 
-## Last verification (rerun for the fifty-first slice)
+## Last verification (rerun for the fifty-second slice)
 
 Windows x64 (no browser, no device for the pure seams + stub worker; transport
 evidence below is retained history, not rerun):
