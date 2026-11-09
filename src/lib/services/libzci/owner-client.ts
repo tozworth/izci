@@ -14,6 +14,7 @@ import {
   validateCoreBookmark,
   type CoreBookmark
 } from './bookmarks';
+import { validateImageSequence, type CoreImageSequence } from './image-sequence';
 import type { CoreQueueCommand } from './queue-commands';
 import type { CoreQueueFacade } from './queue-facade';
 import type { CoreCatalogFacade } from './catalog-facade';
@@ -44,6 +45,9 @@ import type { CoreProfileQueueState } from './queue-snapshot';
  *   yet; callers render from the returned page.
  * - `queryBookmarks(media, subsong)` posts `{type:'bookmarks', media,
  *   subsong, request}` and validates/sorts the returned rows in core order.
+ * - `queryImageSequence(query)` posts `{type:'image_sequence', query,
+ *   request}` and validates the returned captured sequence. No image facade
+ *   exists yet; callers render from the returned sequence.
  * - `handleMessage` routes `snapshot` into the read-only queue facade
  *   (newer revisions win) and `result`/`error` into pending requests.
  *
@@ -103,6 +107,11 @@ export type OwnerOutgoingMessage =
       type: 'bookmarks';
       media: number;
       subsong: number | null;
+      request: string;
+    }
+  | {
+      type: 'image_sequence';
+      query: CoreCatalogQuery;
       request: string;
     };
 
@@ -198,6 +207,32 @@ export class CoreOwnerClient {
     if (!Array.isArray(rows)) throw new Error('Invalid bookmarks result: expected an array');
     for (const row of rows) validateCoreBookmark(row);
     return sortCoreBookmarks(rows);
+  }
+
+  /**
+   * Query a captured core image sequence and validate it.
+   * Shares the 32-request budget with all other channels.
+   */
+  async queryImageSequence(
+    query: CoreCatalogQuery,
+    scope = 'image_sequence'
+  ): Promise<CoreImageSequence> {
+    if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
+      throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
+    }
+    const request = makeQueueRequestId(scope);
+    validateQueueRequestId(request);
+    serializeCatalogQuery(query);
+    const pending = new Promise<CoreImageSequence>((resolve, reject) => {
+      this.#table.add(request, {
+        resolve: (value) => resolve(value as CoreImageSequence),
+        reject
+      });
+    });
+    this.#post({ type: 'image_sequence', query, request });
+    const sequence = await pending;
+    validateImageSequence(sequence);
+    return sequence;
   }
 
   /**

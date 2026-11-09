@@ -227,4 +227,20 @@ describe('core owner client', () => {
     });
     await expect(invalid).rejects.toThrow();
   });
+
+  it('queries image sequences with validation', async () => {
+    const posted: OwnerOutgoingMessage[] = [];
+    const client = new CoreOwnerClient({ post: (message) => posted.push(message) });
+    const query = { collection: 'all' as const, search: '', sort: 'title' as const, descending: false, offset: 0, limit: 100 };
+    const pending = client.queryImageSequence(query, 'images');
+    expect(posted).toHaveLength(1);
+    expect(posted[0].type).toBe('image_sequence');
+    const sequence = { revision: 55, media: [5, 6, 7] };
+    client.handleMessage({ type: 'result', request: posted[0].request, value: sequence });
+    await expect(pending).resolves.toEqual(sequence);
+
+    const invalid = client.queryImageSequence(query, 'bad-images');
+    client.handleMessage({ type: 'result', request: posted[1].request, value: { revision: 1, media: [] } });
+    await expect(invalid).rejects.toThrow();
+  });
 });

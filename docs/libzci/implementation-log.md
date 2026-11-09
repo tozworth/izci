@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 twenty-first slice — owner-client image sequence channel
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+yet; sequence capture, rendition jobs, image facades, and materialization
+remain open. This slice does not close A2.
+
+- Extended `owner-client.ts` with `queryImageSequence(query)` posting
+  `{type:'image_sequence', query, request}` through the shared 32-request
+  table and validating the returned captured sequence. No image facade
+  exists yet; callers render from the returned sequence.
+- Extended `owner-client.test.ts` with image-sequence multiplexing and
+  invalid-sequence rejection coverage.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client/image-sequence`): 11 passed.
+
 ## 2026-11-09: A2 twentieth slice — owner-client bookmarks query channel
 
 Status: **implemented; check/focused-test evidence passed**. No worker file
