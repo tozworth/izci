@@ -1,9 +1,9 @@
-# Handoff — 2026-11-09 (A2 forty-third slice)
+# Handoff — 2026-11-09 (A2 forty-fourth slice)
 
 ## Checkout and scope
 
 - Workspace: `C:\Users\Toz\Projects\izci`, branch `libzci-codex`.
-- Implementation commit: `0afdffe4` (`Add owner-client restore channel for A2`).
+- Implementation commit: `afe27103` (`Pin scan batch bounds for A2`).
 - Worktree: clean after this documentation checkpoint; no task-owned preview,
   browser, Cargo or audio process should remain running.
 - The MVP is **Svelte adoption with working playback for most existing formats**,
@@ -41,7 +41,7 @@ A2's transport slices are implemented in the production Svelte main window
   pattern songs still use the legacy inspection worker; Hively pattern songs
   use output-free replay-core inspection).
 
-Since then, forty-three pure Svelte seams pin the queue/library adoption contract
+Since then, forty-four pure Svelte seams pin the queue/library adoption contract
 without a live worker yet (all typechecked, unit-tested, built; no browser
 run claims):
 
@@ -95,6 +95,7 @@ Recent commits (this session, oldest first):
 | `5f746b2c` | Rendition request boundary |
 | `83b7c4e1` / `c2d2ca8c` | Profile namespaces + transport guards |
 | `7cfe2907` / `4dc71e09` / `0afdffe4` | Worker lifecycle channels + owner ingest/restore |
+| `afe27103` | Scan batch bounds |
 
 ## Remaining work and caveats
 
@@ -126,15 +127,15 @@ Recent commits (this session, oldest first):
    izci-server adoption, physical Android/background and GNU/Linux stay
    post-MVP unless the user reprioritizes them.
 
-## Last verification (rerun for the forty-third slice)
+## Last verification (rerun for the forty-fourth slice)
 
 Windows x64 (no browser, no device for the pure seams; transport evidence
 below is retained history, not rerun):
 
 - `npm run check`: 0 errors, 0 warnings.
-- `npm test`: 259 files / 1,549 tests passed.
+- `npm test`: 260 files / 1,551 tests passed.
 - `npm run build`: passed. PWA precache: 172 entries, unchanged.
-- Focused vitest (`owner-client/queue-playback`): 18 passed.
+- Focused vitest (`scan-batch/scan-roots`): 6 passed.
 - Retained transport history (muted headless Chromium, production `dist/`
   preview): `tone.ahx`/`tone.hvl`/`tone.mod`/`44100-1.mp3` play/pause/seek/
   resume with no page/console errors; `snapshot.test.ts` + Hively inspection
