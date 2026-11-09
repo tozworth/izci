@@ -56,6 +56,12 @@ describe('core profile store', () => {
     store.client.handleMessage({ type: 'result', request: (posted[0] as { request: string }).request, value: page });
     await expect(pending).resolves.toEqual(page);
     expect(get(store.catalogFacade.revision)).toBe(3);
+    expect(get(store.observation)).toEqual({
+      queue: get(store.queueFacade.view),
+      catalog: get(store.catalogFacade.view),
+      access: 'granted',
+      scan: get(store.scan)
+    });
 
     const file = new File(['audio'], 'one.mp3');
     store.registry.register('svelte/a', file);

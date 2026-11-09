@@ -1,5 +1,24 @@
 # libzci implementation log
 
+## 2026-11-09: A2 fifty-second slice — observation folded into the store
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; facades, materialization, and transport wiring remain open. This
+slice does not close A2.
+
+- `profile-store.ts` now exposes a built-in `observation` readable composed
+  via `observeCoreProfile`, so there is exactly one construction site and one
+  observation helper (the previous inline duplicate is gone).
+  `profile-observation.ts` now takes the four source readables instead of the
+  whole store, removing the import cycle and letting both the standalone
+  helper and the store share one derived implementation.
+- Extended `profile-store.test.ts` with `observation` parity coverage.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`profile-store/profile-observation`): 2 passed.
+
 ## 2026-11-09: A2 fifty-first slice — unified profile observation
 
 Status: **implemented; check/focused-test evidence passed**. No live owner

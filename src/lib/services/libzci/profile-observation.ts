@@ -1,8 +1,9 @@
 import { derived, type Readable } from 'svelte/store';
+import type { CoreCatalogFacade } from './catalog-facade';
+import type { CoreQueueFacade } from './queue-facade';
+import type { CoreScanObservation } from './scan-observation';
 import type { CatalogSnapshotView } from './catalog-snapshot';
 import type { QueueSnapshotView } from './queue-snapshot';
-import type { CoreScanObservation } from './scan-observation';
-import type { CoreProfileStore } from './profile-store';
 
 /**
  * Unified read-only observation for components adopting the core profile.
@@ -20,9 +21,16 @@ export interface CoreProfileObservation {
   readonly scan: CoreScanObservation;
 }
 
-export function observeCoreProfile(store: CoreProfileStore): Readable<CoreProfileObservation> {
+export interface CoreProfileObservationSources {
+  readonly queueFacade: CoreQueueFacade;
+  readonly catalogFacade: CoreCatalogFacade;
+  readonly access: Readable<string>;
+  readonly scan: Readable<CoreScanObservation>;
+}
+
+export function observeCoreProfile(sources: CoreProfileObservationSources): Readable<CoreProfileObservation> {
   return derived(
-    [store.queueFacade.view, store.catalogFacade.view, store.access, store.scan],
+    [sources.queueFacade.view, sources.catalogFacade.view, sources.access, sources.scan],
     ([queue, catalog, access, scan]): CoreProfileObservation => ({ queue, catalog, access, scan })
   );
 }
