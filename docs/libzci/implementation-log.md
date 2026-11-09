@@ -1,5 +1,52 @@
 # libzci implementation log
 
+## 2026-11-09: A2 eighth slice — Svelte owner-client wire
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+yet; OPFS/SQLite, Web-Lock election, ingest/restore, and transport wiring
+remain open. This slice does not close A2.
+
+- New `owner-client.ts` pins the document-side owner protocol before any
+  worker exists: `queue(command)` posts `{type:'queue', command, request}`
+  with a bounded `${uuid}/${scope}` id, multiplexes `result` through the
+  shared `EngineRequestTable`, and routes `snapshot` into the read-only
+  queue facade (newer revisions win). At most 32 in-flight queue requests;
+  unknown result ids stay harmless and `close()` rejects all pending work
+  (owner loss/teardown).
+- New `owner-client.test.ts` covers result multiplexing plus facade revision
+  guarding, error results, the 32-request budget, and close rejection with
+  a mocked post function. No Worker/OPFS/locks/WASM are needed.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client/queue-commands/source-registry/catalog`): 17 passed.
+
+## 2026-11-09: A2 seventh slice — source registry and catalog observation
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; queue persistence, owner election, scans, and materialization
+remain open. This slice does not close A2.
+
+- New `source-registry.ts` keeps live `File` objects for core source keys
+  (`ephemeral` plus staged `browser_handle`/`native_path`) without persisting
+  handles, blobs, or URLs. `registerTrack` reuses the command-boundary
+  reference mapping; `resolveLoad` returns `null` for capability/native loads
+  (`access-required` through the future owner worker); `retain` drops keys no
+  longer referenced by core (mirrors `references_source` GC).
+- New `catalog-snapshot.ts`/`catalog-facade.ts` mirror the queue observation
+  path for library/catalog: core `catalog_query` page shape, render rows with
+  restorable flags, core `0..10` rating to Svelte half-star mapping, and a
+  newer-revision-wins facade. Mutations, scans, and persistence stay open.
+- New `source-registry.test.ts` and `catalog-snapshot.test.ts` (facade cases
+  included) pin ephemeral/handle-only resolution, GC retention, rating and
+  restorable mapping, and revision guards.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`source-registry/catalog/queue-commands`): 14 passed.
+
 ## 2026-11-09: A2 sixth slice — explicit video/Raf compatibility bridges
 
 Status: **implemented; check/focused-test evidence passed**. The native
