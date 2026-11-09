@@ -198,4 +198,33 @@ describe('core owner client', () => {
     });
     await expect(invalid).rejects.toThrow();
   });
+
+  it('queries bookmarks with validation and core ordering', async () => {
+    const posted: OwnerOutgoingMessage[] = [];
+    const client = new CoreOwnerClient({ post: (message) => posted.push(message) });
+    const pending = client.queryBookmarks(7, null, 'marks');
+    expect(posted).toHaveLength(1);
+    expect(posted[0].type).toBe('bookmarks');
+    client.handleMessage({
+      type: 'result',
+      request: posted[0].request,
+      value: [
+        { id: 9, media: 7, subsong: null, position_seconds: 20, label: 'B' },
+        { id: 8, media: 7, subsong: null, position_seconds: 5, label: 'A' }
+      ]
+    });
+    await expect(pending).resolves.toEqual([
+      { id: 8, media: 7, subsong: null, position_seconds: 5, label: 'A' },
+      { id: 9, media: 7, subsong: null, position_seconds: 20, label: 'B' }
+    ]);
+
+    await expect(client.queryBookmarks(0, null, 'bad')).rejects.toThrow();
+    const invalid = client.queryBookmarks(7, null, 'invalid-rows');
+    client.handleMessage({
+      type: 'result',
+      request: posted[1].request,
+      value: [{ id: 0, media: 7, subsong: null, position_seconds: 1, label: 'x' }]
+    });
+    await expect(invalid).rejects.toThrow();
+  });
 });

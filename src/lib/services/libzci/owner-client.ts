@@ -8,6 +8,12 @@ import {
   type CoreCatalogGroupBy,
   type CoreCatalogGroupPage
 } from './catalog-groups';
+import {
+  sortCoreBookmarks,
+  validateBookmarkTarget,
+  validateCoreBookmark,
+  type CoreBookmark
+} from './bookmarks';
 import type { CoreQueueCommand } from './queue-commands';
 import type { CoreQueueFacade } from './queue-facade';
 import type { CoreCatalogFacade } from './catalog-facade';
@@ -36,6 +42,8 @@ import type { CoreProfileQueueState } from './queue-snapshot';
  * - `queryGroups(by, query)` posts `{type:'catalog_groups', by, query,
  *   request}` and validates the returned group page. No groups facade exists
  *   yet; callers render from the returned page.
+ * - `queryBookmarks(media, subsong)` posts `{type:'bookmarks', media,
+ *   subsong, request}` and validates/sorts the returned rows in core order.
  * - `handleMessage` routes `snapshot` into the read-only queue facade
  *   (newer revisions win) and `result`/`error` into pending requests.
  *
@@ -89,6 +97,12 @@ export type OwnerOutgoingMessage =
       type: 'catalog_groups';
       by: CoreCatalogGroupBy;
       query: CoreCatalogQuery;
+      request: string;
+    }
+  | {
+      type: 'bookmarks';
+      media: number;
+      subsong: number | null;
       request: string;
     };
 
@@ -155,6 +169,35 @@ export class CoreOwnerClient {
    */
   catalog(command: CoreCatalogCommand, scope = 'catalog'): Promise<CoreCatalogOutcome> {
     return this.#issue<CoreCatalogOutcome>('catalog', command, scope);
+  }
+
+  /**
+   * Query core bookmarks for one media/subson and validate/sort the rows.
+   * Shares the 32-request budget with all other channels.
+   */
+  async queryBookmarks(
+    media: number,
+    subsong: number | null | undefined,
+    scope = 'bookmarks'
+  ): Promise<CoreBookmark[]> {
+    if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
+      throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
+    }
+    const normalizedSubsong = subsong ?? null;
+    validateBookmarkTarget(media, normalizedSubsong);
+    const request = makeQueueRequestId(scope);
+    validateQueueRequestId(request);
+    const pending = new Promise<CoreBookmark[]>((resolve, reject) => {
+      this.#table.add(request, {
+        resolve: (value) => resolve(value as CoreBookmark[]),
+        reject
+      });
+    });
+    this.#post({ type: 'bookmarks', media, subsong: normalizedSubsong, request });
+    const rows = await pending;
+    if (!Array.isArray(rows)) throw new Error('Invalid bookmarks result: expected an array');
+    for (const row of rows) validateCoreBookmark(row);
+    return sortCoreBookmarks(rows);
   }
 
   /**

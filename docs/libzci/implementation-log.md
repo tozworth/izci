@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 twentieth slice — owner-client bookmarks query channel
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+yet; bookmark execution, groups/image facades, and materialization remain
+open. This slice does not close A2.
+
+- Extended `owner-client.ts` with `queryBookmarks(media, subsong)` posting
+  `{type:'bookmarks', media, subsong, request}` through the shared 32-request
+  table and validating/sorting the returned rows in core order
+  (`ORDER BY position_seconds, id`).
+- Extended `owner-client.test.ts` with bookmarks multiplexing, ordering,
+  target validation, and invalid-row rejection coverage.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client/bookmarks`): 10 passed.
+
 ## 2026-11-09: A2 nineteenth slice — captured image sequence boundary
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
