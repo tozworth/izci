@@ -1,5 +1,26 @@
 # libzci implementation log
 
+## 2026-11-09: A2 ninth slice — catalog user-facts command boundary
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; catalog persistence, scans, Add/Root commands, and materialization
+remain open. This slice does not close A2.
+
+- New `catalog-commands.ts` pins the core catalog user-facts JSON contract
+  (`favorite`/`rate`/`bookmark`/`remove_bookmark`/`remove`, plus wire-only
+  `add`/`root`/`remove_root`/`finish_scan` for completeness) and maps the
+  Svelte rating domain (0.5..5, undefined clears) to core half-star steps
+  (0..10, 0 clears). Builders validate media ids (`1..MAX_ID`), subsongs,
+  `position_seconds`, and bookmark labels (`0..4096` chars, no NUL).
+- New `catalog-commands.test.ts` pins the wire shapes, rating round-trips
+  with `toSvelteRating`, and bounds/failure cases. Scan/probe-owned commands
+  have types but no builders; they belong to the future probe/scan slice.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`catalog-commands/catalog-snapshot`): 6 passed.
+
 ## 2026-11-09: A2 eighth slice — Svelte owner-client wire
 
 Status: **implemented; check/focused-test evidence passed**. No worker file
