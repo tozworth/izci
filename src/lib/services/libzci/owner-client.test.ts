@@ -171,4 +171,31 @@ describe('core owner client', () => {
     expect(get(catalogFacade.revision)).toBe(21);
     expect(get(catalogFacade.view)?.total).toBe(1);
   });
+
+  it('queries catalog groups with validation', async () => {
+    const posted: OwnerOutgoingMessage[] = [];
+    const client = new CoreOwnerClient({ post: (message) => posted.push(message) });
+    const pending = client.queryGroups(
+      'artist',
+      { collection: 'library', search: '', sort: 'title', descending: false, offset: 0, limit: 100 },
+      'groups'
+    );
+    expect(posted).toHaveLength(1);
+    expect(posted[0].type).toBe('catalog_groups');
+    const page = { revision: 41, total: 1, groups: [{ key: ['Artist A'], count: 12 }] };
+    client.handleMessage({ type: 'result', request: posted[0].request, value: page });
+    await expect(pending).resolves.toEqual(page);
+
+    const invalid = client.queryGroups(
+      'album',
+      { collection: 'library', search: '', sort: 'title', descending: false, offset: 0, limit: 100 },
+      'bad'
+    );
+    client.handleMessage({
+      type: 'result',
+      request: posted[1].request,
+      value: { revision: -1, total: 0, groups: [] }
+    });
+    await expect(invalid).rejects.toThrow();
+  });
 });

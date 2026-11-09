@@ -2,6 +2,12 @@ import { EngineRequestTable } from './runtime';
 import { makeQueueRequestId, serializeQueueCommand, validateQueueRequestId } from './queue-commands';
 import { serializeCatalogCommand, type CoreCatalogCommand } from './catalog-commands';
 import { serializeCatalogQuery, type CoreCatalogQuery } from './catalog-query';
+import {
+  serializeCatalogGroupBy,
+  validateCatalogGroupPage,
+  type CoreCatalogGroupBy,
+  type CoreCatalogGroupPage
+} from './catalog-groups';
 import type { CoreQueueCommand } from './queue-commands';
 import type { CoreQueueFacade } from './queue-facade';
 import type { CoreCatalogFacade } from './catalog-facade';
@@ -27,6 +33,9 @@ import type { CoreProfileQueueState } from './queue-snapshot';
  *   feeds the returned page into the read-only catalog facade (newer
  *   revisions win). Full Rust rows are projected to the facade's
  *   title/artist/album/duration subset for MVP observation.
+ * - `queryGroups(by, query)` posts `{type:'catalog_groups', by, query,
+ *   request}` and validates the returned group page. No groups facade exists
+ *   yet; callers render from the returned page.
  * - `handleMessage` routes `snapshot` into the read-only queue facade
  *   (newer revisions win) and `result`/`error` into pending requests.
  *
@@ -73,6 +82,12 @@ export type OwnerOutgoingMessage =
     }
   | {
       type: 'catalog_query';
+      query: CoreCatalogQuery;
+      request: string;
+    }
+  | {
+      type: 'catalog_groups';
+      by: CoreCatalogGroupBy;
       query: CoreCatalogQuery;
       request: string;
     };
@@ -140,6 +155,34 @@ export class CoreOwnerClient {
    */
   catalog(command: CoreCatalogCommand, scope = 'catalog'): Promise<CoreCatalogOutcome> {
     return this.#issue<CoreCatalogOutcome>('catalog', command, scope);
+  }
+
+  /**
+   * Query core catalog groups and validate the returned page.
+   * Shares the 32-request budget with all other channels.
+   */
+  async queryGroups(
+    by: CoreCatalogGroupBy,
+    query: CoreCatalogQuery,
+    scope = 'catalog_groups'
+  ): Promise<CoreCatalogGroupPage> {
+    if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
+      throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
+    }
+    const request = makeQueueRequestId(scope);
+    validateQueueRequestId(request);
+    serializeCatalogGroupBy(by);
+    serializeCatalogQuery(query);
+    const pending = new Promise<CoreCatalogGroupPage>((resolve, reject) => {
+      this.#table.add(request, {
+        resolve: (value) => resolve(value as CoreCatalogGroupPage),
+        reject
+      });
+    });
+    this.#post({ type: 'catalog_groups', by, query, request });
+    const page = await pending;
+    validateCatalogGroupPage(page);
+    return page;
   }
 
   /**

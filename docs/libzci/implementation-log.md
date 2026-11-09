@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 sixteenth slice — owner-client catalog groups channel
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+yet; groups execution, groups facades, and materialization remain open. This
+slice does not close A2.
+
+- Extended `owner-client.ts` with `queryGroups(by, query)` posting
+  `{type:'catalog_groups', by, query, request}` through the shared 32-request
+  table and validating the returned group page. No groups facade exists yet;
+  callers render from the returned page.
+- Extended `owner-client.test.ts` with groups multiplexing and invalid-page
+  rejection coverage.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client/catalog-groups`): 8 passed.
+
 ## 2026-11-09: A2 fifteenth slice — catalog groups boundary
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
