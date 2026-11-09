@@ -1,5 +1,27 @@
 # libzci implementation log
 
+## 2026-11-09: A2 tenth slice — Svelte to core settings mapping
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; settings persistence, reverse observation, and transport wiring
+remain open. This slice does not close A2.
+
+- New `settings-mapping.ts` maps Svelte snapshots (queue `shuffle`/`repeatMode`,
+  `restartCurrentTrackOnPrevious`, `playerVolume`, mute, `replayGainMode`/
+  preamp, play-count threshold) to the core `QueueSettings` row through the
+  existing `coreQueueSettingsForInput` validation. Enabled Previous-restart
+  maps to 3 s; disabled maps to 600 s (effectively never) with Svelte keeping
+  its gate until Previous moves to core. Play-count `enabled` is always true
+  (Svelte has no disable flag); mute defaults to false (transient controller
+  state).
+- New `settings-mapping.test.ts` pins the forward mapping, the disabled
+  restart threshold, and core validation failures.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`settings-mapping/queue-commands`): 10 passed.
+
 ## 2026-11-09: A2 ninth slice — catalog user-facts command boundary
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
