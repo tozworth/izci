@@ -8,6 +8,7 @@ import { validateImageSequence } from './image-sequence';
 import { validateLyricsDocument } from './lyrics-document';
 import { validatePlayCountSnapshot } from './play-counts';
 import { validateCoreNormalization } from './normalization';
+import { validateIngestRequest } from './ingest-request';
 
 /**
  * Worker-side protocol boundary for the future Svelte profile owner worker.
@@ -34,6 +35,12 @@ export const PROFILE_PROTOCOL_CHANNELS = [
   'begin_scan',
   'cancel_scan',
   'finish_scan',
+  'ingest',
+  'restore',
+  'attach',
+  'context',
+  'ack',
+  'output-error',
   'close'
 ] as const;
 
@@ -137,6 +144,38 @@ export function validateDocumentMessage(message: { type: string; [key: string]: 
       checkToken(message.token);
       checkRequest(message.request);
       break;
+    case 'ingest':
+      validateIngestRequest({
+        files: message.files as never,
+        handles: message.handles as never,
+        open: message.open as never,
+        request: message.request as never
+      });
+      break;
+    case 'restore':
+      checkRequest(message.request);
+      break;
+    case 'attach':
+      if (typeof message.rate !== 'number' || !Number.isFinite(message.rate) || message.rate <= 0) {
+        throw new Error(`Invalid attach rate: ${String(message.rate)}`);
+      }
+      if (typeof message.latency !== 'number' || !Number.isFinite(message.latency) || message.latency < 0) {
+        throw new Error(`Invalid attach latency: ${String(message.latency)}`);
+      }
+      break;
+    case 'context':
+      if (message.state !== 'running' && message.state !== 'suspended' && message.state !== 'closed') {
+        throw new Error(`Invalid context state: ${String(message.state)}`);
+      }
+      if (message.request !== undefined) checkRequest(message.request);
+      break;
+    case 'ack':
+      break;
+    case 'output-error':
+      if (typeof message.detail !== 'string' || message.detail.length === 0) {
+        throw new Error('Invalid output-error detail: expected non-empty string');
+      }
+      break;
     case 'close':
       if (message.request !== undefined) checkRequest(message.request);
       break;
@@ -182,6 +221,12 @@ export function validateResultPayload(channel: ProfileWorkerChannel, value: unkn
     case 'queue':
     case 'catalog':
     case 'cancel_scan':
+    case 'ingest':
+    case 'restore':
+    case 'attach':
+    case 'context':
+    case 'ack':
+    case 'output-error':
     case 'profile-init':
     case 'close':
       break;

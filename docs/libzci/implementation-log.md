@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 forty-first slice — worker lifecycle channels
+
+Status: **implemented; check/focused-test evidence passed**. No worker file,
+locks, channels, OPFS/SQLite, or execution yet. This slice does not close A2.
+
+- Extended `profile-protocol.ts` with lifecycle channels (`ingest`,
+  `restore`, `attach`, `context`, `ack`, `output-error`) reusing the ingest
+  request, rate/latency, and state validators, so malformed lifecycle
+  messages fail fast before workers or storage. Channel count grows from
+  eleven to seventeen.
+- Extended `profile-protocol.test.ts` with ingest/restore/attach/context/
+  ack/output-error acceptance and rejection coverage.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`profile-protocol`): 2 passed.
+
 ## 2026-11-09: A2 fortieth slice — transport command guards
 
 Status: **implemented; check/focused-test evidence passed**. No live owner

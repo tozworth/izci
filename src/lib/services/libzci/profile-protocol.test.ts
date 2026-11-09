@@ -13,6 +13,17 @@ describe('profile worker protocol', () => {
     expect(() => validateDocumentMessage({ type: 'queue', command: { kind: 'bogus' }, request: 'a/b' })).toThrow();
     expect(() => validateDocumentMessage({ type: 'begin_scan', root: 0, request: 'a/b' })).toThrow();
     expect(() => validateDocumentMessage({ type: 'cancel_scan', token: '', request: 'a/b' })).toThrow();
+    expect(() =>
+      validateDocumentMessage({ type: 'ingest', files: [new File(['a'], 'one.mp3')], handles: [], open: true, request: 'a/b' })
+    ).not.toThrow();
+    expect(() => validateDocumentMessage({ type: 'ingest', files: [], handles: [], open: true, request: 'a/b' })).toThrow();
+    expect(() => validateDocumentMessage({ type: 'restore', request: '' })).toThrow();
+    expect(() => validateDocumentMessage({ type: 'attach', rate: 48000, latency: 128 })).not.toThrow();
+    expect(() => validateDocumentMessage({ type: 'attach', rate: 0, latency: 0 })).toThrow();
+    expect(() => validateDocumentMessage({ type: 'context', state: 'running' })).not.toThrow();
+    expect(() => validateDocumentMessage({ type: 'context', state: 'bogus' })).toThrow();
+    expect(() => validateDocumentMessage({ type: 'ack' })).not.toThrow();
+    expect(() => validateDocumentMessage({ type: 'output-error', detail: '' })).toThrow();
   });
 
   it('validates snapshot and result payloads', () => {
