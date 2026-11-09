@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 thirty-third slice — durable request identities
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+yet; receipt wiring, owner handoff, and execution remain open. This slice does
+not close A2.
+
+- New `durable-request.ts` pins revision-prefixed ids
+  (`${revision}:${uuid}/${scope}`) and the core 128-revision receipt window
+  (`validate_request_age` mirror). Prefix-less `${uuid}/${scope}` ids pass
+  but lose replay protection; new code must prefer the prefixed form.
+- New `durable-request.test.ts` pins construction, prefix shape, and the
+  expired/fresh window boundaries.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`durable-request/ingest-request`): 5 passed.
+
 ## 2026-11-09: A2 thirty-second slice — unified profile store composition
 
 Status: **implemented; check/focused-test evidence passed**. No worker file,
