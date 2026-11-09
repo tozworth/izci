@@ -1,9 +1,9 @@
-# Handoff — 2026-11-09 (A2 fortieth slice)
+# Handoff — 2026-11-09 (A2 forty-third slice)
 
 ## Checkout and scope
 
 - Workspace: `C:\Users\Toz\Projects\izci`, branch `libzci-codex`.
-- Implementation commit: `c2d2ca8c` (`Pin transport command guards for A2`).
+- Implementation commit: `0afdffe4` (`Add owner-client restore channel for A2`).
 - Worktree: clean after this documentation checkpoint; no task-owned preview,
   browser, Cargo or audio process should remain running.
 - The MVP is **Svelte adoption with working playback for most existing formats**,
@@ -41,7 +41,7 @@ A2's transport slices are implemented in the production Svelte main window
   pattern songs still use the legacy inspection worker; Hively pattern songs
   use output-free replay-core inspection).
 
-Since then, forty pure Svelte seams pin the queue/library adoption contract
+Since then, forty-three pure Svelte seams pin the queue/library adoption contract
 without a live worker yet (all typechecked, unit-tested, built; no browser
 run claims):
 
@@ -60,10 +60,12 @@ run claims):
   normalization observations.
 - Owner client (document side, no worker file yet): queue + catalog mutate +
   catalog_query + catalog_groups + bookmarks + image_sequence + roots +
-  begin_scan + cancel_scan + finish_scan through one shared 32-request table,
-  with snapshot → queue-facade (+ `access`/`scan` tracking) and catalog-page →
-  catalog-facade routing; unified profile store composes facades + registry +
-  client + `access`/`scan` readables; worker protocol pins all channels.
+  begin_scan + cancel_scan + finish_scan + ingest + restore through one shared
+  32-request table, with snapshot → queue-facade (+ `access`/`scan` tracking)
+  and catalog-page → catalog-facade routing; unified profile store composes
+  facades + registry + client + `access`/`scan` readables; worker protocol
+  pins all seventeen channels (including lifecycle: ingest/restore/attach/
+  context/ack/output-error).
 - Profile ownership: fresh `izci-v1` namespaces (OPFS/channel/lock/IDB) with
   name validation, access contract + UI-action mapping, transport guards.
 - Explicit bridges: native-video + shell-Raf + playback-gap registry +
@@ -92,6 +94,7 @@ Recent commits (this session, oldest first):
 | `c371c37c` / `40e40a15` | Scan observation boundary + wiring |
 | `5f746b2c` | Rendition request boundary |
 | `83b7c4e1` / `c2d2ca8c` | Profile namespaces + transport guards |
+| `7cfe2907` / `4dc71e09` / `0afdffe4` | Worker lifecycle channels + owner ingest/restore |
 
 ## Remaining work and caveats
 
@@ -123,15 +126,15 @@ Recent commits (this session, oldest first):
    izci-server adoption, physical Android/background and GNU/Linux stay
    post-MVP unless the user reprioritizes them.
 
-## Last verification (rerun for the fortieth slice)
+## Last verification (rerun for the forty-third slice)
 
 Windows x64 (no browser, no device for the pure seams; transport evidence
 below is retained history, not rerun):
 
 - `npm run check`: 0 errors, 0 warnings.
-- `npm test`: 259 files / 1,547 tests passed.
+- `npm test`: 259 files / 1,549 tests passed.
 - `npm run build`: passed. PWA precache: 172 entries, unchanged.
-- Focused vitest (`transport-guard/access-status`): 5 passed.
+- Focused vitest (`owner-client/queue-playback`): 18 passed.
 - Retained transport history (muted headless Chromium, production `dist/`
   preview): `tone.ahx`/`tone.hvl`/`tone.mod`/`44100-1.mp3` play/pause/seek/
   resume with no page/console errors; `snapshot.test.ts` + Hively inspection
