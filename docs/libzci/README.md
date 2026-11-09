@@ -82,11 +82,16 @@ audio worklet, routed through the existing audio bus. Howler has been removed;
 the old OpenMPT and Hively audio transports are superseded (the OpenMPT
 inspection worker remains for full pattern songs; Hively pattern songs come
 from output-free replay-core inspection). Both Svelte transports share one
-engine-link runtime (`src/lib/services/libzci/runtime.ts`); the generated WASM
-build output still lives under the crude consumer. Queue/library/catalog and
-persistence, full ReplayGain ownership, mobile/Oda wiring and the existing
-browser video path remain subsequent slices. See the
-[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-fourth-slice--shared-svelte-engine-runtime).
+engine-link runtime (`src/lib/services/libzci/runtime.ts`); generated WASM
+now emits to workspace-ignored `libzci/generated/`. Thirty pure Svelte seams
+since then pin the queue/library adoption contract (commands, queries, groups,
+bookmarks, image sequences, scan roots, settings, source registry, facades,
+owner-client channels, playback resolution, observations, capability/ingest
+keys) with typecheck/unit/build evidence but no live worker yet.
+Queue/library persistence cutover, file-access ownership, and the remaining
+domain/transport/mobile/Oda wiring are the next slices; the browser video path
+stays native. See the latest
+[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-thirtieth-slice--ingest-request-boundary).
 Preserve ordinary izci profiles/grants throughout adoption; sound checks use
 muted/low output.
 

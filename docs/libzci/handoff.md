@@ -1,9 +1,9 @@
-# Handoff — 2026-11-09 (A2 third slice)
+# Handoff — 2026-11-09 (A2 thirtieth slice)
 
 ## Checkout and scope
 
 - Workspace: `C:\Users\Toz\Projects\izci`, branch `libzci-codex`.
-- Implementation commit: pending (`Route Svelte Hively playback through libzci`).
+- Implementation commit: `421fc304` (`Pin ingest request boundary for A2`).
 - Worktree: clean after this documentation checkpoint; no task-owned preview,
   browser, Cargo or audio process should remain running.
 - The MVP is **Svelte adoption with working playback for most existing formats**,
@@ -22,86 +22,115 @@ managed scans, metadata/lyrics, ReplayGain/R128, consumed-media play counts,
 artwork, image imports/scans, captured image navigation and separate bounded
 rendition caches.
 
-A2's transport slices are implemented in the production Svelte main window:
+A2's transport slices are implemented in the production Svelte main window
+(same as the third slice, unchanged since):
 
 - Ordinary stream formats (`mp3`, `wav`, `flac`, `ogg`, `opus`), OpenMPT
   tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) and Hively modules (`ahx`,
   `hvl`) load and play through the libzci `WebEngine`, reference
   Opus/Symphonia/modules-reference providers, a bounded decode worker and the
-  shared audio-only worklet.
+  shared audio-only worklet. Both Svelte transports share one engine-link
+  runtime; generated WASM now emits to workspace-ignored `libzci/generated/`.
 - PCM is routed through the existing `audioBusService` source route. Master
   volume, transition/fade gain, the Raf compatibility graph, visualizer analyser
   and Media Session facade remain explicit shell-side bridges, not a second
-  transport.
-- Audible position comes from worklet consumption. Pause, seek, EOF, output
-  backpressure, generation fences and Asyncify-safe decoder reads are wired.
-- Seek rebuilds the generation-scoped `WebPreparation`; retained PCM/converter
-  tails cannot cross the seek boundary.
+  transport. Video stays on the native `<video>` path (M5 deferred); Raf stays
+  shell-side with an explicit `auto-amp` video bypass (M4 deferred).
 - The old Howler transport, dependency, ambient types and test were removed.
   The legacy OpenMPT and Hively audio transports are superseded (OpenMPT
   pattern songs still use the legacy inspection worker; Hively pattern songs
-  use output-free replay-core inspection). Video still uses the native
-  `<video>` path.
-- Ordinary-stream ReplayGain remains a shell-side shared-bus local-gain bridge.
-  Global playback-rate changes for ordinary streams are not adopted yet and log
-  an explicit warning; Hively tempo/pitch/repeat log their own explicit gaps.
-  These are known temporary gaps.
+  use output-free replay-core inspection).
 
-Recent commits:
+Since then, thirty pure Svelte seams pin the queue/library adoption contract
+without a live worker yet (all typechecked, unit-tested, built; no browser
+run claims):
+
+- Queue: snapshot probe + read-only facade (+ `catalog_revision`), command
+  boundary (all 12 `QueueCommand`s, settings mapping, durable request ids),
+  live-`File` source registry, `QueueLoad` → playback resolution
+  (`access-required` vs `unsupported`), Svelte→core settings mapping.
+- Catalog/library: snapshot probe + read-only facade (rating `0..10` →
+  half-star), user-facts commands (favorite/rate/bookmark/remove) + rating
+  mapping, query boundary, groups boundary + view mapping (years/folders
+  shell-side), bookmarks boundary + sorting, image-sequence boundary +
+  stepping, managed scan-roots boundary + folder mapping, root command
+  builders, capability stage keys, ingest request boundary.
+- Owner client (document side, no worker file yet): queue + catalog mutate +
+  catalog_query + catalog_groups + bookmarks + image_sequence + roots +
+  begin_scan + cancel_scan + finish_scan through one shared 32-request table,
+  with snapshot → queue-facade and catalog-page → catalog-facade routing.
+- Observations: play-count snapshots, normalization snapshots, lyrics
+  documents + active-cue lookup.
+- Explicit bridges: native-video + shell-Raf + playback-gap registry +
+  mobile/Oda/window consumer contract.
+
+Recent commits (this session, oldest first):
 
 | Commit | Behavior |
 | --- | --- |
-| pending | Svelte stream/module players share one engine-link runtime |
-| pending | Production Svelte Hively transport moved to libzci; legacy Hively service retired from the controller |
-| `f5049254` | Production Svelte OpenMPT module transport moved to libzci |
-| `250a3a1d` | A2 ordinary-stream adoption checkpoint |
-| `d528fc2e` | Production Svelte ordinary-stream transport moved to libzci; Howler removed |
+| `7c618b52` | Pin Svelte core queue command boundary |
+| `6be34c65` | Declare explicit video/Raf bridges |
+| `7be634cc` | Source registry, catalog observation, owner-client wire |
+| `93d9e6c9` | Catalog user-facts command boundary |
+| `265c4d5b` | Svelte→core settings mapping |
+| `015006d4` / `1e4da352` / `b8afeb29` | Owner catalog mutate/query/groups channels |
+| `b08991ce` / `cdbeab07` | Catalog query/groups boundaries |
+| `f989de3f` / `e569eca6` / `fd38adfc` / `afeda083` | Owner bookmarks/image/roots/scan channels |
+| `9bb67768` | QueueLoad → playback resolution |
+| `bb64b4e1` / `c8f716cf` | Bookmarks/image-sequence boundaries |
+| `d2ca0c62` / `2a442f80` | Scan roots boundary + root command builders |
+| `8660847f` / `421fc304` | Capability keys + ingest request boundary |
+| `cc01e530` / `47cd1e8b` / `1d6ba791` | Play-count/normalization/lyrics boundaries |
+| `b19934ef` | Queue observation carries catalog revision |
 
 ## Remaining work and caveats
 
-1. **Continue A2 in ownership slices.** Next is queue/library/catalog and
-   file-access authority. After that: lyrics/artwork/details, window bindings,
-   then mobile/Oda presentation wiring.
-2. **Extract the shared browser runtime from the crude consumer.** The Svelte
-   bridge now owns one engine-link module (`src/lib/services/libzci/runtime.ts`)
-   as the single generated-asset import site with shared bootstrap/teardown,
-   but the WASM build output still lands in `libzci/consumers/crude-pwa/src/
-   generated/`. Relocating that output to a shared runtime directory remains
-   open before A2 closes.
-3. **Close explicit compatibility gaps before claiming parity:** ordinary-stream
+1. **Build the live owner worker.** All pure seams above are pinned, but no
+   worker file exists yet: `profile-init`/`attach`, WebProfile + OPFS/SQLite
+   (`statement` bridge), Web-Lock + BroadcastChannel single owner, ingest
+   (`ingest-request` + capability staging/completion/GC), restore/
+   materialization (`QueueLoad` → `resolveQueuePlayback` → transport),
+   checkpoints (2 s throttle + play-count `syncPlayback`), and scan
+   execution (probe `MediaInput`/`Metadata` normalization, `stage_scan`,
+   enumeration, reconciliation). Start with profile-only (no AudioContext),
+   then attach transport.
+2. **Cut over persistence and file access.** OPFS profile as truth (Svelte
+   IDBs become migration sources/read caches); real `File`/FSA/native access
+   with one profile owner; staged scans reconciling only their root; orphan
+   recovery. Fresh libzci state, no old-state conversion.
+3. **Wire the remaining domain.** Metadata normalization at probe time,
+   lyrics/artwork/image jobs + rendition cache + viewer navigation
+   (`lyrics-document`, `image-sequence`), play-count/normalization sync from
+   observations, transport wiring from resolved loads, groups/scan/bookmark
+   execution, `Add` media builder (needs probe `Metadata`).
+4. **Close explicit compatibility gaps before claiming parity:** ordinary-stream
    playback rate, Hively tempo/pitch/repeat, full core normalization/ReplayGain
    ownership, and any crossfade/prepared-source behavior not yet re-evidenced
-   on the new backend.
-4. **Preserve the browser video path.** `VideoPlayerService` remains the
-   presentation-owned native `<video>` implementation. Core video is post-MVP.
+   on the new backend. Video stays native `<video>` (M5 deferred); Raf stays
+   shell-side (M4 deferred).
 5. AVIF, broader HDR/color handling and formal image-decoder heap accounting
    remain post-MVP backlog. Full Raf parity/loadouts/gapless work, C ABI,
    izci-server adoption, physical Android/background and GNU/Linux stay
    post-MVP unless the user reprioritizes them.
 
-## Last verification (not rerun while packing docs)
+## Last verification (rerun for the thirtieth slice)
 
-Windows x64, muted headless Chromium, production `dist/` served from a temporary
-local preview:
+Windows x64 (no browser, no device for the pure seams; transport evidence
+below is retained history, not rerun):
 
 - `npm run check`: 0 errors, 0 warnings.
-- `npm test`: 230 files / 1,459 tests passed.
-- `npm run build`: passed. PWA precache: 172 entries, including emitted
-  `libzci_web_bg`, `libzci_audio_web`, `opus-reference` and `modules-reference`
-  WASM plus the workers and output worklet.
-- Real file-input playback with no page/console errors: `tone.ahx` (0.20 s ->
-  1.04 s, pause held, seek to 1 s landed, resume to 1.92 s), `tone.hvl`
-  (0.21 s -> 1.05 s, pause held, seek landed, resume to 1.92 s), `tone.mod`
-  regression (0.17 s -> 1.01 s, pause held, seek landed at 1.08 s, resume to
-  2.47 s), `44100-1.mp3` regression (0.27 s -> 1.11 s, pause held, seek landed,
-  resume to 2.35 s).
-- `snapshot.test.ts` covers core state vocabulary, frame-to-time mapping and
-  Hively subsong mapping; `hively-pattern-inspect.test.ts` covers the
-  output-free inspection string reader.
+- `npm test`: 251 files / 1,530 tests passed.
+- `npm run build`: passed. PWA precache: 172 entries, unchanged.
+- Focused vitest (`ingest-request/capability-keys`): 5 passed.
+- Retained transport history (muted headless Chromium, production `dist/`
+  preview): `tone.ahx`/`tone.hvl`/`tone.mod`/`44100-1.mp3` play/pause/seek/
+  resume with no page/console errors; `snapshot.test.ts` + Hively inspection
+  coverage.
 
-These are foreground headless results. They do not establish physical
-Android/background, GNU/Linux, installed-PWA lifecycle, or long-duration
-ownership-loss behavior for the adopted path.
+Pure-seam results do not establish physical Android/background, GNU/Linux,
+installed-PWA lifecycle, or long-duration ownership-loss behavior for the
+adopted path; the live worker + real-file playback evidence remain the A2
+gate.
 
 ## Local setup for continuation
 
