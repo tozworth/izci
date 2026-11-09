@@ -1,5 +1,24 @@
 # libzci implementation log
 
+## 2026-11-09: A2 eighteenth slice — core bookmarks boundary
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; bookmark queries/execution, groups facades, and materialization
+remain open. This slice does not close A2.
+
+- New `bookmarks.ts` pins the core `Bookmark` shape and the Svelte mapping
+  used by future `WebProfile.bookmarks(media, subsong)` pages: validation for
+  rows/targets (`id`/`media` `1..MAX_ID`, subsong u32, finite
+  `position_seconds`, label `0..4096` without NUL), core-to-Svelte mapping
+  (u64 id → string, empty label → `Bookmark`), Svelte-to-core fields, and
+  core-order sorting (`ORDER BY position_seconds, id`).
+- New `bookmarks.test.ts` pins validation, mapping round-trips, and sorting.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`bookmarks/catalog-commands`): 6 passed.
+
 ## 2026-11-09: A2 seventeenth slice — managed scan roots boundary
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
