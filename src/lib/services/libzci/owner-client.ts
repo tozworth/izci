@@ -66,7 +66,8 @@ import type { CoreProfileQueueState } from './queue-snapshot';
  *   validates the returned summary. Staging, enumeration, and reconciliation
  *   belong to the future scan slice.
  * - `handleMessage` routes `snapshot` into the read-only queue facade
- *   (newer revisions win) and `result`/`error` into pending requests.
+ *   (newer revisions win), tracks the `access` string with an `onAccess`
+ *   callback, and routes `result`/`error` into pending requests.
  *
  * Budgets mirror the crude owner: at most 32 in-flight requests shared by
  * all channels. Ingest/restore/transport/materialization remain open A2 work.
@@ -158,7 +159,7 @@ export type OwnerOutgoingMessage =
     };
 
 export type OwnerIncomingMessage =
-  | { type: 'snapshot'; profile: CoreProfileQueueState }
+  | { type: 'snapshot'; profile: CoreProfileQueueState; access?: string }
   | { type: 'result'; request: string; value?: unknown; error?: string }
   | { type: 'error'; detail: string; kind?: string };
 
@@ -167,6 +168,7 @@ export interface OwnerClientOptions {
   queueFacade?: CoreQueueFacade;
   catalogFacade?: CoreCatalogFacade;
   onError?: (error: Error) => void;
+  onAccess?: (access: string) => void;
 }
 
 export class CoreOwnerClient {
@@ -174,17 +176,25 @@ export class CoreOwnerClient {
   readonly #queueFacade?: CoreQueueFacade;
   readonly #catalogFacade?: CoreCatalogFacade;
   readonly #onError?: (error: Error) => void;
+  readonly #onAccess?: (access: string) => void;
   readonly #table = new EngineRequestTable();
+  #access = '';
 
   constructor(options: OwnerClientOptions) {
     this.#post = options.post;
     this.#queueFacade = options.queueFacade;
     this.#catalogFacade = options.catalogFacade;
     this.#onError = options.onError;
+    this.#onAccess = options.onAccess;
   }
 
   get pending(): number {
     return this.#table.size;
+  }
+
+  /** Latest owner access string (`''` before the first snapshot). */
+  get access(): string {
+    return this.#access;
   }
 
   #issue<T>(type: 'queue' | 'catalog', command: CoreQueueCommand | CoreCatalogCommand, scope: string): Promise<T> {
@@ -426,6 +436,10 @@ export class CoreOwnerClient {
   handleMessage(message: OwnerIncomingMessage): void {
     if (message.type === 'snapshot') {
       this.#queueFacade?.pushObservation(message.profile);
+      if (typeof message.access === 'string') {
+        this.#access = message.access;
+        this.#onAccess?.(message.access);
+      }
       return;
     }
     if (message.type === 'result') {

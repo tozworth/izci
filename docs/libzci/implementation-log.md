@@ -1,5 +1,24 @@
 # libzci implementation log
 
+## 2026-11-09: A2 thirty-fifth slice — access status through owner and store
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; permission queries, handle resolution, and transport guards remain
+open. This slice does not close A2.
+
+- Extended `owner-client.ts` with snapshot `access` tracking (`access`
+  getter + `onAccess` callback; snapshots without `access` leave state
+  unchanged) and `profile-store.ts` with a shared `access` readable wired to
+  the client. Components can render `access` alongside the queue/catalog
+  facades without touching workers.
+- Extended `owner-client.test.ts` (access tracking) and
+  `profile-store.test.ts` (shared access store) coverage.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client/profile-store/access-status`): 14 passed.
+
 ## 2026-11-09: A2 thirty-fourth slice — owner access contract
 
 Status: **implemented; check/focused-test evidence passed**. No live owner

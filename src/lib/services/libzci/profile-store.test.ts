@@ -14,6 +14,8 @@ describe('core profile store', () => {
     expect(store.client.pending).toBe(0);
     expect(get(store.queueFacade.view)).toBeNull();
     expect(get(store.catalogFacade.view)).toBeNull();
+    expect(get(store.access)).toBe('');
+    expect(store.client.access).toBe('');
 
     store.client.handleMessage({
       type: 'snapshot',
@@ -23,10 +25,13 @@ describe('core profile store', () => {
         sources: [{ key: 'a', kind: 'browser_handle', locator: 'fs:a', display_path: '/music/one.mp3' }],
         queue: { items: [{ id: 1, source_key: 'a', subsong: null }], current: 1, up_next: [] },
         position_seconds: 0
-      }
+      },
+      access: 'granted'
     });
     expect(get(store.queueFacade.revision)).toBe(2);
     expect(get(store.queueFacade.view)?.catalogRevision).toBe(2);
+    expect(store.client.access).toBe('granted');
+    expect(get(store.access)).toBe('granted');
 
     const page = {
       revision: 3,

@@ -17,6 +17,23 @@ function profile(revision: number): CoreProfileQueueState {
 }
 
 describe('core owner client', () => {
+  it('tracks access strings from snapshots', () => {
+    const accesses: string[] = [];
+    const client = new CoreOwnerClient({
+      post: () => undefined,
+      onAccess: (access) => accesses.push(access)
+    });
+    expect(client.access).toBe('');
+    client.handleMessage({ type: 'snapshot', profile: profile(1) });
+    expect(client.access).toBe('');
+    expect(accesses).toHaveLength(0);
+    client.handleMessage({ type: 'snapshot', profile: profile(2), access: 'checking' });
+    expect(client.access).toBe('checking');
+    client.handleMessage({ type: 'snapshot', profile: profile(3), access: 'granted' });
+    expect(client.access).toBe('granted');
+    expect(accesses).toEqual(['checking', 'granted']);
+  });
+
   it('multiplexes queue results and feeds the facade from snapshots', async () => {
     const posted: OwnerOutgoingMessage[] = [];
     const facade = createCoreQueueFacade();
