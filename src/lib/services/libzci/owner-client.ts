@@ -17,10 +17,13 @@ import {
 import { validateImageSequence, type CoreImageSequence } from './image-sequence';
 import {
   SCAN_MAX_ID,
+  SCAN_MAX_TOKEN,
   validateManagedRoot,
   validateScanPlan,
+  validateScanSummary,
   type CoreManagedRoot,
-  type CoreScanPlan
+  type CoreScanPlan,
+  type CoreScanSummary
 } from './scan-roots';
 import type { CoreQueueCommand } from './queue-commands';
 import type { CoreQueueFacade } from './queue-facade';
@@ -57,8 +60,11 @@ import type { CoreProfileQueueState } from './queue-snapshot';
  *   exists yet; callers render from the returned sequence.
  * - `queryRoots()` posts `{type:'roots', request}` and validates the
  *   returned managed roots. `beginScan(root)` posts `{type:'begin_scan',
- *   root, request}` and validates the returned scan plan. Staging,
- *   enumeration, and reconciliation belong to the future scan slice.
+ *   root, request}` and validates the returned scan plan.
+ *   `cancelScan(token)` posts `{type:'cancel_scan', token, request}`;
+ *   `finishScan(token)` posts `{type:'finish_scan', token, request}` and
+ *   validates the returned summary. Staging, enumeration, and reconciliation
+ *   belong to the future scan slice.
  * - `handleMessage` routes `snapshot` into the read-only queue facade
  *   (newer revisions win) and `result`/`error` into pending requests.
  *
@@ -68,6 +74,12 @@ import type { CoreProfileQueueState } from './queue-snapshot';
  */
 
 export const OWNER_MAX_IN_FLIGHT = 32;
+
+function validateScanToken(token: string): void {
+  if (typeof token !== 'string' || token.length === 0 || token.length > SCAN_MAX_TOKEN || token.includes('\0')) {
+    throw new Error('Invalid scan token: expected 1..128 chars without NUL');
+  }
+}
 
 export interface CoreProfileOutcome {
   duplicate: boolean;
@@ -132,6 +144,16 @@ export type OwnerOutgoingMessage =
   | {
       type: 'begin_scan';
       root: number;
+      request: string;
+    }
+  | {
+      type: 'cancel_scan';
+      token: string;
+      request: string;
+    }
+  | {
+      type: 'finish_scan';
+      token: string;
       request: string;
     };
 
@@ -275,6 +297,52 @@ export class CoreOwnerClient {
     const plan = await pending;
     validateScanPlan(plan);
     return plan;
+  }
+
+  /**
+   * Cancel a managed scan. Resolves when the worker acknowledges; scan
+   * staging is rolled back by core and prior Library state is preserved.
+   * Shares the 32-request budget with all other channels.
+   */
+  async cancelScan(token: string, scope = 'cancel_scan'): Promise<void> {
+    validateScanToken(token);
+    if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
+      throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
+    }
+    const request = makeQueueRequestId(scope);
+    validateQueueRequestId(request);
+    const pending = new Promise<void>((resolve, reject) => {
+      this.#table.add(request, {
+        resolve: () => resolve(),
+        reject
+      });
+    });
+    this.#post({ type: 'cancel_scan', token, request });
+    await pending;
+  }
+
+  /**
+   * Finish a managed scan and validate the returned summary. Only a
+   * successfully scanned root reconciles; cancelled/failed scans never erase
+   * prior Library state. Shares the 32-request budget with all channels.
+   */
+  async finishScan(token: string, scope = 'finish_scan'): Promise<CoreScanSummary> {
+    validateScanToken(token);
+    if (this.#table.size >= OWNER_MAX_IN_FLIGHT) {
+      throw new Error('Owner request budget exhausted: 32 in-flight owner requests');
+    }
+    const request = makeQueueRequestId(scope);
+    validateQueueRequestId(request);
+    const pending = new Promise<CoreScanSummary>((resolve, reject) => {
+      this.#table.add(request, {
+        resolve: (value) => resolve(value as CoreScanSummary),
+        reject
+      });
+    });
+    this.#post({ type: 'finish_scan', token, request });
+    const summary = await pending;
+    validateScanSummary(summary);
+    return summary;
   }
 
   /**

@@ -280,4 +280,25 @@ describe('core owner client', () => {
     client.handleMessage({ type: 'result', request: posted[2].request, value: { ...plan, token: '' } });
     await expect(invalid).rejects.toThrow();
   });
+
+  it('cancels and finishes scans with validation', async () => {
+    const posted: OwnerOutgoingMessage[] = [];
+    const client = new CoreOwnerClient({ post: (message) => posted.push(message) });
+    const cancelled = client.cancelScan('scan-1-abc', 'cancel');
+    expect(posted).toHaveLength(1);
+    expect(posted[0].type).toBe('cancel_scan');
+    client.handleMessage({ type: 'result', request: posted[0].request, value: null });
+    await expect(cancelled).resolves.toBeUndefined();
+
+    const summary = { root: 3, entries: 10, added: 4, removed: 1 };
+    const finished = client.finishScan('scan-1-abc', 'finish');
+    expect(posted[1].type).toBe('finish_scan');
+    client.handleMessage({ type: 'result', request: posted[1].request, value: summary });
+    await expect(finished).resolves.toEqual(summary);
+
+    await expect(client.cancelScan('', 'bad')).rejects.toThrow();
+    const invalid = client.finishScan('scan-1-abc', 'invalid-summary');
+    client.handleMessage({ type: 'result', request: posted[2].request, value: { ...summary, root: 0 } });
+    await expect(invalid).rejects.toThrow();
+  });
 });

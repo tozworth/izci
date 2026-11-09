@@ -1,5 +1,24 @@
 # libzci implementation log
 
+## 2026-11-09: A2 twenty-eighth slice — owner-client scan cancel/finish channels
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+yet; scan staging/enumeration/reconciliation and roots facades remain open.
+This slice does not close A2.
+
+- Extended `owner-client.ts` with `cancelScan(token)` posting
+  `{type:'cancel_scan', token, request}` and `finishScan(token)` posting
+  `{type:'finish_scan', token, request}` through the shared 32-request table.
+  Cancel resolves on acknowledgment (core rolls back staging, preserving prior
+  Library state); finish validates the returned `ScanSummary`.
+- Extended `owner-client.test.ts` with cancel/finish multiplexing, token
+  validation, and invalid-summary rejection coverage.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client/scan-roots`): 14 passed.
+
 ## 2026-11-09: A2 twenty-seventh slice — capability stage keys
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
