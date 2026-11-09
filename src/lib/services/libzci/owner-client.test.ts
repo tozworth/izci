@@ -405,4 +405,15 @@ describe('core owner client', () => {
     expect(posted).toEqual([{ type: 'ack' }, { type: 'output-error', detail: 'processor failed' }]);
     expect(() => client.reportOutputError('')).toThrow();
   });
+
+  it('notifies the worker on close before rejecting locally', async () => {
+    const posted: OwnerOutgoingMessage[] = [];
+    const client = new CoreOwnerClient({ post: (message) => posted.push(message) });
+    const pending = client.queue({ kind: 'clear_up_next' }, 'live');
+    expect(client.pending).toBe(1);
+    client.close('owner lost');
+    expect(posted).toEqual([{ type: 'queue', command: { kind: 'clear_up_next' }, request: (posted[0] as { request: string }).request }, { type: 'close' }]);
+    await expect(pending).rejects.toThrow('owner lost');
+    expect(client.pending).toBe(0);
+  });
 });

@@ -212,6 +212,10 @@ export type OwnerOutgoingMessage =
   | {
       type: 'output-error';
       detail: string;
+    }
+  | {
+      type: 'close';
+      request?: string;
     };
 
 export type OwnerIncomingMessage =
@@ -631,8 +635,17 @@ export class CoreOwnerClient {
     }
   }
 
-  /** Reject every outstanding request (owner loss / teardown). */
+  /**
+   * Close the owner binding: notify the worker so it can release ports and
+   * locks, then reject every outstanding request locally. Fire-and-forget
+   * worker notification; local rejection carries the reason.
+   */
   close(reason = 'libzci owner closed'): void {
+    try {
+      this.#post({ type: 'close' });
+    } catch {
+      // Terminating below still releases local requests.
+    }
     this.#table.rejectAll(new Error(reason));
   }
 }

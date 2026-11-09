@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 forty-eighth slice — owner-client close notification
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+execution, locks, channels, OPFS/SQLite, or audio yet. This slice does not
+close A2.
+
+- Extended `owner-client.ts` `close(reason)` to post fire-and-forget
+  `{type:'close'}` before rejecting outstanding requests, so the worker can
+  release ports and locks. Added the `close` variant to
+  `OwnerOutgoingMessage`; `profile-protocol.ts` already pins it.
+- Extended `owner-client.test.ts` with close-notification ordering and local
+  rejection coverage.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client`): 17 passed.
+
 ## 2026-11-09: A2 forty-seventh slice — owner-client ack and output-error channels
 
 Status: **implemented; check/focused-test evidence passed**. No worker file
