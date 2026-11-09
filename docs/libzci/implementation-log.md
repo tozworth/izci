@@ -1,5 +1,24 @@
 # libzci implementation log
 
+## 2026-11-09: A2 fifteenth slice — catalog groups boundary
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; groups execution, years/folders groupings, and materialization
+remain open. This slice does not close A2.
+
+- New `catalog-groups.ts` pins the core `CatalogGroupBy` wire values and the
+  `CatalogGroupPage` shape plus the Svelte library-view mapping: artists,
+  albums, genres map directly, formats maps to core `kind`, while years and
+  folders stay shell-side with no core equivalent. Includes a revision stale
+  guard, page validation, and group-by serialization.
+- New `catalog-groups.test.ts` pins the view mapping, wire value, page
+  validation, and stale-guard behavior.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`catalog-groups/catalog-query`): 5 passed.
+
 ## 2026-11-09: A2 fourteenth slice — QueueLoad to playback resolution
 
 Status: **implemented; check/focused-test evidence passed**. No owner worker
