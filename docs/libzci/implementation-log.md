@@ -1,5 +1,22 @@
 # libzci implementation log
 
+## 2026-11-09: A2 thirty-sixth slice — scan observation boundary
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; scan execution, facades, and materialization remain open. This
+slice does not close A2.
+
+- New `scan-observation.ts` pins `ScanObservation` (`idle`/`scanning`/
+  `failed`, active root, visited/accepted/ignored counters, detail `0..4096`)
+  with `idle` constructor, validation, and `isActive`/`isFailed` helpers.
+  Staging, enumeration, and reconciliation belong to the future scan slice.
+- New `scan-observation.test.ts` pins validation and activity flags.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`scan-observation/scan-roots`): 5 passed.
+
 ## 2026-11-09: A2 thirty-fifth slice — access status through owner and store
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
