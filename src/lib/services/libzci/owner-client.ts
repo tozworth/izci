@@ -193,6 +193,18 @@ export type OwnerOutgoingMessage =
   | {
       type: 'restore';
       request: string;
+    }
+  | {
+      type: 'attach';
+      control: unknown;
+      decode: unknown;
+      rate: number;
+      latency: number;
+    }
+  | {
+      type: 'context';
+      state: 'running' | 'suspended' | 'closed';
+      request?: string;
     };
 
 export type OwnerIncomingMessage =
@@ -453,6 +465,39 @@ export class CoreOwnerClient {
     const load = await pending;
     if (load !== null) validateQueueLoad(load);
     return load;
+  }
+
+  /**
+   * Attach output ports and rate/latency after AudioContext creation.
+   * Fire-and-forget: the worker acknowledges through snapshots, not results.
+   * Ports are passed through for structured cloning; only their presence and
+   * the numeric rate/latency are validated here.
+   */
+  attach(control: unknown, decode: unknown, rate: number, latency: number): void {
+    if (typeof control !== 'object' || control === null) {
+      throw new Error('Invalid attach control port: expected an object');
+    }
+    if (typeof decode !== 'object' || decode === null) {
+      throw new Error('Invalid attach decode port: expected an object');
+    }
+    if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) {
+      throw new Error(`Invalid attach rate: ${String(rate)}`);
+    }
+    if (typeof latency !== 'number' || !Number.isFinite(latency) || latency < 0) {
+      throw new Error(`Invalid attach latency: ${String(latency)}`);
+    }
+    this.#post({ type: 'attach', control, decode, rate, latency });
+  }
+
+  /**
+   * Forward AudioContext state (`running`/`suspended`/`closed`) so the worker
+   * can suspend/resume output without dropping the session. Fire-and-forget.
+   */
+  notifyContextState(state: 'running' | 'suspended' | 'closed'): void {
+    if (state !== 'running' && state !== 'suspended' && state !== 'closed') {
+      throw new Error(`Invalid context state: ${String(state)}`);
+    }
+    this.#post({ type: 'context', state });
   }
 
   /**

@@ -53,7 +53,7 @@ describe('core profile store', () => {
       { collection: 'library', search: '', sort: 'title', descending: false, offset: 0, limit: 100 },
       'lib'
     );
-    store.client.handleMessage({ type: 'result', request: posted[0].request, value: page });
+    store.client.handleMessage({ type: 'result', request: (posted[0] as { request: string }).request, value: page });
     await expect(pending).resolves.toEqual(page);
     expect(get(store.catalogFacade.revision)).toBe(3);
 

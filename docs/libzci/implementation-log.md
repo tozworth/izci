@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 forty-sixth slice — owner-client attach and context channels
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+execution, locks, channels, OPFS/SQLite, or audio yet. This slice does not
+close A2.
+
+- Extended `owner-client.ts` with `attach(control, decode, rate, latency)`
+  (fire-and-forget port handoff with rate/latency validation) and
+  `notifyContextState(state)` for AudioContext `running`/`suspended`/`closed`
+  transitions. Neither touches audio nodes; the worker owns output state.
+- Extended `owner-client.test.ts` with attach/context posting and validation
+  coverage (plus `as { request }` narrowing for the fire-and-forget variants).
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client/profile-store`): 16 passed.
+
 ## 2026-11-09: A2 forty-fifth slice — stub profile owner worker
 
 Status: **implemented; check/focused-test evidence passed**. Storage, locks,

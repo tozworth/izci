@@ -63,7 +63,7 @@ describe('core owner client', () => {
     const pending = client.queue({ kind: 'clear_up_next' }, 'test');
     expect(posted).toHaveLength(1);
     expect(posted[0].type).toBe('queue');
-    expect(posted[0].request.endsWith('/test')).toBe(true);
+    expect((posted[0] as { request: string }).request.endsWith('/test')).toBe(true);
     expect(client.pending).toBe(1);
 
     // Snapshots apply through the facade revision guard.
@@ -78,7 +78,7 @@ describe('core owner client', () => {
 
     client.handleMessage({
       type: 'result',
-      request: posted[0].request,
+      request: (posted[0] as { request: string }).request,
       value: { duplicate: false, appended: [], revision: 5, load: null, stop: false }
     });
     await expect(pending).resolves.toEqual({
@@ -98,7 +98,7 @@ describe('core owner client', () => {
     const posted: OwnerOutgoingMessage[] = [];
     const client = new CoreOwnerClient({ post: (message) => posted.push(message) });
     const failing = client.queue({ kind: 'clear_up_next' }, 'fail');
-    client.handleMessage({ type: 'result', request: posted[0].request, error: 'queue full' });
+    client.handleMessage({ type: 'result', request: (posted[0] as { request: string }).request, error: 'queue full' });
     await expect(failing).rejects.toThrow('queue full');
 
     // Fill the budget with never-resolved requests, then overflow once.
@@ -134,12 +134,12 @@ describe('core owner client', () => {
     const pending = client.catalog({ kind: 'favorite', media: 7, subsong: null, favorite: true }, 'fav');
     expect(posted).toHaveLength(1);
     expect(posted[0].type).toBe('catalog');
-    expect(posted[0].request.endsWith('/fav')).toBe(true);
+    expect((posted[0] as { request: string }).request.endsWith('/fav')).toBe(true);
     expect(client.pending).toBe(1);
 
     client.handleMessage({
       type: 'result',
-      request: posted[0].request,
+      request: (posted[0] as { request: string }).request,
       value: { duplicate: false, revision: 9, media: [7], bookmark: null, root: null, scan: null }
     });
     await expect(pending).resolves.toEqual({
@@ -193,14 +193,14 @@ describe('core owner client', () => {
     const pending = client.queryCatalog({ collection: 'library', search: '', sort: 'title', descending: false, offset: 0, limit: 100 }, 'lib');
     expect(posted).toHaveLength(1);
     expect(posted[0].type).toBe('catalog_query');
-    client.handleMessage({ type: 'result', request: posted[0].request, value: page });
+    client.handleMessage({ type: 'result', request: (posted[0] as { request: string }).request, value: page });
     await expect(pending).resolves.toEqual(page);
     expect(get(catalogFacade.revision)).toBe(21);
     expect(get(catalogFacade.view)?.rows[0].rating).toBe(4);
 
     // Late pages with stale revisions stay harmless through the facade guard.
     const stale = client.queryCatalog({ collection: 'library', search: '', sort: 'title', descending: false, offset: 0, limit: 100 }, 'stale');
-    client.handleMessage({ type: 'result', request: posted[1].request, value: { ...page, revision: 20, total: 99 } });
+    client.handleMessage({ type: 'result', request: (posted[1] as { request: string }).request, value: { ...page, revision: 20, total: 99 } });
     await stale;
     expect(get(catalogFacade.revision)).toBe(21);
     expect(get(catalogFacade.view)?.total).toBe(1);
@@ -217,7 +217,7 @@ describe('core owner client', () => {
     expect(posted).toHaveLength(1);
     expect(posted[0].type).toBe('catalog_groups');
     const page = { revision: 41, total: 1, groups: [{ key: ['Artist A'], count: 12 }] };
-    client.handleMessage({ type: 'result', request: posted[0].request, value: page });
+    client.handleMessage({ type: 'result', request: (posted[0] as { request: string }).request, value: page });
     await expect(pending).resolves.toEqual(page);
 
     const invalid = client.queryGroups(
@@ -227,7 +227,7 @@ describe('core owner client', () => {
     );
     client.handleMessage({
       type: 'result',
-      request: posted[1].request,
+      request: (posted[1] as { request: string }).request,
       value: { revision: -1, total: 0, groups: [] }
     });
     await expect(invalid).rejects.toThrow();
@@ -241,7 +241,7 @@ describe('core owner client', () => {
     expect(posted[0].type).toBe('bookmarks');
     client.handleMessage({
       type: 'result',
-      request: posted[0].request,
+      request: (posted[0] as { request: string }).request,
       value: [
         { id: 9, media: 7, subsong: null, position_seconds: 20, label: 'B' },
         { id: 8, media: 7, subsong: null, position_seconds: 5, label: 'A' }
@@ -256,7 +256,7 @@ describe('core owner client', () => {
     const invalid = client.queryBookmarks(7, null, 'invalid-rows');
     client.handleMessage({
       type: 'result',
-      request: posted[1].request,
+      request: (posted[1] as { request: string }).request,
       value: [{ id: 0, media: 7, subsong: null, position_seconds: 1, label: 'x' }]
     });
     await expect(invalid).rejects.toThrow();
@@ -270,11 +270,11 @@ describe('core owner client', () => {
     expect(posted).toHaveLength(1);
     expect(posted[0].type).toBe('image_sequence');
     const sequence = { revision: 55, media: [5, 6, 7] };
-    client.handleMessage({ type: 'result', request: posted[0].request, value: sequence });
+    client.handleMessage({ type: 'result', request: (posted[0] as { request: string }).request, value: sequence });
     await expect(pending).resolves.toEqual(sequence);
 
     const invalid = client.queryImageSequence(query, 'bad-images');
-    client.handleMessage({ type: 'result', request: posted[1].request, value: { revision: 1, media: [] } });
+    client.handleMessage({ type: 'result', request: (posted[1] as { request: string }).request, value: { revision: 1, media: [] } });
     await expect(invalid).rejects.toThrow();
   });
 
@@ -293,7 +293,7 @@ describe('core owner client', () => {
     const roots = client.queryRoots('list');
     expect(posted).toHaveLength(1);
     expect(posted[0].type).toBe('roots');
-    client.handleMessage({ type: 'result', request: posted[0].request, value: [root] });
+    client.handleMessage({ type: 'result', request: (posted[0] as { request: string }).request, value: [root] });
     await expect(roots).resolves.toEqual([root]);
 
     const plan = {
@@ -306,12 +306,12 @@ describe('core owner client', () => {
     };
     const begun = client.beginScan(3, 'start');
     expect(posted[1].type).toBe('begin_scan');
-    client.handleMessage({ type: 'result', request: posted[1].request, value: plan });
+    client.handleMessage({ type: 'result', request: (posted[1] as { request: string }).request, value: plan });
     await expect(begun).resolves.toEqual(plan);
 
     await expect(client.beginScan(0, 'bad')).rejects.toThrow();
     const invalid = client.beginScan(3, 'invalid-plan');
-    client.handleMessage({ type: 'result', request: posted[2].request, value: { ...plan, token: '' } });
+    client.handleMessage({ type: 'result', request: (posted[2] as { request: string }).request, value: { ...plan, token: '' } });
     await expect(invalid).rejects.toThrow();
   });
 
@@ -321,18 +321,18 @@ describe('core owner client', () => {
     const cancelled = client.cancelScan('scan-1-abc', 'cancel');
     expect(posted).toHaveLength(1);
     expect(posted[0].type).toBe('cancel_scan');
-    client.handleMessage({ type: 'result', request: posted[0].request, value: null });
+    client.handleMessage({ type: 'result', request: (posted[0] as { request: string }).request, value: null });
     await expect(cancelled).resolves.toBeUndefined();
 
     const summary = { root: 3, entries: 10, added: 4, removed: 1 };
     const finished = client.finishScan('scan-1-abc', 'finish');
     expect(posted[1].type).toBe('finish_scan');
-    client.handleMessage({ type: 'result', request: posted[1].request, value: summary });
+    client.handleMessage({ type: 'result', request: (posted[1] as { request: string }).request, value: summary });
     await expect(finished).resolves.toEqual(summary);
 
     await expect(client.cancelScan('', 'bad')).rejects.toThrow();
     const invalid = client.finishScan('scan-1-abc', 'invalid-summary');
-    client.handleMessage({ type: 'result', request: posted[2].request, value: { ...summary, root: 0 } });
+    client.handleMessage({ type: 'result', request: (posted[2] as { request: string }).request, value: { ...summary, root: 0 } });
     await expect(invalid).rejects.toThrow();
   });
 
@@ -377,5 +377,22 @@ describe('core owner client', () => {
       value: { ...load, occurrence: 0 }
     });
     await expect(invalid).rejects.toThrow();
+  });
+
+  it('attaches output and forwards context state', () => {
+    const posted: OwnerOutgoingMessage[] = [];
+    const client = new CoreOwnerClient({ post: (message) => posted.push(message) });
+    const control = {};
+    const decode = {};
+    client.attach(control, decode, 48000, 128);
+    expect(posted).toHaveLength(1);
+    expect(posted[0]).toEqual({ type: 'attach', control, decode, rate: 48000, latency: 128 });
+    client.notifyContextState('suspended');
+    expect(posted).toHaveLength(2);
+    expect(posted[1]).toEqual({ type: 'context', state: 'suspended' });
+
+    expect(() => client.attach(null, decode, 48000, 0)).toThrow();
+    expect(() => client.attach(control, decode, 0, 0)).toThrow();
+    expect(() => client.notifyContextState('bogus' as never)).toThrow();
   });
 });
