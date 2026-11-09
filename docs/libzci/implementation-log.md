@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 thirty-fourth slice — owner access contract
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; permission queries, handle resolution, and transport guards remain
+open. This slice does not close A2.
+
+- New `access-status.ts` pins the owner `access` strings (`granted`,
+  `checking`, `no selected source`, `<kind>: <detail>`) with classifiers and
+  a UI-action mapping (`play`/`wait`/`select-track`/`re-add`/
+  `grant-and-retry`). Transport guards (play→restore, non-pause/stop/dispose
+  require granted) stay documented for the future worker binding.
+- New `access-status.test.ts` pins classification and action mapping.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`access-status/durable-request`): 4 passed.
+
 ## 2026-11-09: A2 thirty-third slice — durable request identities
 
 Status: **implemented; check/focused-test evidence passed**. No worker file
