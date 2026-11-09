@@ -1,9 +1,9 @@
-# Handoff — 2026-11-09 (A2 fiftieth slice)
+# Handoff — 2026-11-09 (A2 fifty-first slice)
 
 ## Checkout and scope
 
 - Workspace: `C:\Users\Toz\Projects\izci`, branch `libzci-codex`.
-- Implementation commit: `f497bcfb` (`Compose restore flow planning for A2`).
+- Implementation commit: `40401d71` (`Compose unified profile observation for A2`).
 - Worktree: clean after this documentation checkpoint; no task-owned preview,
   browser, Cargo or audio process should remain running.
 - The MVP is **Svelte adoption with working playback for most existing formats**,
@@ -44,7 +44,8 @@ A2's transport slices are implemented in the production Svelte main window
 Since then, forty-four pure Svelte seams plus the stub worker file pin
 the queue/library adoption contract (all typechecked, unit-tested, built; no
 browser run claims for the worker yet; unified load validation, complete
-result checks, and restore-flow planning landed since):
+result checks, restore-flow planning, and unified profile observation landed
+since):
 
 - Queue: snapshot probe + read-only facade (+ `catalog_revision`), command
   boundary (all 12 `QueueCommand`s, settings mapping), durable request ids
@@ -103,6 +104,7 @@ Recent commits (this session, oldest first):
 | `c2774b7f` / `42db93aa` / `b9dc2058` | Owner attach/context/ack/output-error/close |
 | `a9e206a9` | Unified load validation + complete result checks |
 | `f497bcfb` | Restore flow planning |
+| `40401d71` | Unified profile observation |
 
 ## Remaining work and caveats
 
@@ -137,16 +139,16 @@ Recent commits (this session, oldest first):
    izci-server adoption, physical Android/background and GNU/Linux stay
    post-MVP unless the user reprioritizes them.
 
-## Last verification (rerun for the fiftieth slice)
+## Last verification (rerun for the fifty-first slice)
 
 Windows x64 (no browser, no device for the pure seams + stub worker; transport
 evidence below is retained history, not rerun):
 
 - `npm run check`: 0 errors, 0 warnings.
-- `npm test`: 262 files / 1,561 tests passed.
+- `npm test`: 263 files / 1,562 tests passed.
 - `npm run build`: passed. PWA precache: 172 entries, unchanged (stub worker
   unreferenced; chunk lands with the first construction site).
-- Focused vitest (`restore-flow/queue-playback`): 8 passed.
+- Focused vitest (`profile-observation/profile-store`): 2 passed.
 - Retained transport history (muted headless Chromium, production `dist/`
   preview): `tone.ahx`/`tone.hvl`/`tone.mod`/`44100-1.mp3` play/pause/seek/
   resume with no page/console errors; `snapshot.test.ts` + Hively inspection
