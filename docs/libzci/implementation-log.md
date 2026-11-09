@@ -1,5 +1,25 @@
 # libzci implementation log
 
+## 2026-11-09: A2 thirty-first slice — worker protocol boundary
+
+Status: **implemented; check/focused-test evidence passed**. No worker file
+yet; locks, channels, OPFS/SQLite, and execution remain open. This slice does
+not close A2.
+
+- New `profile-protocol.ts` pins the worker-visible envelope for all eleven
+  document→worker channels (`profile-init`, queue/catalog/mutate/query/groups/
+  bookmarks/image/roots/scan/cancel/finish/close) by reusing every existing
+  validator plus command-kind gates, so malformed document messages fail fast
+  before OPFS/SQLite. Snapshot/result payload validators fail fast before
+  Svelte stores.
+- New `profile-protocol.test.ts` pins channel acceptance, kind-gated
+  rejection, and snapshot/result validation.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`profile-protocol`): 2 passed.
+
 ## 2026-11-09: A2 thirtieth slice — ingest request boundary
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
