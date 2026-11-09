@@ -1,9 +1,9 @@
-# Handoff — 2026-11-09 (A2 forty-fourth slice)
+# Handoff — 2026-11-09 (A2 forty-fifth slice)
 
 ## Checkout and scope
 
 - Workspace: `C:\Users\Toz\Projects\izci`, branch `libzci-codex`.
-- Implementation commit: `afe27103` (`Pin scan batch bounds for A2`).
+- Implementation commit: `39b24796` (`Add stub profile owner worker for A2`).
 - Worktree: clean after this documentation checkpoint; no task-owned preview,
   browser, Cargo or audio process should remain running.
 - The MVP is **Svelte adoption with working playback for most existing formats**,
@@ -41,9 +41,9 @@ A2's transport slices are implemented in the production Svelte main window
   pattern songs still use the legacy inspection worker; Hively pattern songs
   use output-free replay-core inspection).
 
-Since then, forty-four pure Svelte seams pin the queue/library adoption contract
-without a live worker yet (all typechecked, unit-tested, built; no browser
-run claims):
+Since then, forty-four pure Svelte seams plus the first stub worker file pin
+the queue/library adoption contract (all typechecked, unit-tested, built; no
+browser run claims for the worker yet):
 
 - Queue: snapshot probe + read-only facade (+ `catalog_revision`), command
   boundary (all 12 `QueueCommand`s, settings mapping), durable request ids
@@ -96,18 +96,22 @@ Recent commits (this session, oldest first):
 | `83b7c4e1` / `c2d2ca8c` | Profile namespaces + transport guards |
 | `7cfe2907` / `4dc71e09` / `0afdffe4` | Worker lifecycle channels + owner ingest/restore |
 | `afe27103` | Scan batch bounds |
+| `39b24796` | Stub profile owner worker + spawn helper |
 
 ## Remaining work and caveats
 
-1. **Build the live owner worker.** All pure seams above are pinned, but no
-   worker file exists yet: `profile-init`/`attach`, WebProfile + OPFS/SQLite
-   (`statement` bridge), Web-Lock + BroadcastChannel single owner, ingest
-   (`ingest-request` + capability staging/completion/GC), restore/
+1. **Grow the stub worker into the live owner.** The validating-only
+   `profile-owner.worker.ts` + `spawnProfileOwnerWorker` exist but own no
+   storage yet (no chunk emitted; nothing references the spawn helper in
+   production). Next: `openDatabase`/`WebProfile`/`Capabilities` behind the
+   pinned `izci-v1` names (needs the `@sqlite.org/sqlite-wasm` dependency
+   decision), Web-Lock + BroadcastChannel election, `profile-init`/`attach`,
+   ingest (`ingest-request` + staging/completion/GC), restore/
    materialization (`QueueLoad` → `resolveQueuePlayback` → transport),
    checkpoints (2 s throttle + play-count `syncPlayback`), and scan
    execution (probe `MediaInput`/`Metadata` normalization, `stage_scan`,
-   enumeration, reconciliation). Start with profile-only (no AudioContext),
-   then attach transport.
+   enumeration, reconciliation). Start profile-only (no AudioContext), then
+   attach transport; wire the first construction site so the chunk appears.
 2. **Cut over persistence and file access.** OPFS profile as truth (Svelte
    IDBs become migration sources/read caches); real `File`/FSA/native access
    with one profile owner; staged scans reconciling only their root; orphan
@@ -127,15 +131,16 @@ Recent commits (this session, oldest first):
    izci-server adoption, physical Android/background and GNU/Linux stay
    post-MVP unless the user reprioritizes them.
 
-## Last verification (rerun for the forty-fourth slice)
+## Last verification (rerun for the forty-fifth slice)
 
-Windows x64 (no browser, no device for the pure seams; transport evidence
-below is retained history, not rerun):
+Windows x64 (no browser, no device for the pure seams + stub worker; transport
+evidence below is retained history, not rerun):
 
 - `npm run check`: 0 errors, 0 warnings.
-- `npm test`: 260 files / 1,551 tests passed.
-- `npm run build`: passed. PWA precache: 172 entries, unchanged.
-- Focused vitest (`scan-batch/scan-roots`): 6 passed.
+- `npm test`: 261 files / 1,553 tests passed.
+- `npm run build`: passed. PWA precache: 172 entries, unchanged (stub worker
+  unreferenced; chunk lands with the first construction site).
+- Focused vitest (`profile-owner`): 2 passed.
 - Retained transport history (muted headless Chromium, production `dist/`
   preview): `tone.ahx`/`tone.hvl`/`tone.mod`/`44100-1.mp3` play/pause/seek/
   resume with no page/console errors; `snapshot.test.ts` + Hively inspection
