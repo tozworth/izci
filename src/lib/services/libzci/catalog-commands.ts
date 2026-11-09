@@ -1,15 +1,16 @@
 import { toSvelteRating } from './catalog-snapshot';
+import { buildScanSettings, validateRootInput, type CoreRootInput } from './scan-roots';
+import type { CoreSourceReference } from './queue-snapshot';
 
 /**
- * Svelte-side builder/validation boundary for core catalog user facts.
+ * Svelte-side builder/validation boundary for core catalog commands.
  *
  * The Rust owner (`libzci::catalog::CatalogCommand`, `Profile.catalog_request`)
  * remains the only catalog authority. This module pins the JSON contract for
- * the commands the Svelte UI can issue without a probe worker (favorite,
- * rate, bookmark, remove-bookmark, remove media) and maps the Svelte rating
- * domain to the core half-star steps. Scan/probe-owned commands (`add`,
- * `root`, `remove_root`, `finish_scan`) are typed for wire completeness but
- * have no builders here; they belong to the future probe/scan slice.
+ * user facts (favorite, rate, bookmark, remove-bookmark, remove media) plus
+ * managed-root lifecycle (`root`, `remove_root`) built from the scan-roots
+ * boundary. Media `add` and scan `finish_scan` stay probe/worker-owned with
+ * wire types only.
  *
  * JSON shapes mirror `libzci/consumers/crude-pwa/src/catalog-types.ts` and
  * the Rust `#[serde(tag = "kind", rename_all = "snake_case")]` envelope.
@@ -31,10 +32,10 @@ export type CoreCatalogCommand =
     }
   | { kind: 'remove_bookmark'; id: number }
   | { kind: 'remove'; media: number[] }
-  // Probe/scan-owned commands: wire types only, no Svelte builders yet.
-  | { kind: 'add'; media: unknown[] }
-  | { kind: 'root'; root: unknown }
+  | { kind: 'root'; root: CoreRootInput }
   | { kind: 'remove_root'; root: number }
+  // Probe/worker-owned commands: wire types only, no Svelte builders yet.
+  | { kind: 'add'; media: unknown[] }
   | { kind: 'finish_scan'; token: string };
 
 function isValidCatalogId(value: unknown): value is number {
@@ -142,6 +143,36 @@ export function buildRemoveMediaCommand(mediaIds: number[]): CoreCatalogCommand 
   }
   for (const id of mediaIds) validateMedia(id);
   return { kind: 'remove', media: [...mediaIds] };
+}
+
+export interface SvelteRootInput {
+  source: CoreSourceReference;
+  libraryMode: 'manual' | 'launch' | null;
+  verifyAddedFiles: boolean;
+}
+
+/**
+ * Build a managed-root command from a Svelte folder. The source must be a
+ * reusable platform reference (`browser_handle` or `native_path`); Svelte
+ * `launch` folders opt into startup scans.
+ */
+export function buildAddRootCommand(input: SvelteRootInput): CoreCatalogCommand {
+  const root: CoreRootInput = {
+    source: input.source,
+    settings: buildScanSettings({
+      recursive: true,
+      scan_on_launch: input.libraryMode === 'launch',
+      verify_unknown: input.verifyAddedFiles === true,
+      probe_concurrency: 2
+    })
+  };
+  validateRootInput(root);
+  return { kind: 'root', root };
+}
+
+export function buildRemoveRootCommand(rootId: number): CoreCatalogCommand {
+  if (!isValidCatalogId(rootId)) throw new Error(`Invalid managed root id: ${String(rootId)}`);
+  return { kind: 'remove_root', root: rootId };
 }
 
 /** Serialize a catalog command for the owner-worker `catalog` channel. */

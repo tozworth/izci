@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildAddRootCommand,
   buildBookmarkCommand,
   buildFavoriteCommand,
   buildRateCommand,
   buildRemoveBookmarkCommand,
   buildRemoveMediaCommand,
+  buildRemoveRootCommand,
   fromCoreRating,
   serializeCatalogCommand,
   toCoreRating
@@ -72,5 +74,23 @@ describe('core catalog user-facts boundary', () => {
     expect(() => buildBookmarkCommand(7, null, 1, 'x'.repeat(4097))).toThrow();
     expect(() => buildRemoveBookmarkCommand(0)).toThrow();
     expect(() => buildRemoveMediaCommand([])).toThrow();
+  });
+
+  it('pins managed-root wire shapes with reusable references', () => {
+    const source = { key: 'cap/root', kind: 'browser_handle' as const, locator: 'cap/root', display_path: 'Music' };
+    expect(
+      buildAddRootCommand({ source, libraryMode: 'launch', verifyAddedFiles: true })
+    ).toEqual({
+      kind: 'root',
+      root: {
+        source,
+        settings: { recursive: true, scan_on_launch: true, verify_unknown: true, probe_concurrency: 2 }
+      }
+    });
+    expect(buildRemoveRootCommand(3)).toEqual({ kind: 'remove_root', root: 3 });
+    expect(() =>
+      buildAddRootCommand({ source: { ...source, kind: 'ephemeral' }, libraryMode: null, verifyAddedFiles: false })
+    ).toThrow('reusable platform reference');
+    expect(() => buildRemoveRootCommand(0)).toThrow();
   });
 });

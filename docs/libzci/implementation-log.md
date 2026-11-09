@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 twenty-sixth slice — catalog root command builders
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; media `add`, scan staging/execution, and materialization remain
+open. This slice does not close A2.
+
+- Extended `catalog-commands.ts` with `buildAddRootCommand` (Svelte folder →
+  core `RootInput` via the scan-roots boundary; reusable references only) and
+  `buildRemoveRootCommand`. The `root` wire type is now `CoreRootInput`;
+  `add`/`finish_scan` stay probe/worker-owned with wire types only.
+- Extended `catalog-commands.test.ts` with root wire shapes, launch mapping,
+  ephemeral rejection, and id validation.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`catalog-commands/scan-roots`): 8 passed.
+
 ## 2026-11-09: A2 twenty-fifth slice — lyrics document boundary
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
