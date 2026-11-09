@@ -1,5 +1,24 @@
 # libzci implementation log
 
+## 2026-11-09: A2 thirtieth slice — ingest request boundary
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; handle staging/completion/GC, probing, and SQL remain open. This
+slice does not close A2.
+
+- New `ingest-request.ts` pins the owner `ingest` channel shape (genuine
+  `File`s plus parallel genuine handles when the picker provided them, `open`
+  flag, bounded durable request id) with batch budgets (`1..10000` files,
+  64 MiB per file) and handle parallelism rules. Plain batches become
+  `ephemeral`; handle batches become `browser_handle` in the worker.
+- New `ingest-request.test.ts` pins construction, parallel-handle rules,
+  and empty/oversized rejection.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`ingest-request/capability-keys`): 5 passed.
+
 ## 2026-11-09: A2 twenty-ninth slice — queue observation carries catalog revision
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
