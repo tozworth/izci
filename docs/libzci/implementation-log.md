@@ -1,5 +1,25 @@
 # libzci implementation log
 
+## 2026-11-09: A2 seventeenth slice — managed scan roots boundary
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; enumeration, probing, staging, reconciliation, and groups
+facades remain open. This slice does not close A2.
+
+- New `scan-roots.ts` pins `ScanSettings`/`RootInput`/`ManagedRoot`/
+  `ScanPlan`/`ScanSummary` with Rust defaults (`recursive`, `verify_unknown`,
+  concurrency 2) and bounds (concurrency `1..8`, token `1..128`, batch 256,
+  entries 100k, bytes 128/256 MiB). Managed roots reject `ephemeral`
+  sources; Svelte `launch` folders map to `scan_on_launch` while recursion
+  stays on (shell depth limit) and verification follows `verifyAddedFiles`.
+- New `scan-roots.test.ts` pins defaults, folder mapping, ephemeral
+  rejection, and plan/summary validation.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`scan-roots/catalog-groups`): 6 passed.
+
 ## 2026-11-09: A2 sixteenth slice — owner-client catalog groups channel
 
 Status: **implemented; check/focused-test evidence passed**. No worker file
