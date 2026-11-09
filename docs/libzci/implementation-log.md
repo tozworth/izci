@@ -1,5 +1,21 @@
 # libzci implementation log
 
+## 2026-11-09: A2 thirty-seventh slice — rendition request boundary
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; rendition jobs, cache, and viewer wiring remain open. This slice
+does not close A2.
+
+- New `rendition-request.ts` pins `image`/`artwork` requests with Rust
+  `max_edge 1..2048` bounds (default 512) plus serialization for the future
+  owner-worker image channel. No decoding, caching, or viewing here.
+- New `rendition-request.test.ts` pins defaults, bounds, and wire shape.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`rendition-request/image-sequence`): 5 passed.
+
 ## 2026-11-09: A2 thirty-sixth slice — scan observation boundary
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
