@@ -1,5 +1,23 @@
 # libzci implementation log
 
+## 2026-11-09: A2 twenty-fifth slice — lyrics document boundary
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; lyric jobs, rendition, and presentation wiring remain open. This
+slice does not close A2.
+
+- New `lyrics-document.ts` pins `LyricsDocument`/`LyricLine` with Rust bounds
+  (raw/plain `0..256 KiB`, cues `0..8192`, line text `0..4096`, offset
+  `±86400000` ms) and `activeCueRange` mirroring `LyricsDocument::active`
+  (floor to ms, equal-timestamp grouping). Documents stay transient; nothing
+  reads files or starts jobs.
+- New `lyrics-document.test.ts` pins validation and active grouping.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`lyrics-document/play-counts`): 3 passed.
+
 ## 2026-11-09: A2 twenty-fourth slice — normalization observation boundary
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
