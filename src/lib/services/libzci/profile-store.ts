@@ -2,6 +2,7 @@ import { writable, type Readable } from 'svelte/store';
 import { CoreOwnerClient, type OwnerOutgoingMessage } from './owner-client';
 import { createCoreCatalogFacade, type CoreCatalogFacade } from './catalog-facade';
 import { createCoreQueueFacade, type CoreQueueFacade } from './queue-facade';
+import { idleScanObservation, type CoreScanObservation } from './scan-observation';
 import { CoreSourceRegistry } from './source-registry';
 
 /**
@@ -29,6 +30,8 @@ export interface CoreProfileStore {
   readonly client: CoreOwnerClient;
   /** Latest owner access string (`''` before the first snapshot). */
   readonly access: Readable<string>;
+  /** Latest scan observation (idle before the first snapshot carrying one). */
+  readonly scan: Readable<CoreScanObservation>;
 }
 
 export function createCoreProfileStore(options: CoreProfileStoreOptions): CoreProfileStore {
@@ -36,12 +39,21 @@ export function createCoreProfileStore(options: CoreProfileStoreOptions): CorePr
   const catalogFacade = createCoreCatalogFacade();
   const registry = new CoreSourceRegistry();
   const access = writable<string>('');
+  const scan = writable<CoreScanObservation>(idleScanObservation());
   const client = new CoreOwnerClient({
     post: options.post,
     queueFacade,
     catalogFacade,
     onError: options.onError,
-    onAccess: (next) => access.set(next)
+    onAccess: (next) => access.set(next),
+    onScan: (next) => scan.set(next)
   });
-  return { queueFacade, catalogFacade, registry, client, access: { subscribe: access.subscribe } };
+  return {
+    queueFacade,
+    catalogFacade,
+    registry,
+    client,
+    access: { subscribe: access.subscribe },
+    scan: { subscribe: scan.subscribe }
+  };
 }

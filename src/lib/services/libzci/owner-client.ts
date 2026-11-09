@@ -15,6 +15,7 @@ import {
   type CoreBookmark
 } from './bookmarks';
 import { validateImageSequence, type CoreImageSequence } from './image-sequence';
+import { validateScanObservation, type CoreScanObservation } from './scan-observation';
 import {
   SCAN_MAX_ID,
   SCAN_MAX_TOKEN,
@@ -66,8 +67,9 @@ import type { CoreProfileQueueState } from './queue-snapshot';
  *   validates the returned summary. Staging, enumeration, and reconciliation
  *   belong to the future scan slice.
  * - `handleMessage` routes `snapshot` into the read-only queue facade
- *   (newer revisions win), tracks the `access` string with an `onAccess`
- *   callback, and routes `result`/`error` into pending requests.
+ *   (newer revisions win), tracks the `access` string and `scan` observation
+ *   with `onAccess`/`onScan` callbacks, and routes `result`/`error` into
+ *   pending requests.
  *
  * Budgets mirror the crude owner: at most 32 in-flight requests shared by
  * all channels. Ingest/restore/transport/materialization remain open A2 work.
@@ -159,7 +161,7 @@ export type OwnerOutgoingMessage =
     };
 
 export type OwnerIncomingMessage =
-  | { type: 'snapshot'; profile: CoreProfileQueueState; access?: string }
+  | { type: 'snapshot'; profile: CoreProfileQueueState; access?: string; scan?: CoreScanObservation }
   | { type: 'result'; request: string; value?: unknown; error?: string }
   | { type: 'error'; detail: string; kind?: string };
 
@@ -169,6 +171,7 @@ export interface OwnerClientOptions {
   catalogFacade?: CoreCatalogFacade;
   onError?: (error: Error) => void;
   onAccess?: (access: string) => void;
+  onScan?: (scan: CoreScanObservation) => void;
 }
 
 export class CoreOwnerClient {
@@ -177,8 +180,10 @@ export class CoreOwnerClient {
   readonly #catalogFacade?: CoreCatalogFacade;
   readonly #onError?: (error: Error) => void;
   readonly #onAccess?: (access: string) => void;
+  readonly #onScan?: (scan: CoreScanObservation) => void;
   readonly #table = new EngineRequestTable();
   #access = '';
+  #scan: CoreScanObservation | null = null;
 
   constructor(options: OwnerClientOptions) {
     this.#post = options.post;
@@ -186,6 +191,7 @@ export class CoreOwnerClient {
     this.#catalogFacade = options.catalogFacade;
     this.#onError = options.onError;
     this.#onAccess = options.onAccess;
+    this.#onScan = options.onScan;
   }
 
   get pending(): number {
@@ -195,6 +201,11 @@ export class CoreOwnerClient {
   /** Latest owner access string (`''` before the first snapshot). */
   get access(): string {
     return this.#access;
+  }
+
+  /** Latest scan observation (`null` before the first snapshot carrying one). */
+  get scan(): CoreScanObservation | null {
+    return this.#scan;
   }
 
   #issue<T>(type: 'queue' | 'catalog', command: CoreQueueCommand | CoreCatalogCommand, scope: string): Promise<T> {
@@ -439,6 +450,11 @@ export class CoreOwnerClient {
       if (typeof message.access === 'string') {
         this.#access = message.access;
         this.#onAccess?.(message.access);
+      }
+      if (message.scan !== undefined) {
+        validateScanObservation(message.scan);
+        this.#scan = message.scan;
+        this.#onScan?.(message.scan);
       }
       return;
     }

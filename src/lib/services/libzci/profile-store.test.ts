@@ -26,12 +26,14 @@ describe('core profile store', () => {
         queue: { items: [{ id: 1, source_key: 'a', subsong: null }], current: 1, up_next: [] },
         position_seconds: 0
       },
-      access: 'granted'
+      access: 'granted',
+      scan: { state: 'scanning', root: 3, visited: 8, accepted: 1, ignored: 0, detail: 'run' }
     });
     expect(get(store.queueFacade.revision)).toBe(2);
     expect(get(store.queueFacade.view)?.catalogRevision).toBe(2);
     expect(store.client.access).toBe('granted');
     expect(get(store.access)).toBe('granted');
+    expect(get(store.scan)).toEqual({ state: 'scanning', root: 3, visited: 8, accepted: 1, ignored: 0, detail: 'run' });
 
     const page = {
       revision: 3,

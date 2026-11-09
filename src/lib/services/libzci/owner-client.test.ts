@@ -17,6 +17,22 @@ function profile(revision: number): CoreProfileQueueState {
 }
 
 describe('core owner client', () => {
+  it('tracks access and scan observations from snapshots', () => {
+    const scans: unknown[] = [];
+    const scanClient = new CoreOwnerClient({ post: () => undefined, onScan: (scan) => scans.push(scan) });
+    expect(scanClient.scan).toBeNull();
+    scanClient.handleMessage({ type: 'snapshot', profile: profile(1) });
+    expect(scanClient.scan).toBeNull();
+    expect(scans).toHaveLength(0);
+    const observation = { state: 'scanning' as const, root: 3, visited: 10, accepted: 2, ignored: 1, detail: 'run' };
+    scanClient.handleMessage({ type: 'snapshot', profile: profile(2), scan: observation });
+    expect(scanClient.scan).toEqual(observation);
+    expect(scans).toEqual([observation]);
+    expect(() =>
+      scanClient.handleMessage({ type: 'snapshot', profile: profile(3), scan: { ...observation, state: 'bogus' as never } })
+    ).toThrow();
+  });
+
   it('tracks access strings from snapshots', () => {
     const accesses: string[] = [];
     const client = new CoreOwnerClient({

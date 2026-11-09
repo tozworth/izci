@@ -1,5 +1,24 @@
 # libzci implementation log
 
+## 2026-11-09: A2 thirty-eighth slice — scan observation through owner and store
+
+Status: **implemented; check/focused-test evidence passed**. No live owner
+worker yet; scan execution, facades, and materialization remain open. This
+slice does not close A2.
+
+- Extended `owner-client.ts` with snapshot `scan` tracking (`scan` getter +
+  `onScan` callback with validation; snapshots without `scan` leave state
+  unchanged) and `profile-store.ts` with a shared `scan` readable (idle
+  before the first snapshot carrying one). Components can render scan
+  progress alongside queue/catalog/access without workers.
+- Extended `owner-client.test.ts` (scan tracking/validation) and
+  `profile-store.test.ts` (shared scan store) coverage.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- Focused vitest (`owner-client/profile-store/scan-observation`): 14 passed.
+
 ## 2026-11-09: A2 thirty-seventh slice — rendition request boundary
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
