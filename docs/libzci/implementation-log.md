@@ -1,5 +1,31 @@
 # libzci implementation log
 
+## 2026-11-09: A2 fifth slice — core queue command boundary
+
+Status: **implemented; check/full-test/build evidence passed**. No live owner
+worker yet; queue persistence, owner election, catalog, and materialization
+remain open. This slice does not close A2.
+
+- New `queue-commands.ts` pins the shared core queue JSON contract
+  (`QueueCommand` snake_case envelope, `SourceReference`, `QueueSettings`
+  with replay-gain/play-count defaults) and maps Svelte `TrackItem`s to
+  core references without persisting handles, blobs, or URLs. Builders cover
+  append/play/remove/move/up_next/next/previous/clear_up_next/settings/
+  checkpoint/volume/mute plus settings mapping, durable `${uuid}/${scope}`
+  request ids, and validation mirroring `SourceReference::validate`,
+  `QueueSettings::validate`, and the `1..10000` queue bound.
+- New `queue-commands.test.ts` pins the wire shapes, source-kind mapping
+  (`native_path`/`browser_handle`/`ephemeral`), settings defaults, request-id
+  bounds, and failure cases. The existing read-only `queue-facade` remains
+  the observation path; commands will flow through the future owner worker.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm test`: 234 files / 1,474 tests passed.
+- `npm run build`: passed; PWA precache 172 entries, unchanged.
+- Focused vitest (`queue-commands/facade/snapshot/runtime/snapshot`): 20 passed.
+
 ## 2026-11-09: A2 next slice — read-only core queue facade
 
 Status: **implemented; check/focused-test evidence passed**. The facade is
