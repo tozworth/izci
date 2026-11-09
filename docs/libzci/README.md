@@ -90,12 +90,13 @@ settings, source registry, facades, owner-client channels including ingest/
 restore/attach/context/ack/output-error/close, playback resolution,
 play-count/normalization/lyrics/rendition observations, capability/ingest/
 durable/access/namespace/transport-guard boundaries, 17-channel worker
-protocol, unified store, stub `profile-owner.worker.ts` + spawn helper) with
-typecheck/unit/build evidence but no live execution yet.
+protocol with unified load validation, unified store, stub
+`profile-owner.worker.ts` + spawn helper) with typecheck/unit/build evidence
+but no live execution yet.
 Queue/library persistence cutover, file-access ownership, and the remaining
 domain/transport/mobile/Oda wiring are the next slices; the browser video path
 stays native. See the latest
-[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-forty-eighth-slice--owner-client-close-notification).
+[A2 implementation-log entries](implementation-log.md#2026-11-09-a2-forty-ninth-slice--unified-load-validation-and-result-checks).
 Preserve ordinary izci profiles/grants throughout adoption; sound checks use
 muted/low output.
 
