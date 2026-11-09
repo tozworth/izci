@@ -1,5 +1,33 @@
 # libzci implementation log
 
+## 2026-11-09: A2 forty-fifth slice — stub profile owner worker
+
+Status: **implemented; check/focused-test evidence passed**. Storage, locks,
+channels, OPFS/SQLite, and execution remain open. This slice does not close A2.
+
+- New `profile-owner.worker.ts` (validating-only stub, no storage imports):
+  validates the document envelope and profile name, answers `profile-init`
+  with `profile-ready`/`profile-failed`, `close` with a null result, and
+  `ack` silently; every other channel gets a stub `not-implemented` result.
+  Real `openDatabase`/`WebProfile`/`Capabilities`/owner election land in
+  later slices (they need the `@sqlite.org/sqlite-wasm` dependency, which
+  the main app does not have yet).
+- New `profile-owner.ts` spawn helper (name validation first, single
+  `new URL(..., import.meta.url)` import site, posts `profile-init`).
+- New `profile-owner.test.ts` pins name validation and the `profile-init`
+  post through the single import site (mocked `Worker`).
+- No chunk emitted yet: nothing references the spawn helper in production
+  code, so the build precache is unchanged by design; the chunk lands when
+  the first construction site wires it.
+
+Evidence on Windows x64 (no browser, no device):
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm test`: 261 files / 1553 passed.
+- `npm run build`: passed; PWA precache 172 entries, unchanged (no live
+  construction site yet).
+- Focused vitest (`profile-owner`): 2 passed.
+
 ## 2026-11-09: A2 forty-fourth slice — scan batch bounds
 
 Status: **implemented; check/focused-test evidence passed**. No live owner
